@@ -1,9 +1,9 @@
 {
-  "$schema": "https://mintlify.com/schema.json",
-  "name": "Starter Kit",
+  "name": "hoop.dev - The Easy Way to Manage Remote Access",
   "logo": {
     "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
+    "light": "/logo/light.svg",
+    "href": "https://hoop.dev"
   },
   "favicon": "/favicon.svg",
   "colors": {
