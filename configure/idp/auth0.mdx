@@ -1,4 +1,22 @@
 ---
 title: "Auth0"
-description: "Example section for showcasing API endpoints"
 ---
+
+## Requirements
+
+- An [account in Auth0](https://auth0.com)
+- `API_URL` is the public DNS name of the hoop gateway instance
+
+Contact the administrator of the hoop gateway instance to retrieve the `API_URL` address.
+
+## Identity Provider Configuration
+
+### 1) Create a New Application
+
+- Go to **Applications > Applications** and click on the **Create Application** button
+- Select a Regular Web Application
+
+### 2) Configure the Redirect URIs
+
+- Allowed Callback URLs: `{API_URL}/api/callback`
+- Allowed Logout URLs: `{API_URL}/api/logout`

@@ -1,0 +1,52 @@
+---
+title: "Okta"
+---
+
+## Requirements
+
+- Hoop Command Line
+- An [account in OKTA](https://developer.okta.com)
+- `API_URL` is the public DNS name of the hoop gateway instance
+
+Contact the administrator of the hoop gateway instance to retrieve the `API_URL` address.
+
+## Identity Provider Configuration
+
+### 1. Create a new application
+- Go to `Applications > Applications` and click on the Create App Integration button
+- In Sign-in Method, select OIDC - OpenID Connect
+- In Application type, select Web Application
+
+### 2. Configure the redirect URIs
+- Signin redirect URIs: `{API_URL}/api/callback`
+- Signout redirect URIs: `{API_URL}/api/logout`
+
+<img
+  src="/images/idp/okta-1.jpeg"
+/>
+
+### 3. Collect the required information
+
+**IDP_CLIENT_ID & IDP_CLIENT_SECRET**
+- In the Application Home
+
+<img
+  src="/images/idp/okta-2.jpeg"
+/>
+
+**IDP_ISSUER**
+- The Issuer URI depends on the authorization server being used. Refer to [this documentation](https://developer.okta.com).
+
+If Okta does not allow external applications to validate access tokens, add the query string `_userinfo=1`. This indicates that the [userinfo endpoint](https://openid.net) should be used.
+
+```bash
+IDP_ISSUER=https://${yourOktaOrg}?_userinfo=1
+```
+
+The `_userinfo` value is removed when used to exchange information with the identity provider.
+
+### 4. Add ‘https://app.hoop.dev/groups’ claim to ID Token (optional)
+- Go to `Security > API > {authorization server} > Claims`
+- Add `https://app.hoop.dev/groups` in the ID Token
+
+<Info>If the above instructions are not applicable to your Okta setup, configure it by adding a group claim to the organization's authorization server. Refer to [this documentation](https://developer.okta.com).</Info>
