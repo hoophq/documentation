@@ -39,10 +39,6 @@
   ],
   "navigation": [
     {
-      "group": "Get Started",
-      "pages": ["introduction"]
-    },
-    {
       "group": "Deploy & Host",
       "pages": ["deploy/AWS", "deploy/kubernetes"]
     },
