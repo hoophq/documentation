@@ -37,19 +37,23 @@ This is the recommended approach. It will require validating a domain of your se
 
 The certificate will remain pending until you validate, depending on the chosen method.
 
-<img
-  className="block"
-  src="/images/aws/creating-valid-certificate.png"
-  alt="Creating a valid certificate"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/creating-valid-certificate.png"
+    alt="Creating a valid certificate"
+  />
+</Frame>
 
 Access the certificate ID entry and follow the instructions to validate the certificate. Copy its ARN. Once you finish validating it, the status will change to green.
 
-<img
-  className="block"
-  src="/images/aws/creating-valid-certificate2.png"
-  alt="Creating a valid certificate"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/creating-valid-certificate2.png"
+    alt="Creating a valid certificate"
+  />
+</Frame>
 
 ### Creating and Importing Self-Signed Certificate
 
@@ -57,10 +61,12 @@ Now, copy the ARN in the `AwsCertificateArn` parameter and add the domain of the
 
 1. Once the deployment has completed (you should see "CREATE_COMPLETE" on all items under "Stacks"), click in the stack and then in the tab Outputs.
 
-<img
-  className="block"
-  src="/images/aws/creating-importing-self-signed-1.png"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/creating-importing-self-signed-1.png"
+  />
+</Frame>
 
 Copy the load balancer address and create a CNAME record in your DNS management service pointing to the domain specified in your certificate.
 
@@ -72,33 +78,41 @@ The setup uses AWS Cognito by default, you’ll need to add the first user and t
 
 1. In the stack, go to Outputs and search for “cognito”
 
-<img
-  className="block"
-  src="/images/aws/view-dashboard-1.png"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/view-dashboard-1.png"
+  />
+</Frame>
 
 2. Click on the Physical ID link and then on create user in the Cognito's user pool
 
-<img
-  className="block"
-  src="/images/aws/view-dashboard-2.png"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/view-dashboard-2.png"
+  />
+</Frame>
 
 3. Now, visit the public DNS link provided in the parameter AppPublicDNS: `https://yourdomain.tld`
 
 4. Now, fill out the form with your Email and Password and Sign In
 
-<img
-  className="block"
-  src="/images/aws/view-dashboard-3.png"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/view-dashboard-3.png"
+  />
+</Frame>
 
 5. You’ll be redirected to the main screen, where you can choose which service to connect
 
-<img
-  className="block"
-  src="/images/aws/view-dashboard-4.png"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/view-dashboard-4.png"
+  />
+</Frame>
 
 <Tip>
   If you choose to import a self-signed certificate, make sure to import the `rootCA.crt` in your system properly to bypass the self-signed warning.
@@ -132,10 +146,12 @@ You’ll need to update if you want to keep your installation in sync with the l
 
 1. Go to CloudFormation > Select the installed stack > Click on Update
 
-<img
-  className="block"
-  src="/images/aws/how-to-update-1.png"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/how-to-update-1.png"
+  />
+</Frame>
 
 2. Choose Replace Existing Template and enter the URL below, which corresponds to your deployment region:
     - us-east-1 https://hoopdev-platform-cf-us-east-1.s3.us-east-1.amazonaws.com/latest/hoopdev-platform.template.yaml
@@ -152,10 +168,12 @@ You’ll need to update if you want to keep your installation in sync with the l
 4. Ensure that "Stack failure options" is set to "Roll back all stack resources" and select Next.
     - If deployment issues arise, we may ask you to change this, but if set to preserve, CF will refuse to deploy certain types of changes.
 
-<img
-  className="block"
-  src="/images/aws/how-to-update-2.png"
-/>
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/how-to-update-2.png"
+  />
+</Frame>
 
 5. Check both of the boxes around permissions at the bottom and select Update Stack.
     - You don't need to wait for the change set to load.

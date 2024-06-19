@@ -4,8 +4,340 @@ description: 'Display inline code and code blocks'
 icon: 'dharmachakra'
 ---
 
-Installing hoop.dev in your infrastructure is straightforward. After everything is properly installed and configured, you will have a web interface to create and manage access to your connections for everyone you invite to use it.
+This page provides instructions on how to configure the Helm chart to install Hoop in any cloud provider.
 
-Check our Configuration and Identity Provider sections for proper setup and see the Web Client, Command Line, and Desktop App links for ways of using [hoop.dev](http://hoop.dev) as best suited to you as possible.
+### **values.yaml**
 
-## Basic
+```yaml
+# gateway base configuration
+config:
+  POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+  API_URL: 'https://hoopdev.yourdomain.tld'
+  IDP_CLIENT_ID: 'client-id'
+  IDP_CLIENT_SECRET: 'client-secret'
+  IDP_ISSUER: 'https://idp-issuer-url'
+
+# api / webapp ingress configuration
+ingressApi:
+  enabled: true
+  host: hoopdev.yourdomain.tld
+  ingressClassName: alb
+  annotations: {}
+    # annotations example using aws alb controller
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:200074533906:certificate/9658b3bc-60bf-4097-aa48-a73c0a0c0baf
+    # alb.ingress.kubernetes.io/group.name: appdemo
+
+# gRPC ingress configuration
+ingressGrpc:
+  enabled: true
+  host: hoopdev.yourdomain.tld
+  ingressClassName: alb
+  annotations: {}
+    # annotations example using aws alb controller
+    # alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:200074533906:certificate/9658b3bc-60bf-4097-aa48-a73c0a0c0baf
+```
+
+<Info>
+Although you can set up the gateway without an ingress, it will be useless because you won't be able to connect clients to it.
+</Info>
+
+## Installing
+
+To install the latest version in a new namespace (example: `appdemo`). Issue the command below:
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm upgrade --install hoop \
+  https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+  -f values.yaml \
+  --namespace appdemo
+```
+
+### Overwriting or passing new attributes
+
+It is possible to add new attributes or overwrite an attribute from a base `values.yaml` file. In the example below, we enable the deployment of an agent running side by side with the gateway.
+
+```bash
+helm upgrade --install hoop \
+  https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+  -f values.yaml \
+  --set agentConfig.HOOP_KEY=<AUTH_KEY> \
+  --set agentConfig.LOG_LEVEL=debug
+```
+
+## Generating Manifests
+
+If you prefer using manifests over Helm, we recommend this approach. It allows you to track any modifications to the chart whenever a new version appears. You can apply a diff to your versioned files to identify what has been altered.
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm template hoop \
+  https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+  -f values.yaml
+```
+
+## Agent Deployment
+
+### Helm
+
+Make sure you have helm installed in your machine. Check [Helm installation page](https://helm.sh/docs/intro/install/)
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm upgrade --install hoopagent \
+	https://releases.hoop.dev/release/$VERSION/hoopagent-chart-$VERSION.tgz \
+	--set "config.HOOP_KEY=<AUTH-KEY>"
+```
+
+#### Using Manifests
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm template hoopagent \
+	https://releases.hoop.dev/release/$VERSION/hoopagent-chart-$VERSION.tgz \
+	--set 'config.HOOP_KEY=<AUTH-KEY>' \
+  --set 'image.tag=1.21.31' \
+  --set 'extraSecret=AWS_REGION=us-east-1'
+```
+
+<Warning>
+  Starting from version **1.21.9**, there is only one way to configure the agent key, which is by using the `config.HOOP_KEY` configuration. This requires creating a key in a DSN format in the API. To use legacy options, use the Helm chart version **1.21.4**.
+</Warning>
+
+### Standalone Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoopagent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hoopagent
+  template:
+    metadata:
+      labels:
+        app: hoopagent
+    spec:
+      containers:
+      - name: hoopagent
+        image: hoophq/hoopdev
+        env:
+        - name: HOOP_KEY
+          value: '<AUTH-KEY>'
+```
+
+### Sidecar Container
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp
+        image: myapp
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+      - name: hoopagent
+        image: hoophq/hoopdev
+        env:
+        - name: HOOP_KEY
+          value: '<AUTH-KEY>'
+```
+
+### Chart Configuration
+
+#### Base Configuration
+
+```yaml
+config:
+  POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+  API_URL: ''
+  IDP_CLIENT_ID: ''
+  IDP_CLIENT_SECRET: ''
+  IDP_ISSUER: ''
+  IDP_AUDIENCE: ''
+  IDP_CUSTOM_SCOPES: ''
+  GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
+  WEBHOOK_APPKEY: ''
+  PLUGIN_AUDIT_PATH: '/opt/hoop/sessions'
+  PLUGIN_INDEX_PATH: '/opt/hoop/sessions/indexes'
+  ADMIN_USERNAME: 'admin'
+  GODEBUG: 'http2debug=0'
+  LOG_GRPC: '0'
+  LOG_LEVEL: 'info'
+  LOG_ENCODING: 'json'
+```
+
+### Persistence
+
+We recommend using persistent volumes for session blobs to avoid losing sessions during outages or restarts. The following example shows how to enable a 100GB persistent volume when using AWS/EKS.
+
+```yaml
+persistence:
+  # -- Use persistent volume for write ahead log sessions
+  enabled: true
+  storageClassName: gp2
+
+  # -- Size of persistent volume claim
+  size: 100Gi
+```
+
+### Ingress Configuration
+
+This section covers the ingress configuration. The gateway requires exposing the ports **HTTP/8009** and **HTTP2/8010.** The ingress configuration establishes these two differing configurations based on the [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) in use.
+
+Below is an example of how to configure the ingress using the [application load balancer controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v1.1/) from AWS.
+
+```yaml
+# HTTP/8009 - API / WebApp
+ingressApi:
+  enabled: true
+  # the public DNS name
+  host: 'hoopdev.yourdomain.tld'
+  # the ingress class, in this case alb
+  ingressClassName: 'alb'
+  annotations:
+    # uses the ACM service to use a valid public certificate issued by AWS
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
+    # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
+    alb.ingress.kubernetes.io/group.name: 'appdemo'
+    alb.ingress.kubernetes.io/healthcheck-path: '/'
+    alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/scheme: 'internet-facing'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+  # -- TLS section configuration
+  # tls: {}
+
+# HTTP/8010 - gRPC Service
+ingressGrpc:
+  enabled: true
+  # the public DNS name
+  host: 'hoopdev.yourdomain.tld'
+  # the ingress class, in this case alb
+  ingressClassName: 'alb'
+  annotations:
+    # configures the type of the protocol
+    alb.ingress.kubernetes.io/backend-protocol-version: 'GRPC'
+    # the certificate could be reused for the same protocol
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
+    # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
+    alb.ingress.kubernetes.io/group.name: 'appdemo'
+    alb.ingress.kubernetes.io/healthcheck-path: '/'
+    alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 8443}]'
+    alb.ingress.kubernetes.io/scheme: 'internet-facing'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+
+  # -- TLS section configuration
+  # tls: {}
+```
+
+<Info>
+  It is important to note that the gRPC service requires the ability to receive HTTP2 traffic. If there are multiple load balancers in place, it is important to ensure that the underlying proxies allow forwarding this type of protocol.
+</Info>
+
+### Computing Resources
+
+The helm-chart defaults to 1vCPU and 1GB, which is suitable for evaluation purposes only. For production setups, we recommend allocating at least 4GB/4vCPU to the gateway process.
+
+```yaml
+resources:
+  gw:
+    limits:
+      cpu: 4096m
+      memory: 4Gi
+    requests:
+      cpu: 4096m
+      memory: 4Gi
+```
+
+### Image Configuration
+
+By default, the latest version of all images is used. If you want to use a specific image or pin the versions, use the `image` attribute section.
+
+```yaml
+image:
+  gw:
+    repository: hoophq/hoop
+    pullPolicy: Always
+    tag: latest
+
+# agent running in sidecar with the gateway
+agentConfig:
+  HOOP_KEY: '<AUTH_KEY>'
+  imageRepository: hoophq/hoopdev
+  imagePullPolicy: Always
+  imageTag: latest
+```
+
+### Node Selector
+
+This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
+
+See [this documentation](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/) for more information.
+
+```yaml
+# -- Node labels for pod assignment
+nodeSelector:
+  disktype: ssd
+```
+
+### Tolerations
+
+See this article explaining how to configure [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+
+```yaml
+# -- Toleration labels for pod assignment
+tolerations:
+- effect: NoExecute
+  key: spot
+  value: "true"
+- effect: NoSchedule
+  key: spot
+  value: "true"
+```
+
+### Node Affinity
+
+See [this article](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) explaining how to configure affinity and anti-affinity rules
+
+```yaml
+# -- Affinity settings for pod assignment
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+          - antarctica-east1
+          - antarctica-west1
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
+        - key: another-node-label-key
+          operator: In
+          values:
+          - another-node-label-value
+```

@@ -25,12 +25,6 @@
     "name": "Get started",
     "url": "https://hoop.dev/start"
   },
-  "tabs": [
-    {
-      "name": "API Reference",
-      "url": "api-reference"
-    }
-  ],
   "anchors": [
     {
       "name": "Community",
@@ -68,21 +62,16 @@
             "configure/idp/aws-cognito"
           ]
         },
-        "configure/ai-data-masking",
+        {
+          "group": "AI Data Masking",
+          "icon": "wand-sparkles",
+          "pages": [
+            "configure/ai-data-masking/get-started",
+            "configure/ai-data-masking/fields"
+          ]
+        },
         "configure/ai-query-builder",
         "configure/runbooks"
-      ]
-    },
-    {
-      "group": "API Documentation",
-      "pages": ["api-reference/introduction"]
-    },
-    {
-      "group": "Endpoint Examples",
-      "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete"
       ]
     }
   ],
