@@ -35,6 +35,11 @@
       "name": "Blog",
       "icon": "newspaper",
       "url": "https://hoop.dev/blog"
+    },
+    {
+      "name": "Help guides",
+      "icon": "book-open",
+      "url": "https://hoop.dev/help"
     }
   ],
   "navigation": [
