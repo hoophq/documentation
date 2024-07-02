@@ -55,7 +55,8 @@
             "getting-started/installation/kubernetes"
           ]
         },
-        "getting-started/cli"
+        "getting-started/cli",
+        "getting-started/desktop-app"
       ]
     },
     {
