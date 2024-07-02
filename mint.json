@@ -44,8 +44,19 @@
   ],
   "navigation": [
     {
-      "group": "Deploy & Host",
-      "pages": ["deploy/overview", "deploy/AWS", "deploy/kubernetes"]
+      "group": "Getting Started",
+      "pages": [
+        "getting-started/introduction",
+        {
+          "group": "Installation",
+          "pages": [
+            "getting-started/installation/overview",
+            "getting-started/installation/AWS",
+            "getting-started/installation/kubernetes"
+          ]
+        },
+        "getting-started/cli"
+      ]
     },
     {
       "group": "Configure",
@@ -69,8 +80,7 @@
             "configure/ai-data-masking/get-started",
             "configure/ai-data-masking/fields"
           ]
-        },
-        "configure/ai-query-builder"
+        }
       ]
     },
     {
@@ -108,7 +118,8 @@
         "learn/access-control",
         "learn/runbooks",
         "learn/secrets-manager",
-        "learn/session-recording"
+        "learn/session-recording",
+        "learn/ai-query-builder"
       ]
     }
   ],
