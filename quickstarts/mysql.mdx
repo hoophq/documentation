@@ -15,15 +15,15 @@ The table below explains which features are available for this kind of connectio
 - **One Off -** It's when a hoop client performs ad hoc executions (*e.g, webapp, hoop cli*)
 
 | Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | ✅ (partial) | ✅ | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | ✅ | ✅ | The gateway stores and audits the queries being issued by the client. |
-| Data Masking (DLP) | 🚫 | ✅ | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | ✅ | ✅ | The user authenticates via SSO instead of using database credentials. |
-| Interactive Access | ✅ | ✅ | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
+| ------- | ------ | ------- | ----------- |
+| TLS Termination Proxy | <Icon icon="check" /> *partial | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
+| Audit | <Icon icon="check" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client. |
+| Data Masking (DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
+| Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
 
 <Info>
-**partial:** *the connection is TLS offloaded until it reaches the agent. However, once it reaches to it, the network connection is established without any encryption with the remote server. It'ss important to ensure that the network running the agent is reliable.*
+***partial:** the connection is TLS offloaded until it reaches the agent. However, once it reaches to it, the network connection is established without any encryption with the remote server. It'ss important to ensure that the network running the agent is reliable.
 </Info>
 
 ## Configuration
