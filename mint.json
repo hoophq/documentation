@@ -45,7 +45,7 @@
   "navigation": [
     {
       "group": "Deploy & Host",
-      "pages": ["deploy/AWS", "deploy/kubernetes"]
+      "pages": ["deploy/overview", "deploy/AWS", "deploy/kubernetes"]
     },
     {
       "group": "Configure",
@@ -53,8 +53,8 @@
         "configure/env-vars",
         {
           "group": "Identity Providers",
-          "icon": "users",
           "pages": [
+            "configure/idp/get-started",
             "configure/idp/auth0",
             "configure/idp/okta",
             "configure/idp/google",
@@ -65,14 +65,50 @@
         },
         {
           "group": "AI Data Masking",
-          "icon": "wand-sparkles",
           "pages": [
             "configure/ai-data-masking/get-started",
             "configure/ai-data-masking/fields"
           ]
         },
-        "configure/ai-query-builder",
-        "configure/runbooks"
+        "configure/ai-query-builder"
+      ]
+    },
+    {
+      "group": "Quickstarts",
+      "pages": [
+        "quickstarts/mysql",
+        "quickstarts/postgres",
+        "quickstarts/mssql",
+        "quickstarts/mongodb",
+        "quickstarts/oracle",
+        {
+          "group": "AWS",
+          "pages": ["quickstarts/aws/aws-cli", "quickstarts/aws/aws-ecs"]
+        },
+        "quickstarts/kubernetes",
+        "quickstarts/apache-cassandra",
+        {
+          "group": "Python",
+          "pages": [
+            "quickstarts/python/python-scripts",
+            "quickstarts/python/django-admin"
+          ]
+        },
+        "quickstarts/ruby-on-rails",
+        "quickstarts/elixir-IEx",
+        "quickstarts/php-artisan",
+        "quickstarts/webapps-and-apis",
+        "quickstarts/ssh-jump-hosts"
+      ]
+    },
+    {
+      "group": "Learn",
+      "pages": [
+        "learn/architecture",
+        "learn/access-control",
+        "learn/runbooks",
+        "learn/secrets-manager",
+        "learn/session-recording"
       ]
     }
   ],

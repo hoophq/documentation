@@ -1,0 +1,18 @@
+---
+title: "Architecture"
+description: "Understand the architecture of hoop.dev."
+---
+
+hoop.dev is a rich gateway that allows you to run operations in your infrastructure without the need to expose your environment to the internet.
+
+<Frame>
+  <img src="/images/architecture.png"/>
+</Frame>
+
+## hoop.dev components
+
+- **hoop Gateway**: The main component that receives all the requests and routes them to the right agent. hoop.dev's gateway is also responsible to manage authentication and authorization communicating with your Identity Provider. For reference of supported Identity Providers, check our [Identity Providers](/configure/idp) page.
+    - **Web Client**: A web interface with management tools and a rich code editor to interact with all your connections;
+    - **API** (REST): hoop.dev's API allows you to interact with your connections programmatically; It's the same API that the Web Client uses;
+    - **PostgreSQL**: hoop.dev's database that stores all the metadata and configurations of your connections;
+- **hoop Agent**: A lightweight agent that runs in your infrastructure and executes the operations you request. hoop.dev's agent is responsible for running the operations in your infrastructure through a secure gRPC tunnel with the hoop Gateway;

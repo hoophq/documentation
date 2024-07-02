@@ -1,0 +1,32 @@
+---
+title: "Oracle"
+description: "Execute queries to Oracle instances with [sqlcl](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/)."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+## Configuration
+
+| Name | Required | Description |
+| --- | --- | --- |
+| SQLCL_URI | yes | The connect identifier. Example: `myusername/mypassword@Host/ORCL` |
+| TERM | yes | The name of terminal setting |
+
+In order to configure this type, it's necessary to create the target directly from the API
+
+```bash
+hoop admin create conn my-oracle-db -a <agent> \
+	-e SQLCL_URI=<uri> \
+	-e TERM=<term> \
+	-- sqlcl
+```
+
+## Examples[](https://runops.io/docs/connections/sqlcl#examples)
+
+Then, it's possible to run queries into an Oracle database
+
+```bash
+hoop exec my-oracle-db -i 'SELECT SYSDATE, CURRENT_TIMESTAMP FROM DUAL'
+```

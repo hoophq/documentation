@@ -1,0 +1,37 @@
+---
+title: "Apache Cassandra"
+description: "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html)."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+## Configuration[](https://runops.io/docs/connections/cqlsh#configuration)
+
+| Name | Required | Description |
+| --- | --- | --- |
+| CQLSH_KEYSPACE | yes | The keyspace target |
+| CQLSH_HOST | yes | The host of the Cassandra cluster |
+| CQLSH_PORT | no | The Vault Token. Defaults to 9043 |
+| CQLSH_USER | no | The user can connect in the Cassandra cluster. |
+| CQLSH_PASSWD | no | The password to connect in the Cassandra cluster. |
+
+Create a connection
+
+```bash
+hoop admin create conn my-cqlsh-test -a <agent> \
+  -e CQLSH_KEYSPACE=<keyspace> \
+  -e CQLSH_HOST=<host> \
+  -e CQLSH_USER=<user> \
+  -e CQLSH_PASSWD=<user> \
+ -- cqlsh
+```
+
+### Examples[](https://runops.io/docs/connections/cqlsh#examples)
+
+Then, it's possible to run queries into a Cassandra connection.
+
+```bash
+hoop exec my-cqlsh-test -i 'SELECT * FROM table1;'
+```

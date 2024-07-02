@@ -1,0 +1,36 @@
+---
+title: "Web Apps & APIs"
+description: "Interact with web applications and APIs tunneling through hoop.dev."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+|  | One-off | Interactive | Policies | Input Audits | Output Audits |
+| --- | --- | --- | --- | --- | --- |
+| Command-line | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
+| Editor | ✔️ | Not applicable | ✔️ | ✔️ | ✔️ |
+
+Port Forward local ports from your private network | HTTP example.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| HOST | env-var | The IP or hostname of the service |
+| PORT | env-var | The port of the service |
+
+## Connection Configuration
+
+## How to Use
+
+```bash
+hoop connect my-http --port 8080
+```
+
+Open the forwarded service in a web browser or via HTTP request.
+
+```bash
+curl http://127.0.0.1:8080
+# or
+open http://127.0.0.1:8080
+```

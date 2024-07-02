@@ -1,0 +1,80 @@
+---
+title: "MongoDB"
+description: "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+<Info>
+This integration only accepts [SCRAM authentication](https://www.mongodb.com/docs/manual/core/security-scram/#scram) for native connections.
+</Info>
+
+## Features
+
+The table below outlines the features available for this type of connection.
+
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries.
+- **One Off -** This term refers to when a Hoop client performs ad hoc executions through a web app or Hoop CLI.
+
+| Feature | Native | One Off | Description |
+| --- | --- | --- | --- |
+| TLS Termination Proxy | ✅ | ✅ | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
+| Audit | ✅ | ✅ | The gateway stores and audits the queries being issued by the client |
+| Data Masking (DLP) | 🚫 | ✅ | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Credentials Offload | ✅ | ✅ | The user authenticates via SSO instead of using database credentials. |
+| Interactive Access | ✅ | ✅ | Interactive access is available when using an IDE or connecting via a terminal for analysis exploration. |
+
+## Configuration
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| CONNECTION_STRING | env-var | yes | The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format. |
+
+```bash
+hoop admin create conn mongo --type database/mongodb \
+	-a <agent> \
+  -e CONNECTION_STRING=mongodb+srv://<user>:<password>@<host>:<port>/?<options>
+```
+
+<Info>
+There's a limitation when using an IDE (`hoop connect`) to connect to a MongoDB server that utilizes the **SRV Connection Format (mongodb+srv)** or is part of a cluster setup. The integration selects the first host from the connection string, which could be a secondary replica, thus preventing the client from performing any updates.
+</Info>
+
+## How to Use
+
+Start an interactive session and forward the default port (27018) locally.
+
+```bash
+hoop connect mongo
+```
+
+```
+connection: mongo | session: f2e7634a-f4c4-47cd-bee6-48da080e2a23
+
+---------------------mongo-credentials----------------------
+ mongodb://noop:noop@127.0.0.1:27018/?directConnection=true
+------------------------------------------------------------
+```
+
+In the same connection, one-off processes can be executed.
+
+```bash
+hoop exec mongo <<EOF
+db.movies.insertOne(
+  {
+    title: "The Favourite",
+    genres: [ "Drama", "History" ],
+    runtime: 121,
+    rated: "R",
+    year: 2018,
+    directors: [ "Yorgos Lanthimos" ],
+    cast: [ "Olivia Colman", "Emma Stone", "Rachel Weisz" ],
+    type: "movie"
+  }
+)
+EOF
+hoop exec mongo -- --eval 'db.movies.find()'
+hoop exec mongo -i 'db.movies.find()'
+```

@@ -1,0 +1,38 @@
+---
+title: "Ruby on Rails"
+description: "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+## Configuration
+
+To proxy the `rails console` command, execute the following command within your root application path.
+
+```bash
+hoop run --name railsc-demo --command 'rails console'
+```
+
+To proxy ad-hoc executions add the command `rails runner -` .
+
+```bash
+hoop run --name rails-adhoc-demo --command 'rails runner -'
+```
+
+## How to Use
+
+Users can now connect and perform ad-hoc executions.
+
+```bash
+hoop connect railsc-demo
+```
+
+```bash
+hoop exec rails-adhoc-demo -i 'puts "Hello World"'
+```
+
+## Quick Start Guide
+
+- [Compose With Rails](https://www.notion.so/Compose-with-Rails-988ed22c40d0451d94dc366b634fd95f?pvs=21)

@@ -1,0 +1,34 @@
+---
+title: "PHP Artisan"
+description: "Interact with the Artisan console or execute ad-hoc scripts."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+## Configuration
+
+To proxy the `php artisan tinker` command, execute the following command within your root application path.
+
+```bash
+hoop run --name artisan-demo --command 'php artisan tinker'
+```
+
+To proxy ad-hoc executions, add the command `php artisan tinker -`.
+
+```bash
+hoop run --name astisan-demo --command 'php artisan tinker -'
+```
+
+## How to Use
+
+Users can now connect and perform ad-hoc executions.
+
+```bash
+hoop connect artisan-demo
+```
+
+```bash
+hoop exec artisan-demo -i 'echo "Hello World"'
+```

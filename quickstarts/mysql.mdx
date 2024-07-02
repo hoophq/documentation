@@ -1,0 +1,134 @@
+---
+title: "MySQL"
+description: "Connect to a private mysql instance from your favorite IDE"
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+## Features
+
+The table below explains which features are available for this kind of connection.
+
+- **Native** - it's when a database client is connecting via protocol (.e.g, IDE, client libraries)
+- **One Off -** It's when a hoop client performs ad hoc executions (*e.g, webapp, hoop cli*)
+
+| Feature | Native | One Off | Description |
+| --- | --- | --- | --- |
+| TLS Termination Proxy | ✅ (partial) | ✅ | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
+| Audit | ✅ | ✅ | The gateway stores and audits the queries being issued by the client. |
+| Data Masking (DLP) | 🚫 | ✅ | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Credentials Offload | ✅ | ✅ | The user authenticates via SSO instead of using database credentials. |
+| Interactive Access | ✅ | ✅ | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
+
+<Info>
+**partial:** *the connection is TLS offloaded until it reaches the agent. However, once it reaches to it, the network connection is established without any encryption with the remote server. It'ss important to ensure that the network running the agent is reliable.*
+</Info>
+
+## Configuration
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| HOST | env-var | yes | The IP or Host of the MySQL server |
+| PORT | env-var | yes | The port of the MySQL server |
+| USER | env-var | yes | The user to connect in the MySQL server |
+| PASS | env-var | yes | The password to connect to the MySQL server |
+| DB | env-var | yes | The name of the database to connect (Required when using the connection via the command line). |
+| PRE_SQL_SCRIPT_FILE | filesystem | no | Append a custom SQL script at the beginning of the execution. |
+
+```bash
+hoop admin create conn mysqldb --type database/mysql -a <agent> \
+  -e HOST=<host> \
+  -e PORT=<port> \
+  -e USER=<user> \
+  -e PASS=<pass> \
+  -e DB=<db>
+```
+
+## How to Use
+
+```bash
+hoop connect mysqldb
+```
+
+```
+connection: mysqldb | session: 0ebc7492-94bf-498e-ac9c-430f2d5e89b0
+
+---------------------mysql-credentials----------------------
+      host=127.0.0.1 port=5433 user=noop password=noop
+------------------------------------------------------------
+ready to accept connections!
+```
+
+Connect to mysql using any IDE, example:
+
+```bash
+mysql -h 0 -p 3307
+```
+
+## Custom SQL Script
+
+To add custom scripts in the beginning of executions in the webapp client, use the `PRE_SQL_SCRIPT_FILE` env.
+
+This configuration allows for the propagation of information from the current session by providing it as environment variables. Only the environment variables below are expanded:
+
+- HOOP_SESSION_ID
+- HOOP_USER_EMAIL
+- HOOP_CONNECTION_NAME
+- HOOP_CONNECTION_TYPE
+- HOOP_CLIENT_ORIGIN
+- HOOP_CLIENT_VERB
+
+### Propagate Comments
+
+```bash
+hoop admin create conn mysqldb --type database/mysql -a <agent> \
+  -e HOST=<host> \
+  -e PORT=<port> \
+  -e USER=<user> \
+  -e PASS=<pass> \
+  -e DB=<db> \
+  -e filesystem:PRE_SQL_SCRIPT_FILE='/* Executed By $HOOP_USER_EMAIL */'
+```
+
+When the query is executed, the comment is preserved, and administrators can obtain the details by monitoring the MySQL process list.
+
+```
++---------+------------+----------------------------------------------------+
+| Command | State      | Info                                               |
++---------+------------+----------------------------------------------------+
+| Query   | User sleep | /* Executed By user@domain.tld */ select sleep(20) |
+| Query   | init       | show processlist                                   |
++---------+------------+----------------------------------------------------+
+```
+
+### Setting Session Variables
+
+The example below shows how to set specific system variables before issuing any command. It also appends the comment propagating the name of the connection being used.
+
+```bash
+cat - > /tmp/pre-sql-script.sql <<EOF
+SET foreign_key_checks = 'OFF';
+/* Hoop Connection $HOOP_CONNECTION_NAME */
+EOF
+```
+
+```bash
+hoop admin create conn mysqldb --type database/mysql -a <agent> \
+  -e HOST=<host> \
+  -e PORT=<port> \
+  -e USER=<user> \
+  -e PASS=<pass> \
+  -e DB=<db> \
+  -e b64-filesystem:PRE_SQL_SCRIPT_FILE=$(cat /tmp/pre-sql-script.sql |base64)
+```
+
+```bash
+hoop exec mysqldb -i "show variables like '%fore%'"
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| foreign_key_checks | OFF   |
++--------------------+-------+
+```

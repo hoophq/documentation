@@ -1,0 +1,119 @@
+---
+title: "PostgreSQL"
+description: "A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+<Info>
+This type of connection accepts only `MD5` or `scram-sha-256` [authentication methods](https://www.postgresql.org/docs/14/auth-password.html).
+</Info>
+
+## Features
+
+The table below outlines the features available for this type of connection.
+
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries.
+- **One Off -** This term refers to when a Hoop client performs ad hoc executions, such as through a web app or Hoop CLI.
+
+| Feature | Native | One Off | Description |
+| --- | --- | --- | --- |
+| TLS Termination Proxy | ✅  | ✅ | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
+| Audit | ✅ | ✅ | The gateway store and audit the queries being issued by the client |
+| Data Masking (DLP) | ✅ | ✅ | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Credentials Offload | ✅ | ✅ | The user authenticates via SSO instead of using database credentials. |
+| Interactive Access | ✅ | ✅ | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
+
+## Configuration
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| HOST | env-var | yes | The IP or Host of the Postgres server |
+| USER | env-var | yes | The user to connect in the Postgres server |
+| PASS | env-var | yes | The password to connect to the Postgres server. Make sure to URL encode the password if it contains any special characters. |
+| PORT | env-var | yes | The port of the Postgres server |
+| DB | env-var | yes | The name of the database to connect (Required when using the connection via the command line). |
+| SSLMODE | env-var | no | How to connect via tls with the remote host, it defaults to prefer. https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION for more information. Available options are: disable, prefer, require, and verify-full  |
+
+```bash
+hoop admin create conn pg --type database/postgres -a <agent> \
+  -e HOST=<host> \
+  -e PORT=<port> \
+  -e USER=<user> \
+  -e PASS=<pass> \
+  -e DB=<db> \
+  -e SSLMODE=prefer
+```
+
+## How to Use
+
+Open a new terminal and type
+
+```bash
+hoop connect pg
+```
+
+```
+connection: pg | session: 0ebc7492-94bf-498e-ac9c-430f2d5e89b0
+
+--------------------postgres-credentials--------------------
+      host=127.0.0.1 port=5433 user=noop password=noop
+------------------------------------------------------------
+ready to accept connections!
+```
+
+Connect to postgres using any IDE, example:
+
+```bash
+psql -h 127.0.0.1 -p 5433 mydb
+```
+
+<Ingo>
+Using [DBeaver](https://dbeaver.io/) requires configuring the database connection as `simple` on **Driver properties** > **preferQueryMode**
+</Info>
+
+In the same connection, one-off processes can be executed.
+
+```bash
+hoop exec pg <<EOF
+SLEEP 5;
+SELECT NOW();
+EOF
+```
+
+```bash
+hoop exec pg -f /tmp/myquery.sql
+hoop exec pg -i 'SELECT NOW()'
+```
+
+## TLS Certificates
+
+To connect with a Postgres instance using TLS certificates, use the hoop admin command line to create or overwrite a connection.
+
+```bash
+PGSSLMODE=verify-full
+PGSSLROOTCERT=$(cat ca.crt |base64)
+PGSSLKEY=$(cat client.key |base64)
+PGSSLCERT=$(cat client.crt |base64)
+PGUSER=client1
+PGPASSWORD=1a2b3c4d
+PGPORT=5432
+PGHOST=127.0.0.1
+
+hoop admin create conn pg --type database/postgres -a <agent> --overwrite \
+    --env "b64-filesystem:PGSSLROOTCERT=$PGSSLROOTCERT" \
+    --env "b64-filesystem:PGSSLKEY=$PGSSLKEY" \
+    --env "b64-filesystem:PGSSLCERT=$PGSSLCERT" \
+    --env "envvar:PGSSLMODE=$PGSSLMODE" \
+    --env "envvar:PGUSER=$PGUSER" \
+    --env "envvar:PGPASSWORD=$PGPASSWORD" \
+    --env "envvar:PGPORT=$PGPORT" \
+    --env "envvar:PGHOST=$PGHOST" -- psql
+```
+
+The [postgres environment variables](https://www.postgresql.org/docs/current/libpq-envars.html) will be available in the runtime execution, allowing the `psql` command line utility to connect in the Postgres instance.
+
+- The `b64-filesystem` prefix type will accept the content input as base64 and save the decoded value in a temporary file. The value of the variable will contain the path of the temporary file.
+- The `envvar` prefix type will make the value available as an environment variable.
