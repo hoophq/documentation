@@ -120,8 +120,13 @@
         "learn/runbooks",
         "learn/secrets-manager",
         "learn/session-recording",
+        "learn/webhooks-siem",
         "learn/ai-query-builder"
       ]
+    },
+    {
+      "group": "Integrations",
+      "pages": ["integrations/slack", "integrations/teams", "integrations/svix"]
     }
   ],
   "footerSocials": {

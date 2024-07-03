@@ -1,0 +1,80 @@
+---
+title: "Teams"
+description: "Hoop.dev can integrate with Microsoft Teams, sending messages to a channel when a particular event happens."
+---
+
+## Requirements
+
+- Permissions to obtain the incoming webhook URL from Microsoft Teams
+- Admin user on hoop
+- hoop.dev CLI installed in your local machine
+
+<Frame>
+  <img src="/images/integrations/teams-1.png" />
+</Frame>
+
+<Info>
+This feature is available in version **1.17.20+**
+</Info>
+
+## Configuring
+
+1. First, obtain the incoming webhook URL. Refer to [this section of the Microsoft Teams article](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook?tabs=dotnet#create-incoming-webhooks-1).
+2. log in to your hoop instance and create a plugin that allows access to the webhook dashboard.
+
+```bash
+hoop login
+hoop admin create plugin webhooks --overwrite
+```
+
+<Info>
+*For self-hosted deployments, you will need the API key of the webhook provider and set the environment variable* `WEBHOOK_APPKEY` *when starting the gateway*. Please reach out to our support team to obtain one for your instance.
+</Info>
+
+Access the webhook provider dashboard.
+
+```bash
+hoop admin webhooks-dashboard
+```
+
+### Create an Endpoint
+
+Create an endpoint by adding the URL obtained when creating an incoming webhook in the previous step. And select the events that you wish to send.
+
+<Frame>
+  <img src="/images/integrations/teams-2.png" />
+</Frame>
+
+<Info>
+In the advanced section, make sure to **enable the endpoint rate limit and set it to 4 (per second).** This will respect the limitations enforced by the Microsoft Teams service.
+</Info>
+
+### Send a Test Event
+
+Go to the Testing tab, select the available event, and click on the **Send Example** button. This event should be received in the configured Teams channel.
+
+In the "Overview" tab, the test with the sent event will be displayed.
+
+<Frame>
+  <img src="/images/integrations/teams-3.png" />
+</Frame>
+
+## Connections
+
+Now, you can define which connections will send this event based on the plugin configuration. Update or add a new connection to enable this plugin.
+
+```bash
+hoop admin create conn bash -a <agent-name> --overwrite \
+  --plugin webhooks \
+  --plugin review:admin -- bash
+```
+
+Interacting with the connection via the webapp or the CLI will trigger an alert indicating that the connection needs to be reviewed. A message will be sent to the Microsoft Teams channel.
+
+```bash
+hoop exec bash -i 'ls -l'
+```
+
+## Supported Events
+
+- `microsoftteams.review.create`

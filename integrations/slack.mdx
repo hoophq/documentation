@@ -1,0 +1,170 @@
+---
+title: "Slack"
+description: "Review sessions directly from your Slack workspace."
+---
+
+<Frame>
+  <img src="/images/integrations/slack-1.png" />
+</Frame>
+
+## Requirements
+
+- Privileges to [create an application on Slack](https://api.slack.com/apps)
+- Privileges to install the new app in a workspace
+- Admin user on hoop
+
+## App Installation - Slack
+
+1. Create [a slack app from **an app manifest**](https://api.slack.com/apps?new_app=1)
+2. Select the workspace > click next > paste the manifest below
+
+**slack-manifest.json**
+    ```json
+    {
+      "display_information": {
+        "name": "hoop",
+        "description": "An app to interact with a hoop gateway instance",
+        "background_color": "#7a7879"
+      },
+      "features": {
+        "bot_user": {
+          "display_name": "Hoop Bot",
+          "always_online": true
+        },
+        "slash_commands": [
+          {
+            "command": "/hoop",
+            "description": "Subscribe to notifications sent by Hoop",
+            "usage_hint": "subscribe",
+            "should_escape": false
+          }
+        ]
+      },
+      "oauth_config": {
+        "scopes": {
+          "bot": [
+            "app_mentions:read",
+            "channels:read",
+            "chat:write",
+            "commands",
+            "im:write",
+            "channels:manage",
+            "groups:write",
+            "mpim:write",
+    				"chat:write.public"
+          ]
+        }
+      },
+      "settings": {
+        "event_subscriptions": {
+          "bot_events": [
+            "app_mention"
+          ]
+        },
+        "interactivity": {
+          "is_enabled": true
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": true,
+        "token_rotation_enabled": false
+      }
+    }
+    ```
+
+1. Follow the guide and click on **Install to Workspace**
+2. Scroll below and create an **App-Level Token** and **copy the token**
+    - Token Name: `hoop`
+    - Scopes: `connections:write`, `app_configurations:write`
+3. Go to **Install App** on the left side bar and copy the **Bot User Oauth Token**
+
+---
+
+Lastly, invite the bot in the slack channel that you wish to receive notifications by typing the name of the bot `@hoop`
+
+<Frame>
+  <img src="/images/integrations/slack-2.png" />
+</Frame>
+
+## App Installation - Hoop
+
+In this step, the slack bot and app-level tokens are required to configure the plugin. You can then them at:
+
+- **SLACK_BOT_TOKEN:** `Oauth & Permissions > OAuth Tokens for Your Workspace` ****This is the token created in the app installation process
+- **SLACK_APP_TOKEN:** `Basic Information > App-Level Tokens`
+
+Then configure the Slack App:
+
+1. Login to your hoop instance: `hoop login`
+2. Create the slack plugin
+
+```bash
+hoop admin create plugin slack \
+    --overwrite \
+    --config SLACK_BOT_TOKEN=xoxb-... \
+    --config SLACK_APP_TOKEN=xapp-...
+```
+
+Now it’s possible to associate connections to the slack plugin in the webapp
+
+## Subscribing to Slack channels
+
+We need to go to the Slack plugin page and access the menu → Manage plugins → Slack.
+
+Then, click on settings and add all the channels (separated by commas) you would like to receive the review from that connection.
+
+<Frame>
+  <img src="/images/integrations/slack-3.gif" />
+</Frame>
+
+## Subscribe to Notifications
+
+To subscribe and sign up to receive notifications from the Hoop Bot, type `/hoop subscribe` and access the generated link. After signing in, the user will start to receive notification when there’s a review approved and ready to be executed.
+
+### Subscribing Manually (Optional)
+
+To add approvers who are allowed to review sessions, fetch the user's Slack ID and update it using the command line.
+
+```bash
+hoop admin create user <approver@domain.tld> --overwrite \
+  --groups admin,sre \
+  --slackid <SLACK-USER-ID>
+```
+
+### Copy the Slack ID
+
+- In the Slack app, click on the top right corner of your profile photo
+- Select Profile
+- Click on the More options button (see image below) and copy the member’s ID
+
+<Frame>
+  <img src="/images/integrations/slack-4.png" />
+</Frame>
+
+<Info>
+You can copy the ID of other members too on Slack.
+</Info>
+
+## Usage
+
+To be able to use it, the review plugins must be enabled for a connection. When trying to interacting with it, it will send a message to the configured slack channel.
+
+**Associate the connection with the `review` and `slack` plugins**
+
+```bash
+hoop admin create conn bash \
+    --overwrite \
+    --agent default \
+    --reviewers 'admin,sre' \
+    --plugin slack \
+    -- bash
+```
+
+Then, interacting with the connection will send a message to your Slack channel. After it’s approved, it will send a message to the creator.
+
+```bash
+hoop connect bash
+```
+
+```bash
+hoop exec bash 'ls'
+```
