@@ -117,6 +117,7 @@
       "pages": [
         "learn/architecture",
         "learn/access-control",
+        "learn/jit-reviews",
         "learn/runbooks",
         "learn/secrets-manager",
         "learn/session-recording",
