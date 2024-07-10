@@ -28,8 +28,8 @@
   "anchors": [
     {
       "name": "Community",
-      "icon": "slack",
-      "url": "https://join.slack.com/t/hoopdevcommunity/shared_invite/zt-2l9psuv75-7qizKgR3~2FT7lhfOpDvIA"
+      "icon": "github",
+      "url": "https://github.com/hoophq/hoop/discussions"
     },
     {
       "name": "Blog",
