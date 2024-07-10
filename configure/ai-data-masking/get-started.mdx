@@ -3,11 +3,15 @@ title: "Get Started"
 description: "Set up and know better about hoop.dev's AI Data Masking"
 ---
 
-Hoop.dev's AI Data Masking happens at the protocol layer. It's a zero-config DLP policy that masks sensitive data in real-time.
+## Prerequisites
 
-Unlike traditional DLP solutions, hoop.dev's AI Data Masking doesn't require you to set up rules or policies. It masks sensitive data in real-time in the data stream of any connection you set AI Data Masking according to the fields you configure.
+ - Have properly installed hoop.dev through one of the options available in the [installation area](/getting-started/installation/overview)
+ - Enough access to your infrastructure so you can load environment variables to your hoop.dev instance
+ - Have admin access to your hoop.dev instance
 
-After the setup, we automatically give you a bunch of default and most used fields, so you don't need to worry much about that part either. You can remove or add fields as much as you like. To see all fields available, check our [documentation page for all fields supported](/configure/ai-data-masking/fields).
+<Note>
+  This page is dedicated to the setup of AI Data Masking in self-hosted instances. If you are looking for the Learn Guides of AI Data Masking, [click here](/learn/ai-data-masking).
+</Note>
 
 <Frame>
   <img
@@ -23,11 +27,21 @@ After the setup, we automatically give you a bunch of default and most used fiel
 
 Create an account at [Google Cloud Data Loss Prevention](https://cloud.google.com/security/products/dlp) and get your credentials.
 
-When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLICATION_CREDENTIALS_JSON` with your GCP DLP credentials. Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in real-time in the data stream of any connection you configure.
+When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLICATION_CREDENTIALS_JSON` with your GCP DLP credentials in hoop's Gateway. Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in real-time in the data stream of any connection you configure.
+
+## Activate to your connections
+
+Navigate to your Web App instance > Open the Manage toggle > click at AI Data Masking > Activate by connection and to configure which fields you want to set, hit the "Configure" button.
+
+<Frame>
+  <img src="/images/configure/ai-data-masking-activate-connection.png" />
+</Frame>
 
 ## How it works
 
 At the protocol layer when communicating with a database or server, hoop.dev will open the package and communicate with Google Cloud DLP to mask sensitive data in it. This happens in memory and in real-time, so the data is never stored in the database or server in its original form.
+
+After the setup, we automatically give you a bunch of default and most used fields, so you don't need to worry much about that part either. You can remove or add fields as much as you like. To see all fields available, check our [documentation page for all fields supported](/configure/ai-data-masking/fields).
 
 ## Future support
 

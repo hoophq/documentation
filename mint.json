@@ -116,6 +116,7 @@
       "group": "Learn",
       "pages": [
         "learn/architecture",
+        "learn/ai-data-masking",
         "learn/access-control",
         "learn/jit-reviews",
         "learn/runbooks",
