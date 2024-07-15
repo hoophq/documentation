@@ -140,7 +140,7 @@ hoop-gateway-1  | (...) starting servers
 hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
 hoop-gateway-1  | (...) server transport created, tls=false
 (...)
-hoop-agent-1    | (...) connected with success to <machine-host>:443
+hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
 ```
 
 ## Webapp Login
@@ -150,7 +150,7 @@ Now, access your instance via `https://app.$HOOP_PUBLIC_HOSTNAME`
 <Tip>
 - In case of using self signed certificates, the browser will warn about your connection not being private. Make sure to bypass it and proceed it.
 
-- This warning could appear more than once, because the app will redirect you to `https://auth.<machine-host>`
+- This warning could appear more than once, because the app will redirect you to `https://auth.$HOOP_PUBLIC_HOSTNAME`
 
 - In case the browser redirect you to `/logout` endpoint, just edit the url by removing this suffix and hit enter.
 </Tip>
@@ -270,5 +270,21 @@ Just stop and remove all containers and volumes
 
 ```sh
 docker-compose stop
-docker-compose rm -y
+docker-compose down -v
+```
+
+## Troubleshooting
+
+If you run into any issues during setup, or while running Hoop, below are troubleshooting steps that can help you diagnose and fix.
+
+### HSTS self signed certificates
+
+In case of using a subdomain your browser may restrict the access due to a HSTS policy in your root domain. Try to use another domain or install the certificate authority (ca.crt) in your local system.
+
+### Terraform State Issues
+
+We use terraform to bootstrap the configuration with Zitadel, some issues may arrise due to state being inconsistent or not cleaned properly. The command below will wipe all volumes including the terraform state folder:
+
+```sh
+docker-compose down -v
 ```
