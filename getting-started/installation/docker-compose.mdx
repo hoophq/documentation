@@ -1,0 +1,274 @@
+---
+title: 'Docker Compose'
+description: 'This deployment leverages `docker-compose` to deploy Hoop on local or remote machines for solution assessment.'
+---
+
+## Requirements
+
+- Supported architectures:
+    - amd64 / x86_64
+    - arm64 (including Apple Silicon -- M1/M2 Macs)
+
+<Warning>
+  arm64 is supported via virtualization. The setup may take more time to bootstrap when using this architecture.
+</Warning>
+
+- Supported operating systems:
+    - Linux (Tested on Ubuntu 18-22.10, Amazon Linux 2, CentOS 7, and Fedora 34-37)
+    - macOS
+- The following ports will need to be accessible when deployed remotely:
+    - 8009: Used by the Hoop Webapp
+    - 8010: Hoop gRPC port
+    - 8080: Default identity provider (Zitadel)
+    - 443: nginx proxy
+
+- Docker version: 20.10.0 or greater
+
+    Run `docker version` to see your Docker version
+    - [Linux installation](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script)
+    - [macOS installation](https://docs.docker.com/desktop/install/mac-install/)
+
+- [Git](https://git-scm.com/downloads) version: 2.7.0 or greater
+
+    Run `git version` to see your Git version
+
+- [docker compose](https://docs.docker.com/compose/install/) version: 2.4.0 or greater
+
+    Run `docker compose version` to see your Docker Compose version
+    - Linux: comes installed with Docker engine but you can also do the standalone installation
+    - macOS: comes installed with Docker Desktop
+
+
+## TLS
+
+This installation comes with TLS enabled by default using self signed certificates. It will generate the certificates by default on a host volume.
+
+- `hoop/deploy/docker-compose/hoopdata/tls/ca.crt`: the certificate authority (Root CA)
+- `hoop/deploy/docker-compose/hoopdata/tls/server.crt`: the server certificate
+- `hoop/deploy/docker-compose/hoopdata/tls/server.key`: the server private key
+
+<Tip>
+You could use your own certificates, just make sure to add the files in their respective paths. See the section below.
+</Tip>
+
+### Let's Encrypt (optional)
+
+This section explains how to issue a valid certificate for your Hoop instance with [certbot](https://certbot.eff.org/).
+
+> This guide requires a valid domain and access to manage it's own DNS.
+
+- Clone the Hoop project into your local machine
+
+```sh
+git clone git@github.com:hoophq/hoop.git && cd hoop/deploy/docker-compose
+```
+
+- Execute the command below to issue a new certificate and add the **TXT** record in your DNS management system
+
+```sh
+YOUR_DOMAIN=
+docker run -v ./hoopdata/tls/:/etc/letsencrypt/archive/ \
+    --rm -it certbot/certbot \
+    -d "*.$YOUR_DOMAIN" \
+    --manual --preferred-challenges dns certonly \
+    --agree-tos \
+    --register-unsafely-without-email
+```
+
+- Copy the certificates into the tls path
+
+```sh
+YOUR_DOMAIN=docker-compose-setup.hoop.dev
+cp ./hoopdata/tls/$YOUR_DOMAIN/fullchain1.pem ./hoopdata/tls/ca.crt
+cp ./hoopdata/tls/$YOUR_DOMAIN/cert1.pem ./hoopdata/tls/server.crt
+cp ./hoopdata/tls/$YOUR_DOMAIN/privkey1.pem ./hoopdata/tls/server.key
+```
+
+#### DNS Configuration
+
+In order for the setup to work, make sure to publish the following addresses pointing to the ip address of your machine
+
+- **auth.$YOUR_DOMAIN**
+- **$YOUR_DOMAIN**
+
+## Setup and Launch
+
+The setup requires that you specify the host ip address that is reachable inside the docker network. This address is usually displayed in the main machine interface (eth0, en0, etc).
+
+<Tip>
+On MacOS and Linux you could list the interfaces with `ifconfig` or `ip addr`.
+</Tip>
+
+The default installation uses [Zitadel](https://github.com/zitadel/zitadel) as the default identity provider. The bootstrap process takes between 30~60 seconds.
+
+<Tip>
+If you're running the setup without a reachable DNS, specify the ip address with the suffix `.nip.io`. This service allows mapping any ip address to a valid DNS.
+For example, if your ip address is 192.168.2.20 the public hostname will be `192.168.2.20.nip.io`.
+</Tip>
+
+```sh
+git clone git@github.com:hoophq/hoop.git && cd hoop/deploy/docker-compose
+cat - > .env <<EOF
+HOOP_PUBLIC_HOSTNAME=192.168.15.48.nip.io
+EOF
+docker-compose up
+```
+
+### Custom Identity Provider
+
+<Tip>
+Refer to the [SSO documentation](/configure/idp/get-started) for instructions on how to obtain these values from your identity provider.
+</Tip>
+
+```sh
+cat - > .env <<EOF
+HOOP_PUBLIC_HOSTNAME=<host-ip>.nip.io
+IDP_ISSUER=
+IDP_CLIENT_ID=
+IDP_CLIENT_SECRET=
+IDP_AUDIENCE=
+EOF
+docker-compose -f docker-compose-custom-idp.yml up
+```
+
+---
+
+A success launch will return the logs of the gateway and the agent
+
+```log
+hoop-gateway-1  | (...) starting servers
+hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
+hoop-gateway-1  | (...) server transport created, tls=false
+(...)
+hoop-agent-1    | (...) connected with success to <host-ip>.nip.io:443
+```
+
+## Webapp Login
+
+Now, access your instance via `https://<host-ip>.nip.io`
+
+<Tip>
+- In case of using self signed certificates, the browser will warn about your connection not being private. Make sure to bypass it and proceed it.
+
+- This warning could appear more than once, because the app will redirect you to `https://auth.<host-ip>.nip.io`
+
+- In case the browser redirect you to `/logout` endpoint, just edit the url by removing this suffix and hit enter.
+</Tip>
+
+### Sign In
+
+If everything is configured properly the Sign In page will be displayed.
+
+<Frame>
+  <img
+    src="/images/getting-started/installation/signin-zitadel.png"
+  />
+</Frame>
+
+1. Type `admin` for the e-mail input and click on Next
+2. Type `Password1` for the password input and click on Next
+3. Skip the 2-factor authentication information
+4. Change the default password and proceed
+
+A successful logon will redirect to the main Webapp's page
+
+<Frame>
+  <img
+    src="/images/getting-started/installation/successful-sign-in.jpg"
+  />
+</Frame>
+
+## Your First Connection
+
+Let's make sure the setup is working by creating and interacting with a Postgres connection. In the main page click on **Start with a Demo setup**.
+
+Issue a SQL statement to fetch the customers table.
+
+```sql
+SELECT email, firstname, phone, region, username FROM customers LIMIT 2;
+```
+
+<Frame>
+  <img
+    src="/images/getting-started/installation/postgres-demo-sql-query.jpg"
+  />
+</Frame>
+
+### Connecting your IDE
+
+In this step we'll be connecting into Postgres using your favorite IDE via Hoop.
+
+- Open your terminal
+- Install the [Hoop Command Line](/getting-started/cli) in your host machine
+- Login via cli
+
+```sh
+# configure it only once in your local machine
+hoop config create --api-url https://<host-ip>.nip.io --tls-ca path/to/ca.crt
+hoop login
+```
+
+<Tip>
+The `--tls-ca` option is required only when using self signed certificates.
+</Tip>
+
+- Connect into the postgres demo connection
+
+```sh
+hoop connect <name-of-the-connection>
+```
+
+- Use your favorite database IDE and connect with the provided credentials
+
+<Tip>
+See our [Quick Start with Postgres](/quickstarts/postgres) for more information on how to interact with it.
+</Tip>
+
+## Onboarding Users (Zitadel)
+
+This section explains how to onboarding new users on Zitadel administrative UI.
+
+The login used to authenticate to Hoop is also an admin on Zitadel.
+
+- Go to **https://auth.[host-ip].nip.io**
+- Go to **Default Settings** (top right button) and click on `hoophq` organization.
+
+[image]
+
+- Click on **Users** (top menu) > **New** and fill the form to create a new user
+
+<Tip>
+Make sure to check the option: **Set Initial Password**. This option does not depend on sending an email which is unavailable for this setup.
+</Tip>
+
+<Frame>
+  <img
+    src="/images/getting-started/installation/zitadel-new-user.png"
+  />
+</Frame>
+
+
+### Associate User
+
+This step grants access to the project / application allowing the new user to Sign In on your Hoop instance.
+
+- Click on **Users** (top menu) and select the created user
+- Click on **Authorizations** > **New**
+- Select the project **hoopdev** and click on Next and then Save.
+
+<Frame>
+  <img
+    src="/images/getting-started/installation/zitadel-associate-user.jpg"
+  />
+</Frame>
+
+Inform the new user's login (`john.doe`) and his password. The user could now authenticate in the Hoop Instance.
+
+## Clean Up
+
+Just stop and remove all containers and volumes
+
+```sh
+docker-compose stop
+docker-compose rm -y
+```
