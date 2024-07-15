@@ -66,10 +66,10 @@ git clone git@github.com:hoophq/hoop.git && cd hoop/deploy/docker-compose
 - Execute the command below to issue a new certificate and add the **TXT** record in your DNS management system
 
 ```sh
-YOUR_DOMAIN=
+HOOP_PUBLIC_HOSTNAME=
 docker run -v ./hoopdata/tls/:/etc/letsencrypt/archive/ \
     --rm -it certbot/certbot \
-    -d "*.$YOUR_DOMAIN" \
+    -d "*.$HOOP_PUBLIC_HOSTNAME" \
     --manual --preferred-challenges dns certonly \
     --agree-tos \
     --register-unsafely-without-email
@@ -78,18 +78,18 @@ docker run -v ./hoopdata/tls/:/etc/letsencrypt/archive/ \
 - Copy the certificates into the tls path
 
 ```sh
-YOUR_DOMAIN=docker-compose-setup.hoop.dev
-cp ./hoopdata/tls/$YOUR_DOMAIN/fullchain1.pem ./hoopdata/tls/ca.crt
-cp ./hoopdata/tls/$YOUR_DOMAIN/cert1.pem ./hoopdata/tls/server.crt
-cp ./hoopdata/tls/$YOUR_DOMAIN/privkey1.pem ./hoopdata/tls/server.key
+HOOP_PUBLIC_HOSTNAME=docker-compose-setup.hoop.dev
+cp ./hoopdata/tls/$HOOP_PUBLIC_HOSTNAME/fullchain1.pem ./hoopdata/tls/ca.crt
+cp ./hoopdata/tls/$HOOP_PUBLIC_HOSTNAME/cert1.pem ./hoopdata/tls/server.crt
+cp ./hoopdata/tls/$HOOP_PUBLIC_HOSTNAME/privkey1.pem ./hoopdata/tls/server.key
 ```
 
 #### DNS Configuration
 
 In order for the setup to work, make sure to publish the following addresses pointing to the ip address of your machine
 
-- **auth.$YOUR_DOMAIN**
-- **$YOUR_DOMAIN**
+- **auth.$HOOP_PUBLIC_HOSTNAME**
+- **app.$HOOP_PUBLIC_HOSTNAME**
 
 ## Setup and Launch
 
@@ -103,13 +103,13 @@ The default installation uses [Zitadel](https://github.com/zitadel/zitadel) as t
 
 <Tip>
 If you're running the setup without a reachable DNS, specify the ip address with the suffix `.nip.io`. This service allows mapping any ip address to a valid DNS.
-For example, if your ip address is 192.168.2.20 the public hostname will be `192.168.2.20.nip.io`.
+For example, if the machine ip address is 192.168.2.20 the public hostname must be `192.168.2.20.nip.io`.
 </Tip>
 
 ```sh
 git clone git@github.com:hoophq/hoop.git && cd hoop/deploy/docker-compose
 cat - > .env <<EOF
-HOOP_PUBLIC_HOSTNAME=192.168.15.48.nip.io
+HOOP_PUBLIC_HOSTNAME=
 EOF
 docker-compose up
 ```
@@ -122,7 +122,7 @@ Refer to the [SSO documentation](/configure/idp/get-started) for instructions on
 
 ```sh
 cat - > .env <<EOF
-HOOP_PUBLIC_HOSTNAME=<host-ip>.nip.io
+HOOP_PUBLIC_HOSTNAME=
 IDP_ISSUER=
 IDP_CLIENT_ID=
 IDP_CLIENT_SECRET=
@@ -140,17 +140,17 @@ hoop-gateway-1  | (...) starting servers
 hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
 hoop-gateway-1  | (...) server transport created, tls=false
 (...)
-hoop-agent-1    | (...) connected with success to <host-ip>.nip.io:443
+hoop-agent-1    | (...) connected with success to <machine-host>:443
 ```
 
 ## Webapp Login
 
-Now, access your instance via `https://<host-ip>.nip.io`
+Now, access your instance via `https://app.$HOOP_PUBLIC_HOSTNAME`
 
 <Tip>
 - In case of using self signed certificates, the browser will warn about your connection not being private. Make sure to bypass it and proceed it.
 
-- This warning could appear more than once, because the app will redirect you to `https://auth.<host-ip>.nip.io`
+- This warning could appear more than once, because the app will redirect you to `https://auth.<machine-host>`
 
 - In case the browser redirect you to `/logout` endpoint, just edit the url by removing this suffix and hit enter.
 </Tip>
@@ -204,7 +204,7 @@ In this step we'll be connecting into Postgres using your favorite IDE via Hoop.
 
 ```sh
 # configure it only once in your local machine
-hoop config create --api-url https://<host-ip>.nip.io --tls-ca path/to/ca.crt
+hoop config create --api-url https://app.$HOOP_PUBLIC_HOSTNAME --tls-ca path/to/ca.crt
 hoop login
 ```
 
@@ -226,11 +226,11 @@ See our [Quick Start with Postgres](/quickstarts/postgres) for more information 
 
 ## Onboarding Users (Zitadel)
 
-This section explains how to onboarding new users on Zitadel administrative UI.
+This section explains how to onboard new users on Zitadel administrative UI.
 
 The login used to authenticate to Hoop is also an admin on Zitadel.
 
-- Go to **https://auth.[host-ip].nip.io**
+- Go to **https://auth.$HOOP_PUBLIC_HOSTNAME**
 - Go to **Default Settings** (top right button) and click on `hoophq` organization.
 
 [image]
