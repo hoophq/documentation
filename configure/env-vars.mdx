@@ -6,14 +6,14 @@ description: 'Describe how to configure the Hoop Gateway via environment variabl
 ## Basic configuration
 
 <Note>
-  If you are running our AWS Stack setup, none of these values are required.
+  None of these values are required If you are running our AWS Stack setup.
   They are already set and configured for you.
 </Note>
 
 | Environment     | Description |
 | --------------- |-------------
 | POSTGRES_DB_URI | The postgres connection string to connect in the database. |
-| API_URL         | API URL address, usually where your DNS will be point to |
+| API_URL         | API URL address, usually where your DNS will be pointed to |
 | IDP_URI         | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
 
 The `<options>` could be used for further configuration by passing them as query strings.
