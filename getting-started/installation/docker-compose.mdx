@@ -121,9 +121,21 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
   </Step>
 </Steps>
 
+---
+
+A success launch will return the logs of the gateway and the agent
+
+```log
+hoop-gateway-1  | (...) starting servers
+hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
+hoop-gateway-1  | (...) server transport created, tls=false
+(...)
+hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
+```
+
 ## Access and Get Started with hoop.dev
 
-Access hoop.dev's developer portal and set up your first user with a default user, configure your first demo PostgreSQL connection, and see how you can access it from inside our interface and from a database client of your choice.
+Access hoop.dev's developer portal and set up your first user, configure your first demo PostgreSQL connection, and see how you can access it from inside our interface and from a database client of your choice.
 
 #### Sign In to the developer portal
 
@@ -244,9 +256,6 @@ In this step, we'll connect to Postgres using your favorite IDE via Hoop.
   </Step>
 
   <Step title="Run the command to connect to your PostgreSQL">
-    ```sh
-    hoop connect <name-of-the-connection>
-    ```
     If you are following this guide as is, the command will look like this:
     ```sh
     hoop connect postgres-demo
@@ -350,18 +359,6 @@ IDP_CLIENT_SECRET=
 IDP_AUDIENCE=
 EOF
 docker-compose -f docker-compose-custom-idp.yml up
-```
-
----
-
-A success launch will return the logs of the gateway and the agent
-
-```log
-hoop-gateway-1  | (...) starting servers
-hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
-hoop-gateway-1  | (...) server transport created, tls=false
-(...)
-hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
 ```
 
 ### TLS
