@@ -51,6 +51,7 @@
           "group": "Installation",
           "pages": [
             "getting-started/installation/overview",
+            "getting-started/installation/docker-compose",
             "getting-started/installation/AWS",
             "getting-started/installation/kubernetes"
           ]
