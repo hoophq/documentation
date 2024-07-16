@@ -1,20 +1,29 @@
 ---
 title: 'Environment Variables'
-description: 'Example section for showcasing API endpoints'
+description: 'Describe how to configure the Hoop Gateway via environment variables'
 ---
 
 ## Basic configuration
 
 <Note>
-  If you are running our AWS Stack setup, none of these values are required.
+  None of these values are required If you are running our AWS Stack setup.
   They are already set and configured for you.
 </Note>
 
 | Environment     | Description |
 | --------------- |-------------
 | POSTGRES_DB_URI | The postgres connection string to connect in the database. |
-| API_URL         | API URL address, usually where your DNS will be point to |
+| API_URL         | API URL address, usually where your DNS will be pointed to |
 | IDP_URI         | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
+
+The `<options>` could be used for further configuration by passing them as query strings.
+
+| Option     | Description |
+| --------------- |-------------
+| scopes | Additional Oauth2 scopes to append to the request. Default values are `openid`, `profile` and `email`. |
+| groupsclaim | The name of the claim to consider as configuration to propagate groups. Default to `https://app.hoop.dev/groups` |
+| _userinfo | When this option is set to 1 it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo). |
+
 
 ## Extra configuration
 
@@ -35,4 +44,4 @@ All fields below are not required but can give you some extra configuration opti
 | ASK_AI_CREDENTIALS                  |                      | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
 | GOOGLE_APPLICATION_CREDENTIALS_JSON |                      | GCP DLP credentials |
 | WEBHOOK_APPKEY                      |                      | The application key to send messages to the webhook provider. |
-| ADMIN_USERNAME                      | admin                | Changes the name of the group to act as admin |
+| ADMIN_USERNAME                      | admin                | Changes the name of the group to act as the admin role |

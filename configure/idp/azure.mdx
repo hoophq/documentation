@@ -10,44 +10,43 @@ Contact the administrator of the hoop gateway instance to retrieve the API_URL a
 
 ## Identity Provider Configuration
 
-Login with your account at https://portal.azure.com/
+<Steps titleSize="h3">
+  <Step title="Create an Application">
+  	Login with your account at https://portal.azure.com/
+	- Go to **Microsoft Entra ID > App Registration**.
+	- Pick a name, and select the Supported account types as you see fit
+	- Register the application with `{API_URL}/api/callback` as the redirect URI.
 
-### 1. Create a New Application
-- Go to **Microsoft Entra ID > App Registration**.
-- Pick a name, and select the Supported account types as you see fit
-- Register the application with `{API_URL}/api/callback` as the redirect URI.
+	<Note>
+	We recommend using the option single tenant option for Supported account types. This will allow selecting exactly what groups to propagate to this application. This option is also required to propagate cloud-only groups as names (see more details below).
+	</Note>
 
-<Note>
-  We recommend using the option single tenant option for Supported account types. This will allow selecting exactly what groups to propagate to this application. This option is also required to propagate cloud-only groups as names (see more details below).
-</Note>
+	Ensure default delegated permissions: `User.Read` for sign in and read user profiles and `email` to view user's email address.
 
-Ensure default delegated permissions: `User.Read` for sign in and read user profiles; and `email` to view user's email address.
+	<Info>
+	These attributes are typically created by default. If errors occur, ensure these options are set correctly.
+	</Info>
+  </Step>
+  <Step title="Create the Client Credentials">
+    - Go to App Registration > {AppName}
+	- In the overview page, copy the **Application (client) ID** value. This is the Client ID.
+	- Go to  Certificate & Secrets > Client Secrets > New Client Secret
+	- Copy the Secret Value. This is the Client Secret
+  </Step>
+  <Step title="Collect Issuer and Custom Scopes Information">
+  The Issuer URL
+  - Go to App registration > {AppName} > Overview
+  - Copy the tenant ID and use as the value below
+  - https://login.microsoftonline.com/{tenant_id}/v2.0
 
-<Info>
-  These attributes are typically created by default. If errors occur, ensure these options are set correctly.
-</Info>
+  The Custom Scopes
+  - Use the Client ID to compose the Custom Scopes value
+  - `{CLIENT_ID}/.default`
 
-### 2. Create client credentials
+  </Step>
+</Steps>
 
-- Go to App Registration > {AppName}
-- In the overview page, copy the “Application (client) ID” value. This is the Client ID.
-- Go to  Certificate & Secrets > Client Secrets > New Client Secret
-- Copy the Secret Value. This is the Client Secret
-
-### 3. Obtain the Issuer URL and Custom Scopes
-
-Issuer URL:
-
-- Go to App registration > {AppName} > Overview
-- Copy the tenant ID and use as the value below
-- https://login.microsoftonline.com/{tenant_id}/v2.0
-
-Custom Scopes
-
-- Use the Client ID to compose the Custom Scopes value
-- `{CLIENT_ID}/.default`
-
-## Groups Claim Configuration (Optional)
+## Configuring Groups Claims
 
 With Microsoft Entra ID it's possible to configure a claim to propagate as groups to Hoop. This configuration will ensure to sync the groups when a user authenticates on Hoop.
 
@@ -72,28 +71,28 @@ It's possible to propagate groups with their display names for cloud groups.
 (...)
   "groupMembershipClaims": "ApplicationGroup",
   (...)
-	"optionalClaims": {
-		"idToken": [
-			{
-				"name": "groups",
-				"source": null,
-				"essential": false,
-				"additionalProperties": [
-					"cloud_displayname"
-				]
-			}
-		],
-		"accessToken": [
-			{
-				"name": "groups",
-				"source": null,
-				"essential": false,
-				"additionalProperties": [
-					"cloud_displayname"
-				]
-			}
-		],
-		(...)
+  "optionalClaims": {
+    "idToken": [
+      {
+        "name": "groups",
+        "source": null,
+        "essential": false,
+        "additionalProperties": [
+          "cloud_displayname"
+        ]
+      }
+    ],
+    "accessToken": [
+      {
+        "name": "groups",
+        "source": null,
+        "essential": false,
+        "additionalProperties": [
+          "cloud_displayname"
+        ]
+      }
+    ],
+    (...)
 ```
 
 - Click on Save
