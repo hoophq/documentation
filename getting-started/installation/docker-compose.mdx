@@ -64,8 +64,8 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
 ## Download & Launch
 
 <Steps>
-  <Step title="Copy compose file">
-    Copy the docker-compose.yml into your local file system.
+  <Step title="Copy the compose file">
+    Copy the `docker-compose.yml` file into your local file system.
 
     ```sh
     curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
@@ -93,12 +93,12 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
 
     ```sh
     cat - > .env <<EOF
-    HOOP_PUBLIC_HOSTNAME=<<a.b.c.d>>.nip.io
+    HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
     EOF
     ```
 
     <Warning>
-      Remember to replace the `<<a.b.c.d>>` with your IP address or use a valid DNS name.
+      Remember to replace the `<a.b.c.d>` with your IP address or use a valid DNS name.
     </Warning>
   </Step>
   <Step title="Run">
