@@ -33,8 +33,7 @@ The table below outlines the features available for this type of connection.
 | CONNECTION_STRING | env-var | yes | The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format. |
 
 ```bash
-hoop admin create conn mongo --type database/mongodb \
-	-a <agent> \
+hoop admin create conn mongo --type database/mongodb -a <agent> \
   -e CONNECTION_STRING=mongodb+srv://<user>:<password>@<host>:<port>/?<options>
 ```
 
