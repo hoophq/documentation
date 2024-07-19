@@ -38,10 +38,6 @@ hoop admin create conn mongo --type database/mongodb \
   -e CONNECTION_STRING=mongodb+srv://<user>:<password>@<host>:<port>/?<options>
 ```
 
-<Info>
-There's a limitation when using an IDE (`hoop connect`) to connect to a MongoDB server that utilizes the **SRV Connection Format (mongodb+srv)** or is part of a cluster setup. The integration selects the first host from the connection string, which could be a secondary replica, thus preventing the client from performing any updates.
-</Info>
-
 ## How to Use
 
 Start an interactive session and forward the default port (27018) locally.
