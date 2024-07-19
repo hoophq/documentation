@@ -21,10 +21,6 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
 ## Required tooling
 
 <Steps titleSize="h3">
-  <Step title="GIT" icon="git">
-   [Install or update to](https://git-scm.com/downloads) version 2.7.0 or greater
-   <Info>Run `git version` to check which version you have installed</Info>
-  </Step>
   <Step title="Docker" icon="docker">
     Install or update to Docker version 20.10.0 or greater
     <CardGroup cols={2}>
@@ -68,11 +64,11 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
 ## Download & Launch
 
 <Steps>
-  <Step title="Clone the repository">
-    Download the hoop repository and navigate to the docker-compose installer directory.
+  <Step title="Copy compose file">
+    Copy the docker-compose.yml into your local file system.
 
     ```sh
-    git clone git@github.com:hoophq/hoop.git && cd hoop/deploy/docker-compose
+    curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
     ```
   </Step>
 
@@ -87,21 +83,22 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
     ```
 
     <Note>
-    This should output an IP address like `192.168.x.y`. If you're running the setup without a reachable DNS, specify the IP address with the suffix `.nip.io`. This service allows mapping any IP address to a valid DNS. For example, if your IP address is `
+    If you're running the setup without a reachable DNS, specify the IP address with the suffix `.nip.io`. This service allows mapping any IP address to a valid DNS.
+    For example, if your IP address is `192.168.10.20` then you be able to use the domain `192.168.10.20.nip.io`.
     </Note>
   </Step>
 
   <Step title="Set the .env file">
-    Configure the environment variable with your IP address.
+    Configure the environment variable with your domain name.
 
     ```sh
     cat - > .env <<EOF
-    HOOP_PUBLIC_HOSTNAME=<192.168.x.y>.nip.io
+    HOOP_PUBLIC_HOSTNAME=<<a.b.c.d>>.nip.io
     EOF
     ```
 
     <Warning>
-      Remember to replace the `<192.168.x.y>` with your IP address.
+      Remember to replace the `<<a.b.c.d>>` with your IP address or use a valid DNS name.
     </Warning>
   </Step>
   <Step title="Run">
@@ -112,11 +109,7 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
     ```
 
     <Note>
-      The following ports will need to be accessible when deployed remotely:
-       - 8009: Used by the Hoop Webapp
-       - 8010: Hoop gRPC port
-       - 8080: Default identity provider (Zitadel)
-       - 443: nginx proxy
+      The service will be available on port **443**. Make sure to configure your firewall to allow inbound HTTP connections at this port.
     </Note>
   </Step>
 </Steps>
@@ -141,14 +134,12 @@ Access hoop.dev's developer portal and set up your first user, configure your fi
 
 <Steps>
   <Step title="Access in the Browser">
-    Now, access your instance via `https://app.<192.168.x.y>.nip.io`
+    Now, access your instance via `https://$HOOP_PUBLIC_HOSTNAME`
 
     <Warning>
     If you use self-signed certificates, the browser will warn that your connection is not private. Make sure to bypass this warning and proceed with your connection.
 
-    This warning could appear more than once because the app will redirect you to `https://auth.<192.168.x.y>.nip.io`.
-
-    If the browser redirects you to the `/logout` endpoint, edit the URL by removing this suffix and hitting enter.
+    If the browser redirects you to the `/logout` endpoint, edit the URL by removing this suffix and press enter.
     </Warning>
 
     <Frame>
@@ -240,10 +231,20 @@ In this step, we'll connect to Postgres using your favorite IDE via Hoop.
     Install the [Hoop Command Line](/getting-started/cli) in your host machine
   </Step>
 
+  <Step title="Obtain the Root Certificate Authority">
+    Copy the output of the command below to your local machine
+    ```sh
+    docker-compose exec nginx cat /hoopdata/tls/ca.crt
+    ```
+
+    <Tip>
+      This step is only required when using self signed certificates, which is the default installation method.
+    </Tip>
+  </Step>
   <Step title="Configure and Login via CLI">
     ```sh
     # configure it only once in your local machine
-    hoop config create --api-url https://app.<192.168.x.y>.nip.io --tls-ca path/to/ca.crt
+    hoop config create --api-url https://<a.b.c.d>.nip.io --tls-ca /path/to/ca.crt
 
     hoop login
     ```
@@ -251,7 +252,7 @@ In this step, we'll connect to Postgres using your favorite IDE via Hoop.
     <Tip>
       The `--tls-ca` option is required only when using self signed certificates.
 
-      Also, don't forget to replace `<192.168.x.y>` with your actual IP address.
+      Also, don't forget to replace `<a.b.c.d>` with your actual IP address.
     </Tip>
   </Step>
 
@@ -294,8 +295,8 @@ The login used to authenticate to Hoop is also an admin on Zitadel.
 
 <Steps>
   <Step title="Access Zitadel admin panel">
-    Go to `https://auth.<192.168.x.y>.nip.io`
-    <Info>remember to replace `<192.168.x.y>` with your actual IP address, if you are setting it up locally. If you are setting it up on a cloud provider, replace it with the domain you have configured</Info>
+    Go to `https://<a.b.c.d>.nip.io/ui/console`
+    <Info>remember to replace `<a.b.c.d>` with your actual IP address, if you are setting it up locally. If you are setting it up on a cloud provider, replace it with the domain you have configured</Info>
   </Step>
 
   <Step title="Navigate to hoophq settings">
@@ -351,45 +352,60 @@ Refer to the [SSO documentation](/configure/idp/get-started) for instructions on
 </Tip>
 
 ```sh
+# remove any previous installation
+docker-compose down -v
+
+# configure .env file
 cat - > .env <<EOF
-HOOP_PUBLIC_HOSTNAME=<host-ip>.nip.io
+HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
 IDP_ISSUER=
 IDP_CLIENT_ID=
 IDP_CLIENT_SECRET=
 IDP_AUDIENCE=
 EOF
-docker-compose -f docker-compose-custom-idp.yml up
+docker-compose up
 ```
 
 ### TLS
 
-This installation comes with TLS enabled by default using self signed certificates. It will generate the certificates by default on a host volume.
+This installation comes with TLS enabled by default using self signed certificates. It will generate the certificates by default on the volume mapped to `/hoopdata/tls`.
 
-- `hoop/deploy/docker-compose/hoopdata/tls/ca.crt`: the certificate authority (Root CA)
-- `hoop/deploy/docker-compose/hoopdata/tls/server.crt`: the server certificate
-- `hoop/deploy/docker-compose/hoopdata/tls/server.key`: the server private key
+- `/hoopdata/tls/ca.crt`: the certificate authority (Root CA)
+- `/hoopdata/tls/server.crt`: the server certificate
+- `/hoopdata/tls/server.key`: the server private key
 
 <Tip>
-You could use your own certificates, just make sure to add the files in their respective paths. See the section below.
+To obtain the self signed certificate authority file from an installation, issue the command:
+`docker-compose exec nginx cat /hoopdata/tls/ca.crt`
 </Tip>
+
+**To use your own certificates:**
+
+```sh
+CERT_PATH=/tmp/tls
+cat - > .env <<EOF
+HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
+NGINX_TLS_CA=$(cat $CERT_PATH/ca.crt |base64)
+NGINX_TLS_KEY=$(cat $CERT_PATH/server.key |base64)
+NGINX_TLS_CERT=$(cat $CERT_PATH/server.cert |base64)
+EOF
+```
 
 #### Let's Encrypt (optional)
 
 This section explains how to issue a valid certificate for your Hoop instance with [certbot](https://certbot.eff.org/).
 
-> This guide requires a valid domain and access to manage it's own DNS.
-
-- Clone the Hoop project into your local machine
-
-```sh
-git clone git@github.com:hoophq/hoop.git && cd hoop/deploy/docker-compose
-```
+<Info>
+ This guide requires a valid domain and access to manage it's own DNS.
+</Info>
 
 - Execute the command below to issue a new certificate and add the **TXT** record in your DNS management system
 
 ```sh
+# add your domain name in this environment variable
 HOOP_PUBLIC_HOSTNAME=
-docker run -v ./hoopdata/tls/:/etc/letsencrypt/archive/ \
+mkdir -p /tmp/tls
+docker run -v /tmp/tls/:/etc/letsencrypt/archive/ \
     --rm -it certbot/certbot \
     -d "*.$HOOP_PUBLIC_HOSTNAME" \
     --manual --preferred-challenges dns certonly \
@@ -397,21 +413,23 @@ docker run -v ./hoopdata/tls/:/etc/letsencrypt/archive/ \
     --register-unsafely-without-email
 ```
 
-- Copy the certificates into the tls path
+- Encode the certificates as base64 and set it to the `.env` file
 
 ```sh
-HOOP_PUBLIC_HOSTNAME=docker-compose-setup.hoop.dev
-cp ./hoopdata/tls/$HOOP_PUBLIC_HOSTNAME/fullchain1.pem ./hoopdata/tls/ca.crt
-cp ./hoopdata/tls/$HOOP_PUBLIC_HOSTNAME/cert1.pem ./hoopdata/tls/server.crt
-cp ./hoopdata/tls/$HOOP_PUBLIC_HOSTNAME/privkey1.pem ./hoopdata/tls/server.key
+# add your domain name in this environment variable
+HOOP_PUBLIC_HOSTNAME=
+CERT_PATH=/tmp/tls
+cat - > .env <<EOF
+HOOP_PUBLIC_HOSTNAME=$HOOP_PUBLIC_HOSTNAME
+NGINX_TLS_CA=$(cat $CERT_PATH/$HOOP_PUBLIC_HOSTNAME/fullchain1.pem |base64)
+NGINX_TLS_KEY=$(cat $CERT_PATH/$HOOP_PUBLIC_HOSTNAME/cert1.pem |base64)
+NGINX_TLS_CERT=$(cat $CERT_PATH/$HOOP_PUBLIC_HOSTNAME/privkey1.pem |base64)
+EOF
 ```
 
 **DNS Configuration**
 
-For the setup to work, make sure to publish the following addresses pointing to the IP address of your machine.
-
-- auth.$HOOP_PUBLIC_HOSTNAME
-- app.$HOOP_PUBLIC_HOSTNAME
+For the setup to work, make sure to publish `$HOOP_PUBLIC_HOSTNAME` to the IP address of your machine.
 
 ## Clean Up
 
@@ -433,12 +451,5 @@ docker-compose down -v
     ```sh
     docker-compose down -v
     ```
-  </Accordion>
-  <Accordion title="Apple Silicon Virtualization.framework issue">
-    If you are using an Apple Silicon device, you may face the following error message:
-    ```log
-      Rosetta is only intended to run on Apple Silicon with a macOS host using Virtualization.framework with Rosetta mode enabled
-    ```
-    To solve this, go to your **Docker Desktop App Dashboard** > **Settings (top right gear icon)** > **General**; and make sure you have **Use Virtualization framework** enabled and **Use Rosetta for x86_64/amd64 emulation on Apple Silicon** disabled.
   </Accordion>
 </AccordionGroup>
