@@ -1,6 +1,6 @@
 ---
 title: 'Docker'
-description: 'This deployment leverages `docker-compose` to deploy Hoop on local or remote machines for solution assessment.'
+description: 'This deployment leverages `docker compose` to deploy Hoop on local or remote machines for solution assessment.'
 ---
 
 ## Supported Operational Systems
@@ -61,7 +61,7 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
 
 <Steps>
   <Step title="Copy the compose file">
-    Copy the `docker-compose.yml` file into your local file system.
+    Copy the `docker compose.yml` file into your local file system.
 
     ```sh
     curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
@@ -98,10 +98,10 @@ description: 'This deployment leverages `docker-compose` to deploy Hoop on local
     </Warning>
   </Step>
   <Step title="Run">
-    With everything properly configured, run the docker-compose command.
+    With everything properly configured, run the docker compose command.
 
     ```sh
-    docker-compose up
+    docker compose up
     ```
 
     <Note>
@@ -230,7 +230,7 @@ In this step, we'll connect to Postgres using your favorite IDE via Hoop.
   <Step title="Obtain the Root Certificate Authority">
     Copy the output of the command below to your local machine
     ```sh
-    docker-compose exec nginx cat /hoopdata/tls/ca.crt
+    docker compose exec nginx cat /hoopdata/tls/ca.crt
     ```
 
     <Tip>
@@ -349,7 +349,7 @@ Refer to the [SSO documentation](/configure/idp/get-started) for instructions on
 
 ```sh
 # remove any previous installation
-docker-compose down -v
+docker compose down -v
 
 # configure .env file
 cat - > .env <<EOF
@@ -359,7 +359,7 @@ IDP_CLIENT_ID=
 IDP_CLIENT_SECRET=
 IDP_AUDIENCE=
 EOF
-docker-compose up
+docker compose up
 ```
 
 ### TLS
@@ -372,7 +372,7 @@ This installation comes with TLS enabled by default using self signed certificat
 
 <Tip>
 To obtain the self signed certificate authority file from an installation, issue the command:
-`docker-compose exec nginx cat /hoopdata/tls/ca.crt`
+`docker compose exec nginx cat /hoopdata/tls/ca.crt`
 </Tip>
 
 **To use your own certificates:**
@@ -432,8 +432,8 @@ For the setup to work, make sure to publish `$HOOP_PUBLIC_HOSTNAME` to the IP ad
 Stop and remove all containers and volumes
 
 ```sh
-docker-compose stop
-docker-compose down -v
+docker compose stop
+docker compose down -v
 ```
 
 ## Troubleshooting
@@ -445,7 +445,7 @@ docker-compose down -v
   <Accordion title="Terraform State Issues">
     We use Terraform to bootstrap the configuration with Zitadel; some issues may arise due to the state being inconsistent or not being cleaned properly. The command below will wipe all volumes, including the terraform state folder:
     ```sh
-    docker-compose down -v
+    docker compose down -v
     ```
   </Accordion>
 </AccordionGroup>
