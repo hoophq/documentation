@@ -5,6 +5,7 @@
     "light": "/logo/light.svg",
     "href": "https://hoop.dev"
   },
+  "feedback.thumbsRating": true,
   "favicon": "/favicon.svg",
   "colors": {
     "primary": "#111928",
