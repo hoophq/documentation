@@ -38,6 +38,12 @@
       "url": "https://hoop.dev/blog"
     },
     {
+      "name": "API Reference",
+      "openapi": "https://use.hoop.dev/api/openapiv3.json",
+      "url": "api-reference",
+      "icon": "square-terminal"
+    },
+    {
       "name": "Help guides",
       "icon": "book-open",
       "url": "https://hoop.dev/help"
