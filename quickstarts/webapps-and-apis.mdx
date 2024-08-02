@@ -21,10 +21,16 @@ Port Forward local ports from your private network | HTTP example.
 
 ## Connection Configuration
 
-## How to Use
+```shell
+hoop admin create conn myservice --type application/tcp -a <agent> \
+    -e HOST=<host> \
+    -e PORT=<port>
+```
+
+## How to Use it
 
 ```bash
-hoop connect my-http --port 8080
+hoop connect myservice --port 8080
 ```
 
 Open the forwarded service in a web browser or via HTTP request.
