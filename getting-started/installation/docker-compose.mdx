@@ -59,68 +59,80 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
 
 ## Download & Launch
 
-<Steps>
-  <Step title="Copy the compose file">
-    Copy the `docker-compose.yml` file into your local file system.
+<Tabs>
+  <Tab title="One-line script">
+    Get up and running in 5 minutes with automations for self-hosted deployments to cloud-providers, Linux, Docker, Kubernetes, and more. Or 5 seconds with a managed instance.
 
     ```sh
-    curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
+    curl -sL https://hoop.dev/install.sh | sh
     ```
-  </Step>
+  </Tab>
+  <Tab title="Manual Installation">
+    <Steps>
+      <Step title="Copy the compose file">
+        Copy the `docker-compose.yml` file into your local file system.
 
-  <Step title="Find your local IP">
-    Get the IP address of your machine. This IP address should be reachable from the network where the docker containers will be running.
+        ```sh
+            curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
+        ```
+      </Step>
 
-    ```sh
-    # this command gives you the IP address
-    # of your machine in the local network
-    # in the first line of its result
-    ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $2}'
+      <Step title="Find your local IP">
+        Get the IP address of your machine. This IP address should be reachable from the network where the docker containers will be running.
+
+        ```sh
+        # this command gives you the IP address
+        # of your machine in the local network
+        # in the first line of its result
+        ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $2}'
+        ```
+
+        <Note>
+        If you're running the setup without a reachable DNS, specify the IP address with the suffix `.nip.io`. This service allows mapping any IP address to a valid DNS.
+        For example, if your IP address is `192.168.10.20` then you be able to use the domain `192.168.10.20.nip.io`.
+        </Note>
+      </Step>
+
+      <Step title="Set the .env file">
+        Configure the environment variable with your domain name.
+
+        ```sh
+        cat - > .env <<EOF
+        HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
+        EOF
+        ```
+
+        <Warning>
+          Remember to replace the `<a.b.c.d>` with your IP address or use a valid DNS name.
+        </Warning>
+      </Step>
+      <Step title="Run">
+        With everything properly configured, run the docker compose command.
+
+        ```sh
+        docker compose up
+        ```
+
+        <Note>
+          The service will be available on port **443**. Make sure to configure your firewall to allow inbound HTTP connections at this port.
+        </Note>
+      </Step>
+    </Steps>
+
+    A success launch will return the logs of the gateway and the agent
+
+    ```log
+    hoop-gateway-1  | (...) starting servers
+    hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
+    hoop-gateway-1  | (...) server transport created, tls=false
+    (...)
+    hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
     ```
-
-    <Note>
-    If you're running the setup without a reachable DNS, specify the IP address with the suffix `.nip.io`. This service allows mapping any IP address to a valid DNS.
-    For example, if your IP address is `192.168.10.20` then you be able to use the domain `192.168.10.20.nip.io`.
-    </Note>
-  </Step>
-
-  <Step title="Set the .env file">
-    Configure the environment variable with your domain name.
-
-    ```sh
-    cat - > .env <<EOF
-    HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
-    EOF
-    ```
-
-    <Warning>
-      Remember to replace the `<a.b.c.d>` with your IP address or use a valid DNS name.
-    </Warning>
-  </Step>
-  <Step title="Run">
-    With everything properly configured, run the docker compose command.
-
-    ```sh
-    docker compose up
-    ```
-
-    <Note>
-      The service will be available on port **443**. Make sure to configure your firewall to allow inbound HTTP connections at this port.
-    </Note>
-  </Step>
-</Steps>
+  </Tab> 
+</Tabs>
 
 ---
 
-A success launch will return the logs of the gateway and the agent
-
-```log
-hoop-gateway-1  | (...) starting servers
-hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
-hoop-gateway-1  | (...) server transport created, tls=false
-(...)
-hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
-```
 
 ## Access and Get Started with hoop.dev
 
