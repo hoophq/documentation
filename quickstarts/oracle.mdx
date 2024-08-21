@@ -7,26 +7,36 @@ import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
 
 <Prerequisites />
 
+## Features
+
+The table below outlines the features available for this type of connection.
+
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries.
+- **One Off -** This term refers to when a Hoop client performs ad hoc executions, such as through a web app or Hoop CLI.
+
+| Feature | Native | One Off | Description |
+| --- | --- | --- | --- |
+| TLS Termination Proxy | <Icon icon="xmark" />  | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
+| Audit | <Icon icon="xmark" /> | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client |
+| Data Masking (DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Credentials Offload | <Icon icon="xmark" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
+| Interactive Access | <Icon icon="xmark" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
+
 ## Configuration
 
-| Name | Required | Description |
-| --- | --- | --- |
-| SQLCL_URI | yes | The connect identifier. Example: `myusername/mypassword@Host/ORCL` |
-| TERM | yes | The name of terminal setting |
-
-In order to configure this type, it's necessary to create the target directly from the API
-
-```bash
-hoop admin create conn my-oracle-db -a <agent> \
-	-e SQLCL_URI=<uri> \
-	-e TERM=<term> \
-	-- sqlcl
-```
-
-## Examples[](https://runops.io/docs/connections/sqlcl#examples)
-
-Then, it's possible to run queries into an Oracle database
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| HOST | env-var | yes | The IP or Host of the Oracle server |
+| USER | env-var | yes | The user to connect in the Oracle server |
+| PASS | env-var | yes | The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters. |
+| PORT | env-var | yes | The port of the Oracle server |
+| SID | env-var | yes | The service name or SID (System identifier) to identify the database service. |
 
 ```bash
-hoop exec my-oracle-db -i 'SELECT SYSDATE, CURRENT_TIMESTAMP FROM DUAL'
+hoop admin create conn oracle --type database/oracledb -a <agent> \
+  -e HOST=<host> \
+  -e PORT=<port> \
+  -e USER=<user> \
+  -e PASS=<pass> \
+  -e SID=<sid>
 ```
