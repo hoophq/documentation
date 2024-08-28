@@ -1,0 +1,80 @@
+---
+title: "Configuration"
+---
+
+This page explains the available options to configure Runbooks with your git server.
+
+To start, make sure to install the hoop command line and login to your gateway instance:
+
+```sh
+hoop config create --api-url https://<API_URL>
+hoop login
+```
+
+## Public Repositories
+
+To configure any public repositories
+
+```sh
+hoop admin create plugin runbooks --overwrite \
+	-c GIT_URL=https://github.com/your-org/your-repo
+```
+
+**Required Configuration:**
+
+- `GIT_URL` (required) - the GIT URL of the repository (http or ssh)
+
+## Basic Credentials
+
+It uses username and password to clone a repository via HTTP.
+
+```sh
+hoop admin create plugin runbooks --overwrite \
+	-c GIT_URL=https://github.com/your-org/your-repo \
+	-c GIT_PASSWORD=your-personal-access-token
+```
+
+**Required Configuration:**
+
+- `GIT_URL` (required) - the HTTP GIT URL of the repository
+- `GIT_USER` (optional) - the git username, defaults to `oauth2` if it’s empty
+- `GIT_PASSWORD` (required) - the password or token that has read access to the repository
+
+<Tip>
+GitHub users could use [personal tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+</Tip>
+
+## SSH Private Keys
+
+It uses a private key to clone the repository via SSH.
+
+```sh
+hoop admin create plugin runbooks --overwrite \
+    -c GIT_URL=git@github.com:your-org/your-repo.git \
+    -c GIT_SSH_KEY=path:$HOME/.ssh/your_key
+```
+
+<Tip>
+GitHub users could follow the [Setup Deploy Keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#set-up-deploy-keys) guide to generate a key.
+</Tip>
+
+**Required Configuration:**
+
+- `GIT_URL` (required) - the HTTP GIT URL of the repository
+- `GIT_SSH_KEY` (required) - the private key that has read access to the repository
+- `GIT_SSH_USER` (optional) - the git username, defaults to `git` if it’s empty
+- `GIT_SSH_KEYPASS` (optional) - the password of the key
+- `GIT_SSH_KNOWN_HOSTS` (optional) - the path to the known hosts file to use
+
+<Info>
+We recoommend using the option `GIT_SSH_KNOWN_HOSTS` to prevent [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) when cloning repositories.
+</Info>
+
+## Testing
+
+To test the integration, issue the command below, it will return the last commit from the directory. When you add a **runbook** file it will show in the **items** attribute.
+
+```sh
+hoop admin get runbooks -o json
+{"items":[],"commit":"<git-sha>","commit_author":"author <author@email.tld>","commit_message":"<msg>\n"}
+```
