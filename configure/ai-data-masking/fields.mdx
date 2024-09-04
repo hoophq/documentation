@@ -3,7 +3,15 @@ title: "Data Masking Fields"
 description: "Get to know all the fields that you can use to mask data in your organization."
 ---
 
-## Global
+## Microsoft Presidio
+
+For updated fields support, visit [Microsoft Presidio's official documentation](https://microsoft.github.io/presidio/supported_entities/).
+
+Also, Microsoft Presidio supports custom fields to adapt to your needs. For more information, visit [Microsoft Presidio's official documentation](https://microsoft.github.io/presidio/supported_entities/#adding-a-custom-pii-entity).
+
+## Google Cloud Data Loss Prevention
+
+### Global
 
 | InfoType | Description |
 | --- | --- |
@@ -51,7 +59,7 @@ description: "Get to know all the fields that you can use to mask data in your o
 | VAT_NUMBER | A value-added tax identification number is used as an identifier for anything related to a valued-added tax. The following are the supported countries: Belgium, France, Germany, Hungary, Indonesia, Italy, Netherlands |
 | VEHICLE_IDENTIFICATION_NUMBER | A vehicle identification number (VIN) is a unique 17-digit code assigned to every on-road motor vehicle. |
 
-## Credentials and secrets
+### Credentials and secrets
 
 The infoType detectors in this section detect credentials and other secret data.
 
@@ -72,13 +80,13 @@ The infoType detectors in this section detect credentials and other secret data.
 | XSRF_TOKEN | An XSRF token is an HTTP header that is commonly used to prevent cross-site scripting attacks. Cross-site scripting is a type of security vulnerability that can be exploited by malicious sites. |
 | SSL_CERTIFICATE | An SSL certificate is a cryptographic certificate used to verify identity and establish secured connections using the Secure Sockets Layer protocol. |
 
-## Argentina
+### Argentina
 
 | InfoType | Description |
 | --- | --- |
 | ARGENTINA_DNI_NUMBER | An Argentine Documento Nacional de Identidad (DNI), or national identity card, is used as the main identity document for citizens. |
 
-## Australia
+### Australia
 
 | InfoType | Description |
 | --- | --- |
@@ -87,19 +95,19 @@ The infoType detectors in this section detect credentials and other secret data.
 | AUSTRALIA_PASSPORT | An Australian passport number. |
 | AUSTRALIA_TAX_FILE_NUMBER | An Australian tax file number (TFN) is a number issued by the Australian Tax Office for taxpayer identification. Every taxpaying entity, such as an individual or an organization, is assigned a unique number. |
 
-## Belgium
+### Belgium
 
 | InfoType | Description |
 | --- | --- |
 | BELGIUM_NATIONAL_ID_CARD_NUMBER | A 12-digit Belgian national identity card number. |
 
-## Brazil
+### Brazil
 
 | InfoType | Description |
 | --- | --- |
 | BRAZIL_CPF_NUMBER | The Brazilian Cadastro de Pessoas Físicas (CPF) number, or Natural Persons Register number, is an 11-digit number used in Brazil for taxpayer identification. |
 
-## Canada
+### Canada
 
 | InfoType | Description |
 | --- | --- |
@@ -111,38 +119,38 @@ The infoType detectors in this section detect credentials and other secret data.
 | CANADA_QUEBEC_HIN | The Québec Health Insurance Number (also known as the RAMQ number) is issued to citizens, permanent residents, temporary workers, students, and other individuals who are entitled to health care coverage in the Province of Québec. |
 | CANADA_SOCIAL_INSURANCE_NUMBER | The Canadian Social Insurance Number (SIN) is the main identifier used in Canada for citizens, permanent residents, and people on work or study visas. With a Canadian SIN and mailing address, one can apply for health care coverage, driver's licenses, and other important services. |
 
-## Chile
+### Chile
 
 | InfoType | Description |
 | --- | --- |
 | CHILE_CDI_NUMBER | A Chilean Cédula de Identidad (CDI), or identity card, is used as the main identity document for citizens. |
 
-## China
+### China
 
 | InfoType | Description |
 | --- | --- |
 | CHINA_RESIDENT_ID_NUMBER | A Chinese resident identification number. |
 | CHINA_PASSPORT | A Chinese passport number. |
 
-## Colombia
+### Colombia
 
 | InfoType | Description |
 | --- | --- |
 | COLOMBIA_CDC_NUMBER | A Colombian Cédula de Ciudadanía (CDC), or citizenship card, is used as the main identity document for citizens. |
 
-## Croatia
+### Croatia
 
 | InfoType | Description |
 | --- | --- |
 | CROATIA_PERSONAL_ID_NUMBER | A Croatian Personal Identification Number or Osobni Identifikacijski Broj (OIB) is a permanent national identification number given to every Croatian citizen and resident in the Republic of Croatia. |
 
-## Denmark
+### Denmark
 
 | InfoType | Description |
 | --- | --- |
 | DENMARK_CPR_NUMBER | A Personal Identification Number (CPR, Det Centrale Personregister) is a national ID number in Denmark. It is used with public agencies such as health care and tax authorities. Banks and insurance companies also use it as a customer number. The CPR number is required for people who reside in Denmark, pay tax or own property there. |
 
-## France
+### France
 
 | InfoType | Description |
 | --- | --- |
@@ -151,13 +159,13 @@ The infoType detectors in this section detect credentials and other secret data.
 | FRANCE_PASSPORT | A French passport number. |
 | FRANCE_TAX_IDENTIFICATION_NUMBER | The French tax identification number is a government-issued ID for all individuals paying taxes in France. |
 
-## Finland
+### Finland
 
 | InfoType | Description |
 | --- | --- |
 | FINLAND_NATIONAL_ID_NUMBER | A Finnish personal identity code, a national government identification number for Finnish citizens used on identity cards, driver's licenses and passports. |
 
-## Germany
+### Germany
 
 | InfoType | Description |
 | --- | --- |
@@ -167,13 +175,13 @@ The infoType detectors in this section detect credentials and other secret data.
 | GERMANY_TAXPAYER_IDENTIFICATION_NUMBER | An 11-digit German taxpayer identification number assigned to both natural-born and other legal residents of Germany for the purposes of recording tax payments. |
 | GERMANY_SCHUFA_ID | A German Schufa identification number. Schufa Holding AG is a German credit bureau whose aim is to protect clients from credit risk. |
 
-## Hong Kong
+### Hong Kong
 
 | InfoType | Description |
 | --- | --- |
 | HONG_KONG_ID_NUMBER | The 香港身份證, or Hong Kong identity card (HKIC), is used as the main identity document for citizens of Hong Kong. |
 
-## India
+### India
 
 | InfoType | Description |
 | --- | --- |
@@ -181,13 +189,13 @@ The infoType detectors in this section detect credentials and other secret data.
 | INDIA_GST_INDIVIDUAL | The Indian GST identification number (GSTIN) is a unique identifier required of every business in India for taxation. |
 | INDIA_PAN_INDIVIDUAL | The Indian Personal Permanent Account Number (PAN) is a unique 10-digit alphanumeric identifier used for identification of individuals—particularly people who pay income tax. It's issued by the Indian Income Tax Department. The PAN is valid for the lifetime of the holder. |
 
-## Indonesia
+### Indonesia
 
 | InfoType | Description |
 | --- | --- |
 | INDONESIA_NIK_NUMBER | An Indonesian Single Identity Number (Nomor Induk Kependudukan, or NIK) is the national identification number of Indonesia. The NIK is used as the basis for issuing Indonesian resident identity cards (Kartu Tanda Penduduk, or KTP), passports, driver's licenses and other identity documents. |
 
-## Ireland
+### Ireland
 
 | InfoType | Description |
 | --- | --- |
@@ -196,19 +204,19 @@ The infoType detectors in this section detect credentials and other secret data.
 | IRELAND_PASSPORT | An Irish (IE) passport number. |
 | IRELAND_PPSN | The Irish Personal Public Service Number (PPS number, or PPSN) is a unique number for accessing social welfare benefits, public services, and information in Ireland. |
 
-## Israel
+### Israel
 
 | InfoType | Description |
 | --- | --- |
 | ISRAEL_IDENTITY_CARD_NUMBER | The Israel identity card number is issued to all Israeli citizens at birth by the Ministry of the Interior. Temporary residents are assigned a number when they receive temporary resident status. |
 
-## Italy
+### Italy
 
 | InfoType | Description |
 | --- | --- |
 | ITALY_FISCAL_CODE | An Italy fiscal code number is a unique 16-digit code assigned to Italian citizens as a form of identification. |
 
-## Japan
+### Japan
 
 | InfoType | Description |
 | --- | --- |
@@ -217,52 +225,52 @@ The infoType detectors in this section detect credentials and other secret data.
 | JAPAN_INDIVIDUAL_NUMBER | The Japanese national identification number—sometimes referred to as "My Number"—is a new national ID number as of January 2016. |
 | JAPAN_PASSPORT | A Japanese passport number. The passport number consists of two alphabetic characters followed by seven digits. |
 
-## Korea
+### Korea
 
 | InfoType | Description |
 | --- | --- |
 | KOREA_PASSPORT | A Korean passport number. |
 | KOREA_RRN | A South Korean Social Security number. |
 
-## Mexico
+### Mexico
 
 | InfoType | Description |
 | --- | --- |
 | MEXICO_CURP_NUMBER | The Mexico Clave Única de Registro de Población (CURP) number, or Unique Population Registry Code or Personal Identification Code number. The CURP number is an 18-character state-issued identification number assigned by the Mexican government to citizens or residents of Mexico and used for taxpayer identification. |
 | MEXICO_PASSPORT | A Mexican passport number. |
 
-## The Netherlands
+### The Netherlands
 
 | InfoType | Description |
 | --- | --- |
 | NETHERLANDS_BSN_NUMBER | A Dutch Burgerservicenummer (BSN), or Citizen's Service Number, is a state-issued identification number that's on driver's licenses, passports, and international ID cards. |
 | NETHERLANDS_PASSPORT | A Dutch passport number. |
 
-## New Zealand
+### New Zealand
 
 | InfoType | Description |
 | --- | --- |
 | NEW_ZEALAND_IRD_NUMBER | An IRD number is used in New Zealand by the government, financial institutions, and employers to identify an entity for tax-related events. Each entity is assigned one IRD number by New Zealand's Inland Revenue Department. |
 
-## Norway
+### Norway
 
 | InfoType | Description |
 | --- | --- |
 | NORWAY_NI_NUMBER | Norway‘s Fødselsnummer, National Identification Number, or Birth Number is assigned at birth, or on migration into the country. It is registered with the Norwegian Tax Office. |
 
-## Paraguay
+### Paraguay
 
 | InfoType | Description |
 | --- | --- |
 | PARAGUAY_CIC_NUMBER | A Paraguayan Cédula de Identidad Civil (CIC), or civil identity card, is used as the main identity document for citizens. |
 
-## Peru
+### Peru
 
 | InfoType | Description |
 | --- | --- |
 | PERU_DNI_NUMBER | A Peruvian Documento Nacional de Identidad (DNI), or national identity card, is used as the main identity document for citizens. |
 
-## Poland
+### Poland
 
 | InfoType | Description |
 | --- | --- |
@@ -270,7 +278,7 @@ The infoType detectors in this section detect credentials and other secret data.
 | POLAND_NATIONAL_ID_NUMBER | The Polish identity card number. is a government identification number for Polish citizens. Every citizen older than 18 years must have an identity card. The local Office of Civic Affairs issues the card, and each card has its own unique number. |
 | POLAND_PASSPORT | A Polish passport number. Polish passport is an international travel document for Polish citizens. It can also be used as a proof of Polish citizenship. |
 
-## Portugal
+### Portugal
 
 | InfoType | Description |
 | --- | --- |
@@ -278,20 +286,20 @@ The infoType detectors in this section detect credentials and other secret data.
 | PORTUGAL_NIB_NUMBER | A Portuguese Número de Identificação Bancária (NIB) , or Banking Identification Number is assigned by the Banco de Portugal and identifies bank accounts for all national interbanking operations. |
 | PORTUGAL_SOCIAL_SECURITY_NUMBER | A Portuguese Social Security number, also known as a Número de Identificação de Segurança Social, identifies a person in Portugal for all interactions with the country's Social Security system. |
 
-## Singapore
+### Singapore
 
 | InfoType | Description |
 | --- | --- |
 | SINGAPORE_NATIONAL_REGISTRATION_ID_NUMBER | A unique set of nine alpha-numeric characters on the Singapore National Registration Identity Card. |
 | SINGAPORE_PASSPORT | A Singaporean passport number. |
 
-## South Africa
+### South Africa
 
 | InfoType | Description |
 | --- | --- |
 | SOUTH_AFRICA_ID_NUMBER | A South Africa ID number. |
 
-## Spain
+### Spain
 
 | InfoType | Description |
 | --- | --- |
@@ -303,32 +311,32 @@ The infoType detectors in this section detect credentials and other secret data.
 | SPAIN_PASSPORT | A Spanish Ordinary Passport (Pasaporte Ordinario) number. There are 4 different types of passports in Spain. This detector is for the Ordinary Passport (Pasaporte Ordinario) type, which is issued for ordinary travel, such as vacations and business trips. |
 | SPAIN_SOCIAL_SECURITY_NUMBER | The Spanish Social Security number (Número de Afiliación a la Seguridad Social) is a 10-digit sequence that identifies a person in Spain for all interactions with the country's Social Security system. |
 
-## Sweden
+### Sweden
 
 | InfoType | Description |
 | --- | --- |
 | SWEDEN_NATIONAL_ID_NUMBER | A Swedish Personal Identity Number (personnummer), a national government identification number for Swedish citizens. |
 | SWEDEN_PASSPORT | A Swedish passport number. |
 
-## Taiwan
+### Taiwan
 
 | InfoType | Description |
 | --- | --- |
 | TAIWAN_PASSPORT | A Taiwanese passport number. |
 
-## Thailand
+### Thailand
 
 | InfoType | Description |
 | --- | --- |
 | THAILAND_NATIONAL_ID_NUMBER | The Thai บัตรประจำตัวประชาชนไทย, or identity card, is used as the main identity document for Thai nationals. |
 
-## Turkey
+### Turkey
 
 | InfoType | Description |
 | --- | --- |
 | TURKEY_ID_NUMBER | A unique Turkish personal identification number, assigned to every citizen of Turkey. |
 
-## United Kingdom
+### United Kingdom
 
 | InfoType | Description |
 | --- | --- |
@@ -339,7 +347,7 @@ The infoType detectors in this section detect credentials and other secret data.
 | UK_PASSPORT | A United Kingdom (UK) passport number. |
 | UK_TAXPAYER_REFERENCE | A United Kingdom (UK) Unique Taxpayer Reference (UTR) number. This number, comprised of a string of 10 decimal digits, is an identifier used by the UK government to manage the taxation system. Unlike other identifiers, such as the passport number or social insurance number, the UTR is not listed on official identity cards. |
 
-## United States
+### United States
 
 | InfoType | Description |
 | --- | --- |
@@ -360,19 +368,19 @@ The infoType detectors in this section detect credentials and other secret data.
 | US_TOLLFREE_PHONE_NUMBER | A US toll-free telephone number. |
 | US_VEHICLE_IDENTIFICATION_NUMBER | A vehicle identification number (VIN) is a unique 17-digit code assigned to every on-road motor vehicle in North America. |
 
-## Uruguay
+### Uruguay
 
 | InfoType | Description |
 | --- | --- |
 | URUGUAY_CDI_NUMBER | A Uruguayan Cédula de Identidad (CDI), or identity card, is used as the main identity document for citizens. |
 
-## Venezuela
+### Venezuela
 
 | InfoType | Description |
 | --- | --- |
 | VENEZUELA_CDI_NUMBER | A Venezuelan Cédula de Identidad (CDI), or national identity card, is used as the main identity document for citizens. |
 
-## Documents
+### Documents
 
 In addition to its ability to scan and classify information contained within documents, Sensitive Data Protection can classify documents into multiple enterprise-specific categories. When combined with personally identifiable information (PII) inspection scan results, this classification can be useful for document risk assessment, policy enforcement, and similar use cases.
 
@@ -392,3 +400,5 @@ In addition to its ability to scan and classify information contained within doc
 | DOCUMENT_TYPE/R&D/DATABASE_BACKUP | A database backup file. |
 
 Based on [Cloud Data Loss Prevention](https://cloud.google.com/dlp).
+
+
