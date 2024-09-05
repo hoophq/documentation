@@ -43,5 +43,9 @@ All fields below are not required but can give you some extra configuration opti
 | ORG_MULTI_TENANT                    |                      | Enable organization multi-tenancy |
 | ASK_AI_CREDENTIALS                  |                      | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
 | GOOGLE_APPLICATION_CREDENTIALS_JSON |                      | GCP DLP credentials |
+| DLP_PROVIDER                        |                      | It can be empty, `mspresidio` or `gcp` |
+| MSPRESIDIO_ANALYZER_URL             |                      | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
+| MSPRESIDIO_ANONYMIZER_URL           |                      | Host and port for MS Presidio Anonymizer`<host-to-anonymizer:port>` |
 | WEBHOOK_APPKEY                      |                      | The application key to send messages to the webhook provider. |
 | ADMIN_USERNAME                      | admin                | Changes the name of the group to act as the admin role |
+
