@@ -117,7 +117,7 @@
         "quickstarts/elixir-IEx",
         "quickstarts/php-artisan",
         "quickstarts/webapps-and-apis",
-        "quickstarts/ssh-jump-hosts"
+        "quickstarts/jump-hosts"
       ]
     },
     {

@@ -59,77 +59,58 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
 
 ## Download & Launch
 
-<Tabs>
-  <Tab title="One-line script">
-    Get up and running in 5 minutes with automations for self-hosted deployments to cloud-providers, Linux, Docker, Kubernetes, and more. Or 5 seconds with a managed instance.
+<Steps>
+  <Step title="Obtain the VM Public DNS or IP">
+    Get the IP address or the public DNS of your virtual machine.
+    <Warning>
+    Make sure to open the inbound traffic to port **TCP/443**.
+    </Warning>
+  </Step>
+
+  <Step title="Set the .env file">
+    Configure the environment variable with the **public DNS** from your VM.
 
     ```sh
-    curl -sL https://hoop.dev/install.sh | sh
+    cat - > .env <<EOF
+    HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+    EOF
     ```
-  </Tab>
-  <Tab title="Manual Installation">
-    <Steps>
-      <Step title="Copy the compose file">
-        Copy the `docker-compose.yml` file into your local file system.
 
-        ```sh
-            curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
-        ```
-      </Step>
+    <Warning>
+      If you’re running the setup without a reachable DNS, specify the IP address with the suffix `.nip.io`. This service allows mapping any IP address to a valid DNS. For example, if your IP address is **200.15.20.5** then you be able to use the domain `200.15.20.5.nip.io`.
+    </Warning>
+  </Step>
 
-      <Step title="Find your local IP">
-        Get the IP address of your machine. This IP address should be reachable from the network where the docker containers will be running.
+  <Step title="Copy the compose file">
+    Copy the `docker-compose.yml` file into your local file system.
 
-        ```sh
-        # this command gives you the IP address
-        # of your machine in the local network
-        # in the first line of its result
-        ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $2}'
-        ```
-
-        <Note>
-        If you're running the setup without a reachable DNS, specify the IP address with the suffix `.nip.io`. This service allows mapping any IP address to a valid DNS.
-        For example, if your IP address is `192.168.10.20` then you be able to use the domain `192.168.10.20.nip.io`.
-        </Note>
-      </Step>
-
-      <Step title="Set the .env file">
-        Configure the environment variable with your domain name.
-
-        ```sh
-        cat - > .env <<EOF
-        HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
-        EOF
-        ```
-
-        <Warning>
-          Remember to replace the `<a.b.c.d>` with your IP address or use a valid DNS name.
-        </Warning>
-      </Step>
-      <Step title="Run">
-        With everything properly configured, run the docker compose command.
-
-        ```sh
-        docker compose up
-        ```
-
-        <Note>
-          The service will be available on port **443**. Make sure to configure your firewall to allow inbound HTTP connections at this port.
-        </Note>
-      </Step>
-    </Steps>
-
-    A success launch will return the logs of the gateway and the agent
-
-    ```log
-    hoop-gateway-1  | (...) starting servers
-    hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
-    hoop-gateway-1  | (...) server transport created, tls=false
-    (...)
-    hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
+    ```sh
+    curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
     ```
-  </Tab> 
-</Tabs>
+  </Step>
+
+  <Step title="Run">
+    With everything properly configured, run the docker compose command.
+
+    ```sh
+    docker compose up
+    ```
+
+    <Note>
+      The service will be available on port **443**.
+    </Note>
+  </Step>
+</Steps>
+
+A success launch will return the logs of the gateway and the agent
+
+```log
+hoop-gateway-1  | (...) starting servers
+hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
+hoop-gateway-1  | (...) server transport created, tls=false
+(...)
+hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
+```
 
 ---
 
@@ -230,64 +211,168 @@ Now that you have access to the developer portal, let's create your first connec
   </Step>
 </Steps>
 
-#### Connecting to your IDE
+#### Connecting to Services
 
-In this step, we'll connect to Postgres using your favorite IDE via Hoop.
+<Tabs>
+  <Tab title="Connect with your IDE">
+    In this step, we'll connect to Postgres using your favorite IDE via Hoop.
 
-<Steps>
-  <Step title="Access your terminal and Install hoop.dev's CLI">
-    Install the [Hoop Command Line](/getting-started/cli) in your host machine
-  </Step>
+    <Steps>
+      <Step title="Access your terminal and Install hoop.dev's CLI">
+        Install the [Hoop Command Line](/getting-started/cli) in your host machine
+      </Step>
 
-  <Step title="Obtain the Root Certificate Authority">
-    Copy the output of the command below to your local machine
-    ```sh
-    docker compose exec nginx cat /hoopdata/tls/ca.crt
-    ```
+      <Step title="Obtain the Root Certificate Authority">
+        Copy the output of the command below to your local machine
+        ```sh
+        docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
+        ```
+
+        <Tip>
+          This step is only required when using self signed certificates, which is the default installation method.
+        </Tip>
+      </Step>
+      <Step title="Configure and Login via CLI">
+        ```sh
+        # configure it only once in your local machine
+        hoop config create --api-url https://$HOOP_PUBLIC_HOSTNAME --tls-ca /path/to/ca.crt
+
+        hoop login
+        ```
+
+        <Tip>
+          Make sure to replace `$HOOP_PUBLIC_HOSTNAME` with the VM public DNS.
+          - The `--tls-ca` option is required only when using self signed certificates.
+        </Tip>
+      </Step>
+
+      <Step title="Run the command to connect to your PostgreSQL">
+        If you are following this guide as is, the command will look like this:
+        ```sh
+        hoop connect postgres-demo
+        ```
+      </Step>
+      <Step title="Get the credentials and connect to it">
+        Hoop securely connects to the database and tunnels it to your localhost. These credentials are only available for the duration of the connection and for your local machine only.
+        ```sh
+        $ hoop connect postgres-demo
+        connection: postgres-demo | session: 4619c80f-7166-487c-8c9f-9609e59ae5d6
+
+        --------------------postgres-credentials--------------------
+              host=127.0.0.1 port=5433 user=noop password=noop
+        ------------------------------------------------------------
+        ready to accept connections!
+        ```
+      </Step>
+    </Steps>
 
     <Tip>
-      This step is only required when using self signed certificates, which is the default installation method.
+    See our [Quick Start with Postgres](/quickstarts/postgres) for more information on how to interact with it.
     </Tip>
-  </Step>
-  <Step title="Configure and Login via CLI">
-    ```sh
-    # configure it only once in your local machine
-    hoop config create --api-url https://<a.b.c.d>.nip.io --tls-ca /path/to/ca.crt
 
-    hoop login
-    ```
+  </Tab>
+  <Tab title="Access a Jump Host">
+    In this step, we'll connect a distinct machine to act a Jump Host to your private network.
 
-    <Tip>
-      The `--tls-ca` option is required only when using self signed certificates.
+    <Steps>
+      <Step title="Access your terminal and Install hoop.dev's CLI">
+        Install the [Hoop Command Line](/getting-started/cli) in your host machine
+      </Step>
 
-      Also, don't forget to replace `<a.b.c.d>` with your actual IP address.
-    </Tip>
-  </Step>
+      <Step title="Obtain the Root Certificate Authority">
+        Copy the output of the command below to your local machine
+        ```sh
+        docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
+        ```
 
-  <Step title="Run the command to connect to your PostgreSQL">
-    If you are following this guide as is, the command will look like this:
-    ```sh
-    hoop connect postgres-demo
-    ```
-  </Step>
-  <Step title="Get the credentials and connect to it">
-    Hoop securely connects to the database and tunnels it to your localhost. These credentials are only available for the duration of the connection and for your local machine only.
-    ```sh
-    $ hoop connect postgres-demo
-    connection: postgres-demo | session: 4619c80f-7166-487c-8c9f-9609e59ae5d6
+        <Tip>
+          This step is only required when using self signed certificates, which is the default installation method.
+        </Tip>
+      </Step>
+      <Step title="Obtain the Token in the Webapp">
+        1. Visit the webapp URL at **https://$HOOP_PUBLIC_HOSTNAME**.
+        2. Click on **Connections** in the left sidebar menu.
+        3. Click on **Add connection** in the top right.
+        4. Then click on the **Shell** button (image below).
 
-    --------------------postgres-credentials--------------------
-          host=127.0.0.1 port=5433 user=noop password=noop
-    ------------------------------------------------------------
-    ready to accept connections!
-    ```
-  </Step>
-</Steps>
+        <img
+          src="/images/getting-started/installation/hoop-run-connection-new.png"
+        />
 
-<Tip>
-See our [Quick Start with Postgres](/quickstarts/postgres) for more information on how to interact with it.
-</Tip>
+        5. Scroll to bottom and copy the token displayed in the **Setup the token** section.
 
+        <img
+          src="/images/getting-started/installation/hoop-run-copy-token.png"
+        />
+
+      </Step>
+
+
+      <Step title="Run the command to connect your Jump Host">
+        Access the machine via terminal that you wish to transform into a Jump Host.
+
+        <Tip>
+        You can connect your own local machine for testing or a remote one (linux/macos only).
+        </Tip>
+
+        1. Paste the key copied from the previous step
+
+        ```sh
+        export HOOP_KEY=...
+        ```
+
+        2. Export the Certificate Authority file
+
+        ```sh
+        # asumming the file was saved at /tmp/ca.pem
+        export HOOP_TLSCA=file:///tmp/ca.pem
+        ```
+
+        <Info>
+        This step is required only when using self signed certificates.
+        </Info>
+
+        3. Connect your Jump Host
+
+        ```sh
+        hoop run --name my-jumphost --command '/bin/bash'
+        ```
+
+        You can now access the Jump Host via command line in another terminal or through the Webapp console.
+
+      </Step>
+      <Step title="Connect into your Jump Host">
+
+        1. Open another terminal window and configure the cli
+        ```sh
+        hoop config create --api-url https://$HOOP_PUBLIC_HOSTNAME \
+          --tls-ca /path/to/ca.crt
+        ```
+
+        <Info>
+        The `--tls-ca` option is required only when using self signed certificates.
+        </Info>
+
+        2. Perform login
+        ```sh
+        hoop login
+        ```
+
+        3. Connect via console / bash
+        ```sh
+        hoop connect my-jumphost
+        ```
+
+        <Tip>
+        See our [Quick Start with Jump Hosts](/quickstarts/jump-hosts) for more information on how to interact with it.
+        </Tip>
+
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+---
 
 ## Inviting your coworkers to use Hoop
 
@@ -303,8 +388,7 @@ The login used to authenticate to Hoop is also an admin on Zitadel.
 
 <Steps>
   <Step title="Access Zitadel admin panel">
-    Go to `https://<a.b.c.d>.nip.io/ui/console`
-    <Info>remember to replace `<a.b.c.d>` with your actual IP address, if you are setting it up locally. If you are setting it up on a cloud provider, replace it with the domain you have configured</Info>
+    Go to `https://$HOOP_PUBLIC_HOSTNAME/ui/console`
   </Step>
 
   <Step title="Navigate to hoophq settings">
@@ -365,7 +449,7 @@ docker compose down -v
 
 # configure .env file
 cat - > .env <<EOF
-HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
+HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
 IDP_ISSUER=
 IDP_CLIENT_ID=
 IDP_CLIENT_SECRET=
@@ -384,7 +468,7 @@ This installation comes with TLS enabled by default using self signed certificat
 
 <Tip>
 To obtain the self signed certificate authority file from an installation, issue the command:
-`docker compose exec nginx cat /hoopdata/tls/ca.crt`
+`docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt`
 </Tip>
 
 **To use your own certificates:**
@@ -392,7 +476,7 @@ To obtain the self signed certificate authority file from an installation, issue
 ```sh
 CERT_PATH=/tmp/tls
 cat - > .env <<EOF
-HOOP_PUBLIC_HOSTNAME=<a.b.c.d>.nip.io
+HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
 NGINX_TLS_CA=$(cat $CERT_PATH/ca.crt |base64)
 NGINX_TLS_KEY=$(cat $CERT_PATH/server.key |base64)
 NGINX_TLS_CERT=$(cat $CERT_PATH/server.cert |base64)
@@ -437,7 +521,7 @@ EOF
 
 **DNS Configuration**
 
-For the setup to work, make sure to publish `$HOOP_PUBLIC_HOSTNAME` to the IP address of your machine.
+For the setup to work, make sure to publish `$HOOP_PUBLIC_HOSTNAME` with the public DNS of your machine.
 
 ## Clean Up
 
