@@ -61,10 +61,8 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
 
 <Steps>
   <Step title="Obtain the VM Public DNS or IP">
-    Get the IP address or the public DNS of your virtual machine.
-    <Warning>
-    Make sure to open the inbound traffic to port **TCP/443**.
-    </Warning>
+    - Get the IP address or the public DNS of your virtual machine.
+    - Open inbound traffic to ports **TCP/80** and **TCP/443**
   </Step>
 
   <Step title="Set the .env file">
@@ -76,28 +74,43 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
     EOF
     ```
 
-    <Warning>
+    <Note>
       If you’re running the setup without a reachable DNS, specify the IP address with the suffix `.nip.io`. This service allows mapping any IP address to a valid DNS. For example, if your IP address is **200.15.20.5** then you be able to use the domain `200.15.20.5.nip.io`.
-    </Warning>
+    </Note>
   </Step>
 
   <Step title="Copy the compose file">
-    Copy the `docker-compose.yml` file into your local file system.
+    Copy the `docker-compose.yml` and `docker-compose-tls.yml` file into your local file system.
 
     ```sh
     curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
+    curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose-tls.yml > ./docker-compose-tls.yml
     ```
   </Step>
 
   <Step title="Run">
-    With everything properly configured, run the docker compose command.
+    <Warning>
+      We highly recommend using **TLS** if this is proof of concept to connect your local infra-structure services.
+    </Warning>
+
+    - TLS Disabled
 
     ```sh
     docker compose up
     ```
 
+    - TLS Enabled
+
+    ```sh
+    echo HOOP_TLS_MODE=enabled >> .env
+    ```
+
+    ```sh
+    docker compose -f docker-compose.yml -f docker-compose-tls.yml up
+    ```
+
     <Note>
-      The service will be available on port **443**.
+      The deployed services will be available on ports **80** and **443**.
     </Note>
   </Step>
 </Steps>
@@ -109,7 +122,7 @@ hoop-gateway-1  | (...) starting servers
 hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
 hoop-gateway-1  | (...) server transport created, tls=false
 (...)
-hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>:443
+hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>
 ```
 
 ---
@@ -123,7 +136,7 @@ Access hoop.dev's developer portal and set up your first user, configure your fi
 
 <Steps>
   <Step title="Access in the Browser">
-    Now, access your instance via `https://$HOOP_PUBLIC_HOSTNAME`
+    Now, access your instance via `http://$HOOP_PUBLIC_HOSTNAME`
 
     <Warning>
     If you use self-signed certificates, the browser will warn that your connection is not private. Make sure to bypass this warning and proceed with your connection.
@@ -219,31 +232,42 @@ Now that you have access to the developer portal, let's create your first connec
 
     <Steps>
       <Step title="Access your terminal and Install hoop.dev's CLI">
-        Install the [Hoop Command Line](/getting-started/cli) in your host machine
+        1. Install the [Hoop Command Line](/getting-started/cli) in your local machine
+        2. Expose the environment variable containing the public DNS of your instance
+
+        ```sh
+        export HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+        ```
+
       </Step>
 
-      <Step title="Obtain the Root Certificate Authority">
-        Copy the output of the command below to your local machine
+      <Step title="Obtain and configure the Root Certificate Authority">
+        <Note>
+          This step is only required when running the gateway with TLS and with self signed certificates.
+        </Note>
+        1. Copy the output of the command below to your local machine
         ```sh
         docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
         ```
 
-        <Tip>
-          This step is only required when using self signed certificates, which is the default installation method.
-        </Tip>
+        2. Export the environment variable containing the path of the CA
+        ```sh
+        # assuming it was saved at /tmp/ca.pem
+        export HOOP_TLSCA=file:///tmp/ca.crt
+        ```
       </Step>
       <Step title="Configure and Login via CLI">
+
+        1. Configure the command line to access your gateway instance
         ```sh
         # configure it only once in your local machine
-        hoop config create --api-url https://$HOOP_PUBLIC_HOSTNAME --tls-ca /path/to/ca.crt
-
-        hoop login
+        hoop config create --api-url http://$HOOP_PUBLIC_HOSTNAME
         ```
 
-        <Tip>
-          Make sure to replace `$HOOP_PUBLIC_HOSTNAME` with the VM public DNS.
-          - The `--tls-ca` option is required only when using self signed certificates.
-        </Tip>
+        2. Login
+        ```sh
+        hoop login
+        ```
       </Step>
 
       <Step title="Run the command to connect to your PostgreSQL">
@@ -276,21 +300,31 @@ Now that you have access to the developer portal, let's create your first connec
 
     <Steps>
       <Step title="Access your terminal and Install hoop.dev's CLI">
-        Install the [Hoop Command Line](/getting-started/cli) in your host machine
+        1. Install the [Hoop Command Line](/getting-started/cli) in your local machine
+        2. Expose the environment variable containing the public DNS of your instance
+
+        ```sh
+        export HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+        ```
       </Step>
 
-      <Step title="Obtain the Root Certificate Authority">
-        Copy the output of the command below to your local machine
+      <Step title="Obtain and configure the Root Certificate Authority">
+        <Note>
+          This step is only required when running the gateway with TLS and with self signed certificates.
+        </Note>
+        1. Copy the output of the command below to your local machine
         ```sh
         docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
         ```
 
-        <Tip>
-          This step is only required when using self signed certificates, which is the default installation method.
-        </Tip>
+        2. Export the environment variable containing the path of the CA
+        ```sh
+        # assuming it was saved at /tmp/ca.pem
+        export HOOP_TLSCA=file:///tmp/ca.crt
+        ```
       </Step>
       <Step title="Obtain the Token in the Webapp">
-        1. Visit the webapp URL at **https://$HOOP_PUBLIC_HOSTNAME**.
+        1. Visit the webapp URL at **http://$HOOP_PUBLIC_HOSTNAME**.
         2. Click on **Connections** in the left sidebar menu.
         3. Click on **Add connection** in the top right.
         4. Then click on the **Shell** button (image below).
@@ -321,18 +355,7 @@ Now that you have access to the developer portal, let's create your first connec
         export HOOP_KEY=...
         ```
 
-        2. Export the Certificate Authority file
-
-        ```sh
-        # asumming the file was saved at /tmp/ca.pem
-        export HOOP_TLSCA=file:///tmp/ca.pem
-        ```
-
-        <Info>
-        This step is required only when using self signed certificates.
-        </Info>
-
-        3. Connect your Jump Host
+        2. Connect your Jump Host
 
         ```sh
         hoop run --name my-jumphost --command '/bin/bash'
@@ -343,17 +366,12 @@ Now that you have access to the developer portal, let's create your first connec
       </Step>
       <Step title="Connect into your Jump Host">
 
-        1. Open another terminal window and configure the cli
+        1. Open another terminal window and configure the command line to access your gateway instance
         ```sh
-        hoop config create --api-url https://$HOOP_PUBLIC_HOSTNAME \
-          --tls-ca /path/to/ca.crt
+        hoop config create --api-url http://$HOOP_PUBLIC_HOSTNAME
         ```
 
-        <Info>
-        The `--tls-ca` option is required only when using self signed certificates.
-        </Info>
-
-        2. Perform login
+        2. Perform the login
         ```sh
         hoop login
         ```
@@ -388,7 +406,7 @@ The login used to authenticate to Hoop is also an admin on Zitadel.
 
 <Steps>
   <Step title="Access Zitadel admin panel">
-    Go to `https://$HOOP_PUBLIC_HOSTNAME/ui/console`
+    Go to `http://$HOOP_PUBLIC_HOSTNAME/ui/console`
   </Step>
 
   <Step title="Navigate to hoophq settings">
@@ -443,40 +461,57 @@ The login used to authenticate to Hoop is also an admin on Zitadel.
 Refer to the [SSO documentation](/configure/idp/get-started) for instructions on how to obtain these values from your identity provider.
 </Tip>
 
-```sh
-# remove any previous installation
-docker compose down -v
+1. Remove any previous installation
 
+```sh
+docker compose down -v
+```
+
+2. Configure the `.env` file
+
+<Note>
+We recommend setting the gateway with TLS because most identity providers does not allow specifying the redirect URL without a secure scheme (https).
+</Note>
+
+```sh
 # configure .env file
 cat - > .env <<EOF
 HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+HOOP_TLS_MODE=enabled
 IDP_ISSUER=
 IDP_CLIENT_ID=
 IDP_CLIENT_SECRET=
 IDP_AUDIENCE=
 EOF
-docker compose up
+```
+
+3. Run it
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose-tls.yml up
 ```
 
 ### TLS
 
-This installation comes with TLS enabled by default using self signed certificates. It will generate the certificates by default on the volume mapped to `/hoopdata/tls`.
+This setup supports TLS with self signed certificates. It will generate them by default on the volume mapped to `/hoopdata/tls`.
 
 - `/hoopdata/tls/ca.crt`: the certificate authority (Root CA)
 - `/hoopdata/tls/server.crt`: the server certificate
 - `/hoopdata/tls/server.key`: the server private key
 
-<Tip>
-To obtain the self signed certificate authority file from an installation, issue the command:
-`docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt`
-</Tip>
+To obtain the self signed certificate authority file from an installation, issue the command below:
 
-**To use your own certificates:**
+```sh
+docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
+```
+
+**To configure the setup with your own certificates:**
 
 ```sh
 CERT_PATH=/tmp/tls
 cat - > .env <<EOF
 HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+HOOP_TLS_MODE=enabled
 NGINX_TLS_CA=$(cat $CERT_PATH/ca.crt |base64)
 NGINX_TLS_KEY=$(cat $CERT_PATH/server.key |base64)
 NGINX_TLS_CERT=$(cat $CERT_PATH/server.cert |base64)
@@ -491,11 +526,15 @@ This section explains how to issue a valid certificate for your Hoop instance wi
  This guide requires a valid domain and access to manage it's own DNS.
 </Info>
 
-- Execute the command below to issue a new certificate and add the **TXT** record in your DNS management system
+1. Export the environment variable with your domain name
 
 ```sh
-# add your domain name in this environment variable
-HOOP_PUBLIC_HOSTNAME=
+export HOOP_PUBLIC_HOSTNAME=<vm-public-domain>
+```
+
+2. - Execute the command below to issue a new certificate
+
+```sh
 mkdir -p /tmp/tls
 docker run -v /tmp/tls/:/etc/letsencrypt/archive/ \
     --rm -it certbot/certbot \
@@ -505,11 +544,11 @@ docker run -v /tmp/tls/:/etc/letsencrypt/archive/ \
     --register-unsafely-without-email
 ```
 
-- Encode the certificates as base64 and set it to the `.env` file
+3. Add the **TXT** record in your DNS management system
+
+4. Encode the certificates as base64 and set it to the `.env` file
 
 ```sh
-# add your domain name in this environment variable
-HOOP_PUBLIC_HOSTNAME=
 CERT_PATH=/tmp/tls
 cat - > .env <<EOF
 HOOP_PUBLIC_HOSTNAME=$HOOP_PUBLIC_HOSTNAME
