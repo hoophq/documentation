@@ -59,67 +59,75 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
 
 ## Download & Launch
 
-<Steps>
-  <Step title="Obtain the VM Public DNS or IP">
-    - Get the IP address or the public DNS of your virtual machine.
-    - Open inbound traffic to ports **TCP/80** and **TCP/443**
+<Tabs>
+  <Tab title="Local Installation">
+    This process is recommended to run in your **local machine**.
+
+    ```sh
+    curl -sL https://hoop.dev/install.sh | sh
+    ```
+<<<<<<< Updated upstream
   </Step>
-
-  <Step title="Set the .env file">
-    Configure the environment variable with the **public DNS** from your VM.
-
-    ```sh
-    cat - > .env <<EOF
-    HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
-    EOF
-    ```
-  </Step>
-
-  <Step title="Copy the compose file">
-    Copy the `docker-compose.yml` and `docker-compose-tls.yml` file into your local file system.
-
-    ```sh
-    curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
-    curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose-tls.yml > ./docker-compose-tls.yml
-    ```
-  </Step>
-
-  <Step title="Run">
-    <Warning>
-      We highly recommend using **TLS** if this is proof of concept to connect your local infra-structure services.
-    </Warning>
-
-    - TLS Disabled
-
-    ```sh
-    docker compose up
-    ```
-
-    - TLS Enabled
-
-    ```sh
-    echo HOOP_TLS_MODE=enabled >> .env
-    ```
-
-    ```sh
-    docker compose -f docker-compose.yml -f docker-compose-tls.yml up
-    ```
+=======
+    Visit your instance at [http://127.0.0.1](http://127.0.0.1) and follow the next steps.
 
     <Note>
-      The deployed services will be available on ports **80** and **443**.
+      If the browser redirects you to the `/logout` endpoint, edit the URL by removing this suffix and press enter.
     </Note>
-  </Step>
-</Steps>
+>>>>>>> Stashed changes
 
-A success launch will return the logs of the gateway and the agent
+  </Tab>
+  <Tab title="Remote Installation">
+    This process is recommended to run in a **remote machine**. The services will be available at `http(s)://<vm-public-dns>`.
+    <Steps>
+      <Step title="Obtain the VM Public DNS or IP">
+        - Get the IP address or the public DNS of your virtual machine.
+        - Open inbound traffic to ports **TCP/80** and **TCP/443**
+      </Step>
 
-```log
-hoop-gateway-1  | (...) starting servers
-hoop-gateway-1  | (...) starting gateway at 0.0.0.0:8010
-hoop-gateway-1  | (...) server transport created, tls=false
-(...)
-hoop-agent-1    | (...) connected with success to <$HOOP_PUBLIC_HOSTNAME>
-```
+      <Step title="Set the .env file">
+        Configure the environment variable with the **public DNS** from your VM.
+
+        ```sh
+        cat - > .env <<EOF
+        HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+        EOF
+        ```
+      </Step>
+
+      <Step title="Copy the compose file">
+        Copy the `docker-compose.yml` file into your local file system.
+
+        ```sh
+        curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
+        ```
+      </Step>
+
+      <Step title="Run">
+        <Warning>
+          We highly recommend using **TLS** if this is proof of concept to connect your local infra-structure services.
+        </Warning>
+
+        <Tabs>
+          <Tab title="TLS Enabled">
+            ```sh
+            echo HOOP_TLS_MODE=enabled >> .env
+            docker compose up
+            ```
+          </Tab>
+          <Tab title="TLS Disabled">
+            ```sh
+            docker compose up
+            ```
+          </Tab>
+        </Tabs>
+      </Step>
+      <Step title="Signup to Developer's Portal">
+        Visit your instance at `http://$HOOP_PUBLIC_HOSTNAME` and follow the next steps.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
 
 ---
 
@@ -131,21 +139,6 @@ Access hoop.dev's developer portal and set up your first user, configure your fi
 #### Sign In to the developer portal
 
 <Steps>
-  <Step title="Access in the Browser">
-    Now, access your instance via `http://$HOOP_PUBLIC_HOSTNAME`
-
-    <Warning>
-    If you use self-signed certificates, the browser will warn that your connection is not private. Make sure to bypass this warning and proceed with your connection.
-
-    If the browser redirects you to the `/logout` endpoint, edit the URL by removing this suffix and press enter.
-    </Warning>
-
-    <Frame>
-      <img
-        src="/images/getting-started/installation/signin-zitadel.png"
-      />
-    </Frame>
-  </Step>
   <Step title="Type the default user email value">
     Type `admin` for the e-mail input and click on Next
     <Frame>
@@ -224,43 +217,53 @@ Now that you have access to the developer portal, let's create your first connec
 
 <Tabs>
   <Tab title="Connect with your IDE">
-    In this step, we'll connect to Postgres using your favorite IDE via Hoop.
+    In this step, we'll connect to **PostgresSQL** using your favorite IDE via Hoop.
 
     <Steps>
       <Step title="Access your terminal and Install hoop.dev's CLI">
         1. Install the [Hoop Command Line](/getting-started/cli) in your local machine
-        2. Expose the environment variable containing the public DNS of your instance
+        2. Expose the environment variable containing the DNS or IP of your instance
 
-        ```sh
-        export HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
-        ```
+        <Tabs>
+          <Tab title="Local Installation">
+            1. Expose the environment variable below
 
+            ```sh
+            export HOOP_PUBLIC_HOSTNAME=127.0.0.1
+            ```
+          </Tab>
+          <Tab title="Remote Installation">
+            - Replace `<vm-public-dns>` with your remote machine DNS or IP
+            ```sh
+            export HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+            ```
+
+            <Note>
+              The steps 2 and 3 are only required when running the gateway with TLS and self signed certificates.
+            </Note>
+            - Copy the output of the command below to your local machine (e.g.: `/tmp/ca.crt`)
+            ```sh
+            docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
+            ```
+
+            - Export the environment variable containing the path of the CA
+            ```sh
+            # assuming it was saved at /tmp/ca.pem
+            export HOOP_TLSCA=file:///tmp/ca.crt
+            ```
+          </Tab>
+        </Tabs>
       </Step>
 
-      <Step title="Obtain and configure the Root Certificate Authority">
-        <Note>
-          This step is only required when running the gateway with TLS and with self signed certificates.
-        </Note>
-        1. Copy the output of the command below to your local machine
-        ```sh
-        docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
-        ```
-
-        2. Export the environment variable containing the path of the CA
-        ```sh
-        # assuming it was saved at /tmp/ca.pem
-        export HOOP_TLSCA=file:///tmp/ca.crt
-        ```
-      </Step>
       <Step title="Configure and Login via CLI">
 
-        1. Configure the command line to access your gateway instance
+        - Configure the command line to access your gateway instance
         ```sh
         # configure it only once in your local machine
         hoop config create --api-url http://$HOOP_PUBLIC_HOSTNAME
         ```
 
-        2. Login
+        - Authenticate
         ```sh
         hoop login
         ```
@@ -292,35 +295,45 @@ Now that you have access to the developer portal, let's create your first connec
 
   </Tab>
   <Tab title="Access a Jump Host">
-    In this step, we'll connect a distinct machine to act a Jump Host to your private network.
+    In this step, we'll connect a distinct machine to act as a Jump Host in your private network.
 
     <Steps>
       <Step title="Access your terminal and Install hoop.dev's CLI">
         1. Install the [Hoop Command Line](/getting-started/cli) in your local machine
         2. Expose the environment variable containing the public DNS of your instance
 
-        ```sh
-        export HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
-        ```
-      </Step>
+        <Tabs>
+          <Tab title="Local Installation">
+            1. Expose the environment variable below
 
-      <Step title="Obtain and configure the Root Certificate Authority">
-        <Note>
-          This step is only required when running the gateway with TLS and with self signed certificates.
-        </Note>
-        1. Copy the output of the command below to your local machine
-        ```sh
-        docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
-        ```
+            ```sh
+            export HOOP_PUBLIC_HOSTNAME=127.0.0.1
+            ```
+          </Tab>
+          <Tab title="Remote Installation">
+            - Replace `<vm-public-dns>` with your remote machine DNS or IP
+            ```sh
+            export HOOP_PUBLIC_HOSTNAME=<vm-public-dns>
+            ```
 
-        2. Export the environment variable containing the path of the CA
-        ```sh
-        # assuming it was saved at /tmp/ca.pem
-        export HOOP_TLSCA=file:///tmp/ca.crt
-        ```
+            <Note>
+              The steps 2 and 3 are only required when running the gateway with TLS and self signed certificates.
+            </Note>
+            - Copy the output of the command below to your local machine (e.g.: `/tmp/ca.crt`)
+            ```sh
+            docker exec hoop-nginx-1 cat /hoopdata/tls/ca.crt
+            ```
+
+            - Export the environment variable containing the path of the CA
+            ```sh
+            # assuming it was saved at /tmp/ca.pem
+            export HOOP_TLSCA=file:///tmp/ca.crt
+            ```
+          </Tab>
+        </Tabs>
       </Step>
       <Step title="Obtain the Token in the Webapp">
-        1. Visit the webapp URL at **http://$HOOP_PUBLIC_HOSTNAME**.
+        1. Visit the webapp URL at [http://127.0.0.1](http://127.0.0.1).
         2. Click on **Connections** in the left sidebar menu.
         3. Click on **Add connection** in the top right.
         4. Then click on the **Shell** button (image below).
@@ -402,7 +415,14 @@ The login used to authenticate to Hoop is also an admin on Zitadel.
 
 <Steps>
   <Step title="Access Zitadel admin panel">
-    Go to `http://$HOOP_PUBLIC_HOSTNAME/ui/console`
+    <Tabs>
+      <Tab title="Local Installation">
+        - [http://127.0.0.1/ui/console](http://127.0.0.1/ui/console)
+      </Tab>
+      <Tab title="Remote Installation">
+        - `http://$HOOP_PUBLIC_HOSTNAME/ui/console`
+      </Tab>
+    </Tabs>
   </Step>
 
   <Step title="Navigate to hoophq settings">
