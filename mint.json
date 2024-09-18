@@ -134,7 +134,8 @@
         "learn/secrets-manager",
         "learn/session-recording",
         "learn/webhooks-siem",
-        "learn/ai-query-builder"
+        "learn/ai-query-builder",
+        "learn/api-key-usage"
       ]
     },
     {

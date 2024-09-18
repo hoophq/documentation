@@ -14,7 +14,6 @@ description: 'Describe how to configure the Hoop Gateway via environment variabl
 | --------------- |-------------
 | POSTGRES_DB_URI | The postgres connection string to connect in the database. |
 | API_URL         | API URL address, usually where your DNS will be pointed to |
-| IDP_URI         | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
 
 The `<options>` could be used for further configuration by passing them as query strings.
 
@@ -31,6 +30,7 @@ All fields below are not required but can give you some extra configuration opti
 
 | Environment                         | Default Value        | Description |
 | ----------------------------------- | -------------------- |-------------
+| IDP_URI                             |                      | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
 | IDP_AUDIENCE                        |                      | Identity Provider Audience (Oauth2) |
 | GRPC_URL                            | `{API_URL}:8443`     | The gRPC URL to advertise to clients. |
 | STATIC_UI_PATH                      | `/app/ui/public`     | The path where the UI assets resides |
@@ -48,4 +48,5 @@ All fields below are not required but can give you some extra configuration opti
 | MSPRESIDIO_ANONYMIZER_URL           |                      | Host and port for MS Presidio Anonymizer`<host-to-anonymizer:port>` |
 | WEBHOOK_APPKEY                      |                      | The application key to send messages to the webhook provider. |
 | ADMIN_USERNAME                      | admin                | Changes the name of the group to act as the admin role |
+| API_KEY                             |                      | Must be in form of `<org-id>|<random-string>. It safely bypasses user auth for certain endpoints. [Check the list of endpoints](/learn/api-key-usage) you can request and all requisites to use this feature |
 
