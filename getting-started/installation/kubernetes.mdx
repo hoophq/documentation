@@ -4,41 +4,45 @@ title: 'Kubernetes'
 
 This page provides instructions on how to configure the Helm chart to install Hoop in any cloud provider.
 
-### **values.yaml**
+<AccordionGroup>
+  <Accordion title="values.yaml (minimal)">
+    ```yaml
+    # gateway base configuration (local authentication)
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: 'https://hoopdev.yourdomain.tld'
+      JWT_SECRET_KEY: '<random-secure-secret-key>'
 
-```yaml
-# gateway base configuration
-config:
-  POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
-  API_URL: 'https://hoopdev.yourdomain.tld'
-  IDP_CLIENT_ID: 'client-id'
-  IDP_CLIENT_SECRET: 'client-secret'
-  IDP_ISSUER: 'https://idp-issuer-url'
+    # api / webapp ingress configuration
+    ingressApi:
+      enabled: true
+      host: hoopdev.yourdomain.tld
+      ingressClassName: alb
+      annotations: {}
+        # annotations example using aws alb controller
+        # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:200074533906:certificate/9658b3bc-60bf-4097-aa48-a73c0a0c0baf
+        # alb.ingress.kubernetes.io/group.name: appdemo
 
-# api / webapp ingress configuration
-ingressApi:
-  enabled: true
-  host: hoopdev.yourdomain.tld
-  ingressClassName: alb
-  annotations: {}
-    # annotations example using aws alb controller
-    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:200074533906:certificate/9658b3bc-60bf-4097-aa48-a73c0a0c0baf
-    # alb.ingress.kubernetes.io/group.name: appdemo
+    # gRPC ingress configuration
+    ingressGrpc:
+      enabled: true
+      host: hoopdev.yourdomain.tld
+      ingressClassName: alb
+      annotations: {}
+        # annotations example using aws alb controller
+        # alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+        # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:200074533906:certificate/9658b3bc-60bf-4097-aa48-a73c0a0c0baf
+    ```
 
-# gRPC ingress configuration
-ingressGrpc:
-  enabled: true
-  host: hoopdev.yourdomain.tld
-  ingressClassName: alb
-  annotations: {}
-    # annotations example using aws alb controller
-    # alb.ingress.kubernetes.io/backend-protocol-version: GRPC
-    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:200074533906:certificate/9658b3bc-60bf-4097-aa48-a73c0a0c0baf
-```
+    Make sure to create a strong secret key for `JWT_SECRET_KEY` configuration, the command below generate a strong key:
 
-<Info>
-Although you can set up the gateway without an ingress, it will be useless because you won't be able to connect clients to it.
-</Info>
+    ```sh
+    openssl rand 128 | base64
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
 
 ## Installing
 
@@ -77,6 +81,58 @@ helm template hoop \
 
 ## Agent Deployment
 
+<AccordionGroup>
+  <Accordion title="values.yaml (minimal)">
+    ```yaml
+      config:
+        HOOP_KEY: '<agent-key-dsn>'
+    ```
+  </Accordion>
+  <Accordion title="values.yaml (full)">
+    ```yaml
+    # base configuration
+    config:
+      HOOP_KEY: '<agent-key-dsn>'
+      LOG_ENCODING: 'json' # json|console
+      LOG_LEVEL: 'info' # debug|info|warn|error
+      LOG_GRPC: '0' # 0|1|2
+
+    # image default configuration
+    image:
+      repository: hoophq/hoopdev
+      pullPolicy: Always
+      tag: latest
+
+    # define extra secret configuration to load as environment variables
+    extraSecret: {}
+
+    # -- Deployment strategy
+    deploymentStrategy:
+      type: Recreate
+
+    # -- CPU/Memory resource requests/limits
+    resources: {}
+    #   limits:
+    #     cpu: 1024m
+    #     memory: 1Gi
+    #   requests:
+    #     cpu: 1024m
+    #     memory: 1Gi
+
+    # -- Node labels for pod assignment
+    nodeSelector: {}
+
+    # -- Toleration labels for pod assignment
+    tolerations: []
+
+    # -- Affinity settings for pod assignment
+    affinity: {}
+
+    ```
+  </Accordion>
+</AccordionGroup>
+
+
 ### Helm
 
 Make sure you have helm installed in your machine. Check [Helm installation page](https://helm.sh/docs/intro/install/)
@@ -88,14 +144,14 @@ helm upgrade --install hoopagent \
 	--set "config.HOOP_KEY=<AUTH-KEY>"
 ```
 
-#### Using Manifests
+### Using Helm Manifests
 
 ```bash
 VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
 helm template hoopagent \
-	https://releases.hoop.dev/release/$VERSION/hoopagent-chart-$VERSION.tgz \
-	--set 'config.HOOP_KEY=<AUTH-KEY>' \
-  --set 'image.tag=1.21.31' \
+  https://releases.hoop.dev/release/$VERSION/hoopagent-chart-$VERSION.tgz \
+  --set 'config.HOOP_KEY=<AUTH-KEY>' \
+  --set 'image.tag=1.25.2' \
   --set 'extraSecret=AWS_REGION=us-east-1'
 ```
 
@@ -105,85 +161,171 @@ helm template hoopagent \
 
 ### Standalone Deployment
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: hoopagent
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: hoopagent
-  template:
+<AccordionGroup>
+  <Accordion title="deployment.yaml">
+
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
-      labels:
-        app: hoopagent
+      name: hoopagent
     spec:
-      containers:
-      - name: hoopagent
-        image: hoophq/hoopdev
-        env:
-        - name: HOOP_KEY
-          value: '<AUTH-KEY>'
-```
+      replicas: 1
+      selector:
+        matchLabels:
+          app: hoopagent
+      template:
+        metadata:
+          labels:
+            app: hoopagent
+        spec:
+          containers:
+          - name: hoopagent
+            image: hoophq/hoopdev
+            env:
+            - name: HOOP_KEY
+              value: '<AUTH-KEY>'
+    ```
+
+  </Accordion>
+</AccordionGroup>
 
 ### Sidecar Container
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: myapp
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: myapp
-  template:
-    metadata:
-      labels:
-        app: myapp
-    spec:
-      containers:
-      - name: myapp
-        image: myapp
-        ports:
-        - containerPort: 8000
-          name: http
-          protocol: TCP
-      - name: hoopagent
-        image: hoophq/hoopdev
-        env:
-        - name: HOOP_KEY
-          value: '<AUTH-KEY>'
-```
+<AccordionGroup>
+  <Accordion title="deployment.yaml">
 
-## Chart Configuration
+    ```yaml
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: myapp
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: myapp
+        template:
+          metadata:
+            labels:
+              app: myapp
+          spec:
+            containers:
+            - name: myapp
+              image: myapp
+              ports:
+              - containerPort: 8000
+                name: http
+                protocol: TCP
+            - name: hoopagent
+              image: hoophq/hoopdev
+              env:
+              - name: HOOP_KEY
+                value: '<AUTH-KEY>'
+      ```
 
-### Base Configuration
+  </Accordion>
+</AccordionGroup>
 
-```yaml
-config:
-  POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
-  API_URL: ''
-  IDP_CLIENT_ID: ''
-  IDP_CLIENT_SECRET: ''
-  IDP_ISSUER: ''
-  IDP_AUDIENCE: ''
-  IDP_CUSTOM_SCOPES: ''
-  GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
-  WEBHOOK_APPKEY: ''
-  PLUGIN_AUDIT_PATH: '/opt/hoop/sessions'
-  PLUGIN_INDEX_PATH: '/opt/hoop/sessions/indexes'
-  ADMIN_USERNAME: 'admin'
-  GODEBUG: 'http2debug=0'
-  LOG_GRPC: '0'
-  LOG_LEVEL: 'info'
-  LOG_ENCODING: 'json'
-```
 
-## Persistence
+## Gateway Chart Configuration
+
+Check the [environment variables section](/configure/env-vars) for more information about each configuration.
+
+<AccordionGroup>
+  <Accordion title="values.yaml (full base configuration)">
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: ''
+      API_KEY: ''
+      TLS_CA: ''
+      TLS_KEY: ''
+      TLS_CERT: ''
+      AUTH_METHOD: 'local'
+      JWT_SECRET_KEY: ''
+      IDP_CLIENT_ID: ''
+      IDP_CLIENT_SECRET: ''
+      IDP_ISSUER: ''
+      IDP_AUDIENCE: ''
+      IDP_CUSTOM_SCOPES: ''
+      IDP_URI: ''
+      ASK_AI_CREDENTIALS: ''
+      DLP_PROVIDER: 'gcp'
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
+      MSPRESIDIO_ANALYZER_URL: ''
+      MSPRESIDIO_ANONYMIZER_URL: ''
+      WEBAPP_USERS_MANAGEMENT: 'on'
+      WEBHOOK_APPKEY: ''
+      PGREST_ROLE: ''
+      MIGRATION_PATH_FILES: '/app/migrations'
+      STATIC_UI_PATH: '/app/ui/public'
+      PLUGIN_AUDIT_PATH: '/opt/hoop/sessions'
+      PLUGIN_INDEX_PATH: '/opt/hoop/sessions/indexes'
+      ADMIN_USERNAME: 'admin'
+      GODEBUG: 'http2debug=0'
+      LOG_GRPC: '0'
+      LOG_LEVEL: 'info'
+      LOG_ENCODING: 'json'
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+
+### Authentication
+
+<Tabs>
+  <Tab title="Local Authentication">
+    Local Authentication manages users and passwords locally and sign JWT access tokens to users.
+    Make sure to create a strong secret key for `JWT_SECRET_KEY` configuration, the command below generate a strong key as the value for this configuration:
+
+    ```sh
+    openssl rand 128 | base64
+    ```
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: 'https://hoopdev.yourdomain.tld'
+      AUTH_METHOD: local
+      JWT_SECRET_KEY: '<secure-secret-key>'
+    ```
+
+  </Tab>
+  <Tab title="Oauth2/OIDC Authentication">
+    The Oauth2/OIDC authentication integrates with any identity provider that support these protocols. The users are managed on the identity provider.
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: 'https://hoopdev.yourdomain.tld'
+      IDP_ISSUER: 'https://idp-issuer-url'
+      IDP_CLIENT_ID: 'client-id'
+      IDP_CLIENT_SECRET: 'client-secret'
+      IDP_AUDIENCE: ''
+      IDP_CUSTOM_SCOPES: ''
+    ```
+
+    - Using `IDP_URI`
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: 'https://hoopdev.yourdomain.tld'
+      IDP_URI: '<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>'
+      IDP_AUDIENCE: ''
+    ```
+
+    <Note>
+      This configuration takes precedence over `IDP_ISSUER`, `IDP_CLIENT_ID`, `IDP_CLIENT_SECRET` and `IDP_CUSTOM_SCOPES`.
+    </Note>
+
+  </Tab>
+</Tabs>
+
+### Persistence
 
 We recommend using persistent volumes for session blobs to avoid losing sessions during outages or restarts. The following example shows how to enable a 100GB persistent volume when using AWS/EKS.
 
@@ -278,13 +420,6 @@ image:
     repository: hoophq/hoop
     pullPolicy: Always
     tag: latest
-
-# agent running in sidecar with the gateway
-agentConfig:
-  HOOP_KEY: '<AUTH_KEY>'
-  imageRepository: hoophq/hoopdev
-  imagePullPolicy: Always
-  imageTag: latest
 ```
 
 ### Node Selector

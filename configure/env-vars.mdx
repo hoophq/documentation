@@ -5,32 +5,60 @@ description: 'Describe how to configure the Hoop Gateway via environment variabl
 
 ## Basic configuration
 
-<Note>
-  None of these values are required If you are running our AWS Stack setup.
-  They are already set and configured for you.
-</Note>
-
 | Environment     | Description |
 | --------------- |-------------
 | POSTGRES_DB_URI | The postgres connection string to connect in the database. |
 | API_URL         | API URL address, usually where your DNS will be pointed to |
 
-The `<options>` could be used for further configuration by passing them as query strings.
+<Tabs>
+  <Tab title="Local Authentication">
+    Local Authentication manages users and passwords locally and sign JWT access tokens to users.
 
-| Option     | Description |
-| --------------- |-------------
-| scopes | Additional Oauth2 scopes to append to the request. Default values are `openid`, `profile` and `email`. |
-| groupsclaim | The name of the claim to consider as configuration to propagate groups. Default to `https://app.hoop.dev/groups` |
-| _userinfo | When this option is set to 1 it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo). |
+    | Environment     | Description  |
+    | --------------- |------------- |
+    | AUTH_METHOD     | The authentication method to use (`local` or `idp`). Default to `local` |
+    | JWT_SECRET_KEY  | The secret key to sign JWT tokens |
 
+
+  </Tab>
+  <Tab title="Oauth2/OIDC Authentication">
+    The Oauth2/OIDC authentication integrates with any identity provider that support these protocols. The users are managed on the identity provider.
+
+    | Environment       | Description   |
+    | ----------------- | ------------- |
+    | IDP_ISSUER        | Identity Provider Issuer URL (Oauth2) |
+    | IDP_CLIENT_ID     | Oauth2 Client ID. |
+    | IDP_CLIENT_SECRET | Oauth2 Client Secret. |
+    | IDP_CUSTOM_SCOPES | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
+
+    ### **Using `IDP_URI`**
+
+    <Note>
+      This configuration takes precedence over `IDP_ISSUER`, `IDP_CLIENT_ID`, `IDP_CLIENT_SECRET` and `IDP_CUSTOM_SCOPES`.
+    </Note>
+
+    | Environment  | Description   |
+    | ------------ | ------------- |
+    | IDP_URI      | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
+
+    The `<options>` could be used for further configuration by passing them as query strings.
+
+    | Option     | Description |
+    | --------------- |-------------
+    | scopes | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
+    | groupsclaim | The name of the claim to consider as configuration to propagate groups. Default to `https://app.hoop.dev/groups` |
+    | _userinfo | When this option is set to 1 it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo). |
+
+
+  </Tab>
+</Tabs>
 
 ## Extra configuration
 
 All fields below are not required but can give you some extra configuration options to attend your needs.
 
-| Environment                         | Default Value        | Description |
-| ----------------------------------- | -------------------- |-------------
-| IDP_URI                             |                      | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
+| Environment                         | Default Value        | Description  |
+| ----------------------------------- | -------------------- |------------- |
 | IDP_AUDIENCE                        |                      | Identity Provider Audience (Oauth2) |
 | GRPC_URL                            | `{API_URL}:8443`     | The gRPC URL to advertise to clients. |
 | STATIC_UI_PATH                      | `/app/ui/public`     | The path where the UI assets resides |
@@ -43,7 +71,7 @@ All fields below are not required but can give you some extra configuration opti
 | ORG_MULTI_TENANT                    |                      | Enable organization multi-tenancy |
 | ASK_AI_CREDENTIALS                  |                      | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
 | GOOGLE_APPLICATION_CREDENTIALS_JSON |                      | GCP DLP credentials |
-| DLP_PROVIDER                        |                      | It can be empty, `mspresidio` or `gcp` |
+| DLP_PROVIDER                        | `gcp`                | Which DLP provider to use: `mspresidio` or `gcp` |
 | MSPRESIDIO_ANALYZER_URL             |                      | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
 | MSPRESIDIO_ANONYMIZER_URL           |                      | Host and port for MS Presidio Anonymizer`<host-to-anonymizer:port>` |
 | WEBHOOK_APPKEY                      |                      | The application key to send messages to the webhook provider. |
