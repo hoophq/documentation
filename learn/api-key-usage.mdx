@@ -8,6 +8,10 @@ description: 'Learn how the API Key feature works and how to use it'
  - Self-host your Hoop Gateway. Our managed instance does not support this feature.
  - Have an API Key configured in your environment variables in the following format: `<org-id>|<random-string>`
 
+## How it works
+
+When requesting one of the allowed endpoints, you can pass the API Key in the `Api-Key` header with the configured value. The Gateway will validate the API Key and allow the request to proceed without the need for user authentication.
+
 ## Allowed Endpoints
 
 The API Key feature allows you to bypass user authentication for certain endpoints. The following endpoints are allowed to be accessed using an API Key:
