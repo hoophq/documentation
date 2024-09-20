@@ -111,6 +111,10 @@ If you want to do it manually or with a custom identity provider, follow the **M
           ```
       </Tab>
     </Tabs>
+
+    <Info>
+        If you can't access the developer portal from a VM, check your firewall rules and make sure the port TCP/8009 and TCP/8010 are open or to bind properly the ports inside your network so it can be accessible.
+    </Info>
   </Step>
 
   <Step title="Run">
@@ -136,7 +140,7 @@ If you want to do it manually or with a custom identity provider, follow the **M
     Or, if you are running this on a remote machine, access `http://<vm-public-dns>:8009` in your browser.
 
     <Info>
-        If you can't access the developer portal from a VM, check your firewall rules and make sure the port 8009 is open or to bind properly the ports inside your network so it can be accessible.
+        If you can't access the developer portal from a VM, check your firewall rules and make sure the port TCP/8009 and TCP/8010 are open or to bind properly the ports inside your network so it can be accessible.
     </Info>
   </Step>
 </Steps>
