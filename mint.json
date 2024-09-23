@@ -147,5 +147,10 @@
     "x": "https://x.com/hoopdotdev",
     "github": "https://github.com/hoophq",
     "linkedin": "https://www.linkedin.com/company/hoopdev"
+  },
+  "analytics": {
+    "segment": {
+      "key": "043Lv52mAcoGOHWVq7n3bxZAVvocyqx0"
+    }
   }
 }
