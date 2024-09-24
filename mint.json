@@ -139,6 +139,12 @@
       ]
     },
     {
+      "group": "Concepts",
+      "pages": [
+        "concepts/agent"
+      ]
+    },
+    {
       "group": "Integrations",
       "pages": ["integrations/slack", "integrations/teams", "integrations/svix"]
     }
