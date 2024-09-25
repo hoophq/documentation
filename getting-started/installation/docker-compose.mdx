@@ -57,22 +57,27 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
   </Step>
 </Steps>
 
-## One-line install
+## Download & Run in your machine
 
-This script will do the same steps as the manual installation, but in an automated way.
+This simpler version doesn't require much configuration, it just runs in your localhost and uses a default JWT authentication.
 
 ```sh
-curl -sL https://hoop.dev/install.sh | sh
+# create a jwt secret for auth
+echo "JWT_SECRET_KEY=$(openssl rand 128 | base64)" >> .env
+# download and run
+curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml | docker compose -f - up
 ```
 
-If you want to do it manually or with a custom identity provider, follow the **Manual Installation** guide below.
+This will download the docker-compose file and run it in your local machine. You can access it at `http://localhost:8009` in your browser.
 
-## Manual Installation
+If you want to set up a custom Identity Provider or run it in a remote machine, follow the **Download & Run in a remote machine** guide below.
+
+## Download & Run in a remote machine
 
 <Steps>
   <Step title="Download the Docker Compose file">
     ```sh
-    curl -L https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.yml > ./docker-compose.yml
+    curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml
     ```
   </Step>
 
@@ -82,17 +87,23 @@ If you want to do it manually or with a custom identity provider, follow the **M
 
     Going with basic JWT Authentication is recommended because it's the fastest way to get started.
 
+    <Note>The .env file must be at the same level as the docker-compose.yml file</Note>
+
     <Tabs>
         <Tab title="JWT authentication">
             This will generate a secret key for you and set it in the .env file already.
             ```sh
-            echo "JWT_SECRET_KEY=$(LC_ALL=C tr -dc A-Za-z0-9_ < /dev/urandom | head -c 43 | xargs)" >> .env
+            echo "JWT_SECRET_KEY=$(openssl rand 128 | base64)" >> .env
             ```
+            Then, access the `.env` file and add the following configuration lines for your host configuration
+            ```sh .env
+            # the JWT_SECRET_KEY will be here already from the previous command
+            JWT_SECRET_KEY=<your-secret-key>
 
-            Alternatively, you can generate your own secret key and set it in the .env file. Here's an example using openssl CLI
-
-            ```sh
-            openssl rand 128 | base64
+            # the API_URL and GRPC_URL are the host where 
+            # the Hoop API and GRPC services are running
+            API_URL=http://<your-vm-ip-or-host>:8009
+            GRPC_URL=http://<your-vm-ip-or-host>:8010
             ```
 
       </Tab>
@@ -101,14 +112,29 @@ If you want to do it manually or with a custom identity provider, follow the **M
 
         Below you can see an example of how to set up the .env file with the Identity Provider values. See our [Identity Providers section](/configure/idp/get-started) for more information on how to obtain these values.
 
-          ```sh
-          cat - > .env <<EOF
-          IDP_ISSUER=
-          IDP_CLIENT_ID=
-          IDP_CLIENT_SECRET=
-          IDP_AUDIENCE=
-          EOF
-          ```
+        ```sh
+        cat - > .env <<EOF
+        IDP_ISSUER=
+        IDP_CLIENT_ID=
+        IDP_CLIENT_SECRET=
+        IDP_AUDIENCE=
+        EOF
+        ```
+        Then, access the `.env` file and add the following configuration lines for your host configuration
+        ```sh .env
+        # these values will be here already from the previous command
+        IDP_ISSUER=<your-issuer>
+        IDP_CLIENT_ID=<your-client-id>
+        IDP_CLIENT_SECRET=<your-client-secret>
+        IDP_AUDIENCE=<your-audience>
+
+        # the API_URL and GRPC_URL are the host where 
+        # the Hoop API and GRPC services are running
+        API_URL=http://<your-vm-ip-or-host>:8009
+        GRPC_URL=http://<your-vm-ip-or-host>:8010
+        ```
+
+        <Note>Make sure to allow your Identity Provider to redirect to the Hoop API and GRPC services URLs</Note>
       </Tab>
     </Tabs>
 
