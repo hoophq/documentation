@@ -39,10 +39,6 @@ After enabling it, you need to select which connections you want to emit webhook
 hoop admin create plugin webhooks --overwrite --connection bash-default
 ```
 
-<Note>
-Once this plugin is created, it will be enabled by default when creating new connections.
-</Note>
-
 ## Dashboard
 
 Now, you can log in to your dashboard and start configuring endpoints while selecting the messages you want to subscribe to.
@@ -52,7 +48,7 @@ hoop admin webhooks-dashboard
 ```
 
 <Info>
-  Only admin users can open this dashboard.
+  Dashboard is only available when using Svix SaaS and could be only opened by administrators.
 </Info>
 
 To view any activity, interact with any connection.
@@ -70,6 +66,10 @@ Accessing the **Message Logs** link in the dashboard will display the `hoop conn
 ### Adding Endpoints
 
 To route these messages to your SIEM, add your public endpoint that will receive these messages. Click on the **Endpoints** link.
+
+<Info>
+Adding endpoints to a self-hosted Svix instance is only available via [svix command line](https://docs.svix.com/tutorials/cli) or api.
+</Info>
 
 <Frame>
   <img src="/images/learn/webhooks-2.png" />
