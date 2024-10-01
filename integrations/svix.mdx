@@ -8,21 +8,40 @@ description: "Integrate with Svix to have wehbooks/SIEM properly configured."
 - Have installed hoop.dev in your infrastructure;
 - Be in an Enterprise Plan
 
-<Steps>
-  <Step title="Create an account at Svix">
-    <Frame>
-      <img src="/images/integrations/svix-1.png" />
-    </Frame>
-  </Step>
-  <Step title="Get your API Key">
-    <Frame>
-      <img src="/images/integrations/svix-2.png" />
-    </Frame>
-  </Step>
-  <Step title="Add your API key to hoop.dev at your set up">
-    Configure the environment variable `WEBHOOK_APPKEY` with your Svix API Key and restart the hoop.dev Gateway.
-  </Step>
-</Steps>
+<Tabs>
+  <Tab title="Svix SaaS">
+    <Steps>
+      <Step title="Create an account at Svix">
+        <Frame>
+          <img src="/images/integrations/svix-1.png" />
+        </Frame>
+      </Step>
+      <Step title="Get your API Key">
+        <Frame>
+          <img src="/images/integrations/svix-2.png" />
+        </Frame>
+      </Step>
+      <Step title="Add your API key to hoop.dev at your set up">
+        Configure the environment variable `WEBHOOK_APPKEY` with your Svix API Key and restart the hoop.dev Gateway.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Svix Self Hosted">
+    <Steps>
+      <Step title="Run the Svix Server">
+        - [Running the Svix Server](https://github.com/svix/svix-webhooks?tab=readme-ov-file#running-the-server)
+      </Step>
+      <Step title="Generate an Authentication Key">
+        - [Authenticate to Svix](https://github.com/svix/svix-webhooks?tab=readme-ov-file#running-the-server)
+      </Step>
+      <Step title="Configure the Hoop Gateway">
+        Configure the gateway with the following environment variables:
+        - `WEBHOOK_APPURL` with the address of the svix server. Example: `http://localhost:8701`
+        - `WEBHOOK_APPKEY` with the authentication Key
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
 
 ## Learn more
 
