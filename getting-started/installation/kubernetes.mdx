@@ -422,6 +422,19 @@ image:
     tag: latest
 ```
 
+### Agent Sidecar
+
+Adding this section will deploy an agent as a sidecar container. Add it after creating an agent key when the gateway is running.
+
+<Tip>
+ We recommend using `localhost` as the address to connect in the gRPC server. Example: `grpc://<agent-name>:<secret-key>@127.0.0.1:8010`
+</Tip>
+
+```yaml
+agentConfig:
+  HOOP_KEY: '<agent-key-dsn>'
+```
+
 ### Node Selector
 
 This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
