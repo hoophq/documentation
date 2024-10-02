@@ -68,6 +68,31 @@ helm upgrade --install hoop \
   --set agentConfig.LOG_LEVEL=debug
 ```
 
+## Database Configuration
+
+Hoop uses postgres as the backend storage of all data in the system. The user that connects in the database must be a superuser or have the `CREATEROLE` permission. The command below creates a database and default user required when starting the gateway.
+
+```sql
+CREATE DATABASE hoopdb;
+CREATE USER hoopuser WITH ENCRYPTED PASSWORD 'my-secure-password' CREATEROLE;
+-- switch to the created database
+\c hoopdb
+GRANT ALL PRIVILEGES ON DATABASE hoopdb TO hoopuser;
+GRANT ALL PRIVILEGES ON SCHEMA public to hoopuser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO hoopuser;
+```
+
+<Note>
+In case of using a password with special characters, make sure to url encode it properly when setting the connection string.
+</Note>
+
+Use these values to assemble the configuration for POSTGRES_DB_URI:
+- `POSTGRES_DB_URI=postgres://hoopuser:<passwd>@<db-host>:5432/hoopdb`
+
+<Tip>
+Make sure to include `?sslmode=disabled` option in the Postgres connection string in case your database setup doesn't support TLS.
+</Tip>
+
 ## Generating Manifests
 
 If you prefer using manifests over Helm, we recommend this approach. It allows you to track any modifications to the chart whenever a new version appears. You can apply a diff to your versioned files to identify what has been altered.
