@@ -63,7 +63,7 @@ This simpler version doesn't require much configuration, it just runs in your lo
 
 ```sh
 # create a jwt secret for auth
-echo "JWT_SECRET_KEY=$(openssl rand 128 | base64)" >> .env
+echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env
 # download and run
 curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml | docker compose -f - up
 ```
@@ -93,7 +93,7 @@ If you want to set up a custom Identity Provider or run it in a remote machine, 
         <Tab title="JWT authentication">
             This will generate a secret key for you and set it in the .env file already.
             ```sh
-            echo "JWT_SECRET_KEY=$(openssl rand 128 | base64)" >> .env
+            echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env
             ```
             Then, access the `.env` file and add the following configuration lines for your host configuration
             ```sh .env
