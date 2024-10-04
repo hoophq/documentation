@@ -13,14 +13,10 @@ description: "Hoop.dev can integrate with Microsoft Teams, sending messages to a
   <img src="/images/integrations/teams-1.png" />
 </Frame>
 
-<Info>
-This feature is available in version **1.17.20+**
-</Info>
-
 ## Configuring
 
 1. First, obtain the incoming webhook URL. Refer to [this section of the Microsoft Teams article](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook?tabs=dotnet#create-incoming-webhooks-1).
-2. log in to your hoop instance and create a plugin that allows access to the webhook dashboard.
+2. Log in to your hoop instance and create a plugin that allows access to the webhook dashboard.
 
 ```bash
 hoop login
@@ -28,7 +24,7 @@ hoop admin create plugin webhooks --overwrite
 ```
 
 <Info>
-*For self-hosted deployments, you will need the API key of the webhook provider and set the environment variable* `WEBHOOK_APPKEY` *when starting the gateway*. Please reach out to our support team to obtain one for your instance.
+For self-hosted deployments it requires the Svix webhook provider deployed locally or using their SaaS instance. Refer to the [Svix documentation](/integrations/svix) for more information.
 </Info>
 
 Access the webhook provider dashboard.
