@@ -28,14 +28,14 @@ Contact the administrator of the hoop gateway instance to retrieve the API_URL a
 	</Info>
   </Step>
   <Step title="Create the Client Credentials">
-    - Go to App Registration > {AppName}
+    - Go to App Registration > `{AppName}`
 	- In the overview page, copy the **Application (client) ID** value. This is the Client ID.
 	- Go to  Certificate & Secrets > Client Secrets > New Client Secret
 	- Copy the Secret Value. This is the Client Secret
   </Step>
   <Step title="Collect Issuer and Custom Scopes Information">
   The Issuer URL
-  - Go to App registration > {AppName} > Overview
+  - Go to App registration > `{AppName}` > Overview
   - Copy the tenant ID and use as the value below
   - https://login.microsoftonline.com/{tenant_id}/v2.0
 
@@ -50,7 +50,7 @@ Contact the administrator of the hoop gateway instance to retrieve the API_URL a
 
 With Microsoft Entra ID it's possible to configure a claim to propagate as groups to Hoop. This configuration will ensure to sync the groups when a user authenticates on Hoop.
 
-- Go to Microsoft Entra ID > App Registration > {AppName} > Token Configuration
+- Go to Microsoft Entra ID > App Registration > `{AppName}` > Token Configuration
 - Click on Add groups claim
 - Client in edit on Attributes & Claims > Add groups claim
 - Select Groups assigned to the application
@@ -109,7 +109,7 @@ This option only works when group groupMembershipClaims is set to ApplicationGro
 
 ### Assign Groups to Application
 
-- Go to Enterprise Application > {AppName} > User and Groups > Add user/group
+- Go to Enterprise Application > `{AppName}` > User and Groups > Add user/group
 - Select the desired groups and click on Select
 - Click on Assign
 
