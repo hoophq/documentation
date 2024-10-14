@@ -171,6 +171,26 @@ If you want to set up a custom Identity Provider or run it in a remote machine, 
   </Step>
 </Steps>
 
+### Troubleshooting for Production Environments with API_URL
+When deploying Hoop using Docker Compose for Production Environments, it's usually important to configure the `API_URL` environment variable properly to ensure the web app assets are served correctly. Check the following steps to configure it:
+<Steps>
+  <Step title="Set the full domain:">
+  In your `.env` file, the `API_URL` should include the complete schema (e.g., `https://yourdomain.com`). This will ensure that assets are served with the correct schema and domain.
+  </Step>
+  <Step title="Updating your .env file:">
+  Open your `.env` file and add the following:
+  ```sh
+  API_URL=https://yourdomain.com
+  ```
+  Replace `https://yourdomain.com` with the full schema and host where you will serve the Hoop Gateway. If you encounter any issues after setting the `API_URL`, double-check your `.env` file and provide details about your setup for troubleshooting.  
+  <Info>
+    If the `API_URL` variable is not set manually, it will default to `127.0.0.1`, which serves locally inside your virtual machine. To avoid this and serve the web app properly over the correct domain, ensure you update the `.env` file with your intended domain.
+  </Info>
+  </Step>
+  <Step title="Handling IP and DNS forwarding:">
+  If you configure the `API_URL` with an IP address and later use DNS port forwarding, the assets might not load correctly. The `API_URL` should reflect the full domain, not just the IP.
+  </Step>
+</Steps>
 
 ## Accessing and Getting Started with hoop.dev
 
@@ -182,7 +202,7 @@ Once you finish the setup, create an account and sign in to the developer portal
   />
 </Frame>
 
-#### Create your first connection
+### Create your first connection
 
 Now that you have access to the developer portal, let's create your first connection. We have a demo PostgreSQL connection that you can use to test the setup. Follow this guide to create your PostgreSQL demo.
 
