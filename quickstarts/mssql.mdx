@@ -12,8 +12,8 @@ import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
 
 The table below explains which features are available for this kind of connection.
 
-- **Native** - it's when a database client is connecting via protocol (e.g., IDE, client libraries)
-- **One Off -** It's when a hoop client performs ad hoc executions (*e.g.: webapp, hoop cli*)
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
+- **One Off -** This term refers to accessing this connection from hoop web panel.
 
 | Feature | Native | One Off | Description |
 | --- | --- | --- | --- |
@@ -34,26 +34,21 @@ The table below explains which features are available for this kind of connectio
 | DB | env-var | yes | The name of the database to connect (Required when using the connection via the command line). |
 | INSECURE | env-var | no | If the connection will ignore the chain of certificates presented by the server. (the connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false) |
 
-### Connection Command
+## Connection setup
+
+Create a new TCP connection in hoop's web panel.
+
+<Frame>
+    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
+</Frame>
+
+## Access the connection
+
+#### CLI
 
 ```bash
-hoop admin create conn mssql --type database/mssql -a <agent> \
-  -e HOST=<host> \
-  -e PORT=<port> \
-  -e USER=<user> \
-  -e PASS=<pass> \
-  -e DB=<db>
-```
+hoop connect <connection-name>
 
-## How to Use
-
-Forward a local port (*default to `1444`*) to connect in the sql server with any client/IDE
-
-```bash
-hoop connect mssql
-```
-
-```
 connection: mssql | session: 5531dc59-febc-4eee-af26-96e0e0de6769
 
 ---------------------mssql-credentials----------------------
@@ -62,28 +57,9 @@ connection: mssql | session: 5531dc59-febc-4eee-af26-96e0e0de6769
 ready to accept connections!
 ```
 
-Test it using sqlcmd utility tool.
+#### Web panel
 
-```bash
-sqlcmd -S 127.0.0.1:1444 -Q "SELECT @@VERSION"
-```
+<Frame>
+    <img src="/images/quickstarts/client-pg.png" alt="create tcp connection screenshot" />
+</Frame>
 
----
-
-In the same connection, a one-off process can be run as well.
-
-```bash
-hoop exec mssql <<EOF
-SELECT @@VERSION
-GO
-EOF
-```
-
-```bash
-hoop exec mssql -f /tmp/myquery.sql
-hoop exec mssql -i 'SELECT @@VERSION'
-# pass arguments to sqlcmd
-hoop exec mssql -- -s ";" -h -1 -W <<EOF
-SELECT * FROM master.INFORMATION_SCHEMA.SCHEMATA
-EOF
-```

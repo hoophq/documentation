@@ -11,8 +11,9 @@ import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
 
 The table below explains which features are available for this kind of connection.
 
-- **Native** - it's when a database client is connecting via protocol (.e.g, IDE, client libraries)
-- **One Off -** It's when a hoop client performs ad hoc executions (*e.g, webapp, hoop cli*)
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
+- **One Off -** This term refers to accessing this connection from hoop web panel.
+
 
 | Feature | Native | One Off | Description |
 | ------- | ------ | ------- | ----------- |
@@ -37,22 +38,23 @@ The table below explains which features are available for this kind of connectio
 | DB | env-var | yes | The name of the database to connect (Required when using the connection via the command line). |
 | PRE_SQL_SCRIPT_FILE | filesystem | no | Append a custom SQL script at the beginning of the execution. |
 
+## Connection setup
+
+Create a new TCP connection in hoop's web panel.
+
+<Frame>
+    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
+</Frame>
+
+## Access the connection
+
+You can access it through hoop CLI or hoop web panel.
+
+#### CLI
+
 ```bash
-hoop admin create conn mysqldb --type database/mysql -a <agent> \
-  -e HOST=<host> \
-  -e PORT=<port> \
-  -e USER=<user> \
-  -e PASS=<pass> \
-  -e DB=<db>
-```
+hoop connect <connection-name>
 
-## How to Use
-
-```bash
-hoop connect mysqldb
-```
-
-```
 connection: mysqldb | session: 0ebc7492-94bf-498e-ac9c-430f2d5e89b0
 
 ---------------------mysql-credentials----------------------
@@ -61,74 +63,9 @@ connection: mysqldb | session: 0ebc7492-94bf-498e-ac9c-430f2d5e89b0
 ready to accept connections!
 ```
 
-Connect to mysql using any IDE, example:
+#### Web panel
 
-```bash
-mysql -h 0 -p 3307
-```
+<Frame>
+    <img src="/images/quickstarts/client-pg.png" alt="create tcp connection screenshot" />
+</Frame>
 
-## Custom SQL Script
-
-To add custom scripts in the beginning of executions in the webapp client, use the `PRE_SQL_SCRIPT_FILE` env.
-
-This configuration allows for the propagation of information from the current session by providing it as environment variables. Only the environment variables below are expanded:
-
-- HOOP_SESSION_ID
-- HOOP_USER_EMAIL
-- HOOP_CONNECTION_NAME
-- HOOP_CONNECTION_TYPE
-- HOOP_CLIENT_ORIGIN
-- HOOP_CLIENT_VERB
-
-### Propagate Comments
-
-```bash
-hoop admin create conn mysqldb --type database/mysql -a <agent> \
-  -e HOST=<host> \
-  -e PORT=<port> \
-  -e USER=<user> \
-  -e PASS=<pass> \
-  -e DB=<db> \
-  -e filesystem:PRE_SQL_SCRIPT_FILE='/* Executed By $HOOP_USER_EMAIL */'
-```
-
-When the query is executed, the comment is preserved, and administrators can obtain the details by monitoring the MySQL process list.
-
-```
-+---------+------------+----------------------------------------------------+
-| Command | State      | Info                                               |
-+---------+------------+----------------------------------------------------+
-| Query   | User sleep | /* Executed By user@domain.tld */ select sleep(20) |
-| Query   | init       | show processlist                                   |
-+---------+------------+----------------------------------------------------+
-```
-
-### Setting Session Variables
-
-The example below shows how to set specific system variables before issuing any command. It also appends the comment propagating the name of the connection being used.
-
-```bash
-cat - > /tmp/pre-sql-script.sql <<EOF
-SET foreign_key_checks = 'OFF';
-/* Hoop Connection $HOOP_CONNECTION_NAME */
-EOF
-```
-
-```bash
-hoop admin create conn mysqldb --type database/mysql -a <agent> \
-  -e HOST=<host> \
-  -e PORT=<port> \
-  -e USER=<user> \
-  -e PASS=<pass> \
-  -e DB=<db> \
-  -e b64-filesystem:PRE_SQL_SCRIPT_FILE=$(cat /tmp/pre-sql-script.sql |base64)
-```
-
-```bash
-hoop exec mysqldb -i "show variables like '%fore%'"
-+--------------------+-------+
-| Variable_name      | Value |
-+--------------------+-------+
-| foreign_key_checks | OFF   |
-+--------------------+-------+
-```

@@ -42,11 +42,6 @@
       "openapi": "https://use.hoop.dev/api/openapiv3.json",
       "url": "api-reference",
       "icon": "square-terminal"
-    },
-    {
-      "name": "Help guides",
-      "icon": "book-open",
-      "url": "https://hoop.dev/help"
     }
   ],
   "navigation": [
@@ -127,10 +122,7 @@
         "learn/ai-data-masking",
         "learn/access-control",
         "learn/jit-reviews",
-        {
-          "group": "Runbooks",
-          "pages": ["learn/runbooks/overview", "learn/runbooks/configuration"]
-        },
+        "learn/runbooks",
         "learn/secrets-manager",
         "learn/session-recording",
         "learn/webhooks-siem",

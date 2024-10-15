@@ -15,8 +15,8 @@ This integration only accepts [SCRAM authentication](https://www.mongodb.com/doc
 
 The table below outlines the features available for this type of connection.
 
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries.
-- **One Off** - This term refers to when a Hoop client performs ad hoc executions through a web app or Hoop CLI.
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
+- **One Off -** This term refers to accessing this connection from hoop web panel.
 
 | Feature | Native | One Off | Description |
 | --- | --- | --- | --- |
@@ -32,20 +32,23 @@ The table below outlines the features available for this type of connection.
 | --- | --- | --- | --- |
 | CONNECTION_STRING | env-var | yes | The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format. |
 
+## Connection setup
+
+Create a new TCP connection in hoop's web panel.
+
+<Frame>
+    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
+</Frame>
+
+## Access the connection
+
+You can access it through hoop CLI or hoop web panel.
+
+### hoop CLI
+
 ```bash
-hoop admin create conn mongo --type database/mongodb -a <agent> \
-  -e CONNECTION_STRING=mongodb+srv://<user>:<password>@<host>:<port>/?<options>
-```
+hoop connect <connection-name>
 
-## How to Use
-
-Start an interactive session and forward the default port (27018) locally.
-
-```bash
-hoop connect mongo
-```
-
-```
 connection: mongo | session: f2e7634a-f4c4-47cd-bee6-48da080e2a23
 
 ---------------------mongo-credentials----------------------
@@ -53,23 +56,9 @@ connection: mongo | session: f2e7634a-f4c4-47cd-bee6-48da080e2a23
 ------------------------------------------------------------
 ```
 
-In the same connection, one-off processes can be executed.
+### Web panel
 
-```bash
-hoop exec mongo <<EOF
-db.movies.insertOne(
-  {
-    title: "The Favourite",
-    genres: [ "Drama", "History" ],
-    runtime: 121,
-    rated: "R",
-    year: 2018,
-    directors: [ "Yorgos Lanthimos" ],
-    cast: [ "Olivia Colman", "Emma Stone", "Rachel Weisz" ],
-    type: "movie"
-  }
-)
-EOF
-hoop exec mongo -- --eval 'db.movies.find()'
-hoop exec mongo -i 'db.movies.find()'
-```
+<Frame>
+    <img src="/images/quickstarts/client-mongodb.png" alt="create tcp connection screenshot" />
+</Frame>
+

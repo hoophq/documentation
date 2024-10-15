@@ -11,8 +11,8 @@ import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
 
 The table below outlines the features available for this type of connection.
 
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries.
-- **One Off -** This term refers to when a Hoop client performs ad hoc executions, such as through a web app or Hoop CLI.
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
+- **One Off -** This term refers to accessing this connection from hoop web panel.
 
 | Feature | Native | One Off | Description |
 | --- | --- | --- | --- |
@@ -32,11 +32,19 @@ The table below outlines the features available for this type of connection.
 | PORT | env-var | yes | The port of the Oracle server |
 | SID | env-var | yes | The service name or SID (System identifier) to identify the database service. |
 
-```bash
-hoop admin create conn oracle --type database/oracledb -a <agent> \
-  -e HOST=<host> \
-  -e PORT=<port> \
-  -e USER=<user> \
-  -e PASS=<pass> \
-  -e SID=<sid>
-```
+## Connection setup
+
+Create a new TCP connection in hoop's web panel.
+
+<Frame>
+    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
+</Frame>
+
+## Access the connection
+
+You can access it through hoop web panel.
+
+<Frame>
+    <img src="/images/quickstarts/client-pg.png" alt="create tcp connection screenshot" />
+</Frame>
+

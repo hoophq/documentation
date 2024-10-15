@@ -69,9 +69,9 @@ import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
   </Tab>
 </Tabs>
 
-## Overview
+## Authenticate
 
-The command line allows for administering gateway resources and connecting to remote resources. To begin, you need to configure your gateway instance.
+The `<gateway-url>` is the URL of the API Gateway. If you are using our managed instance, you don't need to set this value, go directly to the `hoop login` command below that it will isntruct it for you with the correct URL as `https://use.hoop.dev`. If you deployed your own instance, this will be the same URL you set on the `API_URL` environment variable for the host of your hoop Gateway.
 
 ```bash
 hoop config create --api-url https://<gateway-url>
@@ -90,23 +90,12 @@ If you need to clear this configuration, issue the command below.
 hoop config clear
 ```
 
-<Info>
-If you are unsure about the `<gateway-url>`, contact your administrator. In our multi-tenant environment, the login will automatically prompt you with a default URL: https://use.hoop.dev.
-</Info>
+## hoop connect
 
-After logging in, you can interact with connections. There are two methods for this interaction.
 
-### Exec (ad-hoc executions)
+The `hoop connect` command allows you to create an interactive session with a remote resource. The resource can be an interactive terminal console or TCP services such as databases.. Here are a few examples:
 
-The exec command executes ad hoc commands over remote connections. It triggers a command in a remote service, returns the result, and applies all relevant policies and configurations.
-
-```bash
-hoop exec myconnection -i '/bin/process-job.sh'
-```
-
-### Connect (terminal console)
-
-The 'connect' command allows you to create an interactive session with a remote resource. Any command that can run in a terminal console can be integrated with Hoop. Here are a few examples:
+### Terminal console
 
 - docker exec
 - bash
@@ -122,7 +111,7 @@ connection: bash-console | session: 53ed53f9-a5f9-45e9-bbf5-becd1f44f41e
 root@5601881aa15e:/app#
 ```
 
-### Connect (TCP)
+### TCP
 
 The connect feature can be used to interact with TCP services such as databases. It can be used with an IDE or any native database client. The port is forwarded locally to the end-user, providing a secure connection to remote services.
 
@@ -140,174 +129,3 @@ ready to accept connections!
 The connection is established through a secure tunnel. The connection is encrypted and authenticated using the user's identity.
 </Info>
 
-## Administrator tools
-
-The admin command line tool allows you to manage resources in hoop.dev.
-
-### Login
-
-```bash
-hoop login
-```
-
-### Get Resources
-
-To view the resources you can get, type `hoop admin get --help`.
-
-```bash
-hoop admin get plugins
-```
-
-```bash
-NAME    SOURCE  PRIORITY    CONNECTIONS     CONFIG
-audit   -       0           6               -
-dlp     -       0           6               -
-```
-
-Some resources return a tabular view. If they aren't available, you can use the `-o json` option. For example:
-
-```bash
-hoop admin get reviews -o json |jq .
-```
-
-The tabular view might include extra information, such as connections indicating which agent is linked or which plugin is associated with it.
-
-```bash
-hoop admin get conn
-```
-
-```
-NAME                        COMMAND                                 TYPE          AGENT                   STATUS    SECRETS   PLUGINS
-postgres-demo               [ "psql" "-A" "-F" "\t" "-P" "pa... ]   database      demo-hoopdev-61242e2c   online    -         (8) audit, dlp, editor, indexer, r...
-python-weasel-7602          [ "python3" ]                           application   flyioagent              online    -         (7) audit, dlp, editor, indexer, r...
-ruby-on-rails-leopon-4156   [ "rails" "runner" "-" ]                application   contoso-macos           offline   -         (7) audit, dlp, editor, indexer, r...
-ruby-on-rails-rat-6429      [ "rails" "runner" "-" ]                application   contoso-macos           offline   -         (7) audit, dlp, editor, indexer, r...
-```
-
-To retrieve a single resource
-
-```bash
-hoop admin get plugins audit
-```
-
-### Creating Resources
-
-To view the resources you can create, type `hoop admin create --help`.
-
-#### Agents
-
-Create an authentication key and start an agent locally.
-
-```bash
-export HOOP_KEY=$(hoop admin create agent demo)
-hoop start agent
-```
-
-List it
-
-```bash
-hoop admin get agents
-```
-
-#### Connections
-
-The command below establishes a **command-line** connection with bash, which prints 'hello hoop' to the standard output.
-
-The command below requires that you have at least one agent, named `demo`. To interact with it using `hoop exec|connect`, the agent must be deployed.
-
-```bash
-# create it
-$ hoop admin create conn hello-hoop -a demo -- bash -c 'echo hello hoop'
-# interact it
-$ hoop exec hello-hoop
-hello hoop
-```
-
-To create a Postgres connection
-
-```bash
-hoop admin create conn pgdemo -a demo --type database/postgres \
-    -e HOST=demo-pg-db.ch707rnaizjg.us-east-1.rds.amazonaws.com \
-    -e PASS=dollar-manger-carouse-HEARTED \
-    -e USER=demoreadonly \
-    -e PORT=5432
-
-# Interact with it
-hoop connect pgdemo
-
-# in another terminal
-psql -h 0 --port 5433 dellstore -c 'select now()'
-```
-
-#### Environment Variables
-
-You could map environment variables to a connection
-
-```bash
-$ hoop admin create conn demo-bashenv -a demo -e ENVIRONMENT=prod -- \
-    bash -c 'echo environment is $ENVIRONMENT'
-
-# interact with it
-$ hoop exec demo-bashenv
-environment is prod
-```
-
-You could map an environment variables as a file in the filesystem.
-
-```bash
-$ hoop admin create conn demo-bashfs -a demo -e filesystem:SECRET_FILE=mybigsecret -- \
-    bash -c 'echo $SECRET_FILE; cat $SECRET_FILE'
-
-# Interact with it
-$ hoop exec demo-bashfs
-/tmp/29837bea-6eb9-4f82-856a-a47a7c9c7654.envfs
-mybigsecret
-```
-
-Using a base64 value as input to environment variables
-
-```bash
-$ hoop admin create conn demo-b64env -a demo -e b64-envvar:MYENV=$(echo val |base64) -- \
-    bash -c 'echo $MYENV'
-
-# Interact with it
-$ hoop exec demo-b64env
-val
-```
-
-### Deleting Resources
-
-To see the available resources available to delete, type `hoop admin delete --help`
-
-#### Delete an agent
-
-```bash
-hoop admin delete agent demo
-```
-
-### Server Info
-
-To see the server information of the gateway
-
-```bash
-hoop admin serverinfo
-```
-
-```
-Tenant Type:    multitenant
-Grpc URL:       grpcs://use.hoop.dev:8443
-Version:        1.21.27
-Gateway Commit: e6a0677648b0dbe2a8831fcad4a4e2f0eb8f2d8b
-Webapp Commit:  99ce59dc328769c00029befb45503a6cdf96535c
-
-Configuration:
-  Log Level:               info
-  Go Debug:                http2debug=0
-  Admin Username:          admin
-  Redact Credentials:      set
-  Webhook App Credentials: set
-  Ask AI Credentials:      not set
-  IDP Audience:            set
-  IDP Custom Scopes:       not set
-  Postgrest Role:          set
-```
