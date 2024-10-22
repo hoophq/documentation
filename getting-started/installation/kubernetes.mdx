@@ -37,12 +37,132 @@ This page provides instructions on how to configure the Helm chart to install Ho
     Make sure to create a strong secret key for `JWT_SECRET_KEY` configuration, the command below generate a strong key:
 
     ```sh
-    openssl rand 128 | base64
+    openssl rand 64 | base64
     ```
 
   </Accordion>
 </AccordionGroup>
 
+## Quick Start
+
+<Steps>
+  <Step title="Setup Postgres Database">
+    Create a new namespace and install a Postgres database in your Kubernetes cluster
+
+    <AccordionGroup>
+      <Accordion title="Database Setup">
+
+        1. Create a namespace
+
+        ```sh
+        kubectl create ns hoopdev
+        ```
+
+        2. Save the deployment assets to a local file
+
+        ```sh
+        cat - > /tmp/postgres-spec.yml <<EOF
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: postgres
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: postgres
+          strategy:
+            type: Recreate
+          template:
+            metadata:
+              labels:
+                app: postgres
+            spec:
+              containers:
+              - env:
+                - name: POSTGRES_USER
+                  value: root
+                - name: POSTGRES_PASSWORD
+                  value: 1a2b3c4d
+                - name: POSTGRES_DB
+                  value: hoopdb
+                image: postgres
+                name: postgres
+                ports:
+                - containerPort: 5432
+                  name: pg
+                  protocol: TCP
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: postgres
+        spec:
+          ports:
+          - name: postgres
+            port: 5432
+            protocol: TCP
+            targetPort: 5432
+          selector:
+            app: postgres
+        EOF
+        ```
+
+        3. Deploy it
+
+        ```sh
+        kubectl -n hoopdev apply -f /tmp/postgres-spec.yml
+        ```
+
+        <Note>
+          This installation is using a Postgres role with super privileges.
+          Refer to [Database Configuration](/getting-started/installation/kubernetes#database-configuration) for hosted database setups.
+        </Note>
+
+      </Accordion>
+    </AccordionGroup>
+
+  </Step>
+  <Step title="Configure the values.yml">
+
+    ```sh
+    JWT_SECRET_KEY=$(openssl rand 64 | base64)
+    cat - > ./values.yaml <<EOF
+    config:
+      POSTGRES_DB_URI: 'postgres://root:1a2b3c4d@postgres.hoopdev:5432/hoopdb?sslmode=disable'
+      API_URL: 'http://127.0.0.1:8009'
+      JWT_SECRET_KEY: "$JWT_SECRET_KEY"
+
+    defaultAgent:
+      enabled: true
+    EOF
+    ```
+  </Step>
+
+  <Step title="Deploy the Gateway">
+
+    ```sh
+    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+    helm upgrade --install hoop \
+      https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+      -f values.yaml \
+      --namespace hoopdev
+    ```
+
+  </Step>
+
+  <Step title="Access it">
+
+    1. Forward the hoopgateway service ports to your local machine to access the WebApp
+
+    ```sh
+    kubectl port-forward service/hoopgateway 8009:8009 -n hoopdev
+    ```
+
+    2. [Visit the Webapp at http://127.0.0.1:8009](http://127.0.0.1:8009)
+
+  </Step>
+</Steps>
 
 ## Installing
 
@@ -307,7 +427,7 @@ Check the [environment variables section](/configure/env-vars) for more informat
     Make sure to create a strong secret key for `JWT_SECRET_KEY` configuration, the command below generate a strong key as the value for this configuration:
 
     ```sh
-    openssl rand 128 | base64
+    openssl rand 64 | base64
     ```
 
     ```yaml
@@ -447,17 +567,13 @@ image:
     tag: latest
 ```
 
-### Agent Sidecar
+### Default Agent Sidecar
 
-Adding this section will deploy an agent as a sidecar container. Add it after creating an agent key when the gateway is running.
-
-<Tip>
- We recommend using `localhost` as the address to connect in the gRPC server. Example: `grpc://<agent-name>:<secret-key>@127.0.0.1:8010`
-</Tip>
+Adding this section will deploy a default agent as a sidecar container.
 
 ```yaml
-agentConfig:
-  HOOP_KEY: '<agent-key-dsn>'
+defaultAgent:
+  enabled: true
 ```
 
 ### Node Selector
