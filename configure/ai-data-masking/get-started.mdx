@@ -30,9 +30,10 @@ You can either use Google Cloud Data Loss Prevention hosted by Google on GCP, or
   You must be on an enterprise plan to have access to the AI Data Masking feature.
 </Info>
 
-Create an account at [Google Cloud Data Loss Prevention](https://cloud.google.com/security/products/dlp) and get your credentials.
+Create an account at [Google Cloud Data Loss Prevention](https://cloud.google.com/security/products/dlp) and a service account with the permissio `roles/dlp.user`.
 
-When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLICATION_CREDENTIALS_JSON` with your GCP DLP credentials in hoop's Gateway. Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in real-time in the data stream of any connection you configure.
+When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLICATION_CREDENTIALS_JSON` with your GCP DLP credentials in hoop's Gateway. 
+Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in real-time in the data stream of any connection you configure.
 
 ### Host yourself with Microsoft Presidio
 
