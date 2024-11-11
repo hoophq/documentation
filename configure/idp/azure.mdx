@@ -83,8 +83,13 @@ This configuration will ensure to sync the groups when a user authenticates on H
   </Step>
 </Steps>
 
+By default, groups are propagate with their object ids. It may be cumbersome to manage groups as UUIDs on Hoop.
+See the section below to propagate them with their display name instead.
+
 <Warning>
-  By default, groups are propagate with their object ids. It may be cumbersome to manage groups as UUIDs on Hoop. Perform the steps below to propagate them with their  display name instead.
+  When you configure groups to sync, you'll lose the admin access on the next sign in.
+  To prevent this issue, set the configuration `ADMIN_USERNAME` on your gateway to change the role of the admin user with a group associated with your application.
+  The name of the admin group depends either your propagating the groups as object ids or as group names (see below).
 </Warning>
 
 ### Propagating Groups as Names
