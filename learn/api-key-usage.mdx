@@ -10,39 +10,9 @@ description: 'Learn how the API Key feature works and how to use it'
 
 ## How it works
 
-When requesting one of the allowed endpoints, you can pass the API Key in the `Api-Key` header with the configured value. The Gateway will validate the API Key and allow the request to proceed without the need for user authentication.
+When requesting one of the allowed endpoints, you can pass the API Key in the `Api-Key` header with the configured value.
+The Gateway will validate the API Key and allow the request to proceed without the need for user authentication.
 
-## Allowed Endpoints
+## Permissions
 
-The API Key feature allows you to bypass user authentication for certain endpoints. The following endpoints are allowed to be accessed using an API Key:
-
-### User management
- - [List user groups](https://hoop.dev/docs/api-reference/user-management/list-user-groups)
-
-### Connections
- - [Create connections](https://hoop.dev/docs/api-reference/core/create-connection)
- - [Update connection](https://hoop.dev/docs/api-reference/core/update-connection)
- - [List all connections](https://hoop.dev/docs/api-reference/core/list-connections)
- - [Get connection by ID](https://hoop.dev/docs/api-reference/core/get-connection)
- - [Delete connection](https://hoop.dev/docs/api-reference/core/delete-connection)
-
-### Reviews
-- [List reviews](https://hoop.dev/docs/api-reference/core/list-reviews)
-- [Get review by ID](https://hoop.dev/docs/api-reference/core/get-review)
-
-### Agents
-- [List agents](https://hoop.dev/docs/api-reference/core/list-agent-keys)
-
-### Plugins
-- [Create plugins](https://hoop.dev/docs/api-reference/core/create-plugin)
-- [Update plugin](https://hoop.dev/docs/api-reference/core/update-plugin)
-- [List all plugins](https://hoop.dev/docs/api-reference/core/list-plugins)
-- [Get plugin by name](https://hoop.dev/docs/api-reference/core/get-plugin)
-- [Update plugin](https://hoop.dev/docs/api-reference/core/update-plugin)
-
-### Sessions
-- [List sessions](https://hoop.dev/docs/api-reference/core/list-sessions)
-
-### Runbooks
-- [Execute a Runbook](https://hoop.dev/docs/api-reference/core/runbook-exec)
-
+The API Key has admin access in the system, make sure to keep the key secure.
