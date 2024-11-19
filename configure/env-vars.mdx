@@ -59,7 +59,8 @@ All fields below are not required but can give you some extra configuration opti
 
 | Environment                         | Default Value        | Description  |
 | ----------------------------------- | -------------------- |------------- |
-| ADMIN_USERNAME                      | admin                | Changes the name of the group to act as the admin role |
+| ADMIN_USERNAME                      | admin                | Changes the name of the group to act as the `admin` role |
+| AUDITOR_USERNAME                    | auditor              | Changes the name of the group to act as the `auditor` role |
 | API_KEY                             |                      | Must be in form of `{org-id}\|{random-string}`. It safely bypasses user auth for certain endpoints. [Check the list of endpoints](/learn/api-key-usage) you can request and all requisites to use this feature |
 | ASK_AI_CREDENTIALS                  |                      | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
 | DLP_PROVIDER                        | `gcp`                | Which DLP provider to use: `mspresidio` or `gcp` |
