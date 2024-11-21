@@ -32,7 +32,32 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
   <Step title="Collect Issuer Information">
   The Issuer URI is `https://accounts.google.com`
   </Step>
-  <Step title="Configure Groups Claims">
-  This functionality is under development for Google
+</Steps>
+
+## Configuring Groups
+
+Groups are synchronized by performing a request to the Gsuite Directory API as a best effort operation.
+
+<Note>
+  The name of groups is synchronized as e-mail addresses
+</Note>
+
+<Steps>
+  <Step title="Add the Scope">
+    Configure the gateway with the env **IDP_CUSTOM_SCOPES**
+
+    - `IDP_CUSTOM_SCOPES=https://www.googleapis.com/auth/admin.directory.group.readonly`
+
+    *Restart the gateway after applying these changes*.
+  </Step>
+  <Step title="Enable the Admin SDK API">
+
+    - Visit the [Admin SDK API Page](https://console.developers.google.com/apis/api/admin.googleapis.com/overview)
+    - Clik in the button `ENABLE`
   </Step>
 </Steps>
+
+<Warning>
+  When you configure groups to sync, you'll lose the admin access on the next sign in.
+  To prevent this issue, set the configuration `ADMIN_USERNAME` to a group that you consider as admin on Gsuite.
+</Warning>
