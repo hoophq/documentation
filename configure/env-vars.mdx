@@ -57,29 +57,29 @@ description: 'Describe how to configure the Hoop Gateway via environment variabl
 
 All fields below are not required but can give you some extra configuration options to attend your needs.
 
-| Environment                         | Default Value        | Description  |
-| ----------------------------------- | -------------------- |------------- |
-| ADMIN_USERNAME                      | admin                | Changes the name of the group to act as the `admin` role |
-| AUDITOR_USERNAME                    | auditor              | Changes the name of the group to act as the `auditor` role |
-| API_KEY                             |                      | Must be in form of `{org-id}\|{random-string}`. It safely bypasses user auth for certain endpoints. [Check the list of endpoints](/learn/api-key-usage) you can request and all requisites to use this feature |
-| ASK_AI_CREDENTIALS                  |                      | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
-| DLP_PROVIDER                        | `gcp`                | Which DLP provider to use: `mspresidio` or `gcp` |
-| DISABLE_SESSIONS_DOWNLOAD           | false                | Control if the download session is disabled or not |
-| GIN_MODE                            | release              | Turn on (debug) logging of routes |
-| GOOGLE_APPLICATION_CREDENTIALS_JSON |                      | GCP DLP credentials |
-| GRPC_URL                            | `127.0.0.1:8010`     | The gRPC URL to advertise to clients. |
-| IDP_AUDIENCE                        |                      | Identity Provider Audience (Oauth2) |
-| LOG_ENCODING                        | json                 | The encoding of output logs (console) |
-| LOG_GRPC                            |                      | "1" enables logging gRPC protocol |
-| LOG_LEVEL                           | info                 | The verbosity of logs (debug,info,warn,error) |
-| MSPRESIDIO_ANALYZER_URL             |                      | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
-| MSPRESIDIO_ANONYMIZER_URL           |                      | Host and port for MS Presidio Anonymizer `<host-to-anonymizer:port>` |
-| ORG_MULTI_TENANT                    |                      | Enable organization multi-tenancy |
-| PLUGIN_AUDIT_PATH                   | `/opt/hoop/sessions` | The path where the temporary sessions are stored |
-| PLUGIN_INDEX_PATH                   | `/opt/hoop/indexes`  | The path where the temporary indexes are stored |
-| STATIC_UI_PATH                      | `/app/ui/public`     | The path where the UI assets resides |
-| TLS_CA                              |                      | The path or value to the certificate authority (pem), e.g.: `file://` or `base64://` |
-| TLS_CERT                            |                      | The path or value to the certificate server (pem) e.g.: `file://` or `base64://` |
-| TLS_KEY                             |                      | The path or value to the RSA private key e.g.: `file://` or `base64://` |
-| WEBHOOK_APPKEY                      |                      | The application key to send messages to the webhook provider. |
-| WEBHOOK_APPURL                      |                      | The Svix Server URL for self hosted setups. |
+| Environment                         | Default Value           | Description  |
+| ----------------------------------- | ----------------------- |------------- |
+| ADMIN_USERNAME                      | admin                   | Changes the name of the group to act as the `admin` role |
+| AUDITOR_USERNAME                    | auditor                 | Changes the name of the group to act as the `auditor` role |
+| API_KEY                             |                         | Must be in form of `{org-id}\|{random-string}`. It safely bypasses user auth for certain endpoints. [Check the list of endpoints](/learn/api-key-usage) you can request and all requisites to use this feature |
+| ASK_AI_CREDENTIALS                  |                         | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
+| DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
+| DISABLE_SESSIONS_DOWNLOAD           | false                   | Control if the download session is disabled or not |
+| GIN_MODE                            | release                 | Turn on (debug) logging of routes |
+| GOOGLE_APPLICATION_CREDENTIALS_JSON |                         | GCP DLP credentials |
+| GRPC_URL                            | `grpc://127.0.0.1:8010` | The gRPC URL to advertise to clients. |
+| IDP_AUDIENCE                        |                         | Identity Provider Audience (Oauth2) |
+| LOG_ENCODING                        | json                    | The encoding of output logs (console) |
+| LOG_GRPC                            |                         | "1" enables logging gRPC protocol |
+| LOG_LEVEL                           | info                    | The verbosity of logs (debug,info,warn,error) |
+| MSPRESIDIO_ANALYZER_URL             |                         | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
+| MSPRESIDIO_ANONYMIZER_URL           |                         | Host and port for MS Presidio Anonymizer `<host-to-anonymizer:port>` |
+| ORG_MULTI_TENANT                    |                         | Enable organization multi-tenancy |
+| PLUGIN_AUDIT_PATH                   | `/opt/hoop/sessions`    | The path where the temporary sessions are stored |
+| PLUGIN_INDEX_PATH                   | `/opt/hoop/indexes`     | The path where the temporary indexes are stored |
+| STATIC_UI_PATH                      | `/app/ui/public`        | The path where the UI assets resides |
+| TLS_CA                              |                         | The path or value to the certificate authority (pem), e.g.: `file://` or `base64://` |
+| TLS_CERT                            |                         | The path or value to the certificate server (pem) e.g.: `file://` or `base64://` |
+| TLS_KEY                             |                         | The path or value to the RSA private key e.g.: `file://` or `base64://` |
+| WEBHOOK_APPKEY                      |                         | The application key to send messages to the webhook provider. |
+| WEBHOOK_APPURL                      |                         | The Svix Server URL for self hosted setups. |

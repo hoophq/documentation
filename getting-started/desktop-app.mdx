@@ -25,3 +25,21 @@ import Prerequisites from '/snippets/GetStartedPrerequisites.mdx';
 The desktop agent helps users execute terminal commands easily on the web app without using the terminal interface.
 
 Download the app from [https://install.hoop.dev](https://install.hoop.dev) and get started!
+
+## Configuration
+
+For self hosted installations, make sure to advertise the public gRPC URL properly in your gateway.
+It will ensure the app connects in the gateway properly.
+
+<Info>
+  See the `GRPC_URL` configuration on [env-vars](/configure/env-vars.mdx) documentation for more information.
+</Info>
+
+## Access your Connection
+
+To access a connection, visit **Connections** in the sidebar and click in the **Hoop Access** Icon.
+It should give access to your connection in a default port in your localhost network.
+
+<Frame>
+  <img src="/images/getting-started/desktop-app-connection-link.png" />
+</Frame>
