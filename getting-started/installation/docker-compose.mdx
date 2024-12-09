@@ -65,7 +65,7 @@ This simpler version doesn't require much configuration, it just runs in your lo
 # create a jwt secret for auth
 echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env
 # download and run
-curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml | docker compose -f - up
+curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && docker compose up
 ```
 
 This will download the docker-compose file and run it in your local machine. You can access it at `http://localhost:8009` in your browser.
