@@ -27,7 +27,7 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
     <img src="/images/idp/okta-2.jpeg" />
   </Step>
   <Step title="Collect Issuer Information">
-    - The Issuer URI depends on the authorization server being used. Refer to [this documentation](https://developer.okta.com).
+    - The Issuer URI depends on the authorization server being used. Refer to [this documentation](https://developer.okta.com/docs/concepts/auth-servers/#available-authorization-server-types).
     <Info>
     If Okta does not allow external applications to validate access tokens, add the query string option `_userinfo=1` when configuring the Gateway. It indicates to use the user info endpoint.
     The _userinfo value is removed when used to exchange information with the identity provider.
