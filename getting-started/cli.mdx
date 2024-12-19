@@ -71,24 +71,51 @@ import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
 
 ## Authenticate
 
-The `<gateway-url>` is the URL of the API Gateway. If you are using our managed instance, you don't need to set this value, go directly to the `hoop login` command below that it will isntruct it for you with the correct URL as `https://use.hoop.dev`. If you deployed your own instance, this will be the same URL you set on the `API_URL` environment variable for the host of your hoop Gateway.
+### For Managed Instance Users
+If you're using our managed instance, you can skip directly to the [`hoop login`](#authentication) command below. The gateway URL will automatically be set to `https://use.hoop.dev`.
+
+### For Self-Hosted Users
+If you've deployed your own instance, use the URL you specified in the `API_URL` environment variable of your Hoop Gateway:
 
 ```bash
 hoop config create --api-url https://<gateway-url>
 ```
-<small>The configuration is saved at `$HOME/.hoop/config.yaml`</small>
 
-With this configuration in place, you must obtain an access token to interact with the API. The command below will open your browser and redirect you to the identity provider.
+The configuration will be saved to `$HOME/.hoop/config.yaml`.
+
+### Obtaining an Access Token
+
+Once the gateway URL is configured, authenticate with the API by running:
 
 ```bash
 hoop login
 ```
 
-If you need to clear this configuration, issue the command below.
+This command will open your default browser and redirect you to the identity provider for authentication.
+
+### Using Environment Variables
+
+Another way to use the command line is by exporting the following environment variables:
+
+```
+export HOOP_APIURL=https://use.hoop.dev
+export HOOP_GRPCURL=grpcs://use.hoop.dev:8443
+export HOOP_TOKEN=<your-access-token-or-api-key>
+# test it
+hoop admin get userinfo
+```
+
+When using environment variables, it will ignore the local configuration file `$HOME/.hoop/config.yaml`
+
+### Managing Configuration
+
+To remove your existing configuration:
 
 ```bash
 hoop config clear
 ```
+
+This command will delete all stored configuration settings, including the gateway URL and authentication tokens.
 
 ## hoop connect
 
