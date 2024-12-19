@@ -1,0 +1,74 @@
+---
+title: "Jira"
+description: "Optimize and automate Jira workflows."
+---
+
+<Frame>
+  <img src="/images/integrations/#" />
+</Frame>
+
+## Prerequisites
+
+To get the most out of this guide, you will need to:
+
+- Either [create an account in our managed instance](https://use.hoop.dev/register) or [deploy your own hoop.dev instance](/getting-started/installation/overview)
+- You must be your account administrator to perform the following commands
+- Jira Cloud Platform environment and admin account
+
+## Quickstart
+
+### Enabling integration
+- Enable Jira on the integrations section to configure your credentials.
+    @URL , @Email , @APIToken
+
+### Jira environment setup
+- Create or get Project
+- Create or get Request Type
+- Associate Jira field
+
+### Creating templates
+- Basic info (Name, Description, Project Key, Request Type)
+- Automated Mapping, Manual Prompt
+- CMDB
+
+### Adding template to a connection
+- Create or configure desired connection and go to advanced settings
+
+### Executing session
+- When a command is executed in a connection with a Jira Template, all configured information is checked (and requested, if needed) and appended to the session while a Jira card is created to the workflow.
+
+---
+
+Integration
+    -- Jira Instance (URL)
+    -- User Email
+    -- API Token
+
+-> Templates
+    Setup
+    -- Name + Description
+    -- Project Key
+    -- Request Type
+
+    Automated Mapping
+        Type: Preset, Custom
+        Jira Field: 
+        Value: 
+        Description:
+    Manual Prompt
+        Label: 
+        Jira Field: 
+        Description:
+        Required: 
+    CMDB
+        Label: 
+        Jira Field: 
+        Value: 
+        Description:
+        Required:
+
+
+-> Applying to connection (Create/Configure)
+
+## CMDB Configuration
+
