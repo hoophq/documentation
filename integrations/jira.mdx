@@ -70,7 +70,7 @@ Check [How to find your Jira URL](https://confluence.atlassian.com/jirakb/how-to
 
 #### User Email
 ##### **email** <code>string</code>
-User email of Jira account to be connected with hoop.dev services. It can be found going to <code>Profile and Settings</code>.
+User email of Jira account to be connected with hoop.dev services. It can be found going to <code>Profile and Settings</code> and needs to be the same used for the <code>API Token</code>.
 <Info>To ensure compatibility we recommend using a Jira admin account.</Info>
 
 #### User API Token
@@ -103,6 +103,7 @@ Appends additional information to Jira cards when executing commands in a connec
 | **Type** | Preset | Relates hoop.dev fields with Jira fields. |
 | | Custom | Appends a custom key-value relation to Jira cards.|
 | **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
+| **Value** | <code>string</code> | Value related to Jira field key. | 
 | **Description** | <code>string</code> | Optional information used to identify a mapping item. |
 
 
@@ -135,32 +136,40 @@ Automates an advanced relation between CMDB files and hoop services.
 | --- | --- | --- |
 | **Label** | <code>string</code> | Text input label presented for users. |
 | **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
-| **Object Type** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
+| **Value** | <code>string</code> | Value related to Jira field key. | 
+| **Object Type** | <code>string</code> | - | 
 | **Description** | <code>string</code> | Optional information used to identify a mapping item. |
 | **Required** | <code>boolean</code> | Define if the input information is required before executing the command.
 
 
 
 ## CMDB Configuration
-<Steps titleSize="h3">
-  <Step title="Create Custom CMDB Field">
-    - Go to Settings > Issues > Fields > Custom Fields
-    - Click in Advanced in the left sidebard and select Assets objects (see image 1)
-    - Add the name and the description
-  </Step>
-  <Step title="Edit assets object field configurations">
-    This step explains how to configure the fields in order to query objects in the CMDB.
-    - On <code>Fields > Custom Fields</code>
-    - Search for the created field
-    - Click on the ellipsis button
-    - Click on Contexts and default value
-    - Click on <code>Edit Assets object's field configuration</code> link
-  </Step>
-  <Step title="Editing the assets object field">
-    - Select an available Object Schema
-    - Apply the filter (AQL Query) to scope the search of objects to only the type you want
-    - Add an attribute in the User Interaction section
+To learn how to manage your custom CMDB fields, check [Jira Service Management Support](https://support.atlassian.com/jira-service-management-cloud/docs/set-up-the-assets-object-field/).
+<Info>An Enterprise or Premium account is needed in order to get Jira Assets.</Info>
 
-    The field is ready to be used and associated to a request type in your project.
-  </Step>
-</Steps>
+## API Permissions
+Jira integration endpoints. In case of use of token with a more specific scope, make sure you have access to these endpoints.
+
+### Jira Instance API Permissions
+**POST**
+```sh
+https://yourinstance.atlassian.net/rest/api/3/issue
+```
+**GET** 
+```sh
+https://yourinstance.atlassian.net/rest/api/3/issue/{issueKey}/transitions
+```
+**POST** 
+```sh 
+https://yourinstance.atlassian.net/rest/api/3/issue/{issueKey}/transitions
+```
+
+### Assets API Permissions
+**GET**
+```sh 
+https://api.atlassian.com/jsm/assets/workspace/{workspaceId}/v1/object/aql
+```
+**GET**
+```sh
+https://yourinstance.atassian.net/rest/servicedeskapi/assets/workspace
+```
