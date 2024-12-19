@@ -1,14 +1,13 @@
 ---
 title: "Jira"
-description: "Optimize and automate Jira workflows."
+description: "Optimize and automate workflows with Jira Templates."
 ---
 
 <Frame>
-  <img src="/images/integrations/#" />
+  <img src="/images/integrations/jira-1.png" />
 </Frame>
 
 ## Prerequisites
-
 To get the most out of this guide, you will need to:
 
 - Either [create an account in our managed instance](https://use.hoop.dev/register) or [deploy your own hoop.dev instance](/getting-started/installation/overview)
@@ -17,58 +16,151 @@ To get the most out of this guide, you will need to:
 
 ## Quickstart
 
-### Enabling integration
-- Enable Jira on the integrations section to configure your credentials.
-    @URL , @Email , @APIToken
+<Steps titleSize="h3">
+  <Step title="Enabling Jira integration">
+    In the Integrations section (on the main sidebar), go to Jira and enable the integration to configure your credentials. 
+      <Frame>
+        <img src="/images/integrations/jira-2.png" />
+      </Frame>
+      <Info>For more information about these fields check [Jira Integration Fields](#jira-integration-fields).</Info>
+  </Step>
+  <Step title="Creating templates">
+  With Jira Integrations enabled your organization has access to Jira Templates on the main sibedar.
+  
+  <Frame>
+    <img src="/images/integrations/jira-3.png" />
+  </Frame>
+    
+  To create a Jira Template, fill out the following information:
+    
+  **Integration details:** Name, Description, Project Key and Request Type.
+    
+  <Info>For more information about how to get Jira information check [Jira Integration Fields](#jira-integration-fields).</Info>
+    
+  **Automated Mapping:** Append additional information to you created Jira cards when executing commands in a connection. 
 
-### Jira environment setup
-- Create or get Project
-- Create or get Request Type
-- Associate Jira field
+  <Info>For more information about available hoop.dev fields check [Automated Mapping](#automated-mapping).</Info>
 
-### Creating templates
-- Basic info (Name, Description, Project Key, Request Type)
-- Automated Mapping, Manual Prompt
-- CMDB
+  **Manual Prompt:** Request additional information from users when executing commands to be appended to created Jira cards.
 
-### Adding template to a connection
-- Create or configure desired connection and go to advanced settings
+  <Info>For more information about check [Manual Prompt](#manual-prompt).</Info>
+  
+  **Configuration Management Database (CMDB):** An additional layer of relation between CMDBs and hoop.dev services. This information is optional.
 
-### Executing session
-- When a command is executed in a connection with a Jira Template, all configured information is checked (and requested, if needed) and appended to the session while a Jira card is created to the workflow.
+  </Step>
+  <Step title="Adding template to a connection">
+    <Frame>
+      <img src="/images/integrations/jira-4.png" />
+    </Frame>
+  While creating or configuring a connection, navigate to <code>Advanced Settings</code> section and select a Jira Template.
+  <Info>To keep your default workflow, Review option must be enabled for this connection. Connections without Review enabled will mark Jira cards as done after executing a command.</Info>
+  </Step>
+  <Step title="Executing session">
+    When a command is executed in a connection with a Jira Template, all configured information is checked (and requested, if needed) and appended to the session while a Jira card is created to the workflow.
+  </Step>
+</Steps>
 
 ---
 
-Integration
-    -- Jira Instance (URL)
-    -- User Email
-    -- API Token
+## Jira Integration
 
--> Templates
-    Setup
-    -- Name + Description
-    -- Project Key
-    -- Request Type
+#### Jira Instance URL
+##### **url** <code>string</code>
+Check [How to find your Jira URL](https://confluence.atlassian.com/jirakb/how-to-find-your-site-url-to-set-up-the-jira-data-center-and-server-mobile-app-954244798.html).
 
-    Automated Mapping
-        Type: Preset, Custom
-        Jira Field: 
-        Value: 
-        Description:
-    Manual Prompt
-        Label: 
-        Jira Field: 
-        Description:
-        Required: 
-    CMDB
-        Label: 
-        Jira Field: 
-        Value: 
-        Description:
-        Required:
+#### User Email
+##### **email** <code>string</code>
+User email of Jira account to be connected with hoop.dev services. It can be found going to <code>Profile and Settings</code>.
+<Info>To ensure compatibility we recommend using a Jira admin account.</Info>
+
+#### User API Token
+##### **api-token** <code>string</code>
+Go to <code>Atlassian Account > Security > API Tokens</code> or access [API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens) to manage your API Tokens.
+
+## Jira Templates
+
+#### Project Key
+##### **project-key** <code>string</code>
+To find your <code>Key</code> go to <code>Project settings > Details</code>.
+  <Frame>
+    <img src="/images/integrations/jira-5.png" />
+  </Frame>
+<Info>This field is case sensitive, make sure you have the right information.</Info>
+
+#### Request Type
+##### **request-type** <code>string</code>
+To find your <code>Request type</code> name go <code>Project settings > Request management</code>.
+  <Frame>
+    <img src="/images/integrations/jira-6.png" />
+  </Frame>
+<Info>This field is case sensitive, make sure you have the right information.</Info>
+
+### Automated Mapping
+Appends additional information to Jira cards when executing commands in a connection.
+
+| Field | Values | Usage |
+| --- | --- | --- |
+| **Type** | Preset | Relates hoop.dev fields with Jira fields. |
+| | Custom | Appends a custom key-value relation to Jira cards.|
+| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
+| **Description** | <code>string</code> | Optional information used to identify a mapping item. |
 
 
--> Applying to connection (Create/Configure)
+#### Preset values
+- <code>Session ID</code>
+- <code>User email</code>
+- <code>User ID</code>
+- <code>User name</code>
+- <code>Connection type</code>
+- <code>Connection name</code>
+- <code>Session status</code>
+- <code>Session start date</code>
+- <code>Session type</code>
+
+### Manual Prompt
+Requests manual input from users to get additional information when executing commands in a connection.
+
+| Field | Values | Usage |
+| --- | --- | --- |
+| **Label** | <code>string</code> | Text input label presented for users. |
+| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
+| **Description** | <code>string</code> | Optional information used to identify a mapping item. |
+| **Required** | <code>boolean</code> | Define if the input information is required before executing the command.
+
+### Configuration Management Database (CMDB)
+Automates an advanced relation between CMDB files and hoop services. 
+<Info>If information is not matched with CMDB, required information will be requested to be manually filled by the user before executing the command.</Info>
+
+| Field | Values | Usage |
+| --- | --- | --- |
+| **Label** | <code>string</code> | Text input label presented for users. |
+| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
+| **Object Type** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
+| **Description** | <code>string</code> | Optional information used to identify a mapping item. |
+| **Required** | <code>boolean</code> | Define if the input information is required before executing the command.
+
+
 
 ## CMDB Configuration
+<Steps titleSize="h3">
+  <Step title="Create Custom CMDB Field">
+    - Go to Settings > Issues > Fields > Custom Fields
+    - Click in Advanced in the left sidebard and select Assets objects (see image 1)
+    - Add the name and the description
+  </Step>
+  <Step title="Edit assets object field configurations">
+    This step explains how to configure the fields in order to query objects in the CMDB.
+    - On <code>Fields > Custom Fields</code>
+    - Search for the created field
+    - Click on the ellipsis button
+    - Click on Contexts and default value
+    - Click on <code>Edit Assets object's field configuration</code> link
+  </Step>
+  <Step title="Editing the assets object field">
+    - Select an available Object Schema
+    - Apply the filter (AQL Query) to scope the search of objects to only the type you want
+    - Add an attribute in the User Interaction section
 
+    The field is ready to be used and associated to a request type in your project.
+  </Step>
+</Steps>

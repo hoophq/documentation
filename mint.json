@@ -138,7 +138,7 @@
     },
     {
       "group": "Integrations",
-      "pages": ["integrations/slack", "integrations/teams", "integrations/svix"]
+      "pages": ["integrations/slack", "integrations/teams", "integrations/svix", "integrations/jira"]
     }
   ],
   "footerSocials": {
