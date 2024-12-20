@@ -54,7 +54,7 @@ To get the most out of this guide, you will need to:
   **Configuration Management Database (CMDB):** An additional layer of relation between CMDBs and hoop.dev services. This information is optional.
 
   </Step>
-  <Step title="Adding template to a connection">
+  <Step title="Adding templates to a connection">
     <Frame>
       <img src="/images/integrations/jira-4.png" />
     </Frame>
@@ -80,25 +80,37 @@ User email of Jira account to be connected with hoop.dev services. It can be fou
 <Info>To ensure compatibility we recommend using a Jira admin account.</Info>
 
 #### User API Token
-##### **api-token** <code>string</code>
+##### **apiToken** <code>string</code>
 Go to <code>Atlassian Account > Security > API Tokens</code> or access [API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens) to manage your API Tokens.
 
 ## Jira Templates
 
 #### Project Key
-##### **project-key** <code>string</code>
-To find your <code>Key</code> go to <code>Project settings > Details</code>.
+##### **projectKey** <code>string</code>
+The ID of the service desk whose customer request type is to be returned. You can get the ID by checking the URL in a portal ticket.
+
+
+
+This can alternatively be a project identifier (Project Key). For <code>Project Key</code> go to <code>Project settings > Details</code>.
   <Frame>
     <img src="/images/integrations/jira-5.png" />
   </Frame>
 <Info>This field is case sensitive, make sure you have the right information.</Info>
 
 #### Request Type
-##### **request-type** <code>string</code>
-To find your <code>Request type</code> name go <code>Project settings > Request management</code>.
+##### **requestTypeId** <code>string</code>
+The ID of the customer request type to be returned. To find your <code>Request Type ID</code> go to <code>Project settings > Request management > Request type</code> and select the request type.
+  
   <Frame>
     <img src="/images/integrations/jira-6.png" />
   </Frame>
+
+```sh
+# the ID is included at the end of the URL
+# 10005: requestTypeId
+
+https://yourcompany.atlassian.net/jira/servicedesk/projects/PROJ/settings/issuetypes/10005
+```
 <Info>This field is case sensitive, make sure you have the right information.</Info>
 
 ### Automated Mapping
@@ -184,5 +196,5 @@ https://yourinstance.atassian.net/rest/servicedeskapi/assets/workspace
 Common issues and their solutions:
 
 - **Token Issues**: Ensure your API token has the correct permissions
-- **Project Key Errors**: Check case sensitivity and verify the project exists
+- **Service Desk ID/Project Key Errors**: Check numbers or case sensitivity and verify if the project exists
 - **Request Type Mismatches**: Confirm the exact request type name in Jira settings
