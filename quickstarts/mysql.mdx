@@ -19,12 +19,13 @@ The table below explains which features are available for this kind of connectio
 | ------- | ------ | ------- | ----------- |
 | TLS Termination Proxy | <Icon icon="check" /> *partial | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
 | Audit | <Icon icon="check" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client. |
-| Data Masking (DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Data Masking (MS Presidio) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
 | Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
 | Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
 
 <Info>
-***partial:** the connection is TLS offloaded until it reaches the agent. However, once it reaches to it, the network connection is established without any encryption with the remote server. It'ss important to ensure that the network running the agent is reliable.
+**partial:** the connection uses TLS offloading until it reaches the agent. However, once it reaches the agent, the network connection to the remote server is established without encryption. It is crucial to ensure that the network hosting the agent is secure and reliable.
 </Info>
 
 ## Configuration
@@ -40,7 +41,7 @@ The table below explains which features are available for this kind of connectio
 
 ## Connection setup
 
-Create a new TCP connection in hoop's web panel.
+Create a new Database connection in hoop's web panel.
 
 <Frame>
     <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />

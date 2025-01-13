@@ -22,7 +22,8 @@ The table below outlines the features available for this type of connection.
 | --- | --- | --- | --- |
 | TLS Termination Proxy | <Icon icon="check" /> | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
 | Audit | <Icon icon="check" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client |
-| Data Masking (DLP) | <Icon icon="check" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Data Masking (Google DLP) | <Icon icon="check" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Data Masking (MS Presidio DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
 | Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
 | Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal for analysis exploration. |
 
@@ -34,7 +35,7 @@ The table below outlines the features available for this type of connection.
 
 ## Connection setup
 
-Create a new TCP connection in hoop's web panel.
+Create a new Database connection in hoop's web panel.
 
 <Frame>
     <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
@@ -55,6 +56,10 @@ connection: mongo | session: f2e7634a-f4c4-47cd-bee6-48da080e2a23
  mongodb://noop:noop@127.0.0.1:27018/?directConnection=true
 ------------------------------------------------------------
 ```
+
+<Note>
+Clients must use `noop` as both the username and password, along with the `directionConnection=true` option
+</Note>
 
 ### Web panel
 

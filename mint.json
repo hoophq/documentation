@@ -122,7 +122,10 @@
         "learn/ai-data-masking",
         "learn/access-control",
         "learn/jit-reviews",
-        "learn/runbooks",
+        {
+          "group": "Runbooks",
+          "pages": ["learn/runbooks/overview", "learn/runbooks/configuration"]
+        },
         "learn/secrets-manager",
         "learn/session-recording",
         "learn/webhooks-siem",
