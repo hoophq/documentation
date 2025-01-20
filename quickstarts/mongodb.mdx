@@ -67,3 +67,17 @@ Clients must use `noop` as both the username and password, along with the `direc
     <img src="/images/quickstarts/client-mongodb.png" alt="create tcp connection screenshot" />
 </Frame>
 
+
+## Known Issues
+
+### Clients advertising the wrong server
+
+The **native** implementation has a known issue in cluster setups where clients may incorrectly advertise connections to the wrong server.
+Hoop selects a server at random and attempts to upgrade the connection to the primary server.
+However, this transition is not properly propagated to clients, resulting in the advertisement of incorrect server information.
+
+Users can manually switch to the primary server after connecting to a secondary server. For example, using `mongoshell`:
+
+```sh
+> db.getMongo().setReadPref('primary')
+```

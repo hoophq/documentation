@@ -41,3 +41,14 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
   </Info>
   </Step>
 </Steps>
+
+## Known Issues
+
+### User groups are not synchronized no groups are assigned
+
+When a user is not assigned to any group, Hoop will not synchronize the group information for that user.
+This issue occurs because Hoop only synchronizes users who have the groups claim.
+However, if a user does not belong to any group, this information is not propagated.
+
+To prevent this issue, ensure that every user is associated with a default group.
+This will help avoid synchronization problems in your installation.
