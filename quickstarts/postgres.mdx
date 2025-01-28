@@ -23,17 +23,19 @@ The table below outlines the features available for this type of connection.
 | Feature | Native | One Off | Description |
 | --- | --- | --- | --- |
 | TLS Termination Proxy | <Icon icon="check" />  | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="check" /> * partial | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client |
+| Audit | <Icon icon="asterisk" /> | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client |
 | Data Masking (Google DLP) | <Icon icon="check" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
 | Data Masking (MS Presidio) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
 | Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
 | Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
 
 <Info>
-**partial:** the connection is only audited when using the "simple query" protocol.
-When a client is using the "extended query" protocol for example, the connection is **not audited**.
+  <Icon icon="asterisk" /> **Partial Support**
 
-We plan to add audit support for "extended query" protocol in the near future.
+  The connection is only audited when using the "simple query" protocol.
+  "extended query" protocol queries aren't recorded. You can instruct users to use only "simple query" in their client's settings.
+
+  If you need to block use of "extended query" or want to know the ETA for recording, please [contact us](https://help.hoop.dev/).
 </Info>
 
 ## Configuration
