@@ -18,7 +18,8 @@ description: "Review sessions directly from your Slack workspace."
 1. Create [a slack app from **an app manifest**](https://api.slack.com/apps?new_app=1)
 2. Select the workspace > click next > paste the manifest below
 
-**slack-manifest.json**
+<AccordionGroup>
+  <Accordion title="slack-manifest.json">
     ```json
     {
       "display_information": {
@@ -51,7 +52,7 @@ description: "Review sessions directly from your Slack workspace."
             "channels:manage",
             "groups:write",
             "mpim:write",
-    				"chat:write.public"
+            "chat:write.public"
           ]
         }
       },
@@ -70,6 +71,9 @@ description: "Review sessions directly from your Slack workspace."
       }
     }
     ```
+  </Accordion>
+</AccordionGroup>
+
 
 1. Follow the guide and click on **Install to Workspace**
 2. Scroll below and create an **App-Level Token** and **copy the token**
@@ -87,24 +91,31 @@ Lastly, invite the bot in the slack channel that you wish to receive notificatio
 
 ## App Installation - Hoop
 
-In this step, the slack bot and app-level tokens are required to configure the plugin. You can then them at:
+For this step, you'll need both the Slack bot token and app-level token to configure the plugin. You can obtain these tokens at:
 
-- **SLACK_BOT_TOKEN:** `Oauth & Permissions > OAuth Tokens for Your Workspace` ****This is the token created in the app installation process
+- **SLACK_BOT_TOKEN:** `Oauth & Permissions > OAuth Tokens for Your Workspace` (*This is the token created in the app installation process*)
 - **SLACK_APP_TOKEN:** `Basic Information > App-Level Tokens`
 
-Then configure the Slack App:
+Configure the Slack App:
 
-1. Login to your hoop instance: `hoop login`
-2. Create the slack plugin
+1. Go to **Integrations** > **Slack** > **Configurations Tab**
+2. Type both tokens in the input
+
+<Frame>
+  <img src="/images/integrations/slack-configuration.jpg" />
+</Frame>
+
+Alternatively, it's possible to use the Hoop command line to configure the integration:
 
 ```bash
+# login to your instance
+hoop login
+# configure the slack integration
 hoop admin create plugin slack \
     --overwrite \
     --config SLACK_BOT_TOKEN=xoxb-... \
     --config SLACK_APP_TOKEN=xapp-...
 ```
-
-Now it’s possible to associate connections to the slack plugin in the webapp
 
 ## Subscribing to Slack channels
 
@@ -166,5 +177,5 @@ hoop connect bash
 ```
 
 ```bash
-hoop exec bash 'ls'
+hoop exec bash -i 'ls'
 ```
