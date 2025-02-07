@@ -66,6 +66,7 @@
       "group": "Configure",
       "pages": [
         "configure/env-vars",
+        "configure/reverse-proxy",
         {
           "group": "Identity Providers",
           "pages": [

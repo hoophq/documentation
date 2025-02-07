@@ -1,0 +1,199 @@
+---
+title: 'Reverse Proxy'
+description: 'Deploying Hoop Behind a Reverse Proxy'
+---
+
+Hoop Gateway can be deployed behind a reverse proxy to enhance security, enable load balancing, and optimize production performance.
+This guide covers configuration steps for various reverse proxy setups.
+
+## Architecture Overview
+
+Hoop Gateway exposes two ports by default:
+
+- **Port 8009:** Web interface and REST API (HTTP/1.1 and HTTP/2)
+- **Port 8010:** gRPC service (HTTP/2)
+
+When setting up a reverse proxy, both ports need to be properly configured to ensure all functionality works correctly.
+
+## Prerequisites
+
+Before configuring your reverse proxy:
+
+- Ensure your proxy server supports HTTP/2
+- Configure TLS certificates
+- Verify network connectivity between proxy and Hoop Gateway
+- Understand your specific use case requirements (single domain vs multiple domains)
+
+## AWS Application Load Balancer
+
+AWS Application Load Balancer (ALB) can route traffic to your Hoop Gateway instance with the following configuration:
+
+1. Load Balancer Configuration:
+
+    - Enable HTTP/2 support
+    - Configure SSL/TLS certificates
+
+
+2. Target Groups
+
+    **Web/API Target Group:**
+        - Port: 8009
+        - Protocol Version: HTTP1 or HTTP2
+        - Health Check:
+            - Protocol: HTTP
+            - Path: `GET /api/healthz`
+            - Port: 8009
+
+    **gRPC Target Group:**
+        - Port: 8010
+        - Protocol Version: gRPC
+        - Health Check:
+            - Protocol: HTTP
+            - Path: `GET /`
+            - Port: 8010
+
+
+## Nginx (Single Port Configuration)
+
+This configuration demonstrates how to proxy both HTTP and gRPC protocols using a single port with Nginx:
+
+```nginx
+events {
+    worker_connections  1024;
+}
+
+http {
+    server {
+        listen       443 ssl http2;
+        server_name  hoop-gateway.domain.tld;
+
+        # SSL Configuration
+        ssl_certificate /path/to/server.pem;
+        ssl_certificate_key /path/to/privatekey.pem;
+
+        # gRPC Protocol Handler
+        location /protobuf.Transport/Connect {
+            client_max_body_size 0;
+            grpc_pass grpc://127.0.0.1:8010;
+            break;
+        }
+
+        # Web Interface and REST API Handler
+        location / {
+            proxy_pass http://127.0.0.1:8009;
+        }
+    }
+}
+```
+
+## Kubernetes Ingress Nginx
+
+For Kubernetes deployments, you can use Ingress Nginx with separate domains for Web/API and gRPC services.
+This configuration performs TLS termination at the proxy level.
+
+<AccordionGroup>
+    <Accordion title="Web Interface and REST Api ingress">
+        ```yaml
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+        name: hoopgateway-web
+        spec:
+        ingressClassName: nginx
+        rules:
+        - host: hoop-gateway-web.domain.tld
+            http:
+            paths:
+            - backend:
+                service:
+                    name: hoopgateway
+                    port:
+                    number: 8009
+                pathType: ImplementationSpecific
+        tls:
+        - hosts:
+            - hoop-gateway-web.domain.tld
+            secretName: hoopdev-tls
+        ```
+    </Accordion>
+    <Accordion title="gRPC Service Ingress">
+        ```yaml
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+        annotations:
+            nginx.ingress.kubernetes.io/backend-protocol: GRPC
+            nginx.ingress.kubernetes.io/proxy-body-size: '0'
+        name: hoopgateway-grpc
+        spec:
+        ingressClassName: nginx
+        rules:
+        - host: hoop-gateway-grpc.domain.tld
+            http:
+            paths:
+            - backend:
+                service:
+                    name: hoopgateway
+                    port:
+                    number: 8010
+                pathType: ImplementationSpecific
+        tls:
+        - hosts:
+            - hoop-gateway-grpc.domain.tld
+            secretName: hoopdev-tls
+        ```
+        <Info>
+            The gRPC ingress configuration has two importante directives to proxy the connections:
+            - `nginx.ingress.kubernetes.io/backend-protocol: GRPC` - indicates the underline backend protocol
+            - `nginx.ingress.kubernetes.io/proxy-body-size: '0'` - use unlimited body size to avoid issues when proxying bi-directional connections
+        </Info>
+    </Accordion>
+</AccordionGroup>
+
+# Troubleshooting
+
+### gRPC Logging
+
+Enable detailed logging for HTTP/2 and gRPC connectivity by setting these environment variables:
+
+```sh
+export GODEBUG=http2debug=2
+export LOG_GRPC=1
+```
+
+Test connectivity using:
+
+- Agent: `hoop start agent`
+- Client: `hoop connect myconnection`
+
+## Common Issues
+
+### RST_STREAM error code INTERNAL_ERROR
+
+If you encounter this error:
+
+```
+rpc error: code = Internal desc = stream terminated by RST_STREAM
+with error code: INTERNAL_ERROR
+```
+
+Check these common causes:
+
+- VPN client configuration issues
+- Incorrect gRPC protocol forwarding in reverse proxy
+- HTTP/2 protocol not enabled in reverse proxy
+
+### HTTP/2 Frame Too Large
+
+This error typically occurs in two scenarios:
+
+1. **TLS Mismatch**
+
+    - Ensure clients use TLS when the gateway or proxy requires it
+    - Verify `HOOP_KEY` uses `grpcs://` or `https://` scheme for agent connections
+    - Check `grpc_url` in `$HOME/.hoop/config.toml` uses `grpcs://` or `https://` for client connections
+
+2. **HTTP/2 Protocol Issues**
+
+    - Verify HTTP/2 is enabled in your reverse proxy
+    - Ensure proper protocol forwarding settings
