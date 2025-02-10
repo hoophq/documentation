@@ -93,53 +93,53 @@ This configuration performs TLS termination at the proxy level.
 
 <AccordionGroup>
     <Accordion title="Web Interface and REST Api ingress">
-        ```yml
+        ```yaml
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
-        name: hoopgateway-web
+          name: hoopgateway-web
         spec:
-        ingressClassName: nginx
-        rules:
-        - host: hoop-gateway-web.domain.tld
+          ingressClassName: nginx
+          rules:
+          - host: hoopgateway-web.domain.tld
             http:
-            paths:
-            - backend:
-                service:
+              paths:
+              - backend:
+                  service:
                     name: hoopgateway
                     port:
-                    number: 8009
+                      number: 8009
                 pathType: ImplementationSpecific
-        tls:
-        - hosts:
-            - hoop-gateway-web.domain.tld
-            secretName: hoopdev-tls
+          tls:
+          - hosts:
+              - hoop-gateway-web.domain.tld
+              secretName: hoopdev-tls
         ```
     </Accordion>
     <Accordion title="gRPC Service Ingress">
-        ```yml
+        ```yaml
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
-        annotations:
+          annotations:
             nginx.ingress.kubernetes.io/backend-protocol: GRPC
             nginx.ingress.kubernetes.io/proxy-body-size: '0'
-        name: hoopgateway-grpc
+          name: hoopgateway-grpc
         spec:
-        ingressClassName: nginx
-        rules:
-        - host: hoop-gateway-grpc.domain.tld
+          ingressClassName: nginx
+          rules:
+          - host: hoopgateway-grpc.domain.tld
             http:
-            paths:
-            - backend:
-                service:
+              paths:
+              - backend:
+                  service:
                     name: hoopgateway
                     port:
-                    number: 8010
+                      number: 8010
                 pathType: ImplementationSpecific
-        tls:
-        - hosts:
-            - hoop-gateway-grpc.domain.tld
+          tls:
+          - hosts:
+              - hoop-gateway-grpc.domain.tld
             secretName: hoopdev-tls
         ```
         <Info>
