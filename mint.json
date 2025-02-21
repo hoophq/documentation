@@ -96,6 +96,7 @@
         "quickstarts/mssql",
         "quickstarts/mongodb",
         "quickstarts/oracle",
+        "quickstarts/ssh",
         {
           "group": "AWS",
           "pages": ["quickstarts/aws/aws-cli", "quickstarts/aws/aws-ecs"]

@@ -1,0 +1,56 @@
+---
+title: "SSH"
+description: "Proxy an SSH Server to remote hosts in your private network."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+| Name | Type |Required | Description |
+| --- | --- | ----|     --- |
+| HOST | env-var | yes |The IP or hostname of the SSH server |
+| PORT | env-var | no |The port of the SSH server, default to `22` |
+| USER | env-var | yes | The username of the Linux server |
+| PASS | env-var | no | The credentials of the username if password authentication is enabled in the SSH server. |
+| AUTHORIZED_SERVER_KEYS | env-var | no | The private key of the user that corresponds to the public key at `$HOME/<user>/.ssh/authorized_keys` |
+
+## Connection setup
+
+```sh
+# ssh server must enable password based authentication
+hoop admin create conn myremote-server -a <agent> --overwrite \
+    --type application/ssh \
+    -e HOST=10.20.30.40 \
+    -e USER=root \
+    -e PASS=myrootpasswd
+
+# ssh server must enable public key authentication
+hoop admin create conn myremote-server -a <agent> --overwrite \
+    --type application/ssh \
+    -e HOST=10.20.30.40 \
+    -e USER=root \
+    b64-envvar:AUTHORIZED_SERVER_KEYS="$(cat /path/to/your/private/key |base64)"
+```
+
+<Info>
+  In upcoming releases, we plan to automate the management of users, keys, and passwords on the remote server.
+  Additionally, our roadmap includes adding a UI for managing such type of connections.
+</Info>
+
+## How to Use it
+
+```bash
+hoop connect myremote-server --port 2222
+```
+
+Connect with your local SSH client
+
+```bash
+ssh -p 2222 localhost
+```
+
+## SSH Hosts Key
+
+To prevent fingerprint issues when connecting with the local SSH client server,
+add the client host key during gateway setup. For more details, refer to the [environment variables documentation](../configure/env-vars).
