@@ -39,6 +39,67 @@ The table below explains which features are available for this kind of connectio
 | DB | env-var | yes | The name of the database to connect (Required when using the connection via the command line). |
 | PRE_SQL_SCRIPT_FILE | filesystem | no | Append a custom SQL script at the beginning of the execution. |
 
+
+### Client Charset Configuration
+
+By default, your client will use the character set provided by the MySQL server.
+However, you may need to specify a different charset for your specific requirements when interacting with the database.
+
+<Note>
+    The following configuration options are only applicable for **One-Off executions**.
+</Note>
+
+#### 1. Session-Level Charset Configuration
+
+You can change the charset for your current session directly in the Webapp by adding a `SET NAMES` statement before your query:
+
+```sql
+SET NAMES 'utf8mb4';
+SELECT * FROM mytable LIMIT 5;
+```
+
+#### 2. Client Default Charset Configuration
+
+To set a default charset for the connection, use the `--default-character-set` option when creating the connection.
+This requires updating the default command attribute:
+
+```sh
+hoop admin create conn mysql -a <agent> --type database/mysql \
+    -e HOST= \
+    -e PORT= \
+    -e USER= \
+    -e PASS= \
+    -e DB= \
+    -- mysql -h'$HOST' -u'$USER' --port='$PORT' -D'$DB' \
+        --default-character-set='<your-collation>'
+```
+
+#### 3. Using the Pre-SQL Script File
+
+The `PRE_SQL_SCRIPT_FILE` environment variable allows you to automatically execute SQL commands at the beginning of each session:
+
+```sh
+hoop admin create conn mysql -a <agent> --type database/mysql \
+    -e HOST= \
+    -e PORT= \
+    -e USER= \
+    -e PASS= \
+    -e DB= \
+    -e filesystem:PRE_SQL_SCRIPT_FILE="SET NAMES '<your-collation>';"
+```
+
+<Note>
+    This method is only available when using an image with the **MySQL Wrapper Script**, such as the `hoophq/hoopdev` image
+</Note>
+
+### Common Charset Options
+
+- `utf8mb4` - Full UTF-8 support (recommended for most applications)
+- `latin1` - Default charset in older MySQL versions
+- `ascii` - Basic ASCII character set
+
+For a complete list of supported character sets, refer to the MySQL documentation.
+
 ## Connection setup
 
 Create a new Database connection in hoop's web panel.
