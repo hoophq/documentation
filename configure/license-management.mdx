@@ -1,0 +1,80 @@
+---
+title: 'License Management'
+description: 'Managing License for your Hoop Installation'
+---
+
+Hoop includes the Open Source license by default. If you're evaluating or using enterprise features,
+this guide will help you manage your license in your current installation.
+
+## License Characteristics
+
+- A single license can be applied to multiple hosts
+- All licenses have an expiration date
+- The gateway stops functioning when your license expires
+
+## Managing Licenses Through the Web Application
+
+The web application allows you to upload a new license or update an expired one.
+
+<Frame>
+  <img
+    src="/images/configure/webapp-license-management.jpg"
+  />
+</Frame>
+
+<Info>
+    The web application only permits license updates after expiration.
+    To update an active license before it expires, use the command line utility instead.
+</Info>
+
+## Managing Licenses Through the Command Line
+
+The command line interface provides more flexibility, including the ability to update licenses before expiration:
+
+```sh
+hoop admin license install --file /path/to/license.json
+```
+
+### License Information
+
+To obtain license information of you current installation
+
+```sh
+hoop admin serverinfo
+
+(...)
+License:
+  Key ID:        743420a...79bc
+  Type:          enterprise
+  Valid:         true
+  Issued At:     2024-07-08T09:58:43Z
+  Expires At:    2044-07-08T10:58:43Z
+  Allowed Hosts: [*.hoop.dev]
+  Verify Error:
+```
+
+
+## Handling Expired Licenses
+
+When a license expires, all execution attempts will fail with an error. You have two options:
+
+1. Update to a new enterprise license
+2. Downgrade to the Open Source license
+
+<Tip>
+    Contact [our support team](https://help.hoop.dev) if your license is nearing expiration.
+</Tip>
+
+###  Downgrading to Open Source
+
+To downgrade your installation, update the license with the Open Source version:
+
+```
+curl -L https://releases.hoop.dev/default-oss-license.json > /tmp/hoop-oss-license.json
+hoop admin license install --file /tmp/hoop-oss-license.json
+```
+
+<Note>
+    Advanced users can also remove license information by clearing the `license_data` column in the `private.orgs` database table.
+</Note>
+

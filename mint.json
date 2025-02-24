@@ -67,6 +67,7 @@
       "pages": [
         "configure/env-vars",
         "configure/reverse-proxy",
+        "configure/license-management",
         {
           "group": "Identity Providers",
           "pages": [
