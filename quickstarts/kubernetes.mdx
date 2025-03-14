@@ -26,7 +26,7 @@ The assumption is that the service account where the agent is deployed has the n
 ```bash
 hoop admin create conn k8s \
 	-a <agent> \
-	-e b64-filesystem:KUBECONFIG=$(cat $HOME/.kube/config |base64) \
+	-e filesystem:KUBECONFIG=file://$HOME/.kube/config \
 	-- kubectl
 ```
 

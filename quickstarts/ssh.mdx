@@ -46,7 +46,7 @@ hoop admin create conn myremote-server -a <agent> --overwrite \
     --type application/ssh \
     -e HOST=10.20.30.40 \
     -e USER=root \
-    b64-envvar:AUTHORIZED_SERVER_KEYS="$(cat /path/to/your/private/key |base64)"
+    -e AUTHORIZED_SERVER_KEYS=file:///path/to/your/private/key
 ```
 
 <Info>
