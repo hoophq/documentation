@@ -144,7 +144,12 @@
     },
     {
       "group": "Integrations",
-      "pages": ["integrations/slack", "integrations/teams", "integrations/svix", "integrations/jira"]
+      "pages": [
+        "integrations/aws",
+        "integrations/slack",
+        "integrations/teams",
+        "integrations/svix",
+        "integrations/jira"]
     }
   ],
   "footerSocials": {
