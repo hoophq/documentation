@@ -1,0 +1,26 @@
+---
+title: "AI Query Builder"
+description: "Get to know how to configure AI Query Builder in your organization"
+---
+
+AI Query Builder is a companion tool that allows you to ask for contextualized help to build queries and scripts. By activating it, a Copilot tool and a "Ask AI" box will be shown in your the hoop.dev's Web Client.
+
+<Frame>
+  <img src="/images/ai-query-builder.png"/>
+</Frame>
+
+## How to get started
+
+<Info>
+  You must be on an enterprise plan for hoop.dev and on version 1.12.28+ of our gateway.
+</Info>
+
+We use OpenAI ChatGPT-4o to provide contextualized help. You can either add your own key or ask hoop.dev team for one. Once you have they, you should configure hoop.dev's Gateway with a new environment variable called `ASK_AI_CREDENTIALS` with OpenAI's API key.
+
+## Using the AI Query Builder
+
+After activating it, you will see a Copilot tool and a "Ask AI" box in the bottom right corner of your screen. You can ask for help with queries and scripts, and the AI will provide you with suggestions and examples.
+
+## How it works
+
+AI Query Builder uses OpenAI ChatGPT-4o. It's a powerful tool that can understand the context of your question and provide you with the best possible answer. By activating it, hoop.dev will send a non-identifiable schema of your database, its type and the query you are writing to the ChatGPT. We don't let the AI see your data, only the schema and the query you are writing and we don't associate it with your identity or your company information in any way.

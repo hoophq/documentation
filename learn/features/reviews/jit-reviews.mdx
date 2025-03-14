@@ -1,0 +1,62 @@
+---
+title: "Just-in-Time Reviews"
+description: "Interact with the JIT console or execute ad-hoc scripts."
+---
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/learn/review_light.png"
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/learn/review_dark.png"
+  />
+</Frame>
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+## Concepts
+
+This plugin allows teams to review commands before execution or allows time-based sessions.
+
+Users who belong to an approval group can approve or revoke commands. A command is only executed when all groups are approved.
+
+<Note>
+Admin users can approve their own commands.
+</Note>
+
+## Time-based Sessions (JIT)
+
+When a connection is enabled, the user can interact with the connection based on the requested time.
+
+The command below asks for a 10 minutes access to the connection bash'
+
+```bash
+$ hoop connect bash --duration 10m
+⣷ waiting session to be approved at https://use.hoop.dev/plugins/reviews/73a28154-58...
+```
+
+After approval, the user can connect again without prompting for review for 10 minutes.
+
+## Configuration
+
+Access the Web Client and navigate to the Reviews area inside "Manage".
+
+<Frame>
+  <img src="/images/learn/jit-reviews-1.png" />
+</Frame>
+
+Activate the connection you want to configure Review and then hit "Configure".
+
+<Frame>
+  <img src="/images/learn/jit-reviews-2.png" />
+</Frame>
+
+Select the groups you want to review commands in that connection and click save.
+
+<Warning>
+  Selecting multiple groups will require all groups to approve the command before execution.
+</Warning>
