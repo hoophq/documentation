@@ -46,110 +46,181 @@
   ],
   "navigation": [
     {
-      "group": "Getting Started",
+      "group": "Introduction",
       "pages": [
-        "getting-started/introduction",
-        {
-          "group": "Installation",
-          "pages": [
-            "getting-started/installation/overview",
-            "getting-started/installation/docker-compose",
-            "getting-started/installation/AWS",
-            "getting-started/installation/kubernetes"
-          ]
-        },
-        "getting-started/cli",
-        "getting-started/desktop-app"
-      ]
-    },
-    {
-      "group": "Configure",
-      "pages": [
-        "configure/env-vars",
-        "configure/reverse-proxy",
-        "configure/license-management",
-        {
-          "group": "Identity Providers",
-          "pages": [
-            "configure/idp/get-started",
-            "configure/idp/auth0",
-            "configure/idp/okta",
-            "configure/idp/google",
-            "configure/idp/azure",
-            "configure/idp/jumpcloud",
-            "configure/idp/aws-cognito"
-          ]
-        },
-        {
-          "group": "AI Data Masking",
-          "pages": [
-            "configure/ai-data-masking/get-started",
-            "configure/ai-data-masking/fields"
-          ]
-        }
-      ]
-    },
-    {
-      "group": "Quickstarts",
-      "pages": [
-        "quickstarts/mysql",
-        "quickstarts/postgres",
-        "quickstarts/mssql",
-        "quickstarts/mongodb",
-        "quickstarts/oracle",
-        "quickstarts/ssh",
-        {
-          "group": "AWS",
-          "pages": ["quickstarts/aws/aws-cli", "quickstarts/aws/aws-ecs"]
-        },
-        "quickstarts/kubernetes",
-        "quickstarts/apache-cassandra",
-        {
-          "group": "Python",
-          "pages": [
-            "quickstarts/python/python-scripts",
-            "quickstarts/python/django-admin"
-          ]
-        },
-        "quickstarts/ruby-on-rails",
-        "quickstarts/elixir-IEx",
-        "quickstarts/php-artisan",
-        "quickstarts/webapps-and-apis",
-        "quickstarts/jump-hosts"
+        "introduction/overview",
+        "introduction/getting-started"
       ]
     },
     {
       "group": "Learn",
       "pages": [
-        "learn/architecture",
-        "learn/ai-data-masking",
-        "learn/access-control",
-        "learn/jit-reviews",
         {
-          "group": "Runbooks",
-          "pages": ["learn/runbooks/overview", "learn/runbooks/configuration"]
+          "group": "Web App",
+          "pages": [
+            "learn/webapp/overview",
+            "learn/webapp/creating-connections",
+            "learn/webapp/managing-access",
+            "learn/webapp/monitoring-sessions"
+          ]
         },
-        "learn/secrets-manager",
-        "learn/session-recording",
-        "learn/webhooks-siem",
-        "learn/ai-query-builder",
-        "learn/api-key-usage"
+        {
+          "group": "Features",
+          "pages": [
+            "learn/features/ai-data-masking",
+            {
+              "group": "Reviews",
+              "pages": [
+                "learn/features/reviews/command-reviews",
+                "learn/features/reviews/jit-reviews"
+              ]
+            },
+            "learn/features/access-control",
+            "learn/features/guardrails",
+            {
+              "group": "Runbooks",
+              "pages": [
+                "learn/features/runbooks/overview",
+                "learn/features/runbooks/configuration"
+              ]
+            },
+            "learn/features/secrets-manager",
+            "learn/features/session-recording",
+            "learn/features/webhooks-siem",
+            "learn/features/ai-query-builder",
+            "learn/features/api-key-usage"
+          ]
+        }
       ]
     },
     {
       "group": "Concepts",
       "pages": [
-        "concepts/agent"
+        "concepts/how-it-works",
+        "concepts/agents",
+        "concepts/connection",
+        "concepts/security",
+        "concepts/network",
+        "concepts/deployment-options"
+      ]
+    },
+    {
+      "group": "Quickstart",
+      "pages": [
+        {
+          "group": "Databases",
+          "pages": [
+            "quickstart/databases/postgres",
+            "quickstart/databases/mysql",
+            "quickstart/databases/mongodb",
+            "quickstart/databases/oracle",
+            "quickstart/databases/mssql",
+            "quickstart/databases/apache-cassandra"
+          ]
+        },
+        {
+          "group": "Cloud Services",
+          "pages": [
+            {
+              "group": "AWS",
+              "pages": [
+                "quickstart/cloud-services/aws/aws-cli",
+                "quickstart/cloud-services/aws/aws-ecs"
+              ]
+            },
+            "quickstart/cloud-services/kubernetes"
+          ]
+        },
+        {
+          "group": "Web Applications",
+          "pages": [
+            "quickstart/web-applications/webapps-and-apis",
+            "quickstart/web-applications/jump-hosts"
+          ]
+        },
+        {
+          "group": "Development Environments",
+          "pages": [
+            "quickstart/development-environments/ruby-on-rails",
+            {
+              "group": "Python",
+              "pages": [
+                "quickstart/development-environments/python/python-scripts",
+                "quickstart/development-environments/python/django-admin"
+              ]
+            },
+            "quickstart/development-environments/php-artisan",
+            "quickstart/development-environments/elixir-IEx"
+          ]
+        }
       ]
     },
     {
       "group": "Integrations",
       "pages": [
-        "integrations/aws",
         "integrations/slack",
         "integrations/teams",
+        "integrations/jira",
         "integrations/svix",
-        "integrations/jira"]
+        "integrations/aws"
+      ]
+    },
+    {
+      "group": "Technical Reference",
+      "pages": [
+        {
+          "group": "Installation",
+          "pages": [
+            "technical-reference/installation/overview",
+            "technical-reference/installation/docker-compose",
+            "technical-reference/installation/kubernetes",
+            "technical-reference/installation/AWS"
+          ]
+        },
+        {
+          "group": "Configuration",
+          "pages": [
+            "technical-reference/configuration/env-vars",
+            "configure/reverse-proxy",
+            "configure/license-management",
+            {
+              "group": "Identity Providers",
+              "pages": [
+                "technical-reference/configuration/idp/get-started",
+                "technical-reference/configuration/idp/auth0",
+                "technical-reference/configuration/idp/okta",
+                "technical-reference/configuration/idp/google",
+                "technical-reference/configuration/idp/azure",
+                "technical-reference/configuration/idp/jumpcloud",
+                "technical-reference/configuration/idp/aws-cognito"
+              ]
+            },
+            {
+              "group": "AI Data Masking",
+              "pages": [
+                "configure/ai-data-masking/get-started",
+                "configure/ai-data-masking/fields"
+              ]
+            }
+          ]
+        },
+        {
+          "group": "Architecture",
+          "pages": [
+            "technical-reference/architecture/overview",
+            "technical-reference/architecture/components",
+            "technical-reference/architecture/security-model",
+            "technical-reference/architecture/network-flow"
+          ]
+        },
+        {
+          "group": "APIs and Integration",
+          "pages": [
+            "technical-reference/apis/api-key-usage",
+            "technical-reference/apis/webhooks-siem"
+          ]
+        }
+      ]
     }
   ],
   "footerSocials": {
