@@ -1,0 +1,34 @@
+---
+title: "Django"
+description: "Interact with the Artisan console or execute ad-hoc scripts."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+## Configuration
+
+To proxy the `manage.py shell` command, execute the following command within your root application path.
+
+```bash
+hoop run --name django-demo --command 'manage.py shell'
+```
+
+To proxy ad-hoc executions, add the command `manage.py shell -`.
+
+```bash
+hoop run --name django-demo --command 'manage.py shell -'
+```
+
+## How to Use
+
+Users can now connect and perform ad-hoc executions.
+
+```bash
+hoop connect django-demo
+```
+
+```bash
+hoop exec django-demo -i 'print("Hello World")'
+```
