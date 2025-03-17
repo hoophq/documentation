@@ -52,6 +52,13 @@
       ]
     },
     {
+      "group": "Installation",
+      "pages": [
+        "installation/desktop-app",
+        "installation/cli"
+      ]
+    },
+    {
       "group": "Learn",
       "pages": [
         {
@@ -168,12 +175,12 @@
       "group": "Technical Reference",
       "pages": [
         {
-          "group": "Installation",
+          "group": "Deployment",
           "pages": [
-            "technical-reference/installation/overview",
-            "technical-reference/installation/docker-compose",
-            "technical-reference/installation/kubernetes",
-            "technical-reference/installation/AWS"
+            "technical-reference/deployment/overview",
+            "technical-reference/deployment/docker-compose",
+            "technical-reference/deployment/kubernetes",
+            "technical-reference/deployment/AWS"
           ]
         },
         {
