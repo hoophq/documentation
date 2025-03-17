@@ -176,6 +176,15 @@
         {
           "group": "Configuration",
           "pages": [
+            {
+              "group": "AI Data Masking",
+              "pages": [
+                "configure/ai-data-masking/get-started",
+                "configure/ai-data-masking/fields"
+              ]
+            },
+            "technical-reference/configuration/secrets-manager-configuration",
+            "technical-reference/configuration/runbooks-configuration",
             "technical-reference/configuration/env-vars",
             "technical-reference/configuration/reverse-proxy",
             "technical-reference/configuration/license-management",
@@ -190,13 +199,6 @@
                 "technical-reference/configuration/idp/jumpcloud",
                 "technical-reference/configuration/idp/aws-cognito"
               ]
-            },
-            {
-              "group": "AI Data Masking",
-              "pages": [
-                "configure/ai-data-masking/get-started",
-                "configure/ai-data-masking/fields"
-              ]
             }
           ]
         },
@@ -207,13 +209,6 @@
             "technical-reference/architecture/components",
             "technical-reference/architecture/security-model",
             "technical-reference/architecture/network-flow"
-          ]
-        },
-        {
-          "group": "Feature Configuration",
-          "pages": [
-            "technical-reference/features/secrets-manager-configuration",
-            "technical-reference/features/runbooks-configuration"
           ]
         },
         {
