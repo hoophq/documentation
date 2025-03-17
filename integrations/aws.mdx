@@ -32,6 +32,10 @@ Depending on which credentials you want to use, the role or the access key crede
                 "organizations:ListAccounts",
                 "rds:DescribeDBInstances",
                 "rds:ModifyDBInstance",
+                "ec2:DescribeSecurityGroups",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateTags",
                 "iam:SimulatePrincipalPolicy",
                 "sts:AssumeRole"
             ],
@@ -57,7 +61,11 @@ For multi-account setup, you can configure your IAM user to access resources acr
             "Effect": "Allow",
             "Action": [
                 "rds:DescribeDBInstances",
-                "rds:ModifyDBInstance"
+                "rds:ModifyDBInstance",
+                "ec2:DescribeSecurityGroups",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateTags",
+                "ec2:CreateSecurityGroup"
             ],
             "Resource": "*"
         }
@@ -103,9 +111,19 @@ Before proceeding, make sure to provision an agent for every private network in 
 
 ## Supported Engines
 
-- Postgres / Aurora
-- MySQL / Aurora
+- Postgres
+- MySQL
 - SQL Server
+
+## Security Group Management
+
+The gateway automatically creates and associates a dedicated security group to enable secure connectivity between the gateway and your agent.
+This security group is configured with the following properties:
+
+- **Resource Name:** `hoop-aws-connect-sg-<db-instance-identifier>`
+- **Tag:** `hoop.dev/gateway=<api-hostname>`
+
+You have the option to manage these security groups directly to customize connectivity settings as needed.
 
 ## Roles and Connection Management
 
