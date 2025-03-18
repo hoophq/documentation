@@ -162,3 +162,23 @@ The database user roles permissions are static and described below:
 | Postgres | `SELECT`    | `SELECT, INSERT, UPDATE, DELETE` | `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER` |
 | MySQL | `SELECT`    | `SELECT, INSERT, UPDATE, DELETE` | `SELECT, INSERT, UPDATE, DELETE, ALTER, CREATE, DROP` |
 | SQL Server | `db_datareader`    | `db_datareader, db_datawriter` | `db_datareader, db_datawriter, db_ddladmin` |
+
+## Webhooks (Svix)
+
+In the final step of the job, you can send webhooks to an external system for integration purposes.
+The webhook provider must be configured to send the message properly. More information could be found [here](./svix).
+The payload structure matches the endpoint `GET /api/dbroles/:id`.
+
+In the final step of the job it's possible to send Webhooks to an external system for integration purporses.
+The Webhook provider must be configured to send the message properly. The payload is the same structure of the endpoint `GET /api/dbroles/:id`.
+
+```json
+{
+    "event_type": "dbroles.job.finished",
+    "event_payload": {}
+}
+```
+
+<Note>
+    Refer to our [API Reference](/api-reference) for more details about the structure of the `event_payload` attribute.
+</Note>
