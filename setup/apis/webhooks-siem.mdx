@@ -1,0 +1,100 @@
+---
+title: "Webhooks/SIEM"
+description: "Activate and use webhooks and SIEM integrations."
+---
+
+<Frame>
+  <img
+      className="block dark:hidden"
+      src="/images/learn/webhooks_light.png"
+  />
+  <img
+      className="hidden dark:block"
+      src="/images/learn/webhooks_dark.png"
+  />
+</Frame>
+
+## Prerequisites
+
+- Finish [integration with Svix](/integrations/svix);
+- [hoop.dev's CLI](/getting-started/cli) installed in your local machine;
+- Be an admin at your hoop.dev instance
+- Be in an Enterprise Plan
+
+## Configuring
+
+To configure Hoop to send events to your SIEM, log in with the client and create the `webhooks` plugin.
+
+```bash
+hoop login
+```
+
+```bash
+hoop admin create plugin webhooks
+```
+
+After enabling it, you need to select which connections you want to emit webhook events. Let's override the plugin and enable it for an existing connection.
+
+```bash
+hoop admin create plugin webhooks --overwrite --connection bash-default
+```
+
+## Dashboard
+
+Now, you can log in to your dashboard and start configuring endpoints while selecting the messages you want to subscribe to.
+
+```bash
+hoop admin webhooks-dashboard
+```
+
+<Info>
+  Dashboard is only available when using Svix SaaS and could be only opened by administrators.
+</Info>
+
+To view any activity, interact with any connection.
+
+```bash
+hoop connect bash-default
+```
+
+Accessing the **Message Logs** link in the dashboard will display the `hoop connect` event.
+
+<Frame>
+  <img src="/images/learn/webhooks-1.png" />
+</Frame>
+
+### Adding Endpoints
+
+To route these messages to your SIEM, add your public endpoint that will receive these messages. Click on the **Endpoints** link.
+
+<Info>
+Adding endpoints to a self-hosted Svix instance is only available via [svix command line](https://docs.svix.com/tutorials/cli) or api.
+</Info>
+
+<Frame>
+  <img src="/images/learn/webhooks-2.png" />
+</Frame>
+
+<Note>
+You can use [Svix Play](https://play.svix.com/) to test it first.
+</Note>
+
+Accessing the endpoint will contain the messages that have been sent to it.
+
+<Frame>
+  <img src="/images/learn/webhooks-3.png" />
+</Frame>
+
+### Event Types
+
+Hoop provides the definition of each event that is sent. To access these definitions, refer to the **Event Catalog** link.
+
+<Frame>
+  <img src="/images/learn/webhooks-4.png" />
+</Frame>
+
+## Consuming Webhooks
+
+Since we use Svix as our webhook service provider, they provide a guide and best practices for securely verifying and consuming webhooks.
+
+[**https://docs.svix.com/receiving/introduction**](https://docs.svix.com/receiving/introduction)

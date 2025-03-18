@@ -1,0 +1,28 @@
+---
+title: 'API Key Usage'
+description: 'Learn how the API Key feature works and how to use it'
+---
+
+## Pre-requisites
+
+ - Self-host your Hoop Gateway. Our managed instance does not support this feature.
+ - Have an API Key configured in your environment variables in the following format: `<org-id>|<random-string>`
+
+## Setup
+
+- The `org-id` is a value that you obtain in the user info endpoint. Use the command line to obtain this information, e.g.: `hoop admin get userinfo -o json`
+- The `<random-string>` is a secure key string that is going to be used to authenticated your requests
+
+<Warning>
+    Make sure to use a tool with enough entropy to generate the `<random-string>` value.
+    We recommend using `openssl` which is present in most unix systems by default. e.g.: `openssl rand 64 | base64`
+</Warning>
+
+## How it works
+
+When requesting one of the allowed endpoints, you can pass the API Key in the `Api-Key` header with the configured value.
+The Gateway will validate the API Key and allow the request to proceed without the need for user authentication.
+
+## Permissions
+
+The API Key has admin access in the system, make sure to keep the key secure.

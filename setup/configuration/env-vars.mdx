@@ -1,0 +1,86 @@
+---
+title: 'Environment Variables'
+description: 'Describe how to configure the Hoop Gateway via environment variables'
+---
+
+## Basic configuration
+
+| Environment     | Description |
+| --------------- |-------------
+| POSTGRES_DB_URI | The postgres connection string to connect in the database. |
+| API_URL         | API URL address, usually where your DNS will be pointed to. If a prefix is included all endpoints and routes will be available at this prefix. |
+
+<Tabs>
+  <Tab title="Local Authentication">
+    Local Authentication manages users and passwords locally and sign JWT access tokens to users.
+
+    | Environment     | Description  |
+    | --------------- |------------- |
+    | AUTH_METHOD     | The authentication method to use (`local` or `idp`). Default to `local` |
+    | JWT_SECRET_KEY  | The secret key to sign JWT tokens |
+
+
+  </Tab>
+  <Tab title="Oauth2/OIDC Authentication">
+    The Oauth2/OIDC authentication integrates with any identity provider that support these protocols. The users are managed on the identity provider.
+
+    | Environment       | Description   |
+    | ----------------- | ------------- |
+    | IDP_ISSUER        | Identity Provider Issuer URL (Oauth2) |
+    | IDP_CLIENT_ID     | Oauth2 Client ID. |
+    | IDP_CLIENT_SECRET | Oauth2 Client Secret. |
+    | IDP_CUSTOM_SCOPES | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
+
+    ### **Using `IDP_URI`**
+
+    <Note>
+      This configuration takes precedence over `IDP_ISSUER`, `IDP_CLIENT_ID`, `IDP_CLIENT_SECRET` and `IDP_CUSTOM_SCOPES`.
+    </Note>
+
+    | Environment  | Description   |
+    | ------------ | ------------- |
+    | IDP_URI      | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
+
+    The `<options>` could be used for further configuration by passing them as query strings.
+
+    | Option     | Description |
+    | --------------- |-------------
+    | scopes | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
+    | groupsclaim | The name of the claim to consider as configuration to propagate groups. Default to `https://app.hoop.dev/groups` |
+    | _userinfo | When this option is set to 1 it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo). |
+
+
+  </Tab>
+</Tabs>
+
+## Extra configuration
+
+All fields below are not required but can give you some extra configuration options to attend your needs.
+
+| Environment                         | Default Value           | Description  |
+| ----------------------------------- | ----------------------- |------------- |
+| ADMIN_USERNAME                      | admin                   | Changes the name of the group to act as the `admin` role |
+| AUDITOR_USERNAME                    | auditor                 | Changes the name of the group to act as the `auditor` role |
+| API_KEY                             |                         | When this environment is set, it enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
+| ASK_AI_CREDENTIALS                  |                         | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
+| DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
+| DISABLE_SESSIONS_DOWNLOAD           | false                   | Control if the download session is disabled or not |
+| GIN_MODE                            | release                 | Turn on (debug) logging of routes |
+| GOOGLE_APPLICATION_CREDENTIALS_JSON |                         | GCP DLP credentials |
+| GRPC_URL                            | `grpc://127.0.0.1:8010` | The gRPC URL to advertise to clients. |
+| IDP_AUDIENCE                        |                         | Identity Provider Audience (Oauth2) |
+| LOG_ENCODING                        | json                    | The encoding of output logs (console) |
+| LOG_GRPC                            |                         | "1" enables logging gRPC protocol |
+| LOG_LEVEL                           | info                    | The verbosity of logs (debug,info,warn,error) |
+| SSH_CLIENT_HOST_KEY                 |                         | The private key host key to use for the local SSH server client  |
+| MSPRESIDIO_ANALYZER_URL             |                         | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
+| MSPRESIDIO_ANONYMIZER_URL           |                         | Host and port for MS Presidio Anonymizer `<host-to-anonymizer:port>` |
+| ORG_MULTI_TENANT                    |                         | Enable organization multi-tenancy |
+| PLUGIN_AUDIT_PATH                   | `/opt/hoop/sessions`    | The path where the temporary sessions are stored |
+| PLUGIN_INDEX_PATH                   | `/opt/hoop/indexes`     | The path where the temporary indexes are stored |
+| STATIC_UI_PATH                      | `/app/ui/public`        | The path where the UI assets resides |
+| TLS_CA                              |                         | The path or value to the certificate authority (pem), e.g.: `file://` or `base64://` |
+| TLS_CERT                            |                         | The path or value to the certificate server (pem) e.g.: `file://` or `base64://` |
+| TLS_KEY                             |                         | The path or value to the RSA private key e.g.: `file://` or `base64://` |
+| WEBHOOK_APPKEY                      |                         | The application key to send messages to the webhook provider. |
+| WEBHOOK_APPURL                      |                         | The Svix Server URL for self hosted setups. |
