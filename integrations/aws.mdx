@@ -182,3 +182,15 @@ The Webhook provider must be configured to send the message properly. The payloa
 <Note>
     Refer to our [API Reference](/api-reference) for more details about the structure of the `event_payload` attribute.
 </Note>
+
+## Vault Secrets Manager
+
+This integration enables you to delegate the management of secrets to HashiCorp Vault, a robust secrets management solution.
+When enabled, all provisioned roles are securely stored in Vault.
+
+For deployments with connection provisioning enabled, the integration automatically adds the necessary reference secrets provider and secret ID.
+
+<Note>
+    For this integration to function properly, the agent must be configured with the correct Vault credentials.
+    For detailed configuration instructions, please refer to the [Vault secrets manager documentation](https://hoop.dev/docs/learn/secrets-manager#hashicorp-vault-provider).
+</Note>
