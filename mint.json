@@ -13,7 +13,7 @@
     "dark": "#111928",
     "anchors": {
       "from": "#111928",
-      "to": "#e5e7eb"
+      "to": "#747d8f"
     }
   },
   "topbarLinks": [
@@ -48,56 +48,42 @@
     {
       "group": "Introduction",
       "pages": [
-        "introduction/overview"
+        "introduction/getting-started"
       ]
     },
     {
-      "group": "Learn",
+      "group": "Features",
+      "pages": [
+        "learn/features/ai-data-masking",
+        {
+          "group": "Reviews",
+          "pages": [
+            "learn/features/reviews/overview",
+            "learn/features/reviews/command-reviews",
+            "learn/features/reviews/jit-reviews"
+          ]
+        },
+        "learn/features/access-control",
+        "learn/features/guardrails",
+        "learn/features/runbooks",
+        "learn/features/secrets-manager",
+        "learn/features/session-recording"
+      ]
+    },
+    {
+      "group": "Clients",
       "pages": [
         {
           "group": "Web App",
           "pages": [
-            "learn/webapp/overview",
-            "learn/webapp/creating-connections",
-            "learn/webapp/managing-access",
-            "learn/webapp/monitoring-sessions"
+            "clients/webapp/overview",
+            "clients/webapp/creating-connections",
+            "clients/webapp/managing-access",
+            "clients/webapp/monitoring-sessions"
           ]
         },
-        {
-          "group": "Features",
-          "pages": [
-            "learn/features/ai-data-masking",
-            {
-              "group": "Reviews",
-              "pages": [
-                "learn/features/reviews/command-reviews",
-                "learn/features/reviews/jit-reviews"
-              ]
-            },
-            "learn/features/access-control",
-            "learn/features/guardrails",
-            "learn/features/runbooks",
-            "learn/features/secrets-manager",
-            "learn/features/session-recording"
-          ]
-        }
-      ]
-    },
-    {
-      "group": "Concepts",
-      "pages": [
-        "concepts/agents",
-        "concepts/connection",
-        "concepts/security",
-        "concepts/network",
-        "concepts/deployment-options"
-      ]
-    },
-    {
-      "group": "Installation",
-      "pages": [
-        "installation/desktop-app",
-        "installation/cli"
+        "clients/desktop-app",
+        "clients/cli"
       ]
     },
     {
@@ -148,7 +134,84 @@
             "quickstart/development-environments/php-artisan",
             "quickstart/development-environments/elixir-IEx"
           ]
-        }
+        },
+        "quickstart/ssh"
+      ]
+    },
+    {
+      "group": "Setup & Administration",
+      "pages": [
+        {
+          "group": "Deployment",
+          "pages": [
+            "setup/deployment/overview",
+            "setup/deployment/docker-compose",
+            "setup/deployment/kubernetes",
+            "setup/deployment/AWS"
+          ]
+        },
+        {
+          "group": "Configuration",
+          "pages": [
+            {
+              "group": "AI Data Masking",
+              "pages": [
+                "setup/configuration/ai-data-masking/get-started",
+                "setup/configuration/ai-data-masking/fields"
+              ]
+            },
+            {
+              "group": "Reviews",
+              "pages": [
+                "setup/configuration/reviews/command-reviews-configuration",
+                "setup/configuration/reviews/jit-reviews-configuration"
+              ]
+            },
+            "setup/configuration/secrets-manager-configuration",
+            "setup/configuration/guardrails-configuration",
+            "setup/configuration/runbooks-configuration",
+            "setup/configuration/env-vars",
+            "setup/configuration/reverse-proxy",
+            {
+              "group": "Identity Providers",
+              "pages": [
+                "setup/configuration/idp/get-started",
+                "setup/configuration/idp/auth0",
+                "setup/configuration/idp/okta",
+                "setup/configuration/idp/google",
+                "setup/configuration/idp/azure",
+                "setup/configuration/idp/jumpcloud",
+                "setup/configuration/idp/aws-cognito"
+              ]
+            }
+          ]
+        },
+        {
+          "group": "Architecture",
+          "pages": [
+            "setup/architecture/overview",
+            "setup/architecture/components",
+            "setup/architecture/security-model",
+            "setup/architecture/network-flow"
+          ]
+        },
+        {
+          "group": "APIs and Integration",
+          "pages": [
+            "setup/apis/api-key-usage",
+            "setup/apis/webhooks-siem"
+          ]
+        },
+        "setup/license-management"
+      ]
+    },
+    {
+      "group": "Concepts",
+      "pages": [
+        "concepts/agents",
+        "concepts/connections",
+        "concepts/security",
+        "concepts/network"
       ]
     },
     {
@@ -159,65 +222,6 @@
         "integrations/jira",
         "integrations/svix",
         "integrations/aws"
-      ]
-    },
-    {
-      "group": "Technical Reference",
-      "pages": [
-        {
-          "group": "Deployment",
-          "pages": [
-            "technical-reference/deployment/overview",
-            "technical-reference/deployment/docker-compose",
-            "technical-reference/deployment/kubernetes",
-            "technical-reference/deployment/AWS"
-          ]
-        },
-        {
-          "group": "Configuration",
-          "pages": [
-            {
-              "group": "AI Data Masking",
-              "pages": [
-                "configure/ai-data-masking/get-started",
-                "configure/ai-data-masking/fields"
-              ]
-            },
-            "technical-reference/configuration/secrets-manager-configuration",
-            "technical-reference/configuration/runbooks-configuration",
-            "technical-reference/configuration/env-vars",
-            "technical-reference/configuration/reverse-proxy",
-            "technical-reference/configuration/license-management",
-            {
-              "group": "Identity Providers",
-              "pages": [
-                "technical-reference/configuration/idp/get-started",
-                "technical-reference/configuration/idp/auth0",
-                "technical-reference/configuration/idp/okta",
-                "technical-reference/configuration/idp/google",
-                "technical-reference/configuration/idp/azure",
-                "technical-reference/configuration/idp/jumpcloud",
-                "technical-reference/configuration/idp/aws-cognito"
-              ]
-            }
-          ]
-        },
-        {
-          "group": "Architecture",
-          "pages": [
-            "technical-reference/architecture/overview",
-            "technical-reference/architecture/components",
-            "technical-reference/architecture/security-model",
-            "technical-reference/architecture/network-flow"
-          ]
-        },
-        {
-          "group": "APIs and Integration",
-          "pages": [
-            "technical-reference/apis/api-key-usage",
-            "technical-reference/apis/webhooks-siem"
-          ]
-        }
       ]
     }
   ],
