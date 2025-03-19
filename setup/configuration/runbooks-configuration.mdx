@@ -1,5 +1,5 @@
 ---
-title: "Runbooks Configuration"
+title: "Runbooks"
 ---
 
 This page explains the available options to configure Runbooks with your git server.
@@ -82,4 +82,209 @@ To test the integration, issue the command below, it will return the last commit
 ```sh
 hoop admin get runbooks -o json
 {"items":[],"commit":"<git-sha>","commit_author":"author <author@email.tld>","commit_message":"<msg>\n"}
+```
+
+## How the template engine works
+
+Runbooks use the [GO text/template](https://pkg.go.dev/text/template) as the template engine. A runbook is a template to be run against a connection, the placeholders are rendered by inputs provided by an HTTP client.
+
+To define an input, the runbook must be enclosed with `{{ }}` and the input name must start with a dot. - Example - `{{ .myinput }}`
+
+The input name must comply with the regular expression `\.[a-zA-Z0-9_]+`
+
+### Template Specification
+
+A client could implement input validation based on how templates are created, the specification of inputs are derived from a runbook. The template below:
+
+```sql
+SELECT name FROM customers WHERE id = '{{ .customer_id }}'
+```
+
+Generates the following specification:
+
+* `GET /api/plugins/runbooks/connections/:dbconn/templates `
+
+```json
+{
+    "items": [
+        {
+            "name": "team/finops/sql/fetch-customer.runbook.sql",
+            "metadata": {
+                "customer_id": {
+                    "description": "",
+                    "required": false,
+                    "type": "text"
+                }
+            }
+        }
+    ],
+    "commit": "b96851b9cf7065f9af0977e506cd1970c60cc87c",
+    "commit_author": "Author <author@domain.tld>",
+    "commit_message": "<commit-message>"
+}
+```
+
+#### Supported Fields
+
+The specifications supports the following fields:
+
+* description - the description of the input
+
+* type - the type of the input
+    * text
+    * number
+    * tel
+    * time
+    * date
+    * url
+    * email
+    * select
+
+* required - if the this field is required
+
+* default - specifies a default value for an input if it’s empty
+
+The fields indicates how a client could create inputs to a runbook, the fields are defined as function templates in an placeholder using the pipe character `|`. Example:
+
+```
+{{ .customer_id
+  | description "the id of the customer"
+  | required "customer_id is required"
+  | type "number" }}
+```
+
+### Template Functions
+
+The template engine has auxiliary functions which helps to build better and secure templates:
+
+* `required "<message>"` - it will return the error if the input is empty
+    * `<message>` - the message to return when the condition doesn’t match
+
+* `default "<value>"` - add a default value to the input if it’s empty
+    * `<value>` - the default value to set
+
+* `pattern "<regexp>"` - a regexp pattern to validate the input
+    * `<regexp>` - the go regular expression to validate the input
+
+* `description "<message>"` - used as attribute specification to client input validation
+    * `<message>` - the description of the input
+
+* `type "<type>"` - used as attribute specification to client input validation
+    * `<type>` - the type of the input (see supported fields for a list of types)
+
+* `placeholder "<message>"` - used as attribute specification to client input validation
+    * `<message>` - the description of the placeholder
+
+* `options "<option>" "..."` - used as attribute specification to client input validation
+    * `"<option>" "..."` - a list of strings describing each option
+
+* `squote` - wraps the input with single quotes: `'`
+
+* `dquote` - wraps the input with double quotes: `"`
+
+* `quotechar "<char>"` - wraps the input with `<char>`
+    * `<char>` - the character to wrap the input
+
+* `encodeb64` - encode the input as base64
+
+* `decodeb64` - decode a base64 input
+
+* `asenv "<environment>"` - add the input as a environment variable
+    * `<environment>` - the name of the environment variable
+
+> The functions description and type always returns the value of the last command.
+
+#### Usage
+
+Template functions may be “chained” by separating a sequence of commands with pipeline characters ‘|’. In a chained pipeline, the result of each command is passed as the last argument of the following command. The output of the final command in the pipeline is the value of the pipeline.
+
+The output of a command will be either one value or two values, the second of which has type error. If that second value is present and evaluates to non-nil, the runbook will fail to execute describing what went wrong.
+
+Examples:
+
+* Encode the `myinput` as base64
+
+```
+myvar = {{ .myinput
+            | encodeb64 }}
+```
+
+* Wrap the `myinput` into single quote and encode the input as base64
+
+```
+myvar = {{ .myinput
+            | squote
+            | encodeb64 }}
+```
+
+* Gives a description to `myinput`, encode the value as base64 and then wrap it using the character `%`
+
+```
+myvar = {{ .myinput
+            | description "this is my input"
+            | quotechar "%" }}
+```
+
+* Specify the `color` as input type select with options red, white and black
+
+```
+myvar = {{ .color
+          | type "select"
+          | options "red" "white" "black"}}
+```
+
+#### asenv function
+
+The `asenv` function allows defining inputs and mapping then as environment variables in the connection runtime. Instead of injecting the value as an input directly to the template, it will gather the value and inject as an environment variable when executing the session.
+
+The inputs could be just defined in a comment in the template, examples:
+
+* Python Connection Runtime
+
+```python
+# {{ .customer_id | asenv "CUSTOMER_ID" }}
+# {{ .country | asenv "COUNTRY_CODE" }}
+import os
+print os.environ['CUSTOMER_ID']
+print os.environ['COUNTRY_CODE']
+```
+
+* Bash Connection Runtime
+
+```shell
+# {{ .deployment | asenv "DEPLOYMENT_NAME" }}
+# {{ .namespace | asenv "NAMESPACE" }}
+kubectl rollout restart deploy/$DEPLOYMENT_NAME -n $NAMESPACE
+```
+
+### Tips
+
+#### Server Side Template Injection
+
+Templates are subject to [code injection](https://en.wikipedia.org/wiki/Code_injection) depending on the runtime that you’re using. To mitigate this issue, follows these tips:
+
+* Use the pattern function to define the format of the input, specially in sql templates.
+
+```sql
+SELECT name FROM customers WHERE id = '{{ .customer_id | pattern "^[0-9]+$" }}'
+```
+
+This pattern guarantees that the input will be only a number, this prevents any user to inject any sql instruction
+
+* Use the asenv function to expose inputs as environment variables if your runtime supports it
+
+* This will map the `customer_id` input as an environment variable avoiding bash injections with shell control operators
+
+```shell
+# {{ .customer_id | asenv "CUSTOMER_ID" }}
+/path/to/my/script.sh "$CUSTOMER_ID"
+```
+
+* The same applies to language runtimes.
+
+```python
+# {{ .customer_id | asenv "CUSTOMER_ID" }}
+import os
+if __name__ == '__main__':
+    print(os.environ['CUSTOMER_ID'])
 ```
