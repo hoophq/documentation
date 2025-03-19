@@ -1,20 +1,33 @@
 ---
 title: "AI Data Masking"
-description: "Understand how it works and what's possible"
+description: "Zero-config DLP policies that automatically mask sensitive data in real-time at the protocol layer"
 ---
 
 <Frame>
-  <img src="/images/ai-data-masking.png"
-  />
+  <img src="/images/learn/features/ai-data-masking.png" alt="AI Data Masking" />
 </Frame>
 
-Hoop.dev's AI Data Masking happens at the protocol layer. It's a zero-config DLP policy that masks sensitive data in real-time.
+Hoop.dev's AI Data Masking operates at the protocol layer, providing a Data Loss Prevention (DLP) policy that masks sensitive data in real-time. This feature ensures that Personally Identifiable Information (PII), credentials, and other sensitive information are protected without the need for complex rule setups.
 
-Unlike traditional DLP solutions, hoop.dev's AI Data Masking doesn't require you to set up rules or policies. It masks sensitive data in real-time in the data stream of any connection you set AI Data Masking according to the fields you configure.
+### Key Features
 
-After the setup, we automatically give you a bunch of default and most used fields, so you don't need to worry much about that part either. You can remove or add fields as much as you like. To see all fields available, check our [documentation page for all fields supported](/configure/ai-data-masking/fields).
+- **Zero-Config Setup**: Unlike traditional DLP solutions, Hoop.dev's AI Data Masking does not require you to set up rules or policies. It automatically masks sensitive data in the data stream of any connection where AI Data Masking is enabled.
+- **Real-Time Protection**: Sensitive data is masked in real-time, ensuring that no unprotected data is exposed during access sessions.
+- **Customizable Fields**: After the initial setup, Hoop.dev provides a package of the most commonly used default fields. You can easily add or remove fields to tailor the masking to your specific needs.
 
-See it in action:
+### Getting Started
+
+To begin using AI Data Masking, simply enable the feature for your desired connections and Hoop.dev will handle the rest, providing seamless and automatic data protection with most commonly used fields by default. 
+
+For a more customizable experience, you can add or remove fields to tailor the masking to your specific needs. Please refer to [Supported Fields](/setup/configuration/ai-data-masking/fields) page for more detailed information. 
+
+{/* See it in action:
+<Frame>
+  <video
+    controls
+    className="w-full aspect-video"
+    src="/images/learn/features/ai-data-masking.mp4"
+  ></video>
+</Frame> */}
 
 {/* <div style="position: relative; padding-bottom: 56.25%; height: 0;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.tella.tv/video/cm7jhty8o004u0ajv510i4a1q/embed?b=0&title=0&a=1&loop=0&t=0&muted=0&wt=0" allowfullscreen allowtransparency></iframe></div> */}
-<iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.tella.tv/video/cm7jhty8o004u0ajv510i4a1q/embed?b=0&title=0&a=1&loop=0&t=0&muted=0&wt=0" allowfullscreen allowtransparency></iframe>
