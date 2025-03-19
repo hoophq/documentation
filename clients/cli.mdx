@@ -1,0 +1,158 @@
+---
+title: "Command Line"
+description: "Install and configure the hoop.dev CLI to interact with your applications."
+---
+
+import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
+
+<Prerequisites />
+
+## Installation
+
+<Tabs>
+  <Tab title="MacOS">
+    Through homebrew:
+    ```bash
+      brew tap hoophq/brew https://github.com/hoophq/brew
+      brew install hoop
+    ```
+
+    To upgrade it:
+
+    ```bash
+      brew upgrade hoop
+    ```
+  </Tab>
+  <Tab title="Linux">
+    To install or upgrade:
+    ```bash
+      curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
+    ```
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Download">
+        Download the latest release of [hoop command line](https://github.com/hoophq/hoop/releases) for your architecture (usually **hoop-windows-amd64**) and save it in the **Downloads** folder
+      </Step>
+      <Step title="Extract">
+        Extract the file using **winrar** or **winzip**
+      </Step>
+      <Step title="Place it in the right folder">
+        Move the extracted file `hoop.exe` to the folder `C:\Windows\System32\`
+      </Step>
+      <Step title="Check the installation">
+        Open a terminal session and type `hoop version` if it successfully shows the program’s version it’s installed.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows WSL">
+    ### Prerequisites
+    1. Install the Windows Terminal https://aka.ms/terminal
+    2. Install Ubuntu WSL https://ubuntu.com/wsl
+    3. Open the Windows Terminal App
+    4. Install and open the Ubuntu typing `ubuntu`. It should prompt to create a user in the first time
+    ```bash
+      PS C:\Users\san> ubuntu
+      san@DESKTOP-BBQAAEG:~$
+    ```
+    5. gain root access
+    ```bash
+      sudo su -
+    ```
+    6. To install or upgrade the hoop.dev command line:
+    ```bash
+      curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
+    ```
+  </Tab>
+  <Tab title="Manual">
+    Check the latest version for your operating system architecture in the [releases page](https://github.com/hoophq/hoop/releases).
+  </Tab>
+</Tabs>
+
+## Authenticate
+
+### For Managed Instance Users
+If you're using our managed instance, you can skip directly to the [`hoop login`](#authentication) command below. The gateway URL will automatically be set to `https://use.hoop.dev`.
+
+### For Self-Hosted Users
+If you've deployed your own instance, use the URL you specified in the `API_URL` environment variable of your Hoop Gateway:
+
+```bash
+hoop config create --api-url https://<gateway-url>
+```
+
+The configuration will be saved to `$HOME/.hoop/config.yaml`.
+
+### Obtaining an Access Token
+
+Once the gateway URL is configured, authenticate with the API by running:
+
+```bash
+hoop login
+```
+
+This command will open your default browser and redirect you to the identity provider for authentication.
+
+### Using Environment Variables
+
+Another way to use the command line is by exporting the following environment variables:
+
+```
+export HOOP_APIURL=https://use.hoop.dev
+export HOOP_GRPCURL=grpcs://use.hoop.dev:8443
+export HOOP_TOKEN=<your-access-token-or-api-key>
+# test it
+hoop admin get userinfo
+```
+
+When using environment variables, it will ignore the local configuration file `$HOME/.hoop/config.yaml`
+
+### Managing Configuration
+
+To remove your existing configuration:
+
+```bash
+hoop config clear
+```
+
+This command will delete all stored configuration settings, including the gateway URL and authentication tokens.
+
+## hoop connect
+
+
+The `hoop connect` command allows you to create an interactive session with a remote resource. The resource can be an interactive terminal console or TCP services such as databases.. Here are a few examples:
+
+### Terminal console
+
+- docker exec
+- bash
+- ssh
+- rails console
+- python console
+- kubectl exec
+- aws ecs execute-command
+
+```bash
+hoop connect bash-console
+connection: bash-console | session: 53ed53f9-a5f9-45e9-bbf5-becd1f44f41e
+root@5601881aa15e:/app#
+```
+
+### TCP
+
+The connect feature can be used to interact with TCP services such as databases. It can be used with an IDE or any native database client. The port is forwarded locally to the end-user, providing a secure connection to remote services.
+
+```bash
+$ hoop connect pg-prod
+connection: pg-prod | session: 4619c80f-7166-487c-8c9f-9609e59ae5d6
+
+--------------------postgres-credentials--------------------
+      host=127.0.0.1 port=5433 user=noop password=noop
+------------------------------------------------------------
+ready to accept connections!
+```
+
+<Info>
+The connection is established through a secure tunnel. The connection is encrypted and authenticated using the user's identity.
+</Info>
+
