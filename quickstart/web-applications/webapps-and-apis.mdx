@@ -1,0 +1,42 @@
+---
+title: "Web Apps & APIs"
+description: "Interact with web applications and APIs tunneling through hoop.dev."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+|  | One-off | Interactive | Policies | Input Audits | Output Audits |
+| --- | --- | --- | --- | --- | --- |
+| Command-line | <Icon icon="check" /> | <Icon icon="check" /> | <Icon icon="check" /> | <Icon icon="check" /> | <Icon icon="check" /> |
+| Editor | <Icon icon="check" /> | <small>Not applicable</small> | <Icon icon="check" /> | <Icon icon="check" /> | <Icon icon="check" /> |
+
+Port Forward local ports from your private network | HTTP example.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| HOST | env-var | The IP or hostname of the service |
+| PORT | env-var | The port of the service |
+
+## Connection setup
+
+Create a new TCP connection in hoop's web panel.
+
+<Frame>
+    <img src="/images/quickstarts/create-tcp-connection-screenshot.png" alt="create tcp connection screenshot" />
+</Frame>
+
+## How to Use it
+
+```bash
+hoop connect myservice --port 8080
+```
+
+Open the forwarded service in a web browser or via HTTP request.
+
+```bash
+curl http://127.0.0.1:8080
+# or
+open http://127.0.0.1:8080
+```

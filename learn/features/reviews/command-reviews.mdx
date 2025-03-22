@@ -1,0 +1,86 @@
+---
+title: "Command Reviews"
+description: "Real-time command review and approval workflow for enhanced security"
+---
+
+<Frame>
+  <img src="/images/learn/features/review-3.png" alt="Command Reviews" />
+</Frame>
+
+Command Reviews in Hoop.dev provide a powerful layer of security by enabling real-time review and approval of commands before they are executed. This feature ensures that potentially risky operations are properly vetted before being run on your infrastructure.
+
+## Key Features
+
+### Real-Time Review Process
+- Instant notification of commands requiring review
+- Detailed context for informed decision making
+- Quick approve/deny workflow
+- Command modification capabilities before approval
+
+### Integration Options
+- Slack integration for instant notifications
+- Microsoft Teams support
+- Custom webhook support
+
+## How It Works
+
+<Steps>
+  <Step title="Command Submission">
+    User sends a command to Hoop.dev
+  </Step>
+  <Step title="Policy Check">
+    System checks if command requires review
+  </Step>
+  <Step title="Reviewer Notification">
+    Designated reviewers are notified
+  </Step>
+  <Step title="Review Process">
+    <ul>
+      <li>Multiple reviewers can be required</li>
+      <li>Reviewer examines command and context</li>
+      <li>Can approve or deny command</li>
+    </ul>
+  </Step>
+  <Step title="Execution">
+    Command runs only after approval
+  </Step>
+  <Step title="Audit Trail">
+    Full review process is logged
+  </Step>
+</Steps>
+
+## Benefits
+
+- **Enhanced Security**: Additional verification layer for sensitive operations
+- **Risk Reduction**: Prevent accidental or malicious commands
+- **Compliance**: Meet regulatory requirements for change control
+- **Knowledge Sharing**: Junior team members learn from reviews
+- **Audit Trail**: Complete record of review decisions
+
+## Best Practices
+
+1. **Define Clear Policies**
+   - Identify high-risk commands
+   - Set appropriate reviewer groups
+   - Document review criteria
+
+2. **Optimize Review Flow**
+   - Don't require reviews for routine operations
+   - Set reasonable timeouts for reviews
+   - Have backup reviewers available
+
+3. **Monitor and Adjust**
+   - Track review patterns
+   - Adjust policies based on feedback
+   - Regular policy review and updates
+
+{/* ## Integration with Other Features
+
+Command Reviews work seamlessly with:
+- **Session Recording**: Capture full context of reviewed commands
+- **Access Control**: Layer with permission controls
+- **Guardrails**: Additional protection for sensitive operations */}
+
+
+## Configuration
+For detailed configuration instructions and setup guides, see [Reviews Configuration](/setup/configuration/command-reviews-configuration) guide.

@@ -1,0 +1,83 @@
+---
+title: "MongoDB"
+description: "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+<Info>
+This integration only accepts [SCRAM authentication](https://www.mongodb.com/docs/manual/core/security-scram/#scram) for native connections.
+</Info>
+
+## Features
+
+The table below outlines the features available for this type of connection.
+
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
+- **One Off -** This term refers to accessing this connection from hoop web panel.
+
+| Feature | Native | One Off | Description |
+| --- | --- | --- | --- |
+| TLS Termination Proxy | <Icon icon="check" /> | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
+| Audit | <Icon icon="check" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client |
+| Data Masking (Google DLP) | <Icon icon="check" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Data Masking (MS Presidio DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
+| Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal for analysis exploration. |
+
+## Configuration
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| CONNECTION_STRING | env-var | yes | The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format. |
+
+## Connection setup
+
+Create a new Database connection in hoop's web panel.
+
+<Frame>
+    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
+</Frame>
+
+## Access the connection
+
+You can access it through hoop CLI or hoop web panel.
+
+### hoop CLI
+
+```bash
+hoop connect <connection-name>
+
+connection: mongo | session: f2e7634a-f4c4-47cd-bee6-48da080e2a23
+
+---------------------mongo-credentials----------------------
+ mongodb://noop:noop@127.0.0.1:27018/?directConnection=true
+------------------------------------------------------------
+```
+
+<Note>
+Clients must use `noop` as both the username and password, along with the `directionConnection=true` option
+</Note>
+
+### Web panel
+
+<Frame>
+    <img src="/images/quickstarts/client-mongodb.png" alt="create tcp connection screenshot" />
+</Frame>
+
+
+## Known Issues
+
+### Clients advertising the wrong server
+
+The **native** implementation has a known issue in cluster setups where clients may incorrectly advertise connections to the wrong server.
+Hoop selects a server at random and attempts to upgrade the connection to the primary server.
+However, this transition is not properly propagated to clients, resulting in the advertisement of incorrect server information.
+
+Users can manually switch to the primary server after connecting to a secondary server. For example, using `mongoshell`:
+
+```sh
+> db.getMongo().setReadPref('primary')
+```

@@ -1,0 +1,141 @@
+---
+title: "Guardrails Configuration"
+description: "Create and manage custom rules to protect and guide usage within your connections"
+---
+
+<Frame>
+  <img src="/images/clients/webapp/guardrails-light.png" className="block dark:hidden" />
+  <img src="/images/clients/webapp/guardrails-dark.png" className="hidden dark:block" />
+</Frame>
+
+Guardrails allow you to create custom rules that protect and guide how your connections are used. These rules can be applied to specific connections or serve as default policies across your organization.
+
+## Creating a Guardrail
+
+<Steps>
+  <Step title="Access Guardrails">
+    Navigate to the Guardrails section from the sidebar menu
+  </Step>
+  
+  <Step title="Create New">
+    Click the "Create a new Guardrail" button in the top-right corner
+  </Step>
+  
+  <Step title="Set Basic Information">
+    Provide:
+    - Name for the guardrail
+    - Description (Optional) explaining its purpose
+  </Step>
+
+  <Step title="Configure Rules">
+    Provide:
+    - Input Rules
+    - Output Rules
+  </Step>
+</Steps>
+
+## Configuring Rules
+
+### Input Rules
+Rules that evaluate incoming commands or queries:
+
+- **Pattern Matching**: Define patterns to match specific commands or queries
+- **Conditions**: Set conditions that trigger the rule
+
+### Output Rules
+Rules that control or modify the output of commands:
+
+- **Information Control**: Control what information can be returned
+
+## Rule Types
+
+<AccordionGroup>
+  <Accordion title="Pattern Rules">
+    Create rules based on command or query patterns:
+    - Regular expressions
+    - Exact matches
+    - Wildcard patterns
+  </Accordion>
+  
+  <Accordion title="Security Rules">
+    Enforce security policies:
+    - Block dangerous commands
+    - Require additional approvals
+    - Limit access to sensitive data
+  </Accordion>
+  
+  <Accordion title="Compliance Rules">
+    Ensure compliance requirements:
+    - Data access restrictions
+    - Audit logging requirements
+    - Regulatory compliance rules
+  </Accordion>
+</AccordionGroup>
+
+## Applying Guardrails
+
+### Connection Assignment
+<Steps>
+  <Step title="Select Connections">
+    Choose which connections will use the guardrail
+  </Step>
+  
+  <Step title="Set Priority">
+    Define the order of rule evaluation when multiple guardrails apply
+  </Step>
+  
+  <Step title="Configure Behavior">
+    Specify how rules should be enforced:
+    - Block non-compliant actions
+    - Warn users
+    - Require approval
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start Simple" icon="list-check">
+    Begin with basic rules and expand as needed
+  </Card>
+  
+  <Card title="Test Rules" icon="vial">
+    Validate rules in a test environment first
+  </Card>
+  
+  <Card title="Document Purpose" icon="file-lines">
+    Clearly describe what each rule does
+  </Card>
+  
+  <Card title="Regular Review" icon="rotate">
+    Periodically review and update rules
+  </Card>
+</CardGroup>
+
+{/* ## Monitoring and Management
+
+### Rule Analytics
+Monitor the effectiveness of your guardrails:
+- Rule trigger frequency
+- Blocked actions
+- User impact
+- Performance metrics
+
+### Maintenance
+Keep your guardrails effective and current:
+- Review and update rules regularly
+- Remove outdated rules
+- Adjust based on security needs
+- Monitor for false positives */}
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">
+    Learn about access control configuration
+  </Card>
+  
+  <Card title="Command Reviews" icon="shield-check" href="/setup/configuration/reviews/command-reviews-configuration">
+    Configure command review workflows
+  </Card>
+</CardGroup>

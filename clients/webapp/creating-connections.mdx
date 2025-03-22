@@ -1,0 +1,149 @@
+---
+title: "Creating Connections"
+description: "Learn how to set up secure connections to your resources through the Hoop.dev web interface"
+---
+
+<Frame>
+  <img src="/images/clients/webapp/connection-types.png" alt="Connection Types Selection" />
+</Frame>
+
+Hoop.dev provides an intuitive web interface to create and manage secure connections to your resources. The connection setup process is divided into three simple steps:
+
+1. Resource Selection
+2. Credentials Configuration
+3. Review and Create
+
+## Resource Selection
+
+When creating a new connection, you'll first choose from three main resource types:
+
+<CardGroup cols={3}>
+  <Card title="Database" icon="database">
+    For databases like MySQL, PostgreSQL, MongoDB and more.
+  </Card>
+  
+  <Card title="Linux VM, Container or Console" icon="terminal">
+    For Linux servers, Docker, Kubernetes or other applications.
+  </Card>
+  
+  <Card title="Network service access (ZTNA)" icon="network-wired">
+    For internal network resources.
+  </Card>
+</CardGroup>
+
+## Credentials Configuration
+
+<Frame>
+  <img src="/images/clients/webapp/database-credentials.png" alt="Database Credentials Configuration" />
+</Frame>
+
+After selecting your resource type, you'll need to provide the necessary credentials and connection details. The required fields vary by resource type:
+
+<AccordionGroup>
+  <Accordion title="Database Connections">
+    First, select your database type:
+    - Microsoft SQL
+    - MongoDB
+    - MySQL
+    - Oracle DB
+    - PostgreSQL
+
+    Then provide the following credentials:
+    - Host address (e.g. localhost)
+    - Port number (e.g. 3306)
+    - Username
+    - Password
+    - Database name
+    - SSL mode (Optional)
+    - Agent selection
+  </Accordion>
+
+  <Accordion title="Linux VM, Container or Console">
+    Choose your connection subtype:
+    
+    ### Linux VM or Container
+    - Access and manage with terminal commands
+    
+    ### Secure Shell Protocol (SSH)
+    - Private Key (paste your file content)
+    - SSH URI (ssh://[uri])
+    - Agent selection
+    
+    ### Console
+    Select your application type:
+    - Ruby on Rails
+    - Python
+    - Node.js
+    - Clojure
+
+    Additional settings:
+    - Operating system (MacOS/Linux)
+    - Environment variables (Key-Value pairs)
+    - Configuration files
+      - Name (e.g. kub_config)
+      - Content
+    - Additional command (optional)
+    - Agent selection
+  </Accordion>
+
+  <Accordion title="Network Service Access (ZTNA)">
+    First, select your network access type:
+    - TCP
+    - HTTP (Coming Soon)
+
+    Then provide:
+    - Host address (e.g. localhost)
+    - Port number
+    - Agent selection
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  Agents provide secure interaction with your connection. Learn more about [Agents](/learn/concepts/agent).
+</Note>
+
+## Review and Create
+
+<Frame>
+  <img src="/images/clients/webapp/connection-review.png" alt="Connection Review and Create" />
+</Frame>
+
+In the final step, you'll:
+
+1. Set a connection name
+2. Add optional tags for organization
+3. Configure additional security features:
+    - Reviews - Require approval prior to connection execution
+    - AI Data Masking - Automatically mask sensitive data in query results
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Meaningful Names" icon="tag">
+    Use descriptive names that indicate the purpose and environment of the connection.
+  </Card>
+  
+  <Card title="Tag Organization" icon="tags">
+    Utilize tags to categorize and manage connections effectively.
+  </Card>
+  
+  <Card title="Enable Reviews" icon="shield-check">
+    Set up reviews for sensitive connections to maintain security.
+  </Card>
+  
+  <Card title="Data Protection" icon="mask">
+    Enable AI Data Masking when handling sensitive information.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">
+    Learn how to control who can access your connections
+  </Card>
+  
+  <Card title="Monitoring Sessions" icon="video" href="/clients/webapp/monitoring-sessions">
+    Track and audit connection usage
+  </Card>
+</CardGroup>

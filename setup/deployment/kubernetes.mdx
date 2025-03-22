@@ -1,0 +1,593 @@
+---
+title: 'Kubernetes'
+---
+
+This page provides instructions on how to configure the Helm chart to install Hoop in any cloud provider.
+
+## Quick Start
+
+<Steps>
+  <Step title="Setup Postgres Database">
+    Create a new namespace and install a Postgres database in your Kubernetes cluster
+
+    <AccordionGroup>
+      <Accordion title="Database Setup">
+
+        1. Create a namespace
+
+        ```sh
+        kubectl create ns hoopdev
+        ```
+
+        2. Save the deployment assets to a local file
+
+        ```sh
+        cat - > /tmp/postgres-spec.yml <<EOF
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: postgres
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: postgres
+          strategy:
+            type: Recreate
+          template:
+            metadata:
+              labels:
+                app: postgres
+            spec:
+              containers:
+              - env:
+                - name: POSTGRES_USER
+                  value: root
+                - name: POSTGRES_PASSWORD
+                  value: 1a2b3c4d
+                - name: POSTGRES_DB
+                  value: hoopdb
+                image: postgres
+                name: postgres
+                ports:
+                - containerPort: 5432
+                  name: pg
+                  protocol: TCP
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: postgres
+        spec:
+          ports:
+          - name: postgres
+            port: 5432
+            protocol: TCP
+            targetPort: 5432
+          selector:
+            app: postgres
+        EOF
+        ```
+
+        3. Deploy it
+
+        ```sh
+        kubectl -n hoopdev apply -f /tmp/postgres-spec.yml
+        ```
+
+        <Note>
+          This installation is using a Postgres role with super privileges.
+          Refer to [Database Configuration](/getting-started/installation/kubernetes#database-configuration) for hosted database setups.
+        </Note>
+
+      </Accordion>
+    </AccordionGroup>
+
+  </Step>
+  <Step title="Configure the values.yml">
+
+    ```sh
+    JWT_SECRET_KEY=$(openssl rand 64 | base64)
+    cat - > ./values.yaml <<EOF
+    config:
+      POSTGRES_DB_URI: 'postgres://root:1a2b3c4d@postgres.hoopdev:5432/hoopdb?sslmode=disable'
+      API_URL: 'http://127.0.0.1:8009'
+      JWT_SECRET_KEY: "$JWT_SECRET_KEY"
+
+    defaultAgent:
+      enabled: true
+    EOF
+    ```
+  </Step>
+
+  <Step title="Deploy the Gateway">
+
+    ```sh
+    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+    helm upgrade --install hoop \
+      oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+      -f values.yaml \
+      --namespace hoopdev
+    ```
+
+  </Step>
+
+  <Step title="Access it">
+
+    1. Forward the hoopgateway service ports to your local machine to access the WebApp
+
+    ```sh
+    kubectl port-forward service/hoopgateway 8009:8009 -n hoopdev
+    ```
+
+    2. [Visit the Webapp at http://127.0.0.1:8009](http://127.0.0.1:8009)
+
+  </Step>
+</Steps>
+
+## Installing
+
+To install the latest version in a new namespace (example: `hoopdev`). Issue the command below:
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm upgrade --install hoop \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+  -f values.yaml \
+  --namespace hoopdev
+```
+
+### Overwriting or passing new attributes
+
+It is possible to add new attributes or overwrite an attribute from a base `values.yaml` file.
+In the example below a default agent is deployed as a sidecar container.
+
+```bash
+helm upgrade --install hoop \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+  -f values.yaml \
+  --set defaultAgent.enabled=true
+```
+
+## Database Configuration
+
+Hoop uses Postgres as the backend storage of all data in the system.
+The user that connects in the database must be a superuser or have the **CREATEROLE** permission.
+The command below creates a database and a user with privileges to access the database and the default schema.
+
+```sql
+CREATE DATABASE hoopdb;
+CREATE USER hoopuser WITH ENCRYPTED PASSWORD 'my-secure-password' CREATEROLE;
+-- switch to the created database
+\c hoopdb
+GRANT ALL PRIVILEGES ON DATABASE hoopdb TO hoopuser;
+GRANT ALL PRIVILEGES ON SCHEMA public to hoopuser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO hoopuser;
+```
+
+<Note>
+In case of using a password with special characters, make sure to url encode it properly when setting the connection string.
+</Note>
+
+Use these values to assemble the configuration for POSTGRES_DB_URI:
+- `POSTGRES_DB_URI=postgres://hoopuser:<passwd>@<db-host>:5432/hoopdb`
+
+<Tip>
+Make sure to include `?sslmode=disable` option in the Postgres connection string in case your database setup doesn't support TLS.
+</Tip>
+
+## Agent Deployment
+
+<AccordionGroup>
+  <Accordion title="values.yaml (minimal)">
+    ```yaml
+      config:
+        HOOP_KEY: '<agent-key-dsn>'
+    ```
+  </Accordion>
+  <Accordion title="values.yaml (full)">
+    ```yaml
+    # base configuration
+    config:
+      HOOP_KEY: '<agent-key-dsn>'
+      LOG_ENCODING: 'json' # json|console
+      LOG_LEVEL: 'info' # debug|info|warn|error
+      LOG_GRPC: '0' # 0|1|2
+
+    # image default configuration
+    image:
+      repository: hoophq/hoopdev
+      pullPolicy: Always
+      tag: latest
+
+    # define extra secret configuration to load as environment variables
+    extraSecret: {}
+
+    # -- Deployment strategy
+    deploymentStrategy:
+      type: Recreate
+
+    # -- CPU/Memory resource requests/limits
+    resources: {}
+    #   limits:
+    #     cpu: 1024m
+    #     memory: 1Gi
+    #   requests:
+    #     cpu: 1024m
+    #     memory: 1Gi
+
+    # -- Node labels for pod assignment
+    nodeSelector: {}
+
+    # -- Toleration labels for pod assignment
+    tolerations: []
+
+    # -- Affinity settings for pod assignment
+    affinity: {}
+
+    ```
+  </Accordion>
+</AccordionGroup>
+
+
+### Helm
+
+Make sure you have helm installed in your machine. Check [Helm installation page](https://helm.sh/docs/intro/install/)
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm upgrade --install hoopagent \
+	oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
+	--set "config.HOOP_KEY=<AUTH-KEY>"
+```
+
+### Using Helm Manifests
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm template hoopagent \
+  oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
+  --set 'config.HOOP_KEY=<AUTH-KEY>' \
+  --set 'image.tag=1.25.2' \
+  --set 'extraSecret=AWS_REGION=us-east-1'
+```
+
+<Warning>
+  Starting from version **1.21.9**, there is only one way to configure the agent key, which is by using the `config.HOOP_KEY` configuration. This requires creating a key in a DSN format in the API. To use legacy options, use the Helm chart version **1.21.4**.
+</Warning>
+
+### Standalone Deployment
+
+<AccordionGroup>
+  <Accordion title="deployment.yaml">
+
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: hoopagent
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: hoopagent
+      template:
+        metadata:
+          labels:
+            app: hoopagent
+        spec:
+          containers:
+          - name: hoopagent
+            image: hoophq/hoopdev
+            env:
+            - name: HOOP_KEY
+              value: '<AUTH-KEY>'
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+### Sidecar Container
+
+<AccordionGroup>
+  <Accordion title="deployment.yaml">
+
+    ```yaml
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: myapp
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: myapp
+        template:
+          metadata:
+            labels:
+              app: myapp
+          spec:
+            containers:
+            - name: myapp
+              image: myapp
+              ports:
+              - containerPort: 8000
+                name: http
+                protocol: TCP
+            - name: hoopagent
+              image: hoophq/hoopdev
+              env:
+              - name: HOOP_KEY
+                value: '<AUTH-KEY>'
+      ```
+
+  </Accordion>
+</AccordionGroup>
+
+
+## Gateway Chart Configuration
+
+Check the [environment variables section](/configure/env-vars) for more information about each configuration.
+
+<AccordionGroup>
+  <Accordion title="values.yaml (full base configuration)">
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: ''
+      API_KEY: ''
+      TLS_CA: ''
+      TLS_KEY: ''
+      TLS_CERT: ''
+      AUTH_METHOD: 'local'
+      JWT_SECRET_KEY: ''
+      IDP_CLIENT_ID: ''
+      IDP_CLIENT_SECRET: ''
+      IDP_ISSUER: ''
+      IDP_AUDIENCE: ''
+      IDP_CUSTOM_SCOPES: ''
+      IDP_URI: ''
+      ASK_AI_CREDENTIALS: ''
+      DLP_PROVIDER: 'gcp'
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
+      MSPRESIDIO_ANALYZER_URL: ''
+      MSPRESIDIO_ANONYMIZER_URL: ''
+      WEBAPP_USERS_MANAGEMENT: 'on'
+      WEBHOOK_APPKEY: ''
+      PGREST_ROLE: ''
+      MIGRATION_PATH_FILES: '/app/migrations'
+      STATIC_UI_PATH: '/app/ui/public'
+      PLUGIN_AUDIT_PATH: '/opt/hoop/sessions'
+      PLUGIN_INDEX_PATH: '/opt/hoop/sessions/indexes'
+      ADMIN_USERNAME: 'admin'
+      GODEBUG: 'http2debug=0'
+      LOG_GRPC: '0'
+      LOG_LEVEL: 'info'
+      LOG_ENCODING: 'json'
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+
+### Authentication
+
+<Tabs>
+  <Tab title="Local Authentication">
+    Local Authentication manages users and passwords locally and sign JWT access tokens to users.
+    Make sure to create a strong secret key for `JWT_SECRET_KEY` configuration, the command below generate a strong key as the value for this configuration:
+
+    ```sh
+    openssl rand 64 | base64
+    ```
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: 'https://hoopdev.yourdomain.tld'
+      AUTH_METHOD: local
+      JWT_SECRET_KEY: '<secure-secret-key>'
+    ```
+
+  </Tab>
+  <Tab title="Oauth2/OIDC Authentication">
+    The Oauth2/OIDC authentication integrates with any identity provider that support these protocols. The users are managed on the identity provider.
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: 'https://hoopdev.yourdomain.tld'
+      IDP_ISSUER: 'https://idp-issuer-url'
+      IDP_CLIENT_ID: 'client-id'
+      IDP_CLIENT_SECRET: 'client-secret'
+      IDP_AUDIENCE: ''
+      IDP_CUSTOM_SCOPES: ''
+    ```
+
+    - Using `IDP_URI`
+
+    ```yaml
+    config:
+      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+      API_URL: 'https://hoopdev.yourdomain.tld'
+      IDP_URI: '<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>'
+      IDP_AUDIENCE: ''
+    ```
+
+    <Note>
+      This configuration takes precedence over `IDP_ISSUER`, `IDP_CLIENT_ID`, `IDP_CLIENT_SECRET` and `IDP_CUSTOM_SCOPES`.
+    </Note>
+
+  </Tab>
+</Tabs>
+
+### Persistence
+
+We recommend using persistent volumes for session blobs to avoid losing sessions during outages or restarts. The following example shows how to enable a 100GB persistent volume when using AWS/EKS.
+
+```yaml
+persistence:
+  # -- Use persistent volume for write ahead log sessions
+  enabled: true
+  storageClassName: gp2
+
+  # -- Size of persistent volume claim
+  size: 100Gi
+```
+
+### Ingress Configuration
+
+This section covers the ingress configuration. The gateway requires exposing the ports **HTTP/8009** and **HTTP2/8010.** The ingress configuration establishes these two differing configurations based on the [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) in use.
+
+Below is an example of how to configure the ingress using the [application load balancer controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v1.1/) from AWS.
+
+```yaml
+# HTTP/8009 - API / WebApp
+ingressApi:
+  enabled: true
+  # the public DNS name
+  host: 'hoopdev.yourdomain.tld'
+  # the ingress class, in this case alb
+  ingressClassName: 'alb'
+  annotations:
+    # uses the ACM service to use a valid public certificate issued by AWS
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
+    # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
+    alb.ingress.kubernetes.io/group.name: 'hoopdev'
+    alb.ingress.kubernetes.io/healthcheck-path: '/'
+    alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/scheme: 'internet-facing'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+  # -- TLS section configuration
+  # tls: {}
+
+# HTTP/8010 - gRPC Service
+ingressGrpc:
+  enabled: true
+  # the public DNS name
+  host: 'hoopdev.yourdomain.tld'
+  # the ingress class, in this case alb
+  ingressClassName: 'alb'
+  annotations:
+    # configures the type of the protocol
+    alb.ingress.kubernetes.io/backend-protocol-version: 'GRPC'
+    # the certificate could be reused for the same protocol
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
+    # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
+    alb.ingress.kubernetes.io/group.name: 'hoopdev'
+    alb.ingress.kubernetes.io/healthcheck-path: '/'
+    alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 8443}]'
+    alb.ingress.kubernetes.io/scheme: 'internet-facing'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+
+  # -- TLS section configuration
+  # tls: {}
+```
+
+<Info>
+  It is important to note that the gRPC service requires the ability to receive HTTP2 traffic. If there are multiple load balancers in place, it is important to ensure that the underlying proxies allow forwarding this type of protocol.
+</Info>
+
+### Computing Resources
+
+The helm-chart defaults to 1vCPU and 1GB, which is suitable for evaluation purposes only. For production setups, we recommend allocating at least 4GB/4vCPU to the gateway process.
+
+```yaml
+resources:
+  gw:
+    limits:
+      cpu: 4096m
+      memory: 4Gi
+    requests:
+      cpu: 4096m
+      memory: 4Gi
+```
+
+### Image Configuration
+
+By default, the latest version of all images is used. If you want to use a specific image or pin the versions, use the `image` attribute section.
+
+```yaml
+image:
+  gw:
+    repository: hoophq/hoop
+    pullPolicy: Always
+    tag: latest
+```
+
+### Default Agent Sidecar
+
+Adding this section will deploy a default agent as a sidecar container.
+
+```yaml
+defaultAgent:
+  enabled: true
+```
+
+### Node Selector
+
+This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
+
+See [this documentation](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/) for more information.
+
+```yaml
+# -- Node labels for pod assignment
+nodeSelector:
+  disktype: ssd
+```
+
+### Tolerations
+
+See this article explaining how to configure [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+
+```yaml
+# -- Toleration labels for pod assignment
+tolerations:
+- effect: NoExecute
+  key: spot
+  value: "true"
+- effect: NoSchedule
+  key: spot
+  value: "true"
+```
+
+### Node Affinity
+
+See [this article](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) explaining how to configure affinity and anti-affinity rules
+
+```yaml
+# -- Affinity settings for pod assignment
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+          - antarctica-east1
+          - antarctica-west1
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
+        - key: another-node-label-key
+          operator: In
+          values:
+          - another-node-label-value
+```
+
+## Generating Manifests
+
+If you prefer using manifests over Helm, we recommend this approach. It allows you to track any modifications to the chart whenever a new version appears. You can apply a diff to your versioned files to identify what has been altered.
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm template hoop \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+  -f values.yaml
+```

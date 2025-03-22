@@ -1,0 +1,196 @@
+---
+title: "AWS Connect"
+description: "Database Resource Discovery and Automatic Connection Creation."
+---
+
+This feature enables you to discover and provision common database roles to your RDS databases in AWS seamlessly.
+Using either IAM credentials or the instance role of the Hoop Gateway, you can quickly grant database access to users.
+
+<Frame>
+  <img src="/images/integrations/aws-connect-1.jpg" alt="AWS Connect Interface" />
+</Frame>
+
+## Requirements
+
+- Access to AWS account with privileges to setup roles and/or IAM credentials
+- You must be your account administrator to perform the following commands
+
+## Configuration
+
+Your IAM credentials must have the proper permission to use this feature.
+Depending on which credentials you want to use, the role or the access key credentials must have the following permissions:
+
+- **Policy Name:** HoopAWSConnect
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "organizations:ListAccounts",
+                "rds:DescribeDBInstances",
+                "rds:ModifyDBInstance",
+                "ec2:DescribeSecurityGroups",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateTags",
+                "iam:SimulatePrincipalPolicy",
+                "sts:AssumeRole"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+This requirement should be sufficient to begin the provisioning process in your main account.
+
+### Multi Account Setup
+
+For multi-account setup, you can configure your IAM user to access resources across different accounts:
+
+- Create the role `OrganizationAccountAccessRole` with the permissions below for each AWS account that you want to allow Hoop to access:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds:DescribeDBInstances",
+                "rds:ModifyDBInstance",
+                "ec2:DescribeSecurityGroups",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateTags",
+                "ec2:CreateSecurityGroup"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+<Note>
+    The name of the role is hard-coded at the moment. In upcoming releases, we will allow users to provide a custom role name.
+</Note>
+
+### Access Key Credentials
+
+To use static credentials:
+1. Go to the AWS Console > IAM
+2. Create a user and configure an Access Key in Security Credentials
+
+<Frame>
+  <img src="/images/integrations/aws-connect-2.jpg" alt="AWS IAM Security Credentials" />
+</Frame>
+
+### Instance Role
+
+To use the same instance role in which the gateway is running:
+1. Set the environment variable `INTEGRATION_AWS_INSTANCE_ROLE_ALLOW=true`
+2. When configuring the IAM credentials, set the region only before moving to the next page
+
+<Frame>
+  <img src="/images/integrations/aws-connect-3.png" alt="AWS Region Configuration" />
+</Frame>
+
+## Agent Deployment
+
+The agent connects to your underlying infrastructure to provision and access your databases.
+Before proceeding, make sure to provision an agent for every private network in which your database is running.
+
+<Note>
+    If you have connectivity with all databases from a single machine, you could deploy the agent in this network
+    to gain access to all databases using a single agent.
+</Note>
+
+[Read more about agents](../concepts/agent)
+
+## Supported Engines
+
+- Postgres / Aurora
+- MySQL / Aurora
+- SQL Server
+
+## Security Group Management
+
+The gateway automatically creates and associates a dedicated security group to enable secure connectivity between the gateway and your agent.
+This security group is configured with the following properties:
+
+- **Resource Name:** `hoop-aws-connect-sg-<db-instance-identifier>`
+- **Tag:** `hoop.dev/gateway=<api-hostname>`
+
+You have the option to manage these security groups directly to customize connectivity settings as needed.
+
+## Roles and Connection Management
+
+The provisioner will reset the master database credentials using a random password.
+The user and password are stored in Hoop's database. Subsequent requests for provisioning roles reuse the master credentials stored in Hoop.
+
+<Note>
+    In upcoming releases, our goal is to support more methods of using master credentials to access
+    these instances, such as RDS Secrets Manager and IAM database authentication.
+</Note>
+
+The provisioner will create three static user roles for all existing databases depending on the engine:
+
+- hoop_ro
+- hoop_rw
+- hoop_ddl
+
+If you run the process multiple times, some database users might be removed and recreated.
+The default behavior is to provision the role if it doesn't exist and change the password if the role already exists.
+
+In the final step of the provisioning process, it creates connections with the credentials of each role.
+Three connections are provisioned as the outcome:
+
+- `<connection-name-prefix>-ro`
+- `<connection-name-prefix>-rw`
+- `<connection-name-prefix>-ddl`
+
+<Frame>
+  <img src="/images/integrations/aws-connect-4.png" alt="Connection Configuration" />
+</Frame>
+
+The database user roles permissions are static and described below:
+
+| ENGINE   | READ ONLY | READ WRITE | DDL       |
+| -------- | ----------| ---------- | --------- |
+| Postgres | `SELECT`    | `SELECT, INSERT, UPDATE, DELETE` | `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER` |
+| MySQL | `SELECT`    | `SELECT, INSERT, UPDATE, DELETE` | `SELECT, INSERT, UPDATE, DELETE, ALTER, CREATE, DROP` |
+| SQL Server | `db_datareader`    | `db_datareader, db_datawriter` | `db_datareader, db_datawriter, db_ddladmin` |
+
+## Webhooks (Svix)
+
+In the final step of the job, you can send webhooks to an external system for integration purposes.
+The webhook provider must be configured to send the message properly. More information could be found [here](./svix).
+The payload structure matches the endpoint `GET /api/dbroles/:id`.
+
+In the final step of the job it's possible to send Webhooks to an external system for integration purporses.
+The Webhook provider must be configured to send the message properly. The payload is the same structure of the endpoint `GET /api/dbroles/:id`.
+
+```json
+{
+    "event_type": "dbroles.job.finished",
+    "event_payload": {}
+}
+```
+
+<Note>
+    Refer to our [API Reference](/api-reference) for more details about the structure of the `event_payload` attribute.
+</Note>
+
+## Vault Secrets Manager
+
+This integration enables you to delegate the management of secrets to HashiCorp Vault, a robust secrets management solution.
+When enabled, all provisioned roles are securely stored in Vault.
+
+For deployments with connection provisioning enabled, the integration automatically adds the necessary reference secrets provider and secret ID.
+
+<Note>
+    For this integration to function properly, the agent must be configured with the correct Vault credentials.
+    For detailed configuration instructions, please refer to the [Vault Secrets Manager documentation](/setup/configuration/secrets-manager-configuration#hashicorp-vault-provider).
+</Note>

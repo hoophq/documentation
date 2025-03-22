@@ -1,0 +1,63 @@
+---
+title: "Google"
+---
+
+## Requirements
+
+  * An [account in GCP](https://console.cloud.google.com)
+  * `API_URL` is the public DNS name of the hoop gateway instance
+
+Contact the administrator of the hoop gateway instance to retrieve the `API_URL` address.
+
+## Identity Provider Configuration
+
+<Steps titleSize="h3">
+  <Step title="Create an Application">
+    Login with your account at https://console.cloud.google.com/apis/credentials
+    - Go to Credentials > Create Credentials button > OAuth client ID
+    - In Application type, select Web Application
+    - Give it a name (i.e. “Hoop”)
+  </Step>
+  <Step title="Configure the Redirect URIs">
+    - Click Authorized redirect URIs and put the following URI: {API_URL}/api/callback
+    - Click Create button
+    - Take note on the ClientID and Client secret
+    - Click Download JSON (contain useful information)
+  </Step>
+  <Step title="Collect the Credentials">
+    When you created the app, you got those. But they are also available in the JSON file that was downloaded by the creation time. The download is also available at:
+
+    - Credentials > OAuth 2.0 Client IDs > > Actions > Download
+  </Step>
+  <Step title="Collect Issuer Information">
+  The Issuer URI is `https://accounts.google.com`
+  </Step>
+</Steps>
+
+## Configuring Groups
+
+Groups are synchronized by performing a request to the Gsuite Directory API as a best effort operation.
+
+<Note>
+  The name of groups is synchronized as e-mail addresses
+</Note>
+
+<Steps>
+  <Step title="Add the Scope">
+    Configure the gateway with the env **IDP_CUSTOM_SCOPES**
+
+    - `IDP_CUSTOM_SCOPES=https://www.googleapis.com/auth/admin.directory.group.readonly`
+
+    *Restart the gateway after applying these changes*.
+  </Step>
+  <Step title="Enable the Admin SDK API">
+
+    - Visit the [Admin SDK API Page](https://console.developers.google.com/apis/api/admin.googleapis.com/overview)
+    - Clik in the button `ENABLE`
+  </Step>
+</Steps>
+
+<Warning>
+  When you configure groups to sync, you'll lose the admin access on the next sign in.
+  To prevent this issue, set the configuration `ADMIN_USERNAME` to a group that you consider as admin on Gsuite.
+</Warning>
