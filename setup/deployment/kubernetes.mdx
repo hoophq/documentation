@@ -105,7 +105,7 @@ This page provides instructions on how to configure the Helm chart to install Ho
     ```sh
     VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
     helm upgrade --install hoop \
-      https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+      oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
       -f values.yaml \
       --namespace hoopdev
     ```
@@ -132,7 +132,7 @@ To install the latest version in a new namespace (example: `hoopdev`). Issue the
 ```bash
 VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
 helm upgrade --install hoop \
-  https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
   -f values.yaml \
   --namespace hoopdev
 ```
@@ -144,7 +144,7 @@ In the example below a default agent is deployed as a sidecar container.
 
 ```bash
 helm upgrade --install hoop \
-  https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
   -f values.yaml \
   --set defaultAgent.enabled=true
 ```
@@ -237,7 +237,7 @@ Make sure you have helm installed in your machine. Check [Helm installation page
 ```bash
 VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
 helm upgrade --install hoopagent \
-	https://releases.hoop.dev/release/$VERSION/hoopagent-chart-$VERSION.tgz \
+	oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
 	--set "config.HOOP_KEY=<AUTH-KEY>"
 ```
 
@@ -246,7 +246,7 @@ helm upgrade --install hoopagent \
 ```bash
 VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
 helm template hoopagent \
-  https://releases.hoop.dev/release/$VERSION/hoopagent-chart-$VERSION.tgz \
+  oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
   --set 'config.HOOP_KEY=<AUTH-KEY>' \
   --set 'image.tag=1.25.2' \
   --set 'extraSecret=AWS_REGION=us-east-1'
@@ -588,6 +588,6 @@ If you prefer using manifests over Helm, we recommend this approach. It allows y
 ```bash
 VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
 helm template hoop \
-  https://releases.hoop.dev/release/$VERSION/hoop-chart-$VERSION.tgz \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
   -f values.yaml
 ```

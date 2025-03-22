@@ -1,205 +1,196 @@
 ---
-title: 'AWS'
-description: 'This deployment leverages AWS CloudFormation to automatically create resources and set up the Hoop in your own AWS account.'
+title: "AWS Connect"
+description: "Database Resource Discovery and Automatic Connection Creation."
 ---
 
+This feature enables you to discover and provision common database roles to your RDS databases in AWS seamlessly.
+Using either IAM credentials or the instance role of the Hoop Gateway, you can quickly grant database access to users.
+
+<Frame>
+  <img src="/images/integrations/aws-connect-1.jpg" alt="AWS Connect Interface" />
+</Frame>
+
 ## Requirements
-1. Admin permissions
 
-    A user with Admin permissions is required in order to deploy the stack and create the resources described below. Resources used are subject to change in the future, which is why we currently recommend Admin permissions (and an isolated AWS account, mentioned below).
-2. Dedicated AWS Account
+- Access to AWS account with privileges to setup roles and/or IAM credentials
+- You must be your account administrator to perform the following commands
 
-    We recommend deploying the Platform in an isolated AWS account. This reduces the risk of errors, such as hitting AWS service resource limits, and overall makes things simpler to manage.
+## Configuration
 
-## Setup
-To deploy the Stack, press one of the following region-specific deploy buttons, and click through the AWS web GUI console.
+Your IAM credentials must have the proper permission to use this feature.
+Depending on which credentials you want to use, the role or the access key credentials must have the following permissions:
 
-<CardGroup cols={4}>
-  <Card title="us-east-1" icon="aws" href="https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-east-1.s3.us-east-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  N. Virginia
-</Card>
-<Card title="us-east-2" icon="aws" href="https://us-east-2.console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-east-2.s3.us-east-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  Ohio
-</Card>
-<Card title="us-west-1" icon="aws" href="https://us-west-1.console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-west-1.s3.us-west-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  N. California
-</Card>
-<Card title="us-west-2" icon="aws" href="https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-west-2.s3.us-west-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  Oregon
-</Card>
-<Card title="eu-west-1" icon="aws" href="https://eu-west-1.console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-eu-west-1.s3.eu-west-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  Ireland
-</Card>
-<Card title="eu-west-2" icon="aws" href="https://eu-west-2.console.aws.amazon.com/cloudformation/home?region=eu-west-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-eu-west-2.s3.eu-west-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  London
-</Card>
-<Card title="eu-central-1" icon="aws" href="https://eu-central-1.console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-eu-central-1.s3.eu-central-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  Frankfurt
-</Card>
-<Card title="ap-southeast-2" icon="aws" href="https://ap-southeast-2.console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-ap-southeast-2.s3.ap-southeast-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
-  Sydney
-</Card>
+- **Policy Name:** HoopAWSConnect
 
-</CardGroup>
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "organizations:ListAccounts",
+                "rds:DescribeDBInstances",
+                "rds:ModifyDBInstance",
+                "ec2:DescribeSecurityGroups",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateTags",
+                "iam:SimulatePrincipalPolicy",
+                "sts:AssumeRole"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
 
+This requirement should be sufficient to begin the provisioning process in your main account.
 
-The default parameters are appropriate for many organizations. The installation requires providing an ACM certificate matching a valid public DNS record. There are two options to proceed with this step that are described below:
+### Multi Account Setup
 
-### Creating a valid certificate
+For multi-account setup, you can configure your IAM user to access resources across different accounts:
 
-This is the recommended approach. It will require validating a domain of your setup to emit a valid certificate that could be used in this setup.
+- Create the role `OrganizationAccountAccessRole` with the permissions below for each AWS account that you want to allow Hoop to access:
 
-1. Go to the ACM console of the region
-2. Click on Request a certificate
-3. Click Next to Request a Public Certificate
-4. Choose your domain and validation Method and click on Request
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds:DescribeDBInstances",
+                "rds:ModifyDBInstance",
+                "ec2:DescribeSecurityGroups",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateTags",
+                "ec2:CreateSecurityGroup"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
 
-The certificate will remain pending until you validate, depending on the chosen method.
+<Note>
+    The name of the role is hard-coded at the moment. In upcoming releases, we will allow users to provide a custom role name.
+</Note>
 
-<Frame>
-  <img
-    className="block"
-    src="/images/aws/creating-valid-certificate.png"
-    alt="Creating a valid certificate"
-  />
-</Frame>
+### Access Key Credentials
 
-Access the certificate ID entry and follow the instructions to validate the certificate. Copy its ARN. Once you finish validating it, the status will change to green.
-
-<Frame>
-  <img
-    className="block"
-    src="/images/aws/creating-valid-certificate2.png"
-    alt="Creating a valid certificate"
-  />
-</Frame>
-
-### Creating and Importing Self-Signed Certificate
-
-Now, copy the ARN in the `AwsCertificateArn` parameter and add the domain of the certificate in the parameter `AppPublicDNS`.
-
-1. Once the deployment has completed (you should see "CREATE_COMPLETE" on all items under "Stacks"), click in the stack and then in the tab Outputs.
+To use static credentials:
+1. Go to the AWS Console > IAM
+2. Create a user and configure an Access Key in Security Credentials
 
 <Frame>
-  <img
-    className="block"
-    src="/images/aws/creating-importing-self-signed-1.png"
-  />
+  <img src="/images/integrations/aws-connect-2.jpg" alt="AWS IAM Security Credentials" />
 </Frame>
 
-Copy the load balancer address and create a CNAME record in your DNS management service pointing to the domain specified in your certificate.
+### Instance Role
 
-<Tip>If you want to test it without publishing it in your DNS system, obtain the load balancer's public IP and add it to your Hosts file. This will allow you to visit the app address using the DNS configured in the certificate.</Tip>
-
-## View Dashboard
-
-The setup uses AWS Cognito by default, you’ll need to add the first user and then to login.
-
-1. In the stack, go to Outputs and search for “cognito”
+To use the same instance role in which the gateway is running:
+1. Set the environment variable `INTEGRATION_AWS_INSTANCE_ROLE_ALLOW=true`
+2. When configuring the IAM credentials, set the region only before moving to the next page
 
 <Frame>
-  <img
-    className="block"
-    src="/images/aws/view-dashboard-1.png"
-  />
+  <img src="/images/integrations/aws-connect-3.png" alt="AWS Region Configuration" />
 </Frame>
 
-2. Click on the Physical ID link and then on create user in the Cognito's user pool
+## Agent Deployment
+
+The agent connects to your underlying infrastructure to provision and access your databases.
+Before proceeding, make sure to provision an agent for every private network in which your database is running.
+
+<Note>
+    If you have connectivity with all databases from a single machine, you could deploy the agent in this network
+    to gain access to all databases using a single agent.
+</Note>
+
+[Read more about agents](../concepts/agent)
+
+## Supported Engines
+
+- Postgres / Aurora
+- MySQL / Aurora
+- SQL Server
+
+## Security Group Management
+
+The gateway automatically creates and associates a dedicated security group to enable secure connectivity between the gateway and your agent.
+This security group is configured with the following properties:
+
+- **Resource Name:** `hoop-aws-connect-sg-<db-instance-identifier>`
+- **Tag:** `hoop.dev/gateway=<api-hostname>`
+
+You have the option to manage these security groups directly to customize connectivity settings as needed.
+
+## Roles and Connection Management
+
+The provisioner will reset the master database credentials using a random password.
+The user and password are stored in Hoop's database. Subsequent requests for provisioning roles reuse the master credentials stored in Hoop.
+
+<Note>
+    In upcoming releases, our goal is to support more methods of using master credentials to access
+    these instances, such as RDS Secrets Manager and IAM database authentication.
+</Note>
+
+The provisioner will create three static user roles for all existing databases depending on the engine:
+
+- hoop_ro
+- hoop_rw
+- hoop_ddl
+
+If you run the process multiple times, some database users might be removed and recreated.
+The default behavior is to provision the role if it doesn't exist and change the password if the role already exists.
+
+In the final step of the provisioning process, it creates connections with the credentials of each role.
+Three connections are provisioned as the outcome:
+
+- `<connection-name-prefix>-ro`
+- `<connection-name-prefix>-rw`
+- `<connection-name-prefix>-ddl`
 
 <Frame>
-  <img
-    className="block"
-    src="/images/aws/view-dashboard-2.png"
-  />
+  <img src="/images/integrations/aws-connect-4.png" alt="Connection Configuration" />
 </Frame>
 
-3. Now, visit the public DNS link provided in the parameter AppPublicDNS: `https://yourdomain.tld`
+The database user roles permissions are static and described below:
 
-4. Now, fill out the form with your Email and Password and Sign In
+| ENGINE   | READ ONLY | READ WRITE | DDL       |
+| -------- | ----------| ---------- | --------- |
+| Postgres | `SELECT`    | `SELECT, INSERT, UPDATE, DELETE` | `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER` |
+| MySQL | `SELECT`    | `SELECT, INSERT, UPDATE, DELETE` | `SELECT, INSERT, UPDATE, DELETE, ALTER, CREATE, DROP` |
+| SQL Server | `db_datareader`    | `db_datareader, db_datawriter` | `db_datareader, db_datawriter, db_ddladmin` |
 
-<Frame>
-  <img
-    className="block"
-    src="/images/aws/view-dashboard-3.png"
-  />
-</Frame>
+## Webhooks (Svix)
 
-5. You’ll be redirected to the main screen, where you can choose which service to connect
+In the final step of the job, you can send webhooks to an external system for integration purposes.
+The webhook provider must be configured to send the message properly. More information could be found [here](./svix).
+The payload structure matches the endpoint `GET /api/dbroles/:id`.
 
-<Frame>
-  <img
-    className="block"
-    src="/images/aws/view-dashboard-4.png"
-  />
-</Frame>
+In the final step of the job it's possible to send Webhooks to an external system for integration purporses.
+The Webhook provider must be configured to send the message properly. The payload is the same structure of the endpoint `GET /api/dbroles/:id`.
 
-<Tip>
-  If you choose to import a self-signed certificate, make sure to import the `rootCA.crt` in your system properly to bypass the self-signed warning.
-</Tip>
+```json
+{
+    "event_type": "dbroles.job.finished",
+    "event_payload": {}
+}
+```
 
-## Resources deployed
+<Note>
+    Refer to our [API Reference](/api-reference) for more details about the structure of the `event_payload` attribute.
+</Note>
 
-- Virtual Private Cloud (VPC)
-- Two Public Subnets
-- Two Private Subnets (with NAT Gateways)
-- Two Isolated Subnets
-- AWS Cognito (Optional)
-- RDS Postgres Database
-- Auto Scaling Group with EC2 Instances
-- EBS Volume used by EC2 Instances
-- Secrets Manager secrets for Postgres Password and access credentials
-- Application Load Balancer
-- Security Groups to restrict access to the infrastructure (only port 443 and 8443 to the Load Balancer, no access to the RDS databases, etc.)
+## Vault Secrets Manager
 
-## Custom Identity provider
+This integration enables you to delegate the management of secrets to HashiCorp Vault, a robust secrets management solution.
+When enabled, all provisioned roles are securely stored in Vault.
 
-It's possible to bring your own identity provider to authenticate your users with Hoop. By default it creates Cognito if the parameter AppIDPURI is left empty. To specify a custom one, visit our SSO documentation.
+For deployments with connection provisioning enabled, the integration automatically adds the necessary reference secrets provider and secret ID.
 
-<Warning>
-  Providing a custom IDP will remove the provisioned Cognito resources.
-</Warning>
-
-## How to update
-
-You’ll need to update if you want to keep your installation in sync with the latest releases. Make sure to see exactly the changes on our release page to plan the updates carefully.
-
-1. Go to CloudFormation > Select the installed stack > Click on Update
-
-<Frame>
-  <img
-    className="block"
-    src="/images/aws/how-to-update-1.png"
-  />
-</Frame>
-
-2. Choose Replace Existing Template and enter the URL below, which corresponds to your deployment region:
-    - us-east-1 https://hoopdev-platform-cf-us-east-1.s3.us-east-1.amazonaws.com/latest/hoopdev-platform.template.yaml
-    - us-east-2 https://hoopdev-platform-cf-us-east-2.s3.us-east-2.amazonaws.com/latest/hoopdev-platform.template.yaml
-    - us-west-1 https://hoopdev-platform-cf-us-west-1.s3.us-west-1.amazonaws.com/latest/hoopdev-platform.template.yaml
-    - us-west-2 https://hoopdev-platform-cf-us-west-2.s3.us-west-2.amazonaws.com/latest/hoopdev-platform.template.yaml
-    - eu-west-1 https://hoopdev-platform-cf-eu-west-1.s3.eu-west-1.amazonaws.com/latest/hoopdev-platform.template.yaml
-    - eu-west-2 https://hoopdev-platform-cf-eu-west-2.s3.eu-west-2.amazonaws.com/latest/hoopdev-platform.template.yaml
-    - eu-central-1 https://hoopdev-platform-cf-eu-central-1.s3.eu-central-1.amazonaws.com/latest/hoopdev-platform.template.yaml
-    - ap-southeast-2 https://hoopdev-platform-cf-ap-southeast-2.s3.ap-southeast-2.amazonaws.com/latest/hoopdev-platform.template.yaml
-
-3. Double-check that the URL pasted into shows the same region as the AWS console highlights when you click on the region in the upper right. E.g., if "Virginia" is shown and the drop-down highlights us-east-1, then us-east-1 should appear as the URL (three times).
-
-4. Ensure that "Stack failure options" is set to "Roll back all stack resources" and select Next.
-    - If deployment issues arise, we may ask you to change this, but if set to preserve, CF will refuse to deploy certain types of changes.
-
-<Frame>
-  <img
-    className="block"
-    src="/images/aws/how-to-update-2.png"
-  />
-</Frame>
-
-5. Check both of the boxes around permissions at the bottom and select Update Stack.
-    - You don't need to wait for the change set to load.
-
-6. Occasionally monitor the status of the deployment -- some updates can take hours, others just minutes.
-    - If the stack update does fail please take a screenshot of the failure under "Events" in the stack. If it says that a nested stack failed to deploy, include a screenshot of the "Events" in the failed nested stack. We apologize for the issue! CloudFormation is a very sensitive and particular system, as well as being subject to transient issues from an array of AWS services.
-
-## Uninstallation
-
-Go to CloudFormation > Select the installed stack > Click on Delete
+<Note>
+    For this integration to function properly, the agent must be configured with the correct Vault credentials.
+    For detailed configuration instructions, please refer to the [Vault Secrets Manager documentation](/setup/configuration/secrets-manager-configuration#hashicorp-vault-provider).
+</Note>
