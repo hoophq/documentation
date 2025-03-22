@@ -1,0 +1,106 @@
+---
+title: "Managing Access"
+description: "Learn how to control and organize access to your connections through user groups and permissions"
+---
+
+<Frame>
+  <img src="/images/clients/webapp/managing-access-users.png" alt="Users Management Interface" />
+</Frame>
+
+Hoop.dev provides a comprehensive access management system that allows administrators to control who can access specific connections. This is primarily managed through user groups and connection-specific configurations.
+
+## Managing Users and Groups
+
+### User Management
+From the sidebar, administrators can access the [Users](https://use.hoop.dev/organization/users) section to:
+- View all members in the organization
+- Create new users
+- Manage user statuses
+- Edit user details and group assignments
+
+### Group Management
+Groups are the primary way to organize users and control access:
+
+<Steps>
+  <Step title="Create Groups">
+    Administrators can create groups that represent teams, roles, or access levels (e.g., engineering, sales, admin)
+  </Step>
+  
+  <Step title="Assign Users">
+    Users can be assigned to one or multiple groups:
+    - Click the **Edit** button next to a user
+    - Add or remove groups from the user's profile
+    - Save the changes
+  </Step>
+</Steps>
+
+## Configuring Connection Access
+
+<Frame>
+  <img src="/images/clients/webapp/managing-access-connection.png" alt="Connection Access Configuration" />
+</Frame>
+
+Administrators can set up access controls in the Configuration options of a connection:
+
+### Reviews Configuration
+<Steps>
+  <Step title="Enable Reviews">
+    Enable the Reviews toggle to require approval for connection access.
+  </Step>
+  
+  <Step title="Select Groups">
+    Select which groups:
+    - Can access the connection
+    - Need approval before accessing
+    - Can approve access requests
+  </Step>
+</Steps>
+
+### Access Modes
+Configure how users interact with the connection:
+
+<CardGroup cols={2}>
+  <Card title="Runbooks" icon="book">
+    Create templates to automate tasks in your organization
+  </Card>
+  
+  <Card title="Native Access" icon="terminal">
+    Allow access through Desktop App or Command Line Interface
+  </Card>
+  
+  <Card title="Web and One-offs" icon="globe">
+    Enable access through the developer portal and CLI commands
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Principle of Least Privilege" icon="lock">
+    Grant users only the access they need for their role
+  </Card>
+  
+  <Card title="Group Organization" icon="folder-tree">
+    Create groups based on teams and responsibilities
+  </Card>
+  
+  <Card title="Regular Reviews" icon="clipboard-check">
+    Periodically review group memberships and access permissions
+  </Card>
+  
+  <Card title="Access Monitoring" icon="eye">
+    Use session monitoring to track and audit connection usage
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Monitoring Sessions" icon="video" href="/clients/webapp/monitoring-sessions">
+    Learn how to track and audit connection usage
+  </Card>
+  
+  <Card title="Setting Up Reviews" icon="shield-check" href="/learn/features/reviews">
+    Configure approval workflows for secure access
+  </Card>
+</CardGroup>

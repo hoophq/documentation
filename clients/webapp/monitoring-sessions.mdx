@@ -1,0 +1,103 @@
+---
+title: "Monitoring Sessions"
+description: "Learn how to track and audit connection usage through the Sessions interface"
+---
+
+<Frame>
+  <img src="/images/clients/webapp/sessions.png" alt="Session Details" />
+</Frame>
+
+The Sessions interface provides a comprehensive view of all connection activities across your organization. You can monitor active sessions, review past activities, and investigate specific actions taken by users.
+
+## Sessions Overview
+
+The Sessions page displays a list of all connection activities with key information:
+- User who initiated the session
+- Connection name and type
+- Session ID for reference
+- Timestamp and duration
+- Status indicators
+
+### Filtering and Search
+
+Use the top filters to narrow down sessions:
+- **User**: Filter by specific team members
+- **Connection**: View sessions for particular connections
+- **Type**: Filter by connection type (database, application, etc.)
+- **Period**: Select a specific time range
+
+## Session Details
+
+<Frame>
+  <img src="/images/learn/features/review-3.png" alt="Session Details" />
+</Frame>
+
+Clicking on a session opens a detailed view that shows:
+
+### Connection Information
+- Session start and end times
+- Connection type and name
+- User who initiated the session
+
+### Activity Log
+For database connections:
+- SQL queries executed
+- Query results
+- Execution timestamps
+
+For application and SSH connections:
+- Commands executed
+- Command output
+- Terminal sessions
+
+## Session Actions
+
+From the session details view, you can:
+- Re-run a query to verify results or troubleshoot issues
+- Copy session ID for reference
+- Download session logs
+- Share session details with reviewers
+
+## Integration with Reviews
+
+<CardGroup cols={2}>
+  <Card title="Just-in-Time Reviews" icon="clock">
+    Sessions may require approval before starting if JIT reviews are enabled for the connection
+  </Card>
+  
+  <Card title="Command Reviews" icon="terminal">
+    Individual commands or queries may need approval during the session
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Audits" icon="magnifying-glass">
+    Periodically review session logs for security and compliance
+  </Card>
+  
+  <Card title="Investigation" icon="fingerprint">
+    Use session IDs to track specific activities during incident response
+  </Card>
+  
+  <Card title="Compliance" icon="check-double">
+    Maintain session records for audit requirements
+  </Card>
+  
+  <Card title="Performance" icon="chart-line">
+    Monitor session patterns to optimize connection usage
+  </Card>
+</CardGroup>
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Just-in-Time Reviews" icon="shield-check" href="/learn/features/reviews/just-in-time">
+    Learn about session approval workflows
+  </Card>
+  
+  <Card title="Command Reviews" icon="code" href="/learn/features/reviews/command">
+    Understand command-level review processes
+  </Card>
+</CardGroup>
