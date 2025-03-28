@@ -18,6 +18,13 @@ description: 'Learn how the API Key feature works and how to use it'
     We recommend using `openssl` which is present in most unix systems by default. e.g.: `openssl rand 64 | base64`
 </Warning>
 
+Use the environment variable `API_KEY=<org-id>|<random-string>` when deploying your gateway.
+Example:
+
+```sh
+API_KEY='d9fe7aa1-b0a2-48d9-bde1-4ee759481b61|Vu0nc2nUwv8aCRhfOGspC84nUkDOvF0='
+```
+
 ## How it works
 
 When requesting one of the allowed endpoints, you can pass the API Key in the `Api-Key` header with the configured value.
