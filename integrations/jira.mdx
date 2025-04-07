@@ -32,17 +32,16 @@ To get the most out of this guide, you will need to:
   </Step>
   <Step title="Create templates">
   With Jira Integrations enabled your organization has access to Jira Templates on the main sidebar.
-  
   <Frame>
     <img src="/images/integrations/jira-3.png" />
   </Frame>
-    
+
   To create a Jira Template, fill out the following information:
-    
+
   **Integration details:** Name, Description, Project Key and Request Type.
-    
+
   <Info>For more information about how to get Jira information check [Jira Templates](#jira-templates).</Info>
-    
+
   **Automated Mapping:** Append additional information to you created Jira tickets when executing commands in a connection. 
 
   <Info>For more information about available hoop.dev fields, check [Automated Mapping](#automated-mapping).</Info>
@@ -50,7 +49,7 @@ To get the most out of this guide, you will need to:
   **Manual Prompt:** Request additional information from users when executing commands to be appended to created Jira tickets.
 
   <Info>For more information, check [Manual Prompt](#manual-prompt).</Info>
-  
+
   **Configuration Management Database (CMDB):** An additional layer of relation between CMDBs and hoop.dev services. This information is optional.
 
   </Step>
@@ -100,7 +99,7 @@ This can alternatively be a project identifier (Project Key). For <code>Project 
 #### Request Type
 ##### **requestTypeId** <code>string</code>
 The ID of the customer request type to be returned. To find your <code>Request Type ID</code> go to <code>Project settings > Request management > Request type</code> and select the request type.
-  
+
   <Frame>
     <img src="/images/integrations/jira-6.png" />
   </Frame>
@@ -120,22 +119,23 @@ Appends additional information to Jira cards when executing commands in a connec
 | --- | --- | --- |
 | **Type** | Preset | Relates hoop.dev fields with Jira fields. |
 | | Custom | Appends a custom key-value relation to Jira cards.|
-| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
-| **Value** | <code>string</code> | Value related to Jira field key. | 
+| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). |
+| **Value** | <code>string</code> | Value related to Jira field key. |
 | **Description** | <code>string</code> | Optional information used to identify a mapping item. |
 
 
 #### Preset values
 - <code>Session ID</code>
-- <code>User email</code>
+- <code>User Email</code>
 - <code>User ID</code>
-- <code>User name</code>
-- <code>Connection type</code>
-- <code>Connection name</code>
-- <code>Session status</code>
-- <code>Session start date</code>
-- <code>Session type</code>
-- <code>Session script</code>
+- <code>User Name</code>
+- <code>Connection Type</code>
+- <code>Connection Name</code>
+- <code>Connection Tags</code>
+- <code>Session Status</code>
+- <code>Session Start Date</code>
+- <code>Session Type</code>
+- <code>Session Script</code>
 
 ### Manual Prompt
 Requests manual input from users to get additional information when executing commands in a connection.
@@ -143,20 +143,20 @@ Requests manual input from users to get additional information when executing co
 | Field | Values | Usage |
 | --- | --- | --- |
 | **Label** | <code>string</code> | Text input label presented for users. |
-| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
+| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). |
 | **Description** | <code>string</code> | Optional information used to identify a mapping item. |
 | **Required** | <code>boolean</code> | Define if the input information is required before executing the command.
 
 ### Configuration Management Database (CMDB)
-Automates an advanced relation between CMDB files and hoop services. 
+Automates an advanced relation between CMDB files and hoop services.
 <Info>If information is not matched with CMDB, required information will be requested to be manually filled by the user before executing the command.</Info>
 
 | Field | Values | Usage |
 | --- | --- | --- |
 | **Label** | <code>string</code> | Text input label presented for users. |
-| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). | 
-| **Value** | <code>string</code> | Value related to Jira field key. | 
-| **Object Type** | <code>string</code> | An object type represents a group of similar objects in an object schema.  | 
+| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). |
+| **Value** | <code>string</code> | Value related to Jira field key. |
+| **Object Type** | <code>string</code> | An object type represents a group of similar objects in an object schema.  |
 | **Description** | <code>string</code> | Optional information used to identify a mapping item. |
 | **Required** | <code>boolean</code> | Define if the input information is required before executing the command.
 
@@ -174,18 +174,18 @@ Jira integration endpoints. In case of use of token with a more specific scope, 
 ```sh
 https://yourinstance.atlassian.net/rest/servicedeskapi/request
 ```
-**GET** 
+**GET**
 ```sh
 https://yourinstance.atlassian.net/rest/api/3/issue/{issueKey}/transitions
 ```
-**POST** 
-```sh 
+**POST**
+```sh
 https://yourinstance.atlassian.net/rest/api/3/issue/{issueKey}/transitions
 ```
 
 ### Assets API Permissions
 **GET**
-```sh 
+```sh
 https://api.atlassian.com/jsm/assets/workspace/{workspaceId}/v1/object/aql
 ```
 **GET**
