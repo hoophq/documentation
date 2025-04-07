@@ -45,7 +45,7 @@ Create a new Database connection in hoop's web panel.
 
 You can access it through hoop CLI or hoop web panel.
 
-### hoop CLI
+### Hoop CLI
 
 ```bash
 hoop connect <connection-name>
@@ -80,4 +80,20 @@ Users can manually switch to the primary server after connecting to a secondary 
 
 ```sh
 > db.getMongo().setReadPref('primary')
+```
+
+### Syntax Error Issues
+
+The one-off execution uses the `mongo` utility as a client to execute scripts.
+Since input is provided through stdin, syntax errors may occur for more complex inputs.
+To avoid these issues, use `mongosh` instead.
+
+
+The command below creates a connection and uses `mongosh` as the default client for one off executions:
+
+```sh
+hoop admin create conn mongodemo -a <myagent> --type database/mongodb \
+    -e CONNECTION_STRING=mongodb://user:passwd@127.0.0.1:27017 \
+    -- \
+    mongosh --quiet '$CONNECTION_STRING'
 ```
