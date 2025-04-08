@@ -1,12 +1,11 @@
 ---
-title: 'API Key Usage'
+title: 'API Key'
 description: 'Learn how the API Key feature works and how to use it'
 ---
 
 ## Pre-requisites
 
- - Self-host your Hoop Gateway. Our managed instance does not support this feature.
- - Have an API Key configured in your environment variables in the following format: `<org-id>|<random-string>`
+- Self-host your Hoop Gateway. Our managed instance does not support this feature.
 
 ## Setup
 
@@ -24,6 +23,11 @@ Example:
 ```sh
 API_KEY='d9fe7aa1-b0a2-48d9-bde1-4ee759481b61|Vu0nc2nUwv8aCRhfOGspC84nUkDOvF0='
 ```
+
+<Info>
+    The organization ID is only available after you deploy the gateway.
+    You'll need to obtain this ID and then redeploy the instance with the API_KEY attribute set.
+</Info>
 
 ## How it works
 

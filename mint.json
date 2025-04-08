@@ -190,7 +190,7 @@
         {
           "group": "APIs and Integration",
           "pages": [
-            "setup/apis/api-key-usage",
+            "setup/apis/api-key",
             "setup/apis/webhooks-siem"
           ]
         },
