@@ -96,3 +96,84 @@ Hoop provides the definition of each event that is sent. To access these definit
 ## Consuming Webhooks
 
 As Svix serves as our webhook service provider, it's recommended to refer to their [documentation](https://docs.svix.com/receiving/introduction) for guidelines and best practices for the secure verification and consumption of webhooks.
+
+## Svix Self Hosted
+
+For self-hosted installations, you must interact directly with Svix using either the Svix CLI or the API.
+For your convenience, we offer experimental endpoints that allow you to manage Svix's main resources.
+
+The Hoop command line tool integrates with these resources to provide proper Svix management capabilities.
+
+### Event Types
+
+Hoop may send the following events depending how users are interacting with the system
+
+| Event Name                   | Description |
+| ---------------------------- | ----------- |
+| dbroles.job.finished         | Run when the provisioning of a database user role finishes (aws connect feature) |
+| microsoftteams.review.create | Run when a review is created |
+| session.open                 | Run when a session is open and / or review created |
+| session.close                | Run when a session finishes |
+
+Event types can be configured to route specific events to designated endpoints.
+To manage event types in a self-hosted installation, use the following command line syntax to create them:
+
+```sh
+hoop admin create svixeventtype session.open --description 'Is sent when a session or review is created'
+hoop admin create svixeventtype session.close --description 'Is sent when a session finishes'
+hoop admin create svixeventtype dbroles.job.finished  --description 'Is when the provisioning of a database user role finishes'
+```
+
+### Endpoints
+
+Endpoints allow to configure how to receive webhook messages.
+
+```sh
+hoop admin create svixendpoint --description 'My main endpoint' --url https://play.svix.com/in/e_f1q1l3Dk8HzjA2bcWA7E6CeyMuL/
+```
+
+The example below will only send messages `session.open` and `session.close` event types.
+
+<Tip>
+  The `--overwrite` will update an endpoint
+</Tip>
+
+```sh
+hoop admin create svixendpoint ep_<endpoint_id> \
+  --overwrite \
+  --filters session.open,session.close \
+  --description 'My main endpoint' \
+  --url https://play.svix.com/in/e_f1q1l3Dk8HzjA2bcWA7E6CeyMuL/
+```
+
+To list the endpoints and usage statistics about each endpoint:
+
+```sh
+hoop admin get svixendpoint
+```
+
+```
+ID           DESCRIPTION         DISABLED   VERSION   FAIL   PENDING   SENDING   SUCCESS   FILTERS        AGE
+ep_2vY7...   My main endpoint    false      1         0      0         0         3         session.open   46m ago
+```
+
+### Messages
+
+To list message delivery attempts and troubleshoot webhook transmission issues, use the command below:
+
+```sh
+hoop admin get svixmsg
+```
+
+```
+ID           ATTEMPTID       TRIGGER     STATUS    STATUSCODE   AGE
+msg_2vY...   atmpt_2vY7...   scheduled   success   204          45m ago
+msg_2vY...   atmpt_2vY7...   scheduled   success   204          46m ago
+msg_2vY...   atmpt_2vY7...   scheduled   success   204          46m ago
+```
+
+In case of multiple endpoints the `endpoint_id` query string is required
+
+```sh
+hoop admin get svixmsg -q endpoint_id=ep_2vY... -q limit=100
+```
