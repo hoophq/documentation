@@ -33,22 +33,54 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
     The _userinfo value is removed when used to exchange information with the identity provider.
     </Info>
   </Step>
-  <Step title="Configure Groups Claims">
-  - Go to `Security > API > {authorization server} > Claims`
-  - Add `https://app.hoop.dev/groups` in the ID Token
-  <Info>
-  If the above instructions are not applicable to your Okta setup, configure it by adding a group claim to the organization's authorization server. Refer to [this documentation](https://developer.okta.com/docs/guides/customize-tokens-groups-claim/main/#add-a-groups-claim-for-the-org-authorization-server).
-  </Info>
-  </Step>
 </Steps>
 
-## Known Issues
+## Configuring Groups
 
-### User groups are not synchronized no groups are assigned
+Explains how to configure groups claim to propagate when users sign in.
 
-When a user is not assigned to any group, Hoop will not synchronize the group information for that user.
-This issue occurs because Hoop only synchronizes users who have the groups claim.
-However, if a user does not belong to any group, this information is not propagated.
+<Info>
+  Refer to [Okta's Documentation](https://developer.okta.com/docs/guides/customize-tokens-groups-claim/main/#add-a-groups-claim-for-the-org-authorization-server) for more information.
+</Info>
 
-To prevent this issue, ensure that every user is associated with a default group.
-This will help avoid synchronization problems in your installation.
+<Steps titleSize="h3">
+  <Step title="Add Groups Claims">
+    - Go to `Security > API > {authorization server} > Claims`
+    - Click on `Add Claims` button
+
+    Add the `groups` claim for the ID Token to any scope (image below)
+
+    <Frame>
+      <img src="/images/configure/identity-providers/add-claim-groups-okta.png" />
+    </Frame>
+
+  </Step>
+  <Step title="Token Preview Test">
+    This step validate if the configuration is returning the `groups` claim properly
+
+    - Go to `Token Preview` tab
+    - Select the Hoop Application
+    - Select the Grant Type as `Authorization Code`
+    - Select a user associated with this application
+    - Add the scope `openid`
+
+    The payload must appear with a claim named `groups` containing the groups associated with your application (image below)
+
+    <Frame>
+      <img src="/images/configure/identity-providers/okta-token-preview-test.png" />
+    </Frame>
+
+    <Warning>
+      Please note that the `groups` claim **will not be present when a user has no group assignments**.
+      Hoop synchronizes group information only when this attribute is configured.
+      To prevent potential issues, ensure each user is assigned to at least one default group.
+    </Warning>
+
+  </Step>
+
+  <Step title="Configure Hoop Gateway">
+    The Hoop gateway requires proper configuration to correctly map claim names for synchronization.
+    For detailed instructions, please consult the `IDP_URI` configuration section in our [OAuth2/OIDC Authentication Documentation](/setup/configuration/env-vars)
+  </Step>
+
+</Steps>
