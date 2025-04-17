@@ -26,29 +26,12 @@ description: 'Describe how to configure the Hoop Gateway via environment variabl
 
     | Environment       | Description   |
     | ----------------- | ------------- |
-    | IDP_ISSUER        | Identity Provider Issuer URL (Oauth2) |
+    | IDP_ISSUER        | Identity Provider Issuer URL (Oauth2). Passing `_userinfo=1` as query string, it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo).  |
     | IDP_CLIENT_ID     | Oauth2 Client ID. |
     | IDP_CLIENT_SECRET | Oauth2 Client Secret. |
     | IDP_CUSTOM_SCOPES | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
-
-    ### **Using `IDP_URI`**
-
-    <Note>
-      This configuration takes precedence over `IDP_ISSUER`, `IDP_CLIENT_ID`, `IDP_CLIENT_SECRET` and `IDP_CUSTOM_SCOPES`.
-    </Note>
-
-    | Environment  | Description   |
-    | ------------ | ------------- |
-    | IDP_URI      | OIDC & Oauth2 configuration in URI format: `<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>` |
-
-    The `<options>` could be used for further configuration by passing them as query strings.
-
-    | Option     | Description |
-    | --------------- |-------------
-    | scopes | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
-    | groupsclaim | Specifies the claim identifier used to configure group propagation. If not explicitly set, the system defaults to `https://app.hoop.dev/groups` |
-    | _userinfo | When this option is set to 1, it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo). |
-
+    | IDP_AUDIENCE      | Identity Provider Audience (Oauth2) |
+    | IDP_GROUPS_CLAIM  | Specifies the claim identifier used to configure group propagation. If not explicitly set, the system defaults to `https://app.hoop.dev/groups` |
 
   </Tab>
 </Tabs>
@@ -62,18 +45,15 @@ All fields below are not required but can give you some extra configuration opti
 | ADMIN_USERNAME                      | admin                   | Changes the name of the group to act as the `admin` role |
 | AUDITOR_USERNAME                    | auditor                 | Changes the name of the group to act as the `auditor` role |
 | API_KEY                             |                         | When this environment is set, it enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
-| ASK_AI_CREDENTIALS                  |                         | The ChatGPT credentials in URL format: `<scheme>://_:<apikey>@<api-host>` |
 | DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
 | DISABLE_SESSIONS_DOWNLOAD           | false                   | Control if the download session is disabled or not |
 | GIN_MODE                            | release                 | Turn on (debug) logging of routes |
 | GOOGLE_APPLICATION_CREDENTIALS_JSON |                         | GCP DLP credentials |
 | GRPC_URL                            | `grpc://127.0.0.1:8010` | The gRPC URL to advertise to clients. |
-| IDP_AUDIENCE                        |                         | Identity Provider Audience (Oauth2) |
 | LOG_ENCODING                        | json                    | The encoding of output logs (console) |
 | LOG_GRPC                            |                         | "1" enables logging gRPC protocol |
 | LOG_LEVEL                           | info                    | The verbosity of logs (debug,info,warn,error) |
 | SSH_CLIENT_HOST_KEY                 |                         | The private key host key to use for the local SSH server client  |
-| INTEGRATION_AWS_INSTANCE_ROLE_ALLOW |                         | When this option is set to `true`, it allow to use AWS instance role when interacting with AWS Connect integration |
 | INTEGRATION_AWS_INSTANCE_ROLE_ALLOW |                         | When this option is set to `true`, it allow to use AWS instance role when interacting with AWS Connect integration |
 | MSPRESIDIO_ANALYZER_URL             |                         | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
 | MSPRESIDIO_ANONYMIZER_URL           |                         | Host and port for MS Presidio Anonymizer `<host-to-anonymizer:port>` |

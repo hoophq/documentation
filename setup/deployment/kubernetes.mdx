@@ -346,8 +346,8 @@ Check the [environment variables section](/configure/env-vars) for more informat
       IDP_CLIENT_SECRET: ''
       IDP_ISSUER: ''
       IDP_AUDIENCE: ''
+      IDP_GROUPS_CLAIM: ''
       IDP_CUSTOM_SCOPES: ''
-      IDP_URI: ''
       ASK_AI_CREDENTIALS: ''
       DLP_PROVIDER: 'gcp'
       GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
@@ -403,22 +403,8 @@ Check the [environment variables section](/configure/env-vars) for more informat
       IDP_CLIENT_SECRET: 'client-secret'
       IDP_AUDIENCE: ''
       IDP_CUSTOM_SCOPES: ''
+      IDP_GROUPS_CLAIM: ''
     ```
-
-    - Using `IDP_URI`
-
-    ```yaml
-    config:
-      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
-      API_URL: 'https://hoopdev.yourdomain.tld'
-      IDP_URI: '<scheme>://<client-id>:<client-secret>@<issuer-host>?<options>'
-      IDP_AUDIENCE: ''
-    ```
-
-    <Note>
-      This configuration takes precedence over `IDP_ISSUER`, `IDP_CLIENT_ID`, `IDP_CLIENT_SECRET` and `IDP_CUSTOM_SCOPES`.
-    </Note>
-
   </Tab>
 </Tabs>
 
