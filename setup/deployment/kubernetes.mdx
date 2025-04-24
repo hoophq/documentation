@@ -443,7 +443,7 @@ The ingress configuration establishes these two differing configurations based o
         ingressApi:
           enabled: true
           # the public DNS name
-          host: 'hoop.yourdomain.tld'
+          host: 'hoopgateway.yourdomain.tld'
           # the ingress class, in this case alb
           ingressClassName: 'alb'
           annotations:
@@ -482,6 +482,8 @@ The ingress configuration establishes these two differing configurations based o
     </Steps>
   </Tab>
   <Tab title="Nginx Ingress Controller">
+      The Nginx Ingress Controller is an Ingress controller for Kubernetes using NGINX as a reverse proxy and load balancer.
+
     <Steps>
       <Step title="Deploy Nginx Ingress Controller">
         - https://kubernetes.github.io/ingress-nginx/deploy/
@@ -493,11 +495,11 @@ The ingress configuration establishes these two differing configurations based o
         ```yaml
         ingressApi:
           enabled: true
-          host: hoop.yourdomain.tld
+          host: hoopgateway.yourdomain.tld
           ingressClassName: 'nginx'
           tls:
           - hosts:
-              - hoop.yourdomain.tld
+              - hoopgateway.yourdomain.tld
             secretName: hoopserver-tls
 
         ingressGrpc:
@@ -585,12 +587,6 @@ The ingress configuration establishes these two differing configurations based o
             ```sh
             openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
                 -CAcreateserial -out server.crt -days 730 -sha256 -extfile server.v3.ext
-            ```
-
-            - Generate a bundle with the Root CA
-
-            ```sh
-            cat server.crt ca.crt > bundle.crt
             ```
 
             <Note>
