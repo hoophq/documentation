@@ -424,73 +424,422 @@ persistence:
 
 ### Ingress Configuration
 
-This section covers the ingress configuration. The gateway requires exposing the ports **HTTP/8009** and **HTTP2/8010.** The ingress configuration establishes these two differing configurations based on the [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) in use.
+This section covers the ingress configuration. The gateway requires exposing the ports **HTTP/8009** and **HTTP2/8010.**
+The ingress configuration establishes these two differing configurations based on the [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) in use.
 
-Below is an example of how to configure the ingress using the [application load balancer controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v1.1/) from AWS.
+<Tabs>
+  <Tab title="AWS ALB">
+
+    AWS Load Balancer Controller is a controller to help manage Elastic Load Balancers for a Kubernetes cluster.
+
+    <Steps>
+      <Step title="Deploy the AWS Load Balancer Controller">
+        - https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
+      </Step>
+      <Step title="Ingress Configuration">
+
+        ```yaml
+        # HTTP/8009 - API / WebApp
+        ingressApi:
+          enabled: true
+          # the public DNS name
+          host: 'hoop.yourdomain.tld'
+          # the ingress class, in this case alb
+          ingressClassName: 'alb'
+          annotations:
+            # uses the ACM service to use a valid public certificate issued by AWS
+            alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
+            # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
+            alb.ingress.kubernetes.io/group.name: 'hoopdev'
+            alb.ingress.kubernetes.io/healthcheck-path: '/'
+            alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
+            alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+            alb.ingress.kubernetes.io/scheme: 'internet-facing'
+            alb.ingress.kubernetes.io/ssl-redirect: '443'
+            alb.ingress.kubernetes.io/target-type: 'ip'
+
+        # HTTP/8010 - gRPC Service
+        ingressGrpc:
+          enabled: true
+          # the public DNS name
+          host: 'hoopdev.yourdomain.tld'
+          # the ingress class, in this case alb
+          ingressClassName: 'alb'
+          annotations:
+            # configures the type of the protocol
+            alb.ingress.kubernetes.io/backend-protocol-version: 'GRPC'
+            # the certificate could be reused for the same protocol
+            alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
+            # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
+            alb.ingress.kubernetes.io/group.name: 'hoopdev'
+            alb.ingress.kubernetes.io/healthcheck-path: '/'
+            alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
+            alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 8443}]'
+            alb.ingress.kubernetes.io/scheme: 'internet-facing'
+            alb.ingress.kubernetes.io/target-type: 'ip'
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Nginx Ingress Controller">
+    <Steps>
+      <Step title="Deploy Nginx Ingress Controller">
+        - https://kubernetes.github.io/ingress-nginx/deploy/
+      </Step>
+      <Step title="Ingress Configuration">
+
+        - TLS Termination on Nginx
+
+        ```yaml
+        ingressApi:
+          enabled: true
+          host: hoop.yourdomain.tld
+          ingressClassName: 'nginx'
+          tls:
+          - hosts:
+              - hoop.yourdomain.tld
+            secretName: hoopserver-tls
+
+        ingressGrpc:
+          enabled: true
+          host: "hoop-grpc.yourdomain.tld"
+          annotations:
+            nginx.ingress.kubernetes.io/backend-protocol: GRPC
+            nginx.ingress.kubernetes.io/proxy-body-size: '0'
+          tls:
+          - hosts:
+              - hoop-grpc.yourdomain.tld
+            secretName: hoopserver-tls
+        ```
+
+        <Note>
+          This setup requires deploying a network load balancer (Layer 4) in your cloud provider.
+        </Note>
+      </Step>
+    </Steps>
+
+  </Tab>
+  <Tab title="GCP Classic ALB">
+    The external Application Load Balancer is a proxy-based Layer 7 load balancer that enables you to run and scale your services behind a single external IP address.
+    [See the Architecture Overview](https://cloud.google.com/load-balancing/docs/https).
+
+    <Note>
+      The Classic ALB doesn't support establishing HTTP/2 connections with the Hoop Gateway without TLS.
+      To accommodate this requirement, TLS certificates must be configured both on the ALB and within the Hoop Gateway
+      to establish secure communication between these components.
+    </Note>
+
+    <Steps>
+      <Step title="Deploy GKE Cluster">
+        - Deploy GKE Cluster by following the [GKE Quick Start guide](https://cloud.google.com/kubernetes-engine/docs/quickstarts/create-cluster)
+        - Obtain access to [your cluster via kubectl](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl)
+      </Step>
+      <Step title="Export your domain name">
+        ```sh
+        export DOMAIN_HOSTNAME=hoopgateway.yourdomain.tld
+        ```
+      </Step>
+      <Step title="Setup Certificates">
+        <AccordionGroup>
+          <Accordion title="Generate self signed certificates">
+
+            <Note>
+              This step is not necessary if you already have certificates issued by a known entity.
+            </Note>
+
+            - Create the CA private key
+
+            ```sh
+            mkdir -p /tmp/hoopdemo && cd /tmp/hoopdemo
+            openssl genrsa -aes256 -out ca.key 2048
+            ```
+
+            - Create the Root Certificate Authority (CA)
+
+            ```sh
+            openssl req -x509 -new -nodes -key ca.key -sha256 -days 1826 -out ca.crt -subj '/CN=Hoop Root CA'
+            ```
+
+            - Creating the Certificate Signing Request (CSR)
+
+            ```sh
+            openssl req -new -nodes -out server.csr -newkey rsa:2048 -keyout server.key -subj '/CN=HoopGateway'
+            ```
+
+            - Sign the Certificate
+
+            ```sh
+            # create a v3 ext file for SAN properties
+            cat > server.v3.ext << EOF
+            authorityKeyIdentifier=keyid,issuer
+            basicConstraints=CA:FALSE
+            keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+            subjectAltName = @alt_names
+            [alt_names]
+            DNS.1 = $DOMAIN_HOSTNAME
+            DNS.2 = grpc-$DOMAIN_HOSTNAME
+            IP.1 = 127.0.0.1
+            EOF
+            ```
+
+            ```sh
+            openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+                -CAcreateserial -out server.crt -days 730 -sha256 -extfile server.v3.ext
+            ```
+
+            - Generate a bundle with the Root CA
+
+            ```sh
+            cat server.crt ca.crt > bundle.crt
+            ```
+
+            <Note>
+              Make sure to install the Root Certificate Authority in your browser/system
+              to be able to visit the Web App. The browser won't allow access due to HSTS policy.
+
+              This step is not necessary when using certificates issued by a known entity.
+            </Note>
+          </Accordion>
+        </AccordionGroup>
+
+        - Export the certificates for setting up the helm chart
+
+        ```sh
+        export TLS_CA="base64://$(cat ca.crt | base64)"
+        export TLS_KEY="base64://$(cat server.key | base64)"
+        export TLS_CERT="base64://$(cat server.crt | base64)"
+        ```
+
+        <Note>
+          The format `base64://<inline-certificate-content>` allows configuring inline TLS to Hoop Gateway.
+        </Note>
+
+        - Upload them into GCP
+
+        ```sh
+        gcloud compute ssl-certificates create hoopserver \
+          --certificate=server.crt \
+          --private-key=server.key
+        ```
+
+        <Tip>
+          We recommend using a valid certificates for production workloads.
+        </Tip>
+
+      </Step>
+      <Step title="Configure DNS and create static Global IP Addresses">
+
+        - Create the ip addresses of the load balancer
+
+        ```sh
+        gcloud compute addresses create hoopgateway-grpc --global
+        gcloud compute addresses create hoopgateway-http --global
+        ```
+
+        - Associate the ip address to the proper domains in your DNS provider
+
+        | Public DNS    | IP Address |
+        | ---------------- | ------- |
+        | `$DOMAIN_HOSTNAME`   | `<hoopgateway-http-ip-address>` |
+        | `grpc-$DOMAIN_HOSTNAME`   | `<hoopgateway-grpc-ip-address>` |
+
+      </Step>
+      <Step title="Deploy the Hoop Gateway">
+        - Create a namespace
+
+        ```sh
+        kubectl create ns hoopdemo
+        ```
+
+        <AccordionGroup>
+          <Accordion title="Deploy a Postgres Server">
+
+            - Generate Specification
+
+            ```sh
+            cat - > /tmp/hoopdemo/postgres-spec.yaml <<EOF
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: postgres
+            spec:
+              replicas: 1
+              selector:
+                matchLabels:
+                  app: postgres
+              strategy:
+                type: Recreate
+              template:
+                metadata:
+                  labels:
+                    app: postgres
+                spec:
+                  containers:
+                  - env:
+                    - name: POSTGRES_USER
+                      value: root
+                    - name: POSTGRES_PASSWORD
+                      value: 1a2b3c4d
+                    - name: POSTGRES_DB
+                      value: hoopdb
+                    image: postgres
+                    name: postgres
+                    ports:
+                    - containerPort: 5432
+                      name: pg
+                      protocol: TCP
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: postgres
+            spec:
+              ports:
+              - name: postgres
+                port: 5432
+                protocol: TCP
+                targetPort: 5432
+              selector:
+                app: postgres
+            EOF
+            ```
+
+            - Deploy it
+
+            ```sh
+            kubectl apply -n hoopdemo -f /tmp/hoopdemo/postgres-spec.yaml
+            ```
+
+          </Accordion>
+        </AccordionGroup>
+
+        <AccordionGroup>
+          <Accordion title="Deploy the Hoop Gateway">
+
+            - Generate Helm values.yaml
+
+            ```sh
+            JWT_SECRET_KEY=$(openssl rand 64 | base64)
+            ```
+
+            ```sh
+            cat - > /tmp/hoopdemo/values.yaml <<EOF
+            config:
+              POSTGRES_DB_URI: 'postgres://root:1a2b3c4d@postgres:5432/hoopdb?sslmode=disable'
+              API_URL: "https://$DOMAIN_HOSTNAME"
+              GRPC_URL: "grpcs://grpc-$DOMAIN_HOSTNAME:443"
+              JWT_SECRET_KEY: "$JWT_SECRET_KEY"
+
+            defaultAgent:
+              enabled: true
+              grpcHost: grpc-$DOMAIN_HOSTNAME:443
+
+            mainService:
+              annotations:
+                beta.cloud.google.com/backend-config: '{"ports": {"http": "hoopgateway-http", "grpc": "hoopgateway-grpc"}}'
+                cloud.google.com/app-protocols: '{"http":"HTTPS", "grpc":"HTTP2"}'
+              httpBackendConfig:
+                healthCheckType: HTTPS
+              grpcBackendConfig:
+                healthCheckType: HTTPS
+                # it avoids clients being dropped for being idle
+                timeoutSec: 259200
+
+            ingressApi:
+              enabled: true
+              host: "$DOMAIN_HOSTNAME"
+              annotations:
+                kubernetes.io/ingress.class: 'gce'
+                ingress.gcp.kubernetes.io/pre-shared-cert: 'hoopserver'
+                kubernetes.io/ingress.global-static-ip-name: 'hoopgateway-http'
+
+            ingressGrpc:
+              enabled: true
+              host: "grpc-$DOMAIN_HOSTNAME"
+              annotations:
+                kubernetes.io/ingress.class: 'gce'
+                ingress.gcp.kubernetes.io/pre-shared-cert: 'hoopserver'
+                kubernetes.io/ingress.global-static-ip-name: 'hoopgateway-grpc'
+            EOF
+            ```
+
+            - Deploy it
+
+            ```sh
+            helm upgrade --install hoop oci://ghcr.io/hoophq/helm-charts/hoop-chart -f values.yaml --namespace hoopdemo \
+              --set config.TLS_CA=$TLS_CA \
+              --set config.TLS_KEY=$TLS_KEY \
+              --set config.TLS_CERT=$TLS_CERT
+            ```
+
+          </Accordion>
+        </AccordionGroup>
+      </Step>
+      <Step title="Access It">
+        - Wait for all resources to be provisioned, the command below will show any pending operations on GCP
+
+        ```sh
+        gcloud compute operations list |grep -v DONE
+        ```
+
+        - Check if the ip addresses are displayed when listing the ingresses
+
+        ```sh
+        kubectl get ing -n hoopdemo
+        ```
+
+        ```
+        NAME               CLASS    HOSTS                   ADDRESS
+        hoopgateway-grpc   <none>   grpc-$DOMAIN_HOSTNAME   XX.X.XX.XXX
+        hoopgateway-web    <none>   $DOMAIN_HOSTNAME        XX.XXX.XXX.X
+        ```
+
+        - Navigate to the Web Application public URL at `https://$DOMAIN_HOSTNAME/login`
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### Service Configuration
+
+The chart allows configuring the main service that exposes the service of the gateway.
 
 ```yaml
-# HTTP/8009 - API / WebApp
-ingressApi:
-  enabled: true
-  # the public DNS name
-  host: 'hoopdev.yourdomain.tld'
-  # the ingress class, in this case alb
-  ingressClassName: 'alb'
+mainService:
   annotations:
-    # uses the ACM service to use a valid public certificate issued by AWS
-    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
-    # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
-    alb.ingress.kubernetes.io/group.name: 'hoopdev'
-    alb.ingress.kubernetes.io/healthcheck-path: '/'
-    alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/scheme: 'internet-facing'
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/target-type: 'ip'
-  # -- TLS section configuration
-  # tls: {}
-
-# HTTP/8010 - gRPC Service
-ingressGrpc:
-  enabled: true
-  # the public DNS name
-  host: 'hoopdev.yourdomain.tld'
-  # the ingress class, in this case alb
-  ingressClassName: 'alb'
-  annotations:
-    # configures the type of the protocol
-    alb.ingress.kubernetes.io/backend-protocol-version: 'GRPC'
-    # the certificate could be reused for the same protocol
-    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
-    # the group name allows resuing the same lb for both protocols (HTTP/gRPC)
-    alb.ingress.kubernetes.io/group.name: 'hoopdev'
-    alb.ingress.kubernetes.io/healthcheck-path: '/'
-    alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 8443}]'
-    alb.ingress.kubernetes.io/scheme: 'internet-facing'
-    alb.ingress.kubernetes.io/target-type: 'ip'
-
-  # -- TLS section configuration
-  # tls: {}
+    beta.cloud.google.com/backend-config: '{"ports": {"http": "hoopgateway-http", "grpc": "hoopgateway-grpc"}}'
+    cloud.google.com/app-protocols: '{"http":"HTTPS", "grpc":"HTTP2"}'
+  httpBackendConfig:
+    healthCheckType: HTTPS
+  grpcBackendConfig:
+    healthCheckType: HTTPS
+    timeoutSec: 259200
 ```
 
-<Info>
-  It is important to note that the gRPC service requires the ability to receive HTTP2 traffic. If there are multiple load balancers in place, it is important to ensure that the underlying proxies allow forwarding this type of protocol.
-</Info>
+- `mainService.annotations` attribute allows adding an annotation mapping. GCP for instance configure aspects of how to configure the load balancer based on this configuration
+- `mainService.httpBackendConfig`: It creates the `hoopgateway-http` Backend Config resource when this attribute is set. It could be referenced using the annotation `beta.cloud.google.com/backend-config`
+  - `healthCheckType`: The protocol used by probe systems for health checking. The BackendConfig only supports creating health checks using the HTTP, HTTPS, or HTTP2
+  - `timeoutSec`: The amount of time in seconds that Google Cloud waits for a response to a probe.
+- `mainService.grpcBackendConfig`: It creates the `hoopgateway-grpc` Backend Config resource when this attribute is set. It could be referenced using the annotation `beta.cloud.google.com/backend-config`
+  - `healthCheckType`: The protocol used by probe systems for health checking. The BackendConfig only supports creating health checks using the HTTP, HTTPS, or HTTP2
+  - `timeoutSec`: The amount of time in seconds that Google Cloud waits for a response to a probe.
+
+For more information of how to configure these resources, refer to the [GCP Ingress Configuration Reference](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-configuration#associating_backendconfig_with_your_ingress).
 
 ### Computing Resources
 
-The helm-chart defaults to 1vCPU and 1GB, which is suitable for evaluation purposes only. For production setups, we recommend allocating at least 4GB/4vCPU to the gateway process.
+The helm-chart defaults to 1vCPU and 1GB, which is suitable for evaluation purposes only.
+For production setups, we recommend allocating at least 8GB/4vCPU to the gateway process.
 
 ```yaml
 resources:
   gw:
     limits:
       cpu: 4096m
-      memory: 4Gi
+      memory: 8Gi
     requests:
       cpu: 4096m
-      memory: 4Gi
+      memory: 8Gi
 ```
 
 ### Image Configuration
@@ -512,7 +861,16 @@ Adding this section will deploy a default agent as a sidecar container.
 ```yaml
 defaultAgent:
   enabled: true
+  imageRepository: 'hoophq/hoopdev'
+  imageTag: latest
+  imagePullPolicy: Always
+  grpcHost: 127.0.0.1:8009
 ```
+
+<Note>
+  The `grpcHost` allows configuring the host to connect when starting the agent.
+  In case the gateway has TLS configured (`TLS_CA` env set), the host must match the certificate SAN.
+</Note>
 
 ### Node Selector
 
