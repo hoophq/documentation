@@ -4,46 +4,41 @@ description: "Transform your data management from unstructured to controlled, wi
 ---
 
 <Frame>
-  <img
-    src="/images/learn/features/access-control.png"
-  />
+  <img src="/images/learn/features/access-control.png" alt="Access Control" />
 </Frame>
 
-import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+Hoop.dev's Access Control provides a comprehensive system for managing and controlling access to your infrastructure resources. This feature ensures that your teams have the right level of access to the resources they need while maintaining security and compliance requirements.
 
-<Prerequisites />
+## Key Features
 
-## Set-up Access Control
+### Role-Based Access Control (RBAC)
+- Granular permission management for resources
+- Flexible role assignments and group management
+- Hierarchical access structure for organized control
 
-<Steps>
-  <Step title="Navigate to Access Control settings">
-    Find the access control section in the left sidebar and click on it.
-    <Frame>
-      <img src="/images/learn/features/access-control-app.png"/>
-    </Frame>
-  </Step>
-  <Step title="Click Activate">
-    Make sure you are aware of the implications of activating access control to your organization, it will require manual configuration of each connection. After this is activated, users might stop seeing their connections if they don't have the right permissions.
-    <Frame>
-      <img src="/images/learn/features/access-control-confirm.png"/>
-    </Frame>
-  </Step>
-  <Step title="Choose the connections">
-    In this step you will need to manually select and toggle the connections you want to apply access control to. If you don't toggle a connection, it won't apply the role groups and users might stop seeing them.
-    <Frame>
-      <img src="/images/learn/features/access-control-activated.png"/>
-    </Frame>
-  </Step>
-  <Step title="Finally, select the groups">
-    Find the groups you want to give access to each connection
-    <Frame>
-      <img src="/images/learn/features/access-control-add-groups.png"/>
-    </Frame>
-  </Step>
-</Steps>
+### Connection-Level Permissions
+- Fine-grained control over individual connections
+- Customizable access levels per connection
+- Group-based access management
 
-{/* ## Configuration
-For detailed configuration instructions and setup guides, see [Access Control Configuration](/setup/configuration/access-control-configuration) guide. */}
-{/* To begin using AI Data Masking, simply enable the feature for your desired connections and Hoop.dev will handle the rest, providing seamless and automatic data protection with most commonly used fields by default. 
+### Dynamic Access Management
+- Real-time access updates and modifications
+- Seamless integration with identity providers
+- Quick onboarding and offboarding processes
 
-For a more customizable experience, you can add or remove fields to tailor the masking to your specific needs. Please refer to [Supported Fields](/setup/configuration/ai-data-masking/fields) page for more detailed information.  */}
+## Benefits
+
+- **Enhanced Security**: Ensure users only access resources they're authorized to use
+- **Simplified Management**: Streamline access management through groups and roles
+- **Compliance Ready**: Meet regulatory requirements with detailed access controls
+- **Operational Efficiency**: Reduce administrative overhead with group-based management
+
+## Integration with Other Features
+
+Access Control works seamlessly with other Hoop.dev features:
+- **Guardrails**: Enhanced protection through combined access policies
+- **Session Recording**: Complete audit trail of access events
+- **AI Data Masking**: Layered security for sensitive data access
+
+## Configuration
+For detailed configuration instructions, see [Access Control Configuration](/setup/configuration/access-control-configuration) page.

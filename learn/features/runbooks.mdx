@@ -1,20 +1,48 @@
 ---
 title: "Runbooks"
+description: "Automate operational tasks with reusable, auditable templates"
 ---
 
-Runbooks are a way to automate tasks in your organization. You can create templates that will be run against a connection runtime. Those templates are obtained from a git server source provided by you.
-
 <Frame>
-  <img
-    src="/images/learn/features/runbooks.png"
-  />
+  <img src="/images/learn/features/runbooks.png" alt="Runbooks" />
 </Frame>
 
-## How it works
+Hoop.dev's Runbooks enable your organization to automate operational tasks using reusable, version-controlled templates. By leveraging templates sourced from your own git repositories, teams can execute complex workflows with consistency, auditability, and minimal manual intervention.
 
-A Runbook allows you to create templates that will be run against a connection runtime. Those templates are obtained from a git server source.
+## Key Features
 
-``` sql
+### Template-Driven Automation
+- Create and manage runbook templates in your own git repositories
+- Standardize operational tasks across teams and environments
+- Version control for all automation logic
+
+### Dynamic Input Handling
+- Define required and optional parameters for each runbook
+- Input validation and descriptions for guided execution
+- Support for default values and type enforcement
+
+### Secure, Auditable Execution
+- Runbooks execute against secure connection runtimes
+- Full audit trail of every runbook execution
+- Integrates with access controls and session recording for compliance
+
+## Benefits
+
+- **Reduced Manual Effort**: Automate repetitive or complex tasks, freeing up valuable engineering time
+- **Consistency**: Ensure tasks are performed the same way every time, reducing human error
+- **Compliance**: Maintain a clear record of what was run, by whom, and with what parameters
+- **Visibility**: Gain insights into runbook usage and execution history
+
+## Integration with Other Features
+
+Runbooks work seamlessly with other Hoop.dev features:
+- **Session Recording**: Every runbook execution can be recorded for full auditability
+- **Access Control**: Restrict who can run or modify runbooks based on roles and permissions
+- **Guardrails**: Enforce policies and prevent risky operations within runbook executions
+
+## Example
+
+```sql
 SELECT customerid, firstname, lastname, gender, country, phone, email, income
 FROM customers
 WHERE customerid = {{ .customer_id
@@ -39,7 +67,6 @@ The runbook above generates two inputs:
     - required: false
     - default-value: US
     - description: the country code US; BR, etc
-
 
 ## Configuration
 For detailed configuration instructions see [Runbooks Configuration](/setup/configuration/runbooks-configuration) page.
