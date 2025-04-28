@@ -1,64 +1,92 @@
 ---
 title: "Jira"
-description: "Streamline change management and security workflows by automatically creating and tracking Jira tickets for infrastructure access requests."
+description: "Automate change management and security workflows by integrating Jira with your infrastructure access requests."
 ---
-
-Transform your infrastructure access requests into automated Jira workflows. This integration helps teams:
-- Maintain compliance with automatic change management tracking
-- Reduce manual documentation work
-- Keep security and development teams in sync
-- Create audit trails automatically
 
 <Frame>
   <img src="/images/integrations/jira-1.png" />
 </Frame>
 
-## Prerequisites
-To get the most out of this guide, you will need to:
+Hoop.dev's Jira integration transforms infrastructure access requests into automated Jira workflows, streamlining change management and security processes for your organization.
 
-- Either [create an account in our managed instance](https://use.hoop.dev) or [deploy your own hoop.dev instance](/getting-started/installation/overview)
-- You must be your account administrator to perform the following commands
-- Jira Cloud instance with administrator access
+## Key Features
 
-## Quickstart
+### Automated Change Management
+- Automatically create and track Jira tickets for every infrastructure access request
+- Maintain compliance with audit-ready change management records
+- Reduce manual documentation and administrative overhead
+
+### Seamless Workflow Integration
+- Link access requests directly to Jira projects and request types
+- Append contextual information from Hoop.dev sessions to Jira issues
+- Support for custom and preset field mappings
+
+### Flexible User Prompts & Data Collection
+- Request additional information from users during access workflows
+- Map manual or automated data to Jira fields for richer tickets
+
+### CMDB & Asset Management Support
+- Relate access requests to Configuration Management Database (CMDB) objects
+- Automate asset linking and enforce asset-based workflows (requires Jira Assets)
+
+## Benefits
+
+- **Compliance:** Ensure every access request is tracked and auditable
+- **Efficiency:** Eliminate manual ticket creation and reduce operational friction
+- **Security:** Keep security and development teams in sync with real-time updates
+- **Visibility:** Gain a complete audit trail of access and change events
+
+## Integration with Other Features
+
+Jira integration works seamlessly with other Hoop.dev features:
+- **Guardrails:** Enforce policy and track exceptions via Jira
+- **Session Recording:** Link session logs to Jira tickets for full traceability
+- **Access Control:** Automate approvals and reviews through Jira workflows
+
+## Configuration
+
+To get started, enable the Jira integration in the Integrations section of your Hoop.dev instance.  
+For a step-by-step setup and advanced options, see [Advanced Configuration](#advanced-configuration).
+
+---
+
+## Advanced Configuration
+
+### Prerequisites
+
+- A Hoop.dev account (managed or self-hosted)
+- Administrator access in both Hoop.dev and Jira Cloud
+
+### Quickstart
 
 <Steps titleSize="h3">
   <Step title="Enable Jira integration">
-    In the Integrations section (on the main sidebar), go to Jira and enable the integration to configure your credentials. 
-      <Frame>
-        <img src="/images/integrations/jira-2.png" />
-      </Frame>
-      <Info>For more information about these fields check [Jira Integration](#jira-integration) fields.</Info>
+    In the Integrations section (on the main sidebar), go to Jira and enable the integration to configure your credentials.
+    <Frame>
+      <img src="/images/integrations/jira-2.png" />
+    </Frame>
+    <Info>For more information about these fields check [Jira Integration](#jira-integration) fields.</Info>
   </Step>
   <Step title="Create templates">
-  With Jira Integrations enabled your organization has access to Jira Templates on the main sidebar.
-  <Frame>
-    <img src="/images/integrations/jira-3.png" />
-  </Frame>
-
-  To create a Jira Template, fill out the following information:
-
-  **Integration details:** Name, Description, Project Key and Request Type.
-
-  <Info>For more information about how to get Jira information check [Jira Templates](#jira-templates).</Info>
-
-  **Automated Mapping:** Append additional information to you created Jira tickets when executing commands in a connection. 
-
-  <Info>For more information about available hoop.dev fields, check [Automated Mapping](#automated-mapping).</Info>
-
-  **Manual Prompt:** Request additional information from users when executing commands to be appended to created Jira tickets.
-
-  <Info>For more information, check [Manual Prompt](#manual-prompt).</Info>
-
-  **Configuration Management Database (CMDB):** An additional layer of relation between CMDBs and hoop.dev services. This information is optional.
-
+    With Jira Integrations enabled, your organization has access to Jira Templates on the main sidebar.
+    <Frame>
+      <img src="/images/integrations/jira-3.png" />
+    </Frame>
+    To create a Jira Template, fill out the following information:
+    - **Integration details:** Name, Description, Project Key, and Request Type.
+    <Info>For more information about how to get Jira information check [Jira Templates](#jira-templates).</Info>
+    - **Automated Mapping:** Append additional information to created Jira tickets when executing commands in a connection.
+    <Info>For more information about available hoop.dev fields, check [Automated Mapping](#automated-mapping).</Info>
+    - **Manual Prompt:** Request additional information from users when executing commands to be appended to created Jira tickets.
+    <Info>For more information, check [Manual Prompt](#manual-prompt).</Info>
+    - **Configuration Management Database (CMDB):** Optionally relate CMDBs and hoop.dev services.
   </Step>
   <Step title="Adding templates to a connection">
     <Frame>
       <img src="/images/integrations/jira-4.png" />
     </Frame>
-  While creating or configuring a connection, navigate to <code>Advanced Settings</code> section and select a Jira Template.
-  <Info>To keep your default workflow, Review option must be enabled for this connection. Connections without Review enabled will mark Jira tickets as done after executing a command.</Info>
+    While creating or configuring a connection, navigate to <code>Advanced Settings</code> and select a Jira Template.
+    <Info>To keep your default workflow, Review option must be enabled for this connection. Connections without Review enabled will mark Jira tickets as done after executing a command.</Info>
   </Step>
   <Step title="Executing session">
     When a command is executed in a connection with a Jira Template, all configured information is checked (and requested, if needed) and appended to the session while a Jira ticket is created to the workflow.
@@ -67,43 +95,39 @@ To get the most out of this guide, you will need to:
 
 ---
 
-## Jira Integration
+### Jira Integration Fields
 
 #### Jira Instance URL
-##### **url** <code>string</code>
+**url** (`string`)  
 Check [How to find your Jira URL](https://confluence.atlassian.com/jirakb/how-to-find-your-site-url-to-set-up-the-jira-data-center-and-server-mobile-app-954244798.html).
 
 #### User Email
-##### **email** <code>string</code>
-User email of Jira account to be connected with hoop.dev services. It can be found going to <code>Profile and Settings</code> and needs to be the same used for the <code>API Token</code>.
+**email** (`string`)  
+User email of Jira account to be connected with hoop.dev services.  
 <Info>To ensure compatibility we recommend using a Jira admin account.</Info>
 
 #### User API Token
-##### **apiToken** <code>string</code>
+**apiToken** (`string`)  
 Go to <code>Atlassian Account > Security > API Tokens</code> or access [API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens) to manage your API Tokens.
 
-## Jira Templates
+---
+
+### Jira Templates
 
 #### Project Key
-##### **projectKey** <code>string</code>
-The ID of the service desk whose customer request type is to be returned. You can get the ID by checking the URL in a portal ticket.
-
-
-
-This can alternatively be a project identifier (Project Key). For <code>Project Key</code> go to <code>Project settings > Details</code>.
-  <Frame>
-    <img src="/images/integrations/jira-5.png" />
-  </Frame>
+**projectKey** (`string`)  
+The ID or key of the Jira project.  
+<Frame>
+  <img src="/images/integrations/jira-5.png" />
+</Frame>
 <Info>This field is case sensitive, make sure you have the right information.</Info>
 
 #### Request Type
-##### **requestTypeId** <code>string</code>
-The ID of the customer request type to be returned. To find your <code>Request Type ID</code> go to <code>Project settings > Request management > Request type</code> and select the request type.
-
-  <Frame>
-    <img src="/images/integrations/jira-6.png" />
-  </Frame>
-
+**requestTypeId** (`string`)  
+The ID of the customer request type.  
+<Frame>
+  <img src="/images/integrations/jira-6.png" />
+</Frame>
 ```sh
 # the ID is included at the end of the URL
 # 10005: requestTypeId
@@ -112,90 +136,94 @@ https://yourcompany.atlassian.net/jira/servicedesk/projects/PROJ/settings/issuet
 ```
 <Info>This field is case sensitive, make sure you have the right information.</Info>
 
+---
+
 ### Automated Mapping
+
 Appends additional information to Jira cards when executing commands in a connection.
 
-| Field | Values | Usage |
-| --- | --- | --- |
-| **Type** | Preset | Relates hoop.dev fields with Jira fields. |
-| | Custom | Appends a custom key-value relation to Jira cards.|
-| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). |
-| **Value** | <code>string</code> | Value related to Jira field key. |
-| **Description** | <code>string</code> | Optional information used to identify a mapping item. |
+| Field         | Values   | Usage                                                      |
+|---------------|----------|------------------------------------------------------------|
+| **Type**      | Preset   | Relates hoop.dev fields with Jira fields.                  |
+|               | Custom   | Appends a custom key-value relation to Jira cards.         |
+| **Jira Field**| `string` | Jira key used to store appended value (case sensitive).    |
+| **Value**     | `string` | Value related to Jira field key.                           |
+| **Description**|`string` | Optional information used to identify a mapping item.      |
 
+**Preset values include:**  
+Session ID, User Email, User ID, User Name, Connection Type, Connection Name, Connection Tags, Session Status, Session Start Date, Session Type, Session Script
 
-#### Preset values
-- <code>Session ID</code>
-- <code>User Email</code>
-- <code>User ID</code>
-- <code>User Name</code>
-- <code>Connection Type</code>
-- <code>Connection Name</code>
-- <code>Connection Tags</code>
-- <code>Session Status</code>
-- <code>Session Start Date</code>
-- <code>Session Type</code>
-- <code>Session Script</code>
+---
 
 ### Manual Prompt
+
 Requests manual input from users to get additional information when executing commands in a connection.
 
-| Field | Values | Usage |
-| --- | --- | --- |
-| **Label** | <code>string</code> | Text input label presented for users. |
-| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). |
-| **Description** | <code>string</code> | Optional information used to identify a mapping item. |
-| **Required** | <code>boolean</code> | Define if the input information is required before executing the command.
+| Field         | Values   | Usage                                                      |
+|---------------|----------|------------------------------------------------------------|
+| **Label**     | `string` | Text input label presented for users.                      |
+| **Jira Field**| `string` | Jira key used to store appended value (case sensitive).    |
+| **Description**|`string` | Optional information used to identify a mapping item.      |
+| **Required**  | `boolean`| Define if the input information is required before executing the command. |
+
+---
 
 ### Configuration Management Database (CMDB)
-Automates an advanced relation between CMDB files and hoop services.
+
+Automates an advanced relation between CMDB files and hoop services.  
 <Info>If information is not matched with CMDB, required information will be requested to be manually filled by the user before executing the command.</Info>
 
-| Field | Values | Usage |
-| --- | --- | --- |
-| **Label** | <code>string</code> | Text input label presented for users. |
-| **Jira Field** | <code>string</code> | Jira key used to store appended value (case sensitive). |
-| **Value** | <code>string</code> | Value related to Jira field key. |
-| **Object Type** | <code>string</code> | An object type represents a group of similar objects in an object schema.  |
-| **Description** | <code>string</code> | Optional information used to identify a mapping item. |
-| **Required** | <code>boolean</code> | Define if the input information is required before executing the command.
+| Field         | Values   | Usage                                                      |
+|---------------|----------|------------------------------------------------------------|
+| **Label**     | `string` | Text input label presented for users.                      |
+| **Jira Field**| `string` | Jira key used to store appended value (case sensitive).    |
+| **Value**     | `string` | Value related to Jira field key.                           |
+| **Object Type**|`string` | An object type represents a group of similar objects.      |
+| **Description**|`string` | Optional information used to identify a mapping item.      |
+| **Required**  | `boolean`| Define if the input information is required before executing the command. |
 
 <Info>Learn more about [Object Types](https://support.atlassian.com/jira-service-management-cloud/docs/what-are-object-types/)</Info>
 
-## CMDB Configuration
-To learn how to manage your custom CMDB fields, check [Jira Service Management Support](https://support.atlassian.com/jira-service-management-cloud/docs/set-up-the-assets-object-field/).
+#### CMDB Configuration
+To manage your custom CMDB fields, check [Jira Service Management Support](https://support.atlassian.com/jira-service-management-cloud/docs/set-up-the-assets-object-field/).  
 <Info>An Enterprise or Premium account is needed in order to get Jira Assets.</Info>
 
-## API Permissions
-Jira integration endpoints. In case of use of token with a more specific scope, make sure you have access to these endpoints.
+---
 
-### Jira Instance API Permissions
-**POST**
+### API Permissions
+
+Jira integration endpoints. If using a token with a more specific scope, ensure you have access to these endpoints.
+
+#### Jira Instance API Permissions
+**POST**  
 ```sh
 https://yourinstance.atlassian.net/rest/servicedeskapi/request
 ```
-**GET**
+**GET**  
 ```sh
 https://yourinstance.atlassian.net/rest/api/3/issue/{issueKey}/transitions
 ```
-**POST**
+**POST**  
 ```sh
 https://yourinstance.atlassian.net/rest/api/3/issue/{issueKey}/transitions
 ```
 
-### Assets API Permissions
-**GET**
+#### Assets API Permissions
+**GET**  
 ```sh
 https://api.atlassian.com/jsm/assets/workspace/{workspaceId}/v1/object/aql
 ```
-**GET**
+**GET**  
 ```sh
 https://yourinstance.atassian.net/rest/servicedeskapi/assets/workspace
 ```
 
-## Troubleshooting
+---
+
+### Troubleshooting
+
 Common issues and their solutions:
 
-- **Token Issues**: Ensure your API token has the correct permissions
-- **Service Desk ID/Project Key Errors**: Check numbers or case sensitivity and verify if the project exists
-- **Request Type Mismatches**: Confirm the exact request type name in Jira settings
+- **Token Issues:** Ensure your API token has the correct permissions
+- **Service Desk ID/Project Key Errors:** Check numbers or case sensitivity and verify if the project exists
+- **Request Type Mismatches:** Confirm the exact request type name in Jira settings

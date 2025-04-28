@@ -1,0 +1,106 @@
+---
+title: "Access Control Configuration"
+description: "Configure and manage access control policies for your organization's resources"
+---
+
+{/* <Frame>
+  <img src="/images/learn/features/access-control.png" alt="Access Control Configuration" />
+</Frame> */}
+
+Access Control configuration allows you to define and manage who has access to what resources within your organization. This system helps maintain security while ensuring teams can efficiently access the tools they need.
+
+## Getting Started
+
+<Steps>
+  <Step title="Navigate to Access Control settings">
+    Find the access control section in the left sidebar and click on it.
+    <Frame>
+      <img src="/images/learn/features/access-control-app.png" alt="Access Control Navigation"/>
+    </Frame>
+  </Step>
+  
+  <Step title="Click Activate">
+    Make sure you are aware of the implications of activating access control to your organization, it will require manual configuration of each connection. After this is activated, users might stop seeing their connections if they don't have the right permissions.
+    <Frame>
+      <img src="/images/learn/features/access-control-confirm.png" alt="Access Control Activation"/>
+    </Frame>
+  </Step>
+  
+  <Step title="Choose the connections">
+    In this step you will need to manually select and toggle the connections you want to apply access control to. If you don't toggle a connection, it won't apply the role groups and users might stop seeing them.
+    <Frame>
+      <img src="/images/learn/features/access-control-activated.png" alt="Connection Selection"/>
+    </Frame>
+  </Step>
+
+  <Step title="Finally, select the groups">
+    Find the groups you want to give access to each connection
+    <Frame>
+      <img src="/images/learn/features/access-control-add-groups.png" alt="Group Selection"/>
+    </Frame>
+  </Step>
+</Steps>
+
+## Permission Types
+
+### Connection Permissions
+Rules that control access to specific connections:
+
+- **View**: Can see and list connections
+- **Use**: Can connect and execute queries
+- **Manage**: Can modify connection settings
+
+### Administrative Permissions
+Rules that control system-level access:
+
+- **User Management**: Control over user accounts
+- **Group Management**: Ability to create and modify groups
+- **System Configuration**: Access to system settings
+
+
+### Group Management
+<Steps>
+  <Step title="Create Groups">
+    Organize users into logical groups based on roles or teams
+  </Step>
+  
+  <Step title="Assign Permissions">
+    Set appropriate access levels for each group
+  </Step>
+  
+  <Step title="Review Members">
+    Regularly audit group memberships and permissions
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Least Privilege" icon="shield-check">
+    Grant minimum necessary access
+  </Card>
+  
+  <Card title="Regular Audits" icon="clipboard-check">
+    Review access permissions periodically
+  </Card>
+  
+  <Card title="Group-First" icon="users">
+    Prefer group-based over individual permissions
+  </Card>
+  
+  <Card title="Document Policies" icon="file-lines">
+    Maintain clear access policy documentation
+  </Card>
+</CardGroup>
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield" href="/setup/configuration/guardrails-configuration">
+    Learn about security policy configuration
+  </Card>
+  
+  <Card title="Identity Providers" icon="id-card" href="/setup/configuration/idp/get-started">
+    Configure SSO and identity management
+  </Card>
+</CardGroup> 
