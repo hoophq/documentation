@@ -184,6 +184,183 @@ The Webhook provider must be configured to send the message properly. The payloa
     Refer to our [API Reference](/api-reference) for more details about the structure of the `event_payload` attribute.
 </Note>
 
+
+## Runbook Hook
+
+As an alternative to using a Webhook Provider, you can execute a Python script in the final step of the job.
+This functionality enables easier integration with any internal workflow by leveraging Hoop as a hook system for your process.
+
+**Requirements for running this hook:**
+
+- The [Runbook must be enabled with a git repository](/setup/configuration/runbooks-configuration)
+- The specific file path `hoop-hooks/aws-connect-post-exec.runbook.py` must exist in your git repository to trigger the hook
+- Note: Output content (stdout, stderr) is limited to 4096 bytes
+
+Use the script below to print both the request and response objects.
+
+<AccordionGroup>
+    <Accordion title="hoop-hooks/aws-connect-post-exec.runbook.py">
+        ```python
+        import os, sys, time, json
+
+        print('STARTING AWS CONNECT RUNBOOKS HOOK\n')
+
+        request = os.getenv('HOOP_AWS_CONNECT_REQUEST')
+        response = os.getenv('HOOP_AWS_CONNECT_RESPONSE')
+        if len(response) == 0 or len(request) == 0:
+            print('empty request (HOOP_AWS_CONNECT_REQUEST) or response (HOOP_AWS_CONNECT_RESPONSE)')
+            sys.exit(1)
+
+        req = json.loads(request)
+
+        print('REQUEST OBJECT')
+        print('--------------')
+
+        print('request sid: {}'.format(req['sid']))
+        print('request DB ARN: {}'.format(req['resource_id']))
+        print('request database tags: {}'.format(req['database_tags']))
+        print('request database hostname: {}'.format(req['hostname']))
+        print('request database port: {}'.format(req['port']))
+        print('request database master username: {}'.format(req['master_user']))
+        print('request database master password: {}'.format(req['master_password']))
+        print('request vault provider: {}'.format(req['vault_provider']))
+
+        resp = json.loads(response)
+
+        print('\nRESPONSE OBJECT')
+        print('--------------')
+        print('response status: {}'.format(resp['status']))
+        print('response message: {}'.format(resp['message']))
+
+        print('\nROLES PROVISIONING RESULT')
+        print('--------------')
+        result = resp['result'] or []
+        for r in result:
+            cred = r['db_credentials'] or {}
+            print('  status ->', r['status'])
+            print('  message ->', r['message'])
+            print('  completed_at ->', r['completed_at'])
+            print('  role_suffix_name ->', r['role_suffix_name'])
+            print('  credentials role user ->', cred['user'])
+            print('  credentials role password ->', cred['password'])
+            print('  credentials secrets manager provider ->', cred['secrets_manager_provider'])
+            print('  ---')
+        ```
+    </Accordion>
+</AccordionGroup>
+
+
+
+### Runbook Inputs
+
+The request and response objects are available as environment variables in JSON
+
+<AccordionGroup>
+    <Accordion title="Request Object">
+        - Environment Variable `HOOP_AWS_CONNECT_REQUEST`
+
+        ```json
+        {
+            "org_id": "bb5960f1-37ec-438e-93e0-2547ee4cf6cb",
+            "sid": "cd2fe668-2f83-4798-a0ed-41688e1891e9",
+            "resource_id": "arn:aws:rds:us-west-2:200070128927:db:pgtest1",
+            "hostname": "pgtest1.sakjksqiwuqijs.us-west-2.rds.amazonaws.com",
+            "port": "5432",
+            "master_user": "<master-user>",
+            "master_password": "<master-pwd>",
+            "database_type": "postgres",
+            "database_tags": [
+                {
+                    "owner": "someone@mycorp.com"
+                },
+                {
+                    "cto_email": "cto@mycorp.com"
+                },
+                {
+                    "bu": "banking"
+                }
+            ],
+            "vault_provider": {"secret_id": "<id>"},
+        }
+        ```
+    </Accordion>
+    <Accordion title="Response Object">
+        - Environment Variable `HOOP_AWS_CONNECT_REQUEST`
+
+        ```json
+        {
+            "sid": "cd2fe668-2f83-4798-a0ed-41688e1891e9",
+            "status": "failed|completed",
+            "message": "One or more user roles failed to be provisioned",
+            "result": [
+                {
+                    "db_credentials": {
+                        "host": "pgtest1.sakjksqiwuqijs.us-west-2.rds.amazonaws.com",
+                        "port": "5432",
+                        "user": "hoop_ro",
+                        "password": "PlwL0YAlv6S*N5AnQZPLwCYru",
+                        "default_database": "postgres",
+                        "options": {},
+                        "secrets_manager_provider": "database",
+                        "secret_id": "",
+                        "secret_keys": []
+                    },
+                    "role_suffix_name": "ro",
+                    "status": "completed",
+                    "message": "",
+                    "completed_at": "2025-04-28T15:26:31.019387233Z"
+                },
+                {
+                    "db_credentials": {
+                        "host": "pgtest1.sakjksqiwuqijs.us-west-2.rds.amazonaws.com",
+                        "port": "5432",
+                        "user": "hoop_rw",
+                        "password": "rO*gDmye3s20P80CjTdMrRsLZ",
+                        "default_database": "postgres",
+                        "options": {},
+                        "secrets_manager_provider": "database",
+                        "secret_id": "",
+                        "secret_keys": []
+                    },
+                    "role_suffix_name": "rw",
+                    "status": "completed",
+                    "message": "",
+                    "completed_at": "2025-04-28T15:26:35.148832227Z"
+                },
+                {
+                    "db_credentials": null,
+                    "role_suffix_name": "",
+                    "status": "failed",
+                    "message": "dial tcp: lookup pgtest1.sakjksqiwuqijs.us-west-2.rds.amazonaws.com on 192.168.5.2:53: no such host",
+                    "completed_at": "2025-04-28T15:26:39.201632951Z"
+                }
+            ]
+        }
+        ```
+    </Accordion>
+</AccordionGroup>
+
+
+Example of how to parse it in python as a dictionary:
+
+```python
+import json, os
+
+requestJson = os.getenv('HOOP_AWS_CONNECT_REQUEST')
+responseJson = os.getenv('HOOP_AWS_CONNECT_RESPONSE')
+
+request = json.loads(requestJson)
+response = json.loads(responseJson)
+
+print('request db arn: ', request['resource_id'])
+print('response status: ', response['status'])
+```
+
+<Warning>
+    Be careful when printing any sensitive information.
+    The content will be available for inspection in the API for adminstrator users.
+</Warning>
+
 ## Vault Secrets Manager
 
 This integration enables you to delegate the management of secrets to HashiCorp Vault, a robust secrets management solution.
