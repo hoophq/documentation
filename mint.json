@@ -168,6 +168,7 @@
                 "setup/configuration/reviews/jit-reviews-configuration"
               ]
             },
+            "setup/configuration/access-control-configuration",
             "setup/configuration/guardrails-configuration",
             "setup/configuration/runbooks-configuration",
             "setup/configuration/secrets-manager-configuration",
