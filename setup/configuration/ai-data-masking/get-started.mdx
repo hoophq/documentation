@@ -24,7 +24,7 @@ description: "Set up and know better about hoop.dev's AI Data Masking"
 
 You can either use Google Cloud Data Loss Prevention hosted by Google on GCP, or Microsoft Presidio, an open-source project that you can host yourself.
 
-### Google Cloud Data Loss Prevention
+### Google Cloud Data Loss Prevention (DLP)
 
 <Info>
   You must be on an enterprise plan to have access to the AI Data Masking feature.
@@ -35,7 +35,7 @@ Create an account at [Google Cloud Data Loss Prevention](https://cloud.google.co
 When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLICATION_CREDENTIALS_JSON` with your GCP DLP credentials in hoop's Gateway. 
 Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in real-time in the data stream of any connection you configure.
 
-### Host yourself with Microsoft Presidio
+### Microsoft Presidio
 
 <Steps>
     <Step title="Install">
@@ -49,10 +49,11 @@ Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in
     </Step>
     <Step title="Set up">
         Set the new environment variables in hoop.dev's Gateway with the following values:
-        | Environment variable key | Value |
-        | ------------------------ | ----- |
-        | `DLP_PROVIDER` | mspresidio |
-        | `MSPRESIDIO_ANALYZER_URL` | `<host-to-analyzer:port>` |
+        | Environment variable key    | Value |
+        | --------------------------- | ----- |
+        | `DLP_PROVIDER`              | mspresidio |
+        | `DLP_MODE`                  |  `best-effort` or `strict` |
+        | `MSPRESIDIO_ANALYZER_URL`   | `<host-to-analyzer:port>` |
         | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
     </Step>
     <Step title="Run hoop.dev's Gateway with the new configs">
@@ -61,7 +62,22 @@ Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in
 </Steps>
 
 
+## Redact Modes
 
+The gateway now supports two operational modes that control how redaction failures are handled.
+Configure your preferred mode by setting the environment variable **DLP_MODE** to either `strict` or `best-effort`.
+
+### best-effort
+
+This is the default mode, it will redact the content, however if it find any error it will continue to operate without any disruption.
+
+- `DLP_MODE=best-effort`
+
+### strict
+
+This mode will return an error in case it find any redaction issue
+
+- `DLP_MODE=strict`
 
 ## Activate to your connections
 
