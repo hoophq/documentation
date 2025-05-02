@@ -71,8 +71,8 @@ import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
 
 ## Authentication
 
-The authentication process requires an **access token** or an **API Key** to interact with the gateway.
-Below, there are sections outlining the scenarios that could be used when interacting with the command line.
+The authentication process requires either an **access token** or an **API key** to interact with the gateway.
+The following sections outline the various authentication scenarios when using the command line interface.
 
 <Note>
   The authentication process requires knowning the gateway instance URL where the Hoop gateway is running.
@@ -87,32 +87,30 @@ Below, there are sections outlining the scenarios that could be used when intera
 
 ### Connection Usage Scenario
 
-This scenario is recommended when users need to interact with connections to perform daily basis operations under the resources in which they have access to.
-
-The user will perform the login to obtain a valid access token based on the expiration policy time of your identity provider.
+This authentication method is recommended for users who need to regularly access and manage resources within their permission scope.
+Users will authenticate to obtain a valid access token, which remains active based on your identity provider's expiration policy.
 
 <Tabs>
   <Tab title="Self Hosted">
-    This command is executed only once per machine.
-    It creates or wipes the file `$HOME/.hoop/config.toml` in your local machine
+    This command should be executed only once in your machine.
+    It creates and wipes the file `$HOME/.hoop/config.toml` in your local machine
 
     ```sh
     hoop config create --api-url https://yourgateway-domain.tld
     ```
 
-    This command is executed every time the token expires or the command above is executed.
+    This command must be executed every time the token expires or the command above is executed.
 
     ```sh
     hoop login
     ```
   </Tab>
   <Tab title="Managed Instance">
-    If this is your first time running the command line, it will setup the file `$HOME/.hoop/config.toml` and prompt to configure the default gateway URL.
-    The browser of the user will open and redirect him to our identity provider.
-    Further calls will just open the browser and update the `token` from the configuration file.
+    When running the command line interface for the first time, it will create the configuration file `$HOME/.hoop/config.toml` and prompt you to set the default gateway URL.
+    Your browser will automatically open and redirect you to our identity provider.
+    Subsequent authentication attempts will open your browser and update the access token in your configuration file.
 
-    After finishing this process, the `config.toml` will have an access token valid for **24 hours**.
-
+    After completing authentication, your `config.toml` will contain a valid access token for continued use of the command line interface.
     ```sh
     hoop login
     ```
@@ -127,27 +125,29 @@ The user will perform the login to obtain a valid access token based on the expi
 
 ### Automation Usage Scenario
 
-This scenario is recommend for administrators that want programmatic access to the API,
-such as managing connections, policies or performing an ad-hoc executions under a automation pipeline.
+## Programmatic API Access
 
-The requirements for such cases requires a static authentication that could be obtained via programmatic access.
-There are two ways to obtain a token to authenticate API clients.
+This authentication method is designed for administrators who need programmatic access to the API for tasks such as managing connections,
+configuring policies, or executing operations within automation pipelines.
 
-#### Static API Key
+Programmatic access requires static authentication credentials that can be obtained through the following methods:
 
-Using a static API Key is one of the methods that consists in setting up an environment variable in the gateway with a random string.
+### Static API Key
 
-Configure the token in your local configuration by issuing the command below:
+A Static API Key provides persistent authentication by setting an environment variable in the gateway with a secure random string.
+
+Configure the token in your local configuration using this command:
 
 ```sh
 HOOP_TOKEN=<api-key> hoop config create --api-url https://yourgateway-domain.tld
 ```
 
-- Refer for the [API Key Usage for more information](/setup/apis/api-key)
+- Refer to the [API Key Usage for more information](/setup/apis/api-key)
 
-#### Service Account
+### Service Account
 
-The service account allow access if your identity provider support the [Oauth2 Client Credentials Grant type](https://oauth.net/2/grant-types/client-credentials/).
+Service Account authentication is available if your identity provider supports the
+[OAuth2 Client Credentials Grant type](https://oauth.net/2/grant-types/client-credentials/).
 
 ```sh
 export HOOP_TOKEN="$(/tmp/issue-client-credentials-token-from-idp.sh)"
@@ -155,8 +155,8 @@ hoop config create --api-url https://yourgateway-domain.tld
 ```
 
 <Note>
-  The access token obtained from your identity provider usually expires.
-  To obtain a fresh access token, create a script that issues a valid access token.
+  Access tokens obtained from your identity provider typically have an expiration period.
+  To maintain continuous access, create a script that can generate fresh access tokens as needed.
 </Note>
 
 - Refer to the [Service Account Usage guide for more information](/setup/apis/service-accounts).
