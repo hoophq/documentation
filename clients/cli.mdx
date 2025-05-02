@@ -69,60 +69,184 @@ import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
   </Tab>
 </Tabs>
 
-## Authenticate
+## Authentication
 
-### For Managed Instance Users
-If you're using our managed instance, you can skip directly to the [`hoop login`](#authentication) command below. The gateway URL will automatically be set to `https://use.hoop.dev`.
+The authentication process requires an **access token** or an **API Key** to interact with the gateway.
+Below, there are sections outlining the scenarios that could be used when interacting with the command line.
 
-### For Self-Hosted Users
-If you've deployed your own instance, use the URL you specified in the `API_URL` environment variable of your Hoop Gateway:
+<Note>
+  The authentication process requires knowning the gateway instance URL where the Hoop gateway is running.
+  Our managed instances are hosted under the URL:
 
-```bash
-hoop config create --api-url https://<gateway-url>
+  ```
+  https://use.hoop.dev
+  ```
+
+  Contact your administrator if you have a self hosted installation and don't know this information.
+</Note>
+
+### Connection Usage Scenario
+
+This scenario is recommended when users need to interact with connections to perform daily basis operations under the resources in which they have access to.
+
+The user will perform the login to obtain a valid access token based on the expiration policy time of your identity provider.
+
+<Tabs>
+  <Tab title="Self Hosted">
+    This command is executed only once per machine.
+    It creates or wipes the file `$HOME/.hoop/config.toml` in your local machine
+
+    ```sh
+    hoop config create --api-url https://yourgateway-domain.tld
+    ```
+
+    This command is executed every time the token expires or the command above is executed.
+
+    ```sh
+    hoop login
+    ```
+  </Tab>
+  <Tab title="Managed Instance">
+    If this is your first time running the command line, it will setup the file `$HOME/.hoop/config.toml` and prompt to configure the default gateway URL.
+    The browser of the user will open and redirect him to our identity provider.
+    Further calls will just open the browser and update the `token` from the configuration file.
+
+    After finishing this process, the `config.toml` will have an access token valid for **24 hours**.
+
+    ```sh
+    hoop login
+    ```
+
+    ```
+    Press enter to leave the defaults
+    API_URL [https://use.hoop.dev]:
+    ```
+  </Tab>
+</Tabs>
+
+
+### Automation Usage Scenario
+
+This scenario is recommend for administrators that want programmatic access to the API,
+such as managing connections, policies or performing an ad-hoc executions under a automation pipeline.
+
+The requirements for such cases requires a static authentication that could be obtained via programmatic access.
+There are two ways to obtain a token to authenticate API clients.
+
+#### Static API Key
+
+Using a static API Key is one of the methods that consists in setting up an environment variable in the gateway with a random string.
+
+Configure the token in your local configuration by issuing the command below:
+
+```sh
+HOOP_TOKEN=<api-key> hoop config create --api-url https://yourgateway-domain.tld
 ```
 
-The configuration will be saved to `$HOME/.hoop/config.yaml`.
+- Refer for the [API Key Usage for more information](/setup/apis/api-key)
 
-### Obtaining an Access Token
+#### Service Account
 
-Once the gateway URL is configured, authenticate with the API by running:
+The service account allow access if your identity provider support the [Oauth2 Client Credentials Grant type](https://oauth.net/2/grant-types/client-credentials/).
 
-```bash
-hoop login
+```sh
+export HOOP_TOKEN="$(/tmp/issue-client-credentials-token-from-idp.sh)"
+hoop config create --api-url https://yourgateway-domain.tld
 ```
 
-This command will open your default browser and redirect you to the identity provider for authentication.
+<Note>
+  The access token obtained from your identity provider usually expires.
+  To obtain a fresh access token, create a script that issues a valid access token.
+</Note>
+
+- Refer to the [Service Account Usage guide for more information](/setup/apis/service-accounts).
 
 ### Using Environment Variables
 
 Another way to use the command line is by exporting the following environment variables:
 
-```
+```sh
 export HOOP_APIURL=https://use.hoop.dev
 export HOOP_GRPCURL=grpcs://use.hoop.dev:8443
 export HOOP_TOKEN=<your-access-token-or-api-key>
+export HOOP_TLSCA=file:///path/to/ca.pem
 # test it
 hoop admin get userinfo
 ```
 
 When using environment variables, it will ignore the local configuration file `$HOME/.hoop/config.yaml`
 
-### Managing Configuration
+## Managing Configuration
 
-To remove your existing configuration:
+- Configure your Gateway URL and clear any existent configuration
+
+```sh
+hoop config create --api-url https://yourgateway-domain.tld
+```
+
+- Configure the Gateway URL and the gRPC URL
+
+```sh
+hoop config create
+  --api-url https://yourgateway-domain.tld \
+  --grpc-url grpcs://yourgateway-domain.tld:443
+```
+
+<Note>
+  This flag is optional and used only to interact with connections.
+  The `--grpc-url` is obtained automatically from the Api when a user Sign In (issue the `hoop login` command)
+</Note>
+
+- Configure the Gateway URL, the gRPC URL and the TLS Certificate Root Certificate
+
+```sh
+hoop config create
+  --api-url https://yourgateway-domain.tld \
+  --tls-ca=file:///tmp/ca.pem
+
+# inline configuration
+hoop config create
+  --api-url https://yourgateway-domain.tld \
+  --tls-ca="base64://$(cat /tmp/ca.pem |base64)"
+```
+
+<Note>
+  This option should be used if your gateway is running with self signed certificates.
+</Note>
+
+- Show `API_URL`, `GRPC_URL` and `TLS_CA` configuration
+
+```sh
+hoop config view
+```
+
+- Show all configuration with the access token (contains sensitive information)
+
+```sh
+hoop config view --raw
+```
+
+- Show sections of configuration
+
+```sh
+hoop config view api_url
+hoop config view grpc_url
+hoop config view token
+hoop config view tls_ca
+```
+
+- Wipe Local Configuration
 
 ```bash
 hoop config clear
 ```
 
-This command will delete all stored configuration settings, including the gateway URL and authentication tokens.
+## Interacting with Resources
 
-## hoop connect
+The `hoop connect` command allows you to create an interactive session with a remote resource.
+The resource include the interactive terminal console or native protocols.
 
-
-The `hoop connect` command allows you to create an interactive session with a remote resource. The resource can be an interactive terminal console or TCP services such as databases.. Here are a few examples:
-
-### Terminal console
+### Terminal Console
 
 - docker exec
 - bash
@@ -138,9 +262,34 @@ connection: bash-console | session: 53ed53f9-a5f9-45e9-bbf5-becd1f44f41e
 root@5601881aa15e:/app#
 ```
 
-### TCP
+### Terminal Ad Hoc Executions
 
-The connect feature can be used to interact with TCP services such as databases. It can be used with an IDE or any native database client. The port is forwarded locally to the end-user, providing a secure connection to remote services.
+Permit triggering ad hoc executions on a connection.
+
+- Issue the command `env` to a connection with the `bash` as interpreter
+
+```sh
+hoop exec bash -i 'env'
+```
+
+- Run the script `/tmp/myscript.sh` using `bash` as the interpreter
+
+```sh
+hoop exec bash -f /tmp/myscript.sh
+```
+
+- Run the script `/tmp/myscript.sh` by reading it from the standard input using `bash` as interpreter
+
+```sh
+hoop exec bash <<EOF
+env |grep -i 'id'
+EOF
+```
+
+### Native Protocols
+
+The connect feature can be used to interact with native protocols such as databases, SSH, HTTP and TCP.
+The port is forwarded locally to the end-user, providing a secure connection to remote services.
 
 ```bash
 $ hoop connect pg-prod
@@ -153,6 +302,7 @@ ready to accept connections!
 ```
 
 <Info>
-The connection is established through a secure tunnel. The connection is encrypted and authenticated using the user's identity.
+  The connection is established through a secure tunnel by an encrypted channel when the gateway is setup with TLS.
+  The user identity is always validated when interacting with such resources.
 </Info>
 

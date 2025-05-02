@@ -192,6 +192,7 @@
           "group": "APIs and Integration",
           "pages": [
             "setup/apis/api-key",
+            "setup/apis/service-accounts",
             "setup/apis/webhooks-siem"
           ]
         },

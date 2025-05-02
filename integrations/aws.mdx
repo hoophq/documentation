@@ -10,6 +10,13 @@ Using either IAM credentials or the instance role of the Hoop Gateway, you can q
   <img src="/images/integrations/aws-connect-1.jpg" alt="AWS Connect Interface" />
 </Frame>
 
+<Warning>
+    Be aware that our current implementation **resets the master password** for RDS instances and stores the new credentials in the Hoop database.
+
+    In upcoming releases, we aim to support additional authentication methods for accessing these instances,
+    including AWS Secrets Manager integration and IAM database authentication.
+</Warning>
+
 ## Requirements
 
 - Access to AWS account with privileges to setup roles and/or IAM credentials
@@ -130,11 +137,6 @@ You have the option to manage these security groups directly to customize connec
 
 The provisioner will reset the master database credentials using a random password.
 The user and password are stored in Hoop's database. Subsequent requests for provisioning roles reuse the master credentials stored in Hoop.
-
-<Note>
-    In upcoming releases, our goal is to support more methods of using master credentials to access
-    these instances, such as RDS Secrets Manager and IAM database authentication.
-</Note>
 
 The provisioner will create three static user roles for all existing databases depending on the engine:
 
