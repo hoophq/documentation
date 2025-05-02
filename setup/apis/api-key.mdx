@@ -37,3 +37,11 @@ The Gateway will validate the API Key and allow the request to proceed without t
 ## Permissions
 
 The API Key has admin access in the system, make sure to keep the key secure.
+
+## Security Considerations
+
+<Warning>
+    This method of accessing the API uses a **static key with adminstrator privileges**.
+    The **key NEVER expires** and could only be revoked by redeploying the gateway.
+    Make sure to keep this key secure and under a safe environment.
+</Warning>
