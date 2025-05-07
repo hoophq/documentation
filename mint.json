@@ -97,7 +97,8 @@
             "quickstart/databases/mongodb",
             "quickstart/databases/oracle",
             "quickstart/databases/mssql",
-            "quickstart/databases/apache-cassandra"
+            "quickstart/databases/apache-cassandra",
+            "quickstart/databases/bigquery"
           ]
         },
         {
