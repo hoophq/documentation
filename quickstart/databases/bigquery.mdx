@@ -28,7 +28,7 @@ The table below outlines the features available for this type of connection.
 | Name                           | Type       | Required | Description |
 | ------------------------------ | ---------- | ---------| ----------- |
 | GOOGLE_APPLICATION_CREDENTIALS | filesystem | yes      | The service account credentials file in JSON format |
-| CLOUDSDK_CORE_PROJECT          | envvar     | no       | The user to connect in the Oracle server |
+| CLOUDSDK_CORE_PROJECT          | envvar     | no       | The project id to use for request |
 | CLOUDSDK_PYTHON                | envvar     | no       | The path of python interpreter, defaults to `/usr/bin/python3.9` |
 
 <Note>
@@ -55,7 +55,7 @@ hoop admin create conn bq-query -a <agent> \
 
 ## Access the connection
 
-You can access it through hoop web panel.
+You can access it through hoop web panel and issue queries to your Datasets.
 
 <Frame>
     <img src="/images/quickstarts/client-pg.png" />
