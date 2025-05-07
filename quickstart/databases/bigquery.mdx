@@ -1,0 +1,63 @@
+---
+title: "Big Query"
+description: "Execute queries to Big Query with the [bq command line tool](https://cloud.google.com/bigquery/docs/bq-command-line-tool)."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+## Features
+
+The table below outlines the features available for this type of connection.
+
+- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
+- **One Off -** This term refers to accessing this connection from hoop web panel.
+
+| Feature | Native | One Off | Description |
+| --- | --- | --- | --- |
+| TLS Termination Proxy | <Icon icon="xmark" />  | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
+| Audit | <Icon icon="xmark" /> | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client |
+| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Data Masking (MS Presidio) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
+| Credentials Offload | <Icon icon="xmark" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
+| Interactive Access | <Icon icon="xmark" /> | <Icon icon="xmark" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
+
+## Configuration
+
+| Name                           | Type       | Required | Description |
+| ------------------------------ | ---------- | ---------| ----------- |
+| GOOGLE_APPLICATION_CREDENTIALS | filesystem | yes      | The service account credentials file in JSON format |
+| CLOUDSDK_CORE_PROJECT          | envvar     | no       | The user to connect in the Oracle server |
+| CLOUDSDK_PYTHON                | envvar     | no       | The path of python interpreter, defaults to `/usr/bin/python3.9` |
+
+<Note>
+    The Google Service Account Credentials must have the following permissions:
+    - `BigQuery User`
+    - `BigQuery Data Viewer`
+</Note>
+
+## Connection Setup
+
+The command below provides access to `bq query` command, enabling you to execute queries directly against BigQuery datasets.
+For additional examples and advanced connection options, refer to the [BigQuery Command-Line Reference documentation](https://cloud.google.com/bigquery/docs/bq-command-line-tool).
+
+```sh
+hoop admin create conn bq-query -a <agent> \
+    -e filesystem:GOOGLE_APPLICATION_CREDENTIALS=file:///path/to/google-service-account.json \
+    -e CLOUDSDK_CORE_PROJECT=<project-id-name> \
+    -- bq query
+```
+
+<Note>
+    The `bq` command-line tool is included in agent Docker images version **1.35.16** and later.
+</Note>
+
+## Access the connection
+
+You can access it through hoop web panel.
+
+<Frame>
+    <img src="/images/quickstarts/client-pg.png" />
+</Frame>
+
