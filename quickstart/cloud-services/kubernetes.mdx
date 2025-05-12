@@ -11,128 +11,91 @@ import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
 
 | Name | Type | Description |
 | --- | --- | --- |
-| KUBECONFIG | filesystem | A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to exec into pods in a namespace |
+| KUBECONFIG | filesystem | A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster |
 
-### Connection Command
+## Connection Setup
 
-```bash
-hoop admin create conn k8s -a <agent> -- kubectl
-```
+There are multiple ways to set up a connection to Kubernetes. It will depend how do you want users to interact with it.
 
-<Info>
-The assumption is that the service account where the agent is deployed has the necessary permissions to interact with the Kubernetes API. Alternatively, create the connection passing your local KUBECONFIG. Example:
-</Info>
+<Tabs>
+	<Tab title="Cluster Administration">
+		Cluster administration is done through the `kubectl` command line.
 
-```bash
-hoop admin create conn k8s \
-	-a <agent> \
-	-e filesystem:KUBECONFIG=file://$HOME/.kube/config \
-	-- kubectl
-```
+		- **Connection Setup**
 
-## How to Use
+		```bash
+		hoop admin create conn k8s -a <agent> \
+			-e KUBECONFIG=file://$HOME/.kube/config \
+			-- bash
+		```
 
-```bash
-# view pods in the default namespace
-hoop exec k8s -- get pods
-# restart an app
-hoop exec k8s -- rollout restart deployment/myapp
-# scale up an app
-hoop exec k8s -- scale --replicas=3 deployment/myapp
-```
+		The command above will allow users to execute `kubectl` commands from the Web Console.
+		This is useful for cluster administration tasks.
 
-It’s possible to narrow down the commands into distinct connections; this gives a better user experience.
+		- **Command Line Usage Example**
 
-- Update the connection with the **command** below
+		```bash
+		hoop exec k8s --input 'kubectl get pods'
+		hoop exec k8s -i 'kubectl rollout restart deployment/myapp -n mynamespace'
+		```
 
-```bash
-hoop admin create conn k8s -a <agent> -- \
-  kubectl --namespace prod rollout
-```
+		<Warning>
+			This approach exposes the shell `bash`. This means that users can run any command on the agent.
+			If you need more strict access control, consider using a wrapper script in the agent to limit the commands that can be executed.
+		</Warning>
 
-Then it’s possible
+	</Tab>
+	<Tab title="One Off Commands in Containers">
+		One-off commands can be executed inside a container using the `kubectl exec` command.
+		The Web Console would accept inputs that is executed inside the container.
 
-```bash
-hoop exec k8s -- restart deployment/myapp
-hoop exec k8s -- undo deployment/myapp
-```
+		- **Connection Setup**
 
-# Interactive
+		```bash
+		hoop admin create conn k8s -a <agent> \
+			-e KUBECONFIG=file://$HOME/.kube/config \
+			-- kubectl exec --stdin deployment/myapp -- bash
+		```
 
----
+		The command above will allow users to execute commands inside the `myapp` deployment.
+		This is useful for running scripts inside a container.
 
-`kubectl` provides ways to create interactive sessions with pods. It’s possible to map these commands to Hoop to obtain interactive sessions allocating a pseudo-TTY.
+		- **Command Line Usage Example**
 
-### Connection Command
+		```bash
+		# execute 'env' inside the default container
+		hoop exec k8s --input 'env'
+		# execute 'ls -l' inside the default container
+		hoop exec k8s -i 'ls -l'
+		```
+	</Tab>
+	<Tab title="Interactive Access">
+		Interactive access can be achieved by using the `kubectl exec` command with the `--stdin` and `--tty` flags.
 
-```bash
-hoop admin create conn k8s-exec -a <agent> -- \
-  kubectl exec --tty --stdin deployment/myapp --
-```
+		- **Connection Setup**
 
-## How to Use
+		```bash
+		hoop admin create conn myapp -a <agent> \
+			-e KUBECONFIG=file://$HOME/.kube/config \
+			-- kubectl exec --stdin --tty deployment/myapp --
+		```
 
-Start an interactive bash session with a deployment/pod
+		This will allow users to open an interactive shell inside the `myapp` deployment.
+		This is useful for debugging or running commands interactively inside a container.
 
-```bash
-hoop connect myapp -- bash
-```
+		- **Command Line Usage Example**
 
-This will open an interactive session with the deployment `myapp`. It’s possible to map any command that spawns an interactive session.
+		```bash
+		# Open an interactive session with the deployment myapp using 'bash'
+		hoop connect myapp -- bash
+		# Open an interactive session with the deployment myapp using 'rails console'
+		hoop connect myapp -- rails console
+		```
 
-Then, it’s possible to gain a rails console session
+		<Info>
+			Note that `kubectl exec` is used with `-tty` and `--stdin` arguments.
+			These flags are required when using `hoop connect`
+		</Info>
+	</Tab>
+</Tabs>
 
-```bash
-hoop connect myapp -- rails console
-```
-
-<Info>
-Note that `kubectl exec` is used with `-tty` and `--stdin` arguments. These flags are required when using `hoop connect`
-</Info>
-
-# One-off scripts
-
----
-
-Processes can be spawned in an ad-hoc manner using `kubectl exec`. However, in some cases, an interactive shell may be overly permissive.
-
-## Connection Configuration
-
-| Name | Type | Description |
-| --- | --- | --- |
-| KUBECONFIG | filesystem | A https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/ with permission to exec into pods in a namespace |
-
-### Connection Command
-
-```bash
-hoop admin create conn exec-oneoff -a <agent> -- \
-	kubectl exec --stdin deployment/myapp --
-```
-
-## How to Use
-
-This example executes a one-off process using ruby.
-
-```bash
-hoop exec exec-oneoff -- rails runner 'puts Rails.env'
-```
-
-Narrowing down the exec arguments allows passing the stdin and executing ruby scripts.
-
-- Edit the connection **command** with the bellow content
-
-```bash
-hoop admin create conn exec-oneoff -a <agent> -- \
-	kubectl exec --stdin deployment/myapp -- rails runner -
-```
-
-Then, it’s possible
-
-```bash
-hoop exec exec-oneoff <<EOF
-myvar='Hello'
-puts myvar
-EOF
-```
-
-The connection now runs a one-off process accepting ruby scripts from the standard input.
