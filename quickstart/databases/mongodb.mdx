@@ -84,16 +84,18 @@ Users can manually switch to the primary server after connecting to a secondary 
 
 ### Syntax Error Issues
 
-The one-off execution uses the `mongo` utility as a client to execute scripts.
+The one-off execution uses the `mongo` legacy utility as a client to execute scripts.
 Since input is provided through stdin, syntax errors may occur for more complex inputs.
 To avoid these issues, use `mongosh` instead.
 
-
-The command below creates a connection and uses `mongosh` as the default client for one off executions:
+Add the comment in the beginning of the script to indicate that it should be executed with `mongosh`:
 
 ```sh
-hoop admin create conn mongodemo -a <myagent> --type database/mongodb \
-    -e CONNECTION_STRING=mongodb://user:passwd@127.0.0.1:27017 \
-    -- \
-    mongosh --quiet '$CONNECTION_STRING'
+// mongosh
+use sample_airbnb
+db.listingsAndReviews.find({}, {_id: 1}).limit(10)
 ```
+
+<Note>
+    This feature is available in agent version `1.35.19` and later.
+</Note>
