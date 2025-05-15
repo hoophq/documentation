@@ -152,21 +152,24 @@ helm upgrade --install hoop \
 ## Database Configuration
 
 Hoop uses Postgres as the backend storage of all data in the system.
-The user that connects in the database must be a superuser or have the **CREATEROLE** permission.
-The command below creates a database and a user with privileges to access the database and the default schema.
+It uses the schema `private` to create the tables of the system.
+The command below creates a database and a user with privileges to access the database and the required schema.
 
 ```sql
 CREATE DATABASE hoopdb;
-CREATE USER hoopuser WITH ENCRYPTED PASSWORD 'my-secure-password' CREATEROLE;
+CREATE USER hoopuser WITH ENCRYPTED PASSWORD 'my-secure-password';
 -- switch to the created database
 \c hoopdb
+CREATE SCHEMA IF NOT EXISTS private;
 GRANT ALL PRIVILEGES ON DATABASE hoopdb TO hoopuser;
 GRANT ALL PRIVILEGES ON SCHEMA public to hoopuser;
+GRANT ALL PRIVILEGES ON SCHEMA private to hoopuser;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO hoopuser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA private TO hoopuser;
 ```
 
 <Note>
-In case of using a password with special characters, make sure to url encode it properly when setting the connection string.
+  In case of using a password with special characters, make sure to url encode it properly when setting the connection string.
 </Note>
 
 Use these values to assemble the configuration for POSTGRES_DB_URI:
