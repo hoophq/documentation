@@ -39,13 +39,21 @@ Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in
 
 <Steps>
     <Step title="Install">
-        Check the Microsoft Presidio documentation to install it. We recommend you use the Docker Installation setup.
-        <Card
-            title="Microsoft Presidio Documentation"
-            icon="microsoft"
-            href="https://microsoft.github.io/presidio/installation/#using-docker">
-            Visit the Microsoft Presidio documentation to install it using Docker.
-        </Card>
+        Check the Microsoft Presidio documentation to install it.
+        <CardGroup cols={2}>
+            <Card
+                title="Microsoft Presidio Docker Installation"
+                icon="microsoft"
+                href="https://microsoft.github.io/presidio/installation/#docker-installation">
+                Visit the Microsoft Presidio documentation to install it using Docker.
+            </Card>
+            <Card
+                title="Microsoft Presidio Kubernetes Installation"
+                icon="microsoft"
+                href="https://microsoft.github.io/presidio/samples/deployments/k8s/">
+                Visit the Microsoft Presidio documentation to install it using Kubernetes.
+            </Card>
+        </CardGroup>
     </Step>
     <Step title="Set up">
         Set the new environment variables in hoop.dev's Gateway with the following values:
