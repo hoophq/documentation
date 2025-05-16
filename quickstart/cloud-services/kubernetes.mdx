@@ -26,24 +26,23 @@ There are multiple ways to set up a connection to Kubernetes. It will depend how
 		```bash
 		hoop admin create conn k8s -a <agent> \
 			-e KUBECONFIG=file://$HOME/.kube/config \
-			-- bash
+			-- xargs kubectl
 		```
 
 		The command above will allow users to execute `kubectl` commands from the Web Console.
 		This is useful for cluster administration tasks.
 
+		<Note>
+			Note that `xargs` is used to pass the command line arguments to `kubectl`.
+			The input is passed to `xargs` and then to `kubectl` as arguments.
+		</Note>
+
 		- **Command Line Usage Example**
 
 		```bash
-		hoop exec k8s --input 'kubectl get pods'
-		hoop exec k8s -i 'kubectl rollout restart deployment/myapp -n mynamespace'
+		hoop exec k8s --input 'get pods'
+		hoop exec k8s -i 'rollout restart deployment/myapp -n mynamespace'
 		```
-
-		<Warning>
-			This approach exposes the shell `bash`. This means that users can run any command on the agent.
-			If you need more strict access control, consider using a wrapper script in the agent to limit the commands that can be executed.
-		</Warning>
-
 	</Tab>
 	<Tab title="One Off Commands in Containers">
 		One-off commands can be executed inside a container using the `kubectl exec` command.
@@ -79,6 +78,13 @@ There are multiple ways to set up a connection to Kubernetes. It will depend how
 			-e KUBECONFIG=file://$HOME/.kube/config \
 			-- kubectl exec --stdin --tty deployment/myapp --
 		```
+
+		<Tip>
+			To narrow down the scope to a specific command, you can use the name of the command you want to run.
+			E.g.: `-- bash` or `-- rails console`.
+
+			In this example users could use any runtime command inside the `myapp` deployment.
+		</Tip>
 
 		This will allow users to open an interactive shell inside the `myapp` deployment.
 		This is useful for debugging or running commands interactively inside a container.
