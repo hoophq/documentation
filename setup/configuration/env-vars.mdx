@@ -54,7 +54,7 @@ All fields below are not required but can give you some extra configuration opti
 | LOG_ENCODING                        | json                    | The encoding of output logs (console) |
 | LOG_GRPC                            |                         | "1" enables logging gRPC protocol |
 | LOG_LEVEL                           | info                    | The verbosity of logs (debug,info,warn,error) |
-| SSH_CLIENT_HOST_KEY                 |                         | The private key host key to use for the local SSH server client  |
+| SSH_CLIENT_HOST_KEY                 |                         | The private key host key to use for the local SSH server client. It should be a key generated in `PKCS#8` format encoded as base64.  |
 | INTEGRATION_AWS_INSTANCE_ROLE_ALLOW |                         | When this option is set to `true`, it allow to use AWS instance role when interacting with AWS Connect integration |
 | MSPRESIDIO_ANALYZER_URL             |                         | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
 | MSPRESIDIO_ANONYMIZER_URL           |                         | Host and port for MS Presidio Anonymizer `<host-to-anonymizer:port>` |

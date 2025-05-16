@@ -69,4 +69,21 @@ ssh -p 2222 localhost
 ## SSH Hosts Key
 
 To prevent fingerprint issues when connecting with the local SSH client server,
-add the client host key during gateway setup. For more details, refer to the [environment variables documentation](../configure/env-vars).
+add the client host key environment variable during gateway setup.
+
+The key must be in `PKCS#8` format and encoded as base64. You can generate a key with `openssl` utility:
+
+```bash
+openssl genpkey -algorithm RSA -out ssh_host_hoop_key.pem \
+  -pkeyopt rsa_keygen_bits:4096
+base64 -i ssh_host_hoop_key.pem
+```
+
+- `SSH_CLIENT_HOST_KEY=<base64-encoded-key>`
+
+<Tip>
+  To troubleshoot the SSH connection with hosts keys, use the `--debug` flag when running the `hoop connect` command.
+  This will provide detailed information about the connection process, including any issues related to parsing the host key.
+</Tip>
+
+For more details, refer to the [environment variables documentation](/setup/configuration/env-vars).
