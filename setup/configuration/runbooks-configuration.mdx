@@ -72,7 +72,8 @@ GitHub users could follow the [Setup Deploy Keys](https://docs.github.com/en/aut
 - `GIT_SSH_KNOWN_HOSTS` (optional) - the path to the known hosts file to use
 
 <Info>
-We recommend using the option `GIT_SSH_KNOWN_HOSTS` to prevent [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) when cloning repositories.
+    We recommend using the option `GIT_SSH_KNOWN_HOSTS` to prevent [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) when cloning repositories.
+    It will try to obtain the known hosts issuing the command `ssh-keyscan` in case this configuration is not set.
 </Info>
 
 ## Testing
@@ -83,6 +84,70 @@ To test the integration, issue the command below, it will return the last commit
 hoop admin get runbooks -o json
 {"items":[],"commit":"<git-sha>","commit_author":"author <author@email.tld>","commit_message":"<msg>\n"}
 ```
+
+## Runbook Hooks
+
+<Note>
+  This feature is available in version 1.36.11+.
+</Note>
+
+This functionality enables easier integration with any internal workflow by leveraging Hoop as a hook system for your process.
+It requires specific files in the repository that will start the execution of a runbook when a specific event occurs.
+
+| File Path                                     | Event Trigger | Environment Variables       |  Description   |
+| --------------------------------------------- | ------------- |---------------------------- |  ------------- |
+| `hoop-hooks/session-open.runbook.py`          | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It trigger when a session is being opened |
+| `hoop-hooks/session-close.runbook.py`         | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It trigger when a session is being closed |
+
+The environment variables are available when the runbook script is called, it contains the payload of the event that triggered the runbook.
+
+### JSON Payload
+
+- The attribute `event_session_open` will be available when the session is opened
+- The attribute `event_session_close` will be available when the session is closed
+
+```json
+{
+  "id": "7b769f42-a8a2-45cb-b0a1-e2d039385365",
+  "sid": "8c59a347-62bd-4db2-a456-2b25963dfebf",
+  "command": ["python3"],
+  "event_session_open": {
+    "verb": "connect",
+    "connection_name": "pg-readonly",
+    "connection_type": "database",
+    "connection_subtype": "postgres",
+    "connection_envs": {
+      "PWD": "/",
+      "HOME": "/root"
+    },
+    "input": "SELECT * FROM customers WHERE id = 1",
+    "user_email": "user@domain.tld"
+  },
+  "event_session_close": {
+    "exit_code": 0,
+    "output": ""
+  }
+}
+```
+
+### Example Python Script
+
+The example below shows how to use the payload in a python script, it will print the connection name and the session id.
+
+```python
+# hoop-hooks/session-open.runbook.py
+import json, os
+
+payload_json = os.getenv('HOOP_RUNBOOK_HOOK_PAYLOAD')
+req = json.loads(payload_json)
+
+print('id: ', req['id'])
+print('session id: ', req['sid'])
+
+ev = req['event_session_open'] or {}
+print('connection_name: {}'.format(ev['connection_name']))
+```
+
 
 ## How the template engine works
 
