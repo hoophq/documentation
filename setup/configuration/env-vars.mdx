@@ -45,6 +45,7 @@ All fields below are not required but can give you some extra configuration opti
 | ADMIN_USERNAME                      | admin                   | Changes the name of the group to act as the `admin` role |
 | AUDITOR_USERNAME                    | auditor                 | Changes the name of the group to act as the `auditor` role |
 | API_KEY                             |                         | When this environment is set, it enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
+| ANALYTICS_TRACKING                  | enabled                 | Disable the analytics tracking by setting it to `disabled` |
 | DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
 | DLP_MODE                            | `best-effort`           | The redact mode policy: `best-effort` or `strict`. The former makes a best effort to redact the content and the later will return an error in case of any redaction issue.  |
 | DISABLE_SESSIONS_DOWNLOAD           | false                   | Control if the download session is disabled or not |
