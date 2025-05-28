@@ -48,6 +48,7 @@ All fields below are not required but can give you some extra configuration opti
 | ANALYTICS_TRACKING                  | enabled                 | Disable the analytics tracking by setting it to `disabled` |
 | DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
 | DLP_MODE                            | `best-effort`           | The redact mode policy: `best-effort` or `strict`. The former makes a best effort to redact the content and the later will return an error in case of any redaction issue.  |
+| DEFAULT_AGENT_GRPC_HOST             |                         | A custom gRPC host to use for the default agent. It's usually used when the gateway has end to end TLS enabled. |
 | DISABLE_SESSIONS_DOWNLOAD           | false                   | Control if the download session is disabled or not |
 | GIN_MODE                            | release                 | Turn on (debug) logging of routes |
 | GOOGLE_APPLICATION_CREDENTIALS_JSON |                         | GCP DLP credentials |
@@ -61,10 +62,10 @@ All fields below are not required but can give you some extra configuration opti
 | MSPRESIDIO_ANONYMIZER_URL           |                         | Host and port for MS Presidio Anonymizer `<host-to-anonymizer:port>` |
 | ORG_MULTI_TENANT                    |                         | Enable organization multi-tenancy |
 | PLUGIN_AUDIT_PATH                   | `/opt/hoop/sessions`    | The path where the temporary sessions are stored |
-| PLUGIN_INDEX_PATH                   | `/opt/hoop/indexes`     | The path where the temporary indexes are stored |
 | STATIC_UI_PATH                      | `/app/ui/public`        | The path where the UI assets resides |
 | TLS_CA                              |                         | The path or value to the certificate authority (pem), e.g.: `file://` or `base64://` |
 | TLS_CERT                            |                         | The path or value to the certificate server (pem) e.g.: `file://` or `base64://` |
 | TLS_KEY                             |                         | The path or value to the RSA private key e.g.: `file://` or `base64://` |
+| WEBAPP_USERS_MANAGEMENT             | `on`                    | Enable the users management in the Webapp. It allows to create, edit and delete users. |
 | WEBHOOK_APPKEY                      |                         | The application key to send messages to the Svix Webhook provider. |
 | WEBHOOK_APPURL                      |                         | The Svix Server URL for self hosted setups. |

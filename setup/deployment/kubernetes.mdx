@@ -251,7 +251,7 @@ VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
 helm template hoopagent \
   oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
   --set 'config.HOOP_KEY=<AUTH-KEY>' \
-  --set 'image.tag=1.25.2' \
+  --set 'image.tag=1.36.16' \
   --set 'extraSecret=AWS_REGION=us-east-1'
 ```
 
@@ -330,7 +330,7 @@ helm template hoopagent \
 
 ## Gateway Chart Configuration
 
-Check the [environment variables section](/configure/env-vars) for more information about each configuration.
+Check the [environment variables section](/setup/configuration/env-vars) for more information about each configuration.
 
 <AccordionGroup>
   <Accordion title="values.yaml (full base configuration)">
@@ -339,11 +339,13 @@ Check the [environment variables section](/configure/env-vars) for more informat
     config:
       POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
       API_URL: ''
+      GRPC_URL: ''
+      DEFAULT_AGENT_GRPC_HOST: ''
       API_KEY: ''
       TLS_CA: ''
       TLS_KEY: ''
       TLS_CERT: ''
-      AUTH_METHOD: 'local'
+      AUTH_METHOD: 'local|idp'
       JWT_SECRET_KEY: ''
       IDP_CLIENT_ID: ''
       IDP_CLIENT_SECRET: ''
@@ -352,7 +354,8 @@ Check the [environment variables section](/configure/env-vars) for more informat
       IDP_GROUPS_CLAIM: ''
       IDP_CUSTOM_SCOPES: ''
       ASK_AI_CREDENTIALS: ''
-      DLP_PROVIDER: 'gcp'
+      DLP_PROVIDER: 'gcp|mspresidio'
+      DLP_MODE: 'redact|anonymize'
       GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
       MSPRESIDIO_ANALYZER_URL: ''
       MSPRESIDIO_ANONYMIZER_URL: ''
@@ -362,7 +365,6 @@ Check the [environment variables section](/configure/env-vars) for more informat
       MIGRATION_PATH_FILES: '/app/migrations'
       STATIC_UI_PATH: '/app/ui/public'
       PLUGIN_AUDIT_PATH: '/opt/hoop/sessions'
-      PLUGIN_INDEX_PATH: '/opt/hoop/sessions/indexes'
       ADMIN_USERNAME: 'admin'
       GODEBUG: 'http2debug=0'
       LOG_GRPC: '0'
