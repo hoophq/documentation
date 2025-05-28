@@ -322,6 +322,70 @@ print os.environ['COUNTRY_CODE']
 kubectl rollout restart deploy/$DEPLOYMENT_NAME -n $NAMESPACE
 ```
 
+### Linter
+
+The command line provides a linter to validate the runbook templates before executing them.
+It will check if the inputs are valid and if the template is well formed.
+
+- **Validating a file**
+
+```sh
+hoop runbooks lint /path/to/my/query.runbook.sql
+```
+
+- Validating content from stdin
+
+```sh
+cat /path/to/my/query.runbook.sql | hoop runbooks lint
+hoop runbooks lint <<< '{{ .status | description "The status of the resource" | default "online" }}'
+hoop runbooks lint <<EOF
+{{ .status | description "The status of the resource" | default "online" }}
+EOF
+```
+
+- **Validating parameters**
+
+```sh
+hoop runbooks lint -p customer_id=123 -p country=US <<EOF
+{{ .customer_id | description "Customer ID" | required "customer_id is required" }}
+{{ .country | description "Country" | required "country is required" }}
+{{ .status | description "The status of the resource" | default "online" }}
+EOF
+```
+
+- **Error Handling**
+
+If there are any errors, it will be reported to the standard error stream (stderr) and the command will return a non-zero exit code.
+
+```sh
+cat - > /tmp/invalid-runbook.runbook.py <<EOF
+{{ .customer_id
+    | description "Customer ID"
+    | required "customer_id is required" }}
+
+{{ .country
+    | description "Country"
+    | require "country is required" }}
+
+{{ .status
+    | description "The status of the resource"
+    | default "online" }}
+
+EOF
+```
+
+```sh
+hoop runbooks lint /tmp/invalid-runbook.runbook.py
+failed parsing runbook template, reason=(...) function "require" not defined
+
+{{ .country
+    | description "Country"
+    | require "country is required" }}
+
+{{ .status
+    | description "The status of the resource"
+```
+
 ### Tips
 
 #### Server Side Template Injection
