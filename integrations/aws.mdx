@@ -20,86 +20,168 @@ Using either IAM credentials or the instance role of the Hoop Gateway, you can q
 ## Requirements
 
 - Access to AWS account with privileges to setup roles and/or IAM credentials
-- You must be your account administrator to perform the following commands
+- Admin access to the Hoop Gateway instance
 
 ## Configuration
 
-Your IAM credentials must have the proper permission to use this feature.
-Depending on which credentials you want to use, the role or the access key credentials must have the following permissions:
+To configure the AWS Connect integration, it needs proper permissions to list resources and modify RDS instances.
 
-- **Policy Name:** HoopAWSConnect
+### Main Account Setup
 
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "organizations:ListAccounts",
-                "rds:DescribeDBInstances",
-                "rds:ModifyDBInstance",
-                "rds:ModifyDBCluster",
-                "ec2:DescribeSecurityGroups",
-                "ec2:AuthorizeSecurityGroupIngress",
-                "ec2:CreateSecurityGroup",
-                "ec2:CreateTags",
-                "sts:AssumeRole"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-```
+<Steps>
+    <Step title="Create IAM Policy">
+        The policy `HoopAWSConnect` must be created in your AWS account.
+        It will grant the necessary permissions to the IAM user or role that will be used for the integration.
 
-This requirement should be sufficient to begin the provisioning process in your main account.
+        - Go to **IAM > Policy > Create Policy**
+        - Switch the Policy Editor to `JSON` and paste the policy below
+
+            ```json
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "organizations:ListAccounts",
+                                "rds:DescribeDBInstances",
+                                "rds:ModifyDBInstance",
+                                "rds:ModifyDBCluster",
+                                "ec2:DescribeSecurityGroups",
+                                "ec2:AuthorizeSecurityGroupIngress",
+                                "ec2:CreateSecurityGroup",
+                                "ec2:CreateTags",
+                                "sts:AssumeRole"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            ```
+
+        - Click in Next and create it naming the policy as `HoopAWSConnect`
+
+    </Step>
+    <Step title="Create IAM User">
+        Create the IAM user associated with the role created in the previous step to obtain the access key credentials.
+        - Go to **IAM > Users > Add user**
+        - Enter a user name, e.g., `hoop-aws-connect`
+        - Select **Attach policies directly**
+        - Search for the policy `HoopAWSConnect` created in first step
+        - After creating the user, select the user and go to the **Security credentials** tab
+        - Click on **Create access key**
+        - Select the option **Third-party service**
+        - Add the description as `Hoop AWS Connect`
+        - Click on **Create access key**
+        - Copy the **Access key ID** and **Secret access key** to use in the next step
+
+        <Note>
+            If you want to use the instance role instead of IAM credentials, skip this step.
+            You will find instructions below on how to configure the instance role.
+        </Note>
+    </Step>
+</Steps>
+
+These steps should be sufficient to begin the provisioning process in your main account.
 
 ### Multi Account Setup
 
-For multi-account setup, you can configure your IAM user to access resources across different accounts:
+For multi-account setup, you can configure your IAM user or instance role to access resources across different accounts.
 
-- Create the role `HoopOrganizationAccountAccessRole` with the permissions below for each AWS account that you want to allow Hoop to access:
+#### Invite your AWS Account
 
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "rds:DescribeDBInstances",
-                "rds:ModifyDBInstance",
-                "rds:ModifyDBCluster",
-                "ec2:DescribeSecurityGroups",
-                "ec2:AuthorizeSecurityGroupIngress",
-                "ec2:CreateTags",
-                "ec2:CreateSecurityGroup"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
-```
+To allow Hoop to access your AWS account, you need to invite it to your AWS Organization.
+The list of AWS accounts will be displayed in the integration configuration page, and you can select the accounts you want to provision roles for.
 
-<Note>
-    The name of the role is hard-coded at the moment. In upcoming releases, we will allow users to provide a custom role name.
-</Note>
+<Steps>
+    <Step title="Invite AWS Account">
+        - Login to your main account
+        - Go to **AWS Organizations > AWS Accounts > Invite an Existent AWS Account**
+        - Enter the email address or the account id to invite this account
+    </Step>
+    <Step title="Accept the Invitation">
+        - Login to the invited account
+        - Go to **AWS Organizations > AWS Accounts > Invitations**
+        - Accept the invitation from your main account
+    </Step>
+</Steps>
 
-### Access Key Credentials
+#### Policy and Role Creation
 
-To use static credentials:
-1. Go to the AWS Console > IAM
-2. Create a user and configure an Access Key in Security Credentials
+To allow Hoop to access your AWS account, you need to create a policy and a role in each AWS account that you want to allow Hoop to access.
+The policy grants the necessary permissions to the role, which is then assumed by Hoop to perform actions on your behalf.
 
-<Frame>
-  <img src="/images/integrations/aws-connect-2.jpg" alt="AWS IAM Security Credentials" />
-</Frame>
+<Steps>
+    <Step title="Create IAM Policy">
+        The policy `HoopAWSConnect` must be created in your AWS account.
+
+        - Go to **IAM > Policy > Create Policy**
+        - Switch the Policy Editor to `JSON` and paste the policy below
+
+            ```json
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "rds:DescribeDBInstances",
+                                "rds:ModifyDBInstance",
+                                "rds:ModifyDBCluster",
+                                "ec2:DescribeSecurityGroups",
+                                "ec2:AuthorizeSecurityGroupIngress",
+                                "ec2:CreateTags",
+                                "ec2:CreateSecurityGroup"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            ```
+
+        - Click in Next and create it naming the policy as `HoopAWSConnect`
+
+    </Step>
+    <Step title="Create IAM Role">
+        This step will grant the necessary permissions to assume the role in your main account
+
+        Create the role that will use the policy created in the previous step.
+        - Go to **IAM > Roles > Create Role**
+        - In Trusted entity type, select **AWS Account**
+        - In the input below, select **Another AWS Account**
+        - Add the account ID of your main account
+        - Select the Policy `HoopAWSConnect` created in the previous step
+        - Name the role as `HoopOrganizationAccountAccessRole`
+
+        <Note>
+            It's important to name the policy as `HoopOrganizationAccountAccessRole` because the name is hard-coded in the integration.
+            In future releases, we may allow users to provide a custom role name.
+        </Note>
+    </Step>
+</Steps>
 
 ### Instance Role
 
-To use the same instance role in which the gateway is running:
-1. Set the environment variable `INTEGRATION_AWS_INSTANCE_ROLE_ALLOW=true`
-2. When configuring the IAM credentials, set the region only before moving to the next page
+To use the instance role of the Hoop Gateway, you need to configure the environment variable:
+- `INTEGRATION_AWS_INSTANCE_ROLE_ALLOW=true`
+
+This allows the integration to use the instance role of the Hoop Gateway to access AWS resources.
+
+Make sure to create an **IAM role** in the account that you're hosting the Hoop Gateway and associate with the policy `HoopAWSConnect`.
+See the step above to create the IAM role.
+
+## Web Interface
+
+The web interface allows you to configure the AWS Connect integration and manage the provisioning of database roles.
+It will list the available AWS accounts and the databases that can be provisioned.
+
+### Access Key Credentials
+
+<Frame>
+  <img src="/images/integrations/aws-connect-2.png" alt="AWS IAM Security Credentials" />
+</Frame>
+
+### Instance Role
 
 <Frame>
   <img src="/images/integrations/aws-connect-3.png" alt="AWS Region Configuration" />
