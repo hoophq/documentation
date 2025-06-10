@@ -1,0 +1,186 @@
+---
+title: "DynamoDB"
+description: "DynamoDB in Hoop offers a unique experience where tables are treated as databases, with automatic environment variable configuration and an interface optimized for NoSQL."
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+<Info>
+DynamoDB in Hoop has a unique conceptual architecture where **tables function as databases**, different from traditional relational databases. Each table is treated as an independent unit in the interface.
+</Info>
+
+## Introduction to DynamoDB in Hoop
+
+Amazon DynamoDB is a fully managed NoSQL database that delivers fast and predictable performance with seamless scalability. In Hoop, DynamoDB receives special treatment to accommodate its unique NoSQL nature:
+
+### Special Characteristics
+
+**Differentiated Conceptual Architecture:**
+- **Tables are displayed as "databases"** in the navigation tree
+- Each table functions as an independent unit
+- No traditional database/schema concept like in relational databases
+
+**Intelligent Auto-configuration:**
+- When a table is selected, the `TABLE_NAME` variable is automatically injected
+- The variable is base64 encoded and made available as `envvar:TABLE_NAME`
+- Eliminates manual configuration of the target table in scripts
+
+## Configuration
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| AWS_ACCESS_KEY_ID | env-var | yes | The AWS access key ID for DynamoDB access |
+| AWS_SECRET_ACCESS_KEY | env-var | yes | The AWS secret access key for DynamoDB access |
+| AWS_REGION | env-var | yes | The AWS region where your DynamoDB tables are located (e.g., us-east-1, eu-west-1) |
+
+## How to Create a DynamoDB Connection
+
+DynamoDB connections are created as custom connections using the `custom/dynamodb` type.
+
+### Creation Command
+
+```bash
+hoop admin create conn my-dynamodb -a <agent> --type custom/dynamodb \
+    -e AWS_ACCESS_KEY_ID=<your-access-key> \
+    -e AWS_SECRET_ACCESS_KEY=<your-secret-key> \
+    -e AWS_REGION=<aws-region>
+```
+
+### Complete Example
+
+```bash
+# Basic connection with direct credentials
+hoop admin create conn prod-dynamodb -a aws-agent --type custom/dynamodb \
+    -e AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
+    -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+    -e AWS_REGION=us-east-1
+```
+
+<Warning>
+**Web App Creation:** Currently, DynamoDB connections cannot be created through the web interface. Use the CLI command above to create the connection, then it will be available in the web app for use.
+</Warning>
+
+## Automatic Environment Variables Usage
+
+### TABLE_NAME Functionality
+
+When you select a table in the interface, Hoop automatically:
+
+1. **Injects the Variable**: `TABLE_NAME` is defined with the selected table name
+2. **Base64 Encoding**: The variable is stored base64 encoded
+3. **Availability**: Made accessible in scripts as `envvar:TABLE_NAME`
+
+### Usage Example
+
+```bash
+# After selecting the "users-table" table in the interface
+# The TABLE_NAME variable is automatically defined
+
+# In your scripts, you can use:
+aws dynamodb scan --table-name ${TABLE_NAME}
+```
+
+### Example Scripts
+
+```python
+# Python with boto3
+import boto3
+import os
+
+# TABLE_NAME is automatically made available
+table_name = os.environ.get('TABLE_NAME')
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table(table_name)
+
+# Scan the selected table
+response = table.scan()
+print(f"Items in {table_name}:", response['Items'])
+```
+
+```javascript
+// Node.js with AWS SDK
+const AWS = require('aws-sdk');
+const dynamodb = new AWS.DynamoDB.DocumentClient();
+
+const tableName = process.env.TABLE_NAME;
+
+// Query the selected table
+const params = {
+    TableName: tableName,
+    // ... other parameters
+};
+
+dynamodb.scan(params, (err, data) => {
+    if (err) console.error(err);
+    else console.log(data.Items);
+});
+```
+
+## Schema Navigation
+
+### Special Table Behavior
+
+In DynamoDB via Hoop, schema navigation works uniquely:
+
+1. **Tables as Databases**: In the navigation tree, each DynamoDB table appears where you would normally see databases
+2. **Table Selection**: When clicking on a table, it is automatically selected as context
+3. **Schema Visualization**: Columns and data types are loaded progressively
+
+### Navigation Flow
+
+```
+DynamoDB Connection
+├── users-table          (treated as database)
+│   ├── userId (String)   (partition key)
+│   ├── email (String)
+│   └── createdAt (Number)
+├── orders-table
+│   ├── orderId (String)
+│   ├── userId (String)
+│   └── amount (Number)
+└── products-table
+    ├── productId (String)
+    ├── name (String)
+    └── price (Number)
+```
+
+## How to Use
+
+Now you can execute DynamoDB operations using the AWS CLI or SDKs:
+
+### Basic Operations
+
+```bash
+# List all tables
+hoop exec my-dynamodb -- aws dynamodb list-tables
+
+# Scan the selected table (TABLE_NAME is automatically injected)
+hoop exec my-dynamodb -- aws dynamodb scan --table-name ${TABLE_NAME}
+
+# Query with partition key
+hoop exec my-dynamodb -- aws dynamodb query \
+    --table-name ${TABLE_NAME} \
+    --key-condition-expression "userId = :userId" \
+    --expression-attribute-values '{"userId": {"S": "user123"}}'
+```
+
+### Python Script Example
+
+```bash
+hoop exec my-dynamodb --input << 'EOF'
+import boto3
+import os
+
+table_name = os.environ.get('TABLE_NAME')
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table(table_name)
+
+response = table.scan(Limit=10)
+for item in response['Items']:
+    print(item)
+EOF
+```
+
+ 
