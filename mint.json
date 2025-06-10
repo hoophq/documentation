@@ -95,6 +95,7 @@
             "quickstart/databases/postgres",
             "quickstart/databases/mysql",
             "quickstart/databases/mongodb",
+            "quickstart/databases/dynamodb",
             "quickstart/databases/oracle",
             "quickstart/databases/mssql",
             "quickstart/databases/apache-cassandra",
