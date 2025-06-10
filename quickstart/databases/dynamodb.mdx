@@ -24,7 +24,6 @@ Amazon DynamoDB is a fully managed NoSQL database that delivers fast and predict
 
 **Intelligent Auto-configuration:**
 - When a table is selected, the `TABLE_NAME` variable is automatically injected
-- The variable is base64 encoded and made available as `envvar:TABLE_NAME`
 - Eliminates manual configuration of the target table in scripts
 
 ## Configuration
@@ -69,8 +68,7 @@ hoop admin create conn prod-dynamodb -a aws-agent --type custom/dynamodb \
 When you select a table in the interface, Hoop automatically:
 
 1. **Injects the Variable**: `TABLE_NAME` is defined with the selected table name
-2. **Base64 Encoding**: The variable is stored base64 encoded
-3. **Availability**: Made accessible in scripts as `envvar:TABLE_NAME`
+2. **Availability**: Made accessible in scripts as `envvar:TABLE_NAME`
 
 ### Usage Example
 
