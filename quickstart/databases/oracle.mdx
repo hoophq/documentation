@@ -35,11 +35,24 @@ The table below outlines the features available for this type of connection.
 
 ## Connection Setup
 
-Create a new Database connection in hoop's web panel.
+```sh
+hoop admin create conn oracledb -a youragent \
+  -e HOST=<host> \
+  -e USER=<user> \
+  -e PASS=<pass> \
+  -e SID=<sid> \
+  -e PORT=<port> \
+   -- sqlplus -s '$USER/$PASS@$HOST:$PORT/$SID'
+```
 
-<Frame>
+<Warning>
+    The Webapp doesn't support Oracle connection type at the moment.
+    In upcoming releases, we will add support for this connection type.
+</Warning>
+
+{/* <Frame>
     <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
-</Frame>
+</Frame> */}
 
 ## Connection Usage
 
