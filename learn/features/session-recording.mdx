@@ -4,21 +4,75 @@ description: "Record and playback terminal sessions and entire databases connect
 ---
 
 <Frame>
-  <img src="/images/learn/features/session-recording.png" />
+  ![](/images/learn/features/session-recording.png)
 </Frame>
 
 You can audit tracks every action made with Hoop.dev. It provides video recordings of sessions and logging.
 
+## **Benefits**
+
+**Faster Debugging:** Quickly identify what went wrong in a session with complete visibility into every command and response. Which means there is no need to reconstruct issues from memory or incomplete logs.
+
+**Improved Onboarding and Knowledge Sharing:** Session recordings double as live documentation, helping new team members learn how experienced engineers navigate complex systems.
+
+**Streamlined Compliance:** Automatically generate detailed audit trails to support SOC 2, HIPAA, and PCI compliance without setting up external log forwarding or managing multiple logging systems.
+
+**Zero-Trust Security Enforcement:** Maintain full visibility into how access is used. Every action is tied to an authenticated user, with no standing credentials or untracked activity.
+
+## **Key Features**
+
+**Complete Session Capture:** Includes precise timestamps, user identity with organizational context, and connection metadata for every session.
+
+**Full Input/Output Recording:** Records every command entered and response returned, with optional high-definition video playback and structured log export.
+
+**Searchable Metadata:** Sessions are enriched with tags and contextual information for fast filtering, retrieval, and analysis.
+
+**Multiple Output Formats:** View sessions as videos in the browser or export structured logs for automated processing and reporting.
+
 ## Information available
 
-- **Time**: start and end time of each session;
-- **User**: complete user information inside your organization;
-- **Connection**: the connection used in the session;
-- **Input and Output**: every command and its output an user has executed;
-    - **Video recording**: a video recording of the session;
-    - **Logs**: a log of the session;
-- **Metadata**: a list of user inputed metadata an user can add to a session;
+**Time**: start and end time of each session
+
+**User**: complete user information inside your organization
+
+**Connection**: the connection used in the session
+
+**Input and Output**: every command and its output an user has executed
+
+- **Video recording**: a video recording of the session
+- **Logs**: a log of the session
 
 {/* ## Configuration
 
 For detailed configuration instructions and setup guides, see [Session Recording Configuration](/setup/configuration/session-recording-configuration) guide. */}
+
+**Capture every interaction with full visibility, faster troubleshooting, and built-in compliance.**
+
+[Hoop.dev](http://Hoop.dev)’s session recording feature provides a complete, searchable record of user activity across your infrastructure—without disrupting developer workflows.
+
+---
+
+## **How it Works**
+
+**Transparent Proxy Layer:** [hoop.dev](http://hoop.dev) sits between users and infrastructure, capturing all session data without changing your existing tools or workflows.
+
+**Automatic Recording:** Session recording starts the moment a user connects through [hoop.dev](http://hoop.dev). There’s no manual setup or toggling required.
+
+**Structured Storage and Search:** Recorded sessions are stored securely with rich metadata, making it easy to search by user, resource, or timeframe.
+
+**Security and Access Controls:** Session data is protected by role-based access controls and integrated into your existing permission model.
+
+---
+
+## **Getting Started**
+
+1. **Connect Resources:** Add your databases, Kubernetes clusters, or infrastructure endpoints to [hoop.dev](http://hoop.dev) using the appropriate connection strings and credentials.
+2. **Enable Session Recording:** Turn on session recording globally or per-connection. Use granular policies to define what gets recorded and for how long.
+3. **Invite Team Members:** Add users and assign access permissions. All activity is automatically tracked and tied to each individual.
+4. **Use Existing Workflows:** Developers can continue using their preferred CLI or web interface. [hoop.dev](http://hoop.dev) captures sessions in the background—no workflow changes needed.
+
+---
+
+**Session recording turns everyday infrastructure access into a rich source of insight, accountability, and operational efficiency.**
+
+For reliability engineering, security, and compliance teams, it’s a simple way to ensure visibility without slowing anyone down.
