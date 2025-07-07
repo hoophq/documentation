@@ -61,7 +61,8 @@ hoop admin create conn my-cloudwatch -a <agent-name> \
 ### CLI
 
 ```bash
-hoop exec my-cloudwatch -i 'aws logs filter-log-events --log-group-name /aws/lambda/my-function'
+hoop exec my-cloudwatch \
+  -i 'aws logs filter-log-events --log-group-name /aws/lambda/my-function'
 ```
 
 ### Web panel
