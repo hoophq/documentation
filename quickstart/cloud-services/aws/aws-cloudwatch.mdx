@@ -43,6 +43,7 @@ The flag `--type custom/cloudwatch` allows displaying the introspection schema i
 ```bash
 hoop admin create conn my-cloudwatch -a <agent-name> \
     --type custom/cloudwatch \
+    --overwrite \
     --schema=enabled \
     --skip-validation \
     -e AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
