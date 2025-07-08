@@ -1,13 +1,22 @@
 ---
-title: 'Getting Started'
-description: 'Secure gateway access to your infrastructure with AI-powered security'
+title: "Getting Started"
+description: "Secure gateway access to your infrastructure with AI-powered security"
 ---
-<img className="block dark:hidden" src="/images/introduction/lp-hero.png" />
-<img className="hidden dark:block" src="/images/introduction/lp-hero-2.png" />
+
+<img
+  className="block dark:hidden"
+  src="/images/introduction/lp-hero.png"
+/>
+
+<img
+  className="hidden dark:block"
+  src="/images/introduction/lp-hero-2.png"
+/>
 
 Hoop.dev is an access gateway for databases and servers with AI-powered automations that eliminate cumbersome access policies and break-glass workflows without compromising security. Our platform provides secure, auditable, and easy-to-manage access to your infrastructure.
 
 ## The Challenge of Infrastructure Access
+
 Organizations face significant challenges when managing access to critical infrastructure:
 
 - Security risks from overly permissive access policies
@@ -19,39 +28,46 @@ Organizations face significant challenges when managing access to critical infra
 Hoop.dev addresses these challenges by providing a secure gateway that sits between your users and your infrastructure, delivering zero-config security features that protect your resources while streamlining access for developers.
 
 ## Our Solutions
+
 Hoop.dev offers a range of features to help you secure your infrastructure and streamline access for developers, including:
 
 <CardGroup cols={2}>
-  <Card icon="mask" title="AI Data Masking" href="/learn/features/ai-data-masking">
-  Zero-config DLP policies that automatically mask sensitive data in real-time at the protocol layer. Protect PII, credentials, and other sensitive information without requiring complex rule setup.
-  <br />
-  **Learn more** <Icon icon="arrow-right" />
-  </Card>
+  <Card title="AI Data Masking" icon="mask" href="/learn/features/ai-data-masking">
+    Zero-config DLP policies that automatically mask sensitive data in real-time at the protocol layer. Protect PII, credentials, and other sensitive information without requiring complex rule setup.
 
-  <Card icon="clock" title="Reviews" href="/learn/features/reviews/overview">
-  Enable time-based access sessions or command-level reviews. Users request access or review while approvers guarantee security without sacrificing productivity.
-   <br />
-  **Learn more** <Icon icon="arrow-right" /> 
-  </Card>
+    <br />
 
-  <Card icon="lock" title="Access Control" href="/learn/features/access-control">
-  Define granular access policies determining which users or groups can access specific connections. Integrate with your existing identity provider to maintain consistent access governance.
-  <br />
-  **Learn more** <Icon icon="arrow-right" />
+    **Learn more** <Icon icon="arrow-right" />
   </Card>
+  <Card title="Reviews" icon="clock" href="/learn/features/reviews/overview">
+    Enable time-based access sessions or command-level reviews. Users request access or review while approvers guarantee security without sacrificing productivity.
 
-  <Card icon="shield" title="Guardrails" href="/learn/features/guardrails">
-  Intelligent protection layer that automatically enforces access policies and prevents risky operations in real-time. Keep your infrastructure secure with smart command filtering and context-aware access.
-  <br />
-  **Learn more** <Icon icon="arrow-right" />
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
   </Card>
+  <Card title="Access Control" icon="lock" href="/learn/features/access-control">
+    Define granular access policies determining which users or groups can access specific connections. Integrate with your existing identity provider to maintain consistent access governance.
 
-  <Card icon="book" title="Runbooks" href="/learn/features/runbooks">
-  Automate tasks with templated runbooks. Create, share, and execute procedures through a Git-based system, improving consistency and reducing errors.
-  <br />
-  **Learn more** <Icon icon="arrow-right" />
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
   </Card>
+  <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
+    Intelligent protection layer that automatically enforces access policies and prevents risky operations in real-time. Keep your infrastructure secure with smart command filtering and context-aware access.
 
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
+  </Card>
+  <Card title="Runbooks" icon="book" href="/learn/features/runbooks">
+    Automate tasks with templated runbooks. Create, share, and execute procedures through a Git-based system, improving consistency and reducing errors.
+
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
+  </Card>
+  
   <Card icon="key" title="Secrets Management" href="/learn/features/secrets-manager">
   Securely integrate with most popular secrets management tools. Dynamically expand environment variables without exposing sensitive credentials.
   <br />
@@ -59,39 +75,40 @@ Hoop.dev offers a range of features to help you secure your infrastructure and s
   </Card>
 </CardGroup>
 
-
 ## Common Use Cases
 
 <AccordionGroup>
   <Accordion title="Database Access Management">
     Provide secure, audited access to databases while masking sensitive data. Enable developers to run queries without direct access to production credentials.
   </Accordion>
-
   <Accordion title="Secure Server Access Without VPN">
     Eliminate the need for VPN by providing secure, authenticated access to servers and applications through Hoop.dev's gateway.
   </Accordion>
-
   <Accordion title="Compliance & Auditing">
     Meet regulatory requirements with comprehensive session recordings, access logs, and data protection features that document who accessed what and when.
   </Accordion>
-
   <Accordion title="Developer Productivity">
     Streamline access to resources developers need while maintaining security guardrails that protect sensitive systems and data.
   </Accordion>
 </AccordionGroup>
 
 ## Getting Started
+
 Hoop.dev is currently available in managed and self-hosted modes. Choose the option that best fits your needs:
 
 <CardGroup cols={2}>
   <Card title="Managed Service" icon="cloud" href="https://hoop.dev/start">
     Get started with our managed platform. No complex setup required - just register and begin connecting your resources to secure your infrastructure access immediately.
+
     <br />
+
     **Create free account** <Icon icon="arrow-right" />
   </Card>
   <Card title="Self-Hosted" icon="server" href="/setup/deployment/overview">
     Deploy Hoop.dev in your own infrastructure using Docker, Kubernetes, or AWS. Take full control over your environment setup with the same powerful features.
+
     <br />
+
     **Go to deployment guide** <Icon icon="arrow-right" />
   </Card>
 </CardGroup>
