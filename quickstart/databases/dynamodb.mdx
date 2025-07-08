@@ -42,6 +42,7 @@ The flag `--type custom/dynamodb` allows displaying the introspection schema in 
 
 ```bash
 hoop admin create conn my-dynamodb -a <agent-name> \
+    --overwrite \
     --type custom/dynamodb \
     --schema=enabled \
     --skip-validation \
