@@ -94,6 +94,9 @@ This page provides instructions on how to configure the Helm chart to install Ho
       API_URL: 'http://127.0.0.1:8009'
       JWT_SECRET_KEY: "$JWT_SECRET_KEY"
 
+    dataMasking:
+      enabled: true
+
     defaultAgent:
       enabled: true
     EOF
@@ -355,13 +358,12 @@ Check the [environment variables section](/setup/configuration/env-vars) for mor
       IDP_CUSTOM_SCOPES: ''
       ASK_AI_CREDENTIALS: ''
       DLP_PROVIDER: 'gcp|mspresidio'
-      DLP_MODE: 'redact|anonymize'
+      DLP_MODE: 'best-effort|strict'
       GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
       MSPRESIDIO_ANALYZER_URL: ''
       MSPRESIDIO_ANONYMIZER_URL: ''
       WEBAPP_USERS_MANAGEMENT: 'on'
       WEBHOOK_APPKEY: ''
-      PGREST_ROLE: ''
       MIGRATION_PATH_FILES: '/app/migrations'
       STATIC_UI_PATH: '/app/ui/public'
       PLUGIN_AUDIT_PATH: '/opt/hoop/sessions'
@@ -873,6 +875,55 @@ defaultAgent:
   In case the gateway has TLS configured (`TLS_CA` env set), the host must match the certificate SAN.
 </Note>
 
+### Data Masking Configuration
+
+To enable the Data Masking feature, you need to configure the `dataMasking` section in your `values.yaml` file.
+It will deploy the [Microsoft Presidio](https://github.com/microsoft/presidio) on the same namespace as the Hoop Gateway.
+
+```yaml
+dataMasking:
+  enabled: true
+  # https://github.com/microsoft/presidio/releases
+  version: latest
+  # best-effort | strict
+  mode: best-effort
+
+  analyzer:
+    resources:
+      limits:
+        cpu: 512m
+        memory: 1024Mi
+      requests:
+        cpu: 256m
+        memory: 1024Mi
+
+  anonymizer:
+    resources:
+      limits:
+        cpu: 512m
+        memory: 512Mi
+      requests:
+        cpu: 256m
+        memory: 512Mi
+```
+
+<Note>
+  When the `dataMasking` attribute is enabled, it takes control over the following configurations:
+
+  - DLP_MODE
+  - DLP_PROVIDER
+  - MSPRESIDIO_ANALYZER_URL
+  - MSPRESIDIO_ANONYMIZER_URL
+  - GOOGLE_APPLICATION_CREDENTIALS_JSON
+
+  If you need more control over the deployment, we recommend using a standalone helm chart of Presidio.
+  See more details above in the [Presidio Deployment](#presidio-deployment) section.
+</Note>
+
+<Tip>
+  This attribute is available starting from version **1.37.16+** of the Helm chart.
+</Tip>
+
 ### Node Selector
 
 This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
@@ -925,6 +976,67 @@ affinity:
           values:
           - another-node-label-value
 ```
+
+## Presidio Deployment
+
+The Data Masking feature uses Microsoft Presidio.
+We provide a Helm chart that gives more control over the deployment.
+
+```bash
+helm upgrade --install presidio \
+  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.0.1 \
+  -f values.yaml
+```
+
+<AccordionGroup>
+  <Accordion title="values.yaml">
+    ```yaml
+    # versions: https://github.com/microsoft/presidio/releases
+    imageVersion: latest
+
+    # analyzer service configuration
+    analyzer:
+      replicas: 1
+      imageRepository: mcr.microsoft.com/presidio-analyzer
+      imagePullPolicy: Always
+      resources:
+        limits:
+          cpu: 512m
+          memory: 1024Mi
+        requests:
+          cpu: 256m
+          memory: 1024Mi
+
+    # anonymizer service configuration
+    anonymizer:
+      replicas: 1
+      imageRepository: mcr.microsoft.com/presidio-anonymizer
+      imagePullPolicy: Always
+      resources:
+        limits:
+          cpu: 512m
+          memory: 512Mi
+        requests:
+          cpu: 256m
+          memory: 512Mi
+    ```
+  </Accordion>
+</AccordionGroup>
+
+The chart will create two services that are used in the gateway to configure the data masking feature:
+- `presidio-analyzer` -  The analyzer service that detects PII data in text.
+- `presidio-anonymizer` -  The anonymizer service that masks PII data in text
+
+These services must be respectively configured in the Gateway with the following environment variables:
+
+```conf
+DLP_PROVIDER=mspresidio
+MSPRESIDIO_ANALYZER_URL=http://presidio-analyzer:3000
+MSPRESIDIO_ANONYMIZER_URL=http://presidio-anonymizer:3000
+```
+
+For more information about new releases, consult the [Presidio Helm Chart repository](https://github.com/hoophq/presidio-helm).
+
 
 ## Generating Manifests
 

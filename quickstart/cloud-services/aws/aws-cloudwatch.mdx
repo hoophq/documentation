@@ -43,7 +43,9 @@ The flag `--type custom/cloudwatch` allows displaying the introspection schema i
 ```bash
 hoop admin create conn my-cloudwatch -a <agent-name> \
     --type custom/cloudwatch \
+    --overwrite \
     --schema=enabled \
+    --skip-validation \
     -e AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
     -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
     -e AWS_REGION=us-west-2 \
@@ -60,7 +62,8 @@ hoop admin create conn my-cloudwatch -a <agent-name> \
 ### CLI
 
 ```bash
-hoop exec my-cloudwatch -i 'aws logs filter-log-events --log-group-name /aws/lambda/my-function'
+hoop exec my-cloudwatch \
+  -i 'aws logs filter-log-events --log-group-name /aws/lambda/my-function'
 ```
 
 ### Web panel
