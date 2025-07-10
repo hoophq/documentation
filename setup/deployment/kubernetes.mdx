@@ -984,21 +984,21 @@ We provide a Helm chart that gives more control over the deployment.
 
 ```bash
 helm upgrade --install presidio \
-  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.0.1 \
+  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.0.2 \
   -f values.yaml
 ```
 
 <AccordionGroup>
   <Accordion title="values.yaml">
     ```yaml
-    # versions: https://github.com/microsoft/presidio/releases
-    imageVersion: latest
 
     # analyzer service configuration
     analyzer:
       replicas: 1
       imageRepository: mcr.microsoft.com/presidio-analyzer
       imagePullPolicy: Always
+      # versions: https://github.com/microsoft/presidio/releases
+      imageTag: latest
       resources:
         limits:
           cpu: 512m
@@ -1012,6 +1012,8 @@ helm upgrade --install presidio \
       replicas: 1
       imageRepository: mcr.microsoft.com/presidio-anonymizer
       imagePullPolicy: Always
+      # versions: https://github.com/microsoft/presidio/releases
+      imageTag: latest
       resources:
         limits:
           cpu: 512m
