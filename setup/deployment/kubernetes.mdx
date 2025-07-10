@@ -1037,6 +1037,47 @@ MSPRESIDIO_ANONYMIZER_URL=http://presidio-anonymizer:3000
 
 For more information about new releases, consult the [Presidio Helm Chart repository](https://github.com/hoophq/presidio-helm).
 
+### Presidio With Flair
+
+<Note>
+  Available under the agent version **1.37.22+** and the Helm Presidio Chart version **v0.0.2+**.
+</Note>
+
+We have a custom build of Presidio that leverages the use of [Flair](https://flairnlp.github.io/flair/), it provides better accuracy in detecting PII data.
+To use this custom build, you could use our custom build of the Presidio Analyzer.
+
+```yaml
+analyzer:
+  replicas: 1
+  imageRepository: hoophq/presidio-analyzer-flair
+  imageTag: 0.0.3
+  imagePullPolicy: Always
+  resources:
+    limits:
+      cpu: 8192m
+      memory: 16384Mi
+    requests:
+      cpu: 8192m
+      memory: 16384Mi
+
+# anonymizer service configuration
+anonymizer:
+  replicas: 1
+  imageRepository: mcr.microsoft.com/presidio-anonymizer
+  imagePullPolicy: Always
+  resources:
+    limits:
+      cpu: 512m
+      memory: 512Mi
+    requests:
+      cpu: 256m
+      memory: 512Mi
+```
+
+<Warning>
+  The custom build of Presidio Analyzer with Flair requires more resources than the default official image.
+  We recommend allocating at least 8vCPU and 16GB to the analyzer process.
+</Warning>
 
 ## Generating Manifests
 
