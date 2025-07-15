@@ -62,8 +62,6 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
 This simpler version doesn't require much configuration, it just runs in your localhost and uses a default JWT authentication.
 
 ```sh
-# create a jwt secret for auth
-echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env
 # download and run
 curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && docker compose up
 ```
@@ -91,16 +89,10 @@ If you want to set up a custom Identity Provider or run it in a remote machine, 
 
     <Tabs>
         <Tab title="JWT authentication">
-            This will generate a secret key for you and set it in the .env file already.
-            ```sh
-            echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env
             ```
-            Then, access the `.env` file and add the following configuration lines for your host configuration
+            Create an `.env` file to add the following configuration lines for your host configuration
             ```sh .env
-            # the JWT_SECRET_KEY will be here already from the previous command
-            JWT_SECRET_KEY=<your-secret-key>
-
-            # the API_URL and GRPC_URL are the host where 
+            # the API_URL and GRPC_URL are the host where
             # the Hoop API and GRPC services are running
             API_URL=http://<your-vm-ip-or-host>:8009
             GRPC_URL=http://<your-vm-ip-or-host>:8010

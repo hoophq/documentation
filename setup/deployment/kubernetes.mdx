@@ -82,12 +82,10 @@ This page provides instructions on how to configure the Helm chart to install Ho
   <Step title="Configure the values.yml">
 
     ```sh
-    JWT_SECRET_KEY=$(openssl rand 64 | base64)
     cat - > ./values.yaml <<EOF
     config:
       POSTGRES_DB_URI: 'postgres://root:1a2b3c4d@postgres.hoopdev:5432/hoopdb?sslmode=disable'
       API_URL: 'http://127.0.0.1:8009'
-      JWT_SECRET_KEY: "$JWT_SECRET_KEY"
 
     dataMasking:
       enabled: true
@@ -343,8 +341,7 @@ Check the [environment variables section](/setup/configuration/env-vars) for mor
       TLS_CA: ''
       TLS_KEY: ''
       TLS_CERT: ''
-      AUTH_METHOD: 'local|idp'
-      JWT_SECRET_KEY: ''
+      AUTH_METHOD: 'local|oidc|saml'
       IDP_CLIENT_ID: ''
       IDP_CLIENT_SECRET: ''
       IDP_ISSUER: ''
@@ -378,18 +375,11 @@ Check the [environment variables section](/setup/configuration/env-vars) for mor
 <Tabs>
   <Tab title="Local Authentication">
     Local Authentication manages users and passwords locally and sign JWT access tokens to users.
-    Make sure to create a strong secret key for `JWT_SECRET_KEY` configuration, the command below generate a strong key as the value for this configuration:
-
-    ```sh
-    openssl rand 64 | base64
-    ```
 
     ```yaml
     config:
       POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
       API_URL: 'https://hoopdev.yourdomain.tld'
-      AUTH_METHOD: local
-      JWT_SECRET_KEY: '<secure-secret-key>'
     ```
 
   </Tab>
@@ -717,16 +707,11 @@ The ingress configuration establishes these two differing configurations based o
             - Generate Helm values.yaml
 
             ```sh
-            JWT_SECRET_KEY=$(openssl rand 64 | base64)
-            ```
-
-            ```sh
             cat - > /tmp/hoopdemo/values.yaml <<EOF
             config:
               POSTGRES_DB_URI: 'postgres://root:1a2b3c4d@postgres:5432/hoopdb?sslmode=disable'
               API_URL: "https://$DOMAIN_HOSTNAME"
               GRPC_URL: "grpcs://grpc-$DOMAIN_HOSTNAME:443"
-              JWT_SECRET_KEY: "$JWT_SECRET_KEY"
 
             defaultAgent:
               enabled: true
@@ -979,7 +964,7 @@ We provide a Helm chart that gives more control over the deployment.
 
 ```bash
 helm upgrade --install presidio \
-  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.0.2 \
+  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.0.3 \
   -f values.yaml
 ```
 
@@ -1002,6 +987,15 @@ helm upgrade --install presidio \
           cpu: 256m
           memory: 1024Mi
 
+      # -- Node labels for pod assignment
+      nodeSelector: {}
+
+      # -- Toleration labels for pod assignment
+      tolerations: []
+
+      # -- Affinity settings for pod assignment
+      affinity: {}
+
     # anonymizer service configuration
     anonymizer:
       replicas: 1
@@ -1016,6 +1010,15 @@ helm upgrade --install presidio \
         requests:
           cpu: 256m
           memory: 512Mi
+
+      # -- Node labels for pod assignment
+      nodeSelector: {}
+
+      # -- Toleration labels for pod assignment
+      tolerations: []
+
+      # -- Affinity settings for pod assignment
+      affinity: {}
     ```
   </Accordion>
 </AccordionGroup>
@@ -1075,6 +1078,59 @@ anonymizer:
   The custom build of Presidio Analyzer with Flair requires more resources than the default official image.
   We recommend allocating at least 8vCPU and 16GB to the analyzer process.
 </Warning>
+
+### Node Selector
+
+This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
+
+See [this documentation](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/) for more information.
+
+```yaml
+# -- Node labels for pod assignment
+nodeSelector:
+  disktype: ssd
+```
+
+### Tolerations
+
+See this article explaining how to configure [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+
+```yaml
+# -- Toleration labels for pod assignment
+tolerations:
+- effect: NoExecute
+  key: spot
+  value: "true"
+- effect: NoSchedule
+  key: spot
+  value: "true"
+```
+
+### Node Affinity
+
+See [this article](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) explaining how to configure affinity and anti-affinity rules
+
+```yaml
+# -- Affinity settings for pod assignment
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+          - antarctica-east1
+          - antarctica-west1
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
+        - key: another-node-label-key
+          operator: In
+          values:
+          - another-node-label-value
+```
 
 ## Generating Manifests
 
