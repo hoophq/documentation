@@ -1081,6 +1081,10 @@ anonymizer:
 
 ### Node Selector
 
+<Note>
+  Available on Helm Chart version **v0.0.3+**.
+</Note>
+
 This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
 
 See [this documentation](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/) for more information.
@@ -1092,6 +1096,10 @@ nodeSelector:
 ```
 
 ### Tolerations
+
+<Note>
+  Available on Helm Chart version **v0.0.3+**.
+</Note>
 
 See this article explaining how to configure [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
 
@@ -1107,6 +1115,10 @@ tolerations:
 ```
 
 ### Node Affinity
+
+<Note>
+  Available on Helm Chart version **v0.0.3+**.
+</Note>
 
 See [this article](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) explaining how to configure affinity and anti-affinity rules
 
