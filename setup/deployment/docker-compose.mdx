@@ -59,11 +59,11 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
 
 ## Download & Run in your machine
 
-This simpler version doesn't require much configuration, it just runs in your localhost and uses a default JWT authentication.
+This simpler version doesn't require much configuration, it just runs in your localhost.
 
 ```sh
-# download and run
-curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && docker compose up
+touch .env && curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && \
+  docker compose up
 ```
 
 This will download the docker-compose file and run it in your local machine. You can access it at `http://localhost:8009` in your browser.
@@ -80,29 +80,30 @@ If you want to set up a custom Identity Provider or run it in a remote machine, 
   </Step>
 
   <Step title="Set the .env file">
-    This step is required for authentication mostly, but a lot more configurations can be added to your .env file.
+    This step is required for authentication mostly, but a lot more configurations can be added to your `.env` file.
     Check all the available configurations in the [environment variables section](/setup/configuration/env-vars).
 
-    Going with basic JWT Authentication is recommended because it's the fastest way to get started.
-
-    <Note>The .env file must be at the same level as the docker-compose.yml file</Note>
+    <Note>
+      The `.env` file must be at the same level as the docker-compose.yml file
+    </Note>
 
     <Tabs>
-        <Tab title="JWT authentication">
-            ```
-            Create an `.env` file to add the following configuration lines for your host configuration
-            ```sh .env
-            # the API_URL and GRPC_URL are the host where
-            # the Hoop API and GRPC services are running
-            API_URL=http://<your-vm-ip-or-host>:8009
-            GRPC_URL=http://<your-vm-ip-or-host>:8010
-            ```
+        <Tab title="Local Provider">
+          The local provider is the default, it allows accessing the developer portal with password based authentication.
 
+          - Create an `.env` file to add the following configuration lines for your host configuration
+
+          ```sh .env
+          # the API_URL and GRPC_URL are the host where
+          # the Hoop API and GRPC services are running
+          API_URL=http://<your-vm-ip-or-host>:8009
+          GRPC_URL=http://<your-vm-ip-or-host>:8010
+          ```
       </Tab>
       <Tab title="Custom Identity Provider">
         Setting up your Identity Provider is a bit more complex, but it's a one-time setup. If you don't have admin access to your Identity Provider, you can use the default one provided by Hoop, which will make your life much easier to get to know hoop.dev.
 
-        Below you can see an example of how to set up the .env file with the Identity Provider values. See our [Identity Providers section](/configure/idp/get-started) for more information on how to obtain these values.
+        Below you can see an example of how to set up the .env file with the Identity Provider values. See our [Identity Providers section](/setup/configuration/idp) for more information on how to obtain these values.
 
         ```sh
         cat - > .env <<EOF
@@ -120,13 +121,13 @@ If you want to set up a custom Identity Provider or run it in a remote machine, 
         IDP_CLIENT_SECRET=<your-client-secret>
         IDP_AUDIENCE=<your-audience>
 
-        # the API_URL and GRPC_URL are the host where 
+        # the API_URL and GRPC_URL are the host where
         # the Hoop API and GRPC services are running
         API_URL=http://<your-vm-ip-or-host>:8009
         GRPC_URL=http://<your-vm-ip-or-host>:8010
         ```
 
-        <Note>Make sure to allow your Identity Provider to redirect to the Hoop API and GRPC services URLs</Note>
+        <Note>Make sure to allow your Identity Provider to redirect to the Hoop API URL</Note>
       </Tab>
     </Tabs>
 
@@ -173,29 +174,15 @@ Once you finish the setup, create an account and sign in to the developer portal
   />
 </Frame>
 
-### Create your first connection
+Click to **explore with a demo database** and you will be able to create your first connection and start exploring the platform.
 
-Now that you have access to the developer portal, let's create your first connection. We have a demo PostgreSQL connection that you can use to test the setup. Follow this guide to create your PostgreSQL demo.
+### Running Your First Query
 
-<Steps>
-  <Step title="Start with a Demo set up">
-    In the main page click on **Quick start** button inside the **Start with a Demo Setup** area.
-    <Frame>
-      <img
-        src="/images/docker/home-screen-quick-start-button.png"
-      />
-    </Frame>
-  </Step>
+Click in the **Run** button to execute the query and see the results.
 
-  <Step title="Interact with the PostgreSQL">
-    After you click on the **Quick start** button, you will see the PostgreSQL demo connection created and ready to use with a sample SQL query.
-    You can click on the **Run** button to execute the query and see the results.
-
-    <Frame>
-        <img src="/images/docker/home-screen-postgres-demo-created.png" />
-    </Frame>
-  </Step>
-</Steps>
+<Frame>
+  <img src="/images/docker/home-screen-postgres-demo-created.png" />
+</Frame>
 
 ---
 
