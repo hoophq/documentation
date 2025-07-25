@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Hoop.dev Documentation - Content Management</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+
+<body>
+  <!-- Include the script that builds the page and powers Decap CMS -->
+  <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
+
+  <!-- Custom initialization if needed -->
+  <script>
+    // Initialize Decap CMS
+    if (typeof CMS !== 'undefined') {
+      CMS.init();
+
+      // Add any custom configurations here
+      console.log('Decap CMS initialized for Hoop.dev Documentation');
+    }
+  </script>
+</body>
+
+</html>

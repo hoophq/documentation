@@ -1,0 +1,62 @@
+backend:
+  name: git-gateway
+  branch: main
+
+media_folder: "images/uploads"
+public_folder: "/images/uploads"
+
+collections:
+  - name: "connections"
+    label: "Connections"
+    folder: "store/connections"
+    create: true
+    slug: "{{id}}"
+    extension: "yml"
+    format: "yaml"
+    fields:
+      - { label: "ID", name: "id", widget: "string", hint: "Identificador único (ex: mongodb, postgresql)" }
+      - { label: "Nome", name: "name", widget: "string" }
+      - { label: "Descrição", name: "description", widget: "text" }
+      - { 
+          label: "Categoria", 
+          name: "category", 
+          widget: "select", 
+          options: ["databases", "container-platforms", "developer-consoles", "infrastructure-access", "network-services"]
+        }
+      - { 
+          label: "Tags", 
+          name: "tags", 
+          widget: "list", 
+          allow_add: true,
+          collapsed: false,
+          field: { label: "Tag", name: "tag", widget: "string" }
+        }
+      - { label: "Novo", name: "isNew", widget: "boolean", default: false }
+      - { 
+          label: "Connection String", 
+          name: "connectionString", 
+          widget: "text", 
+          hint: "Exemplo de string de conexão com placeholders" 
+        }
+      - { 
+          label: "Métodos de Conexão", 
+          name: "methods", 
+          widget: "list",
+          allow_add: true,
+          collapsed: false,
+          field: { label: "Método", name: "method", widget: "string" }
+        }
+      - { 
+          label: "Comando de Setup", 
+          name: "setupCommand", 
+          widget: "text", 
+          hint: "Comando CLI para configurar a conexão" 
+        }
+      - { 
+          label: "Requisitos", 
+          name: "requirements", 
+          widget: "list",
+          allow_add: true,
+          collapsed: false,
+          field: { label: "Requisito", name: "requirement", widget: "string" }
+        }

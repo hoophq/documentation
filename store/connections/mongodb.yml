@@ -1,0 +1,20 @@
+id: mongodb
+name: MongoDB
+description: Banco de dados NoSQL orientado a documentos
+category: databases
+tags:
+  - nosql
+  - document
+  - cloud
+isNew: false
+connectionString: "mongodb://username:password@host:port/database"
+methods:
+  - Web App
+  - CLI
+  - Runbooks
+  - Desktop App
+setupCommand: "hoop admin add resource-name --type mongodb --agent <agent-name> -e CONNECTION_STRING='mongodb://user:pass@host:27017/dbname'"
+requirements:
+  - MongoDB Server 4.0+
+  - Credenciais de usuário
+  - Conectividade de rede 

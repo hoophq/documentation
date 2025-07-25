@@ -1,0 +1,64 @@
+---
+title: "Redis"
+description: "Banco de dados em memória de alta performance para cache e armazenamento de dados"
+category: "databases"
+---
+
+import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+
+<Prerequisites />
+
+<Info>
+Esta é uma nova conexão disponível na plataforma Hoop.dev!
+</Info>
+
+## Visão Geral
+
+Banco de dados em memória de alta performance para cache e armazenamento de dados
+
+## Categoria
+**databases**
+
+## Tags
+- cache
+- in-memory
+- key-value
+- nosql
+
+## Características
+
+### Métodos de Conexão Suportados
+- Web App
+### Métodos de Conexão Suportados
+- CLI
+### Métodos de Conexão Suportados
+- Runbooks
+
+## Configuração
+
+### String de Conexão
+```
+redis:&#x2F;&#x2F;username:password@host:port&#x2F;database
+```
+
+### Comando de Setup
+```bash
+hoop admin add resource-name --type redis --agent &lt;agent-name&gt; -e CONNECTION_STRING&#x3D;&#39;redis:&#x2F;&#x2F;user:pass@localhost:6379&#x2F;0&#39;
+```
+
+## Requisitos
+
+- Redis Server 6.0+
+- Credenciais de acesso (se habilitado AUTH)
+- Porta 6379 acessível
+- Conectividade de rede
+
+## Próximos Passos
+
+Após configurar esta conexão, você poderá:
+- Acessar via Web App do Hoop.dev
+- Utilizar o CLI para automações
+- Configurar políticas de acesso
+- Implementar mascaramento de dados (se aplicável)
+
+Para mais informações sobre como usar esta conexão, consulte nossa [documentação completa](/) ou entre em contato com nossa equipe de suporte. 
