@@ -7,6 +7,10 @@ on:
       - 'store/connections/*.yml'
   workflow_dispatch: # Para testar manualmente
 
+permissions:
+  contents: write  # Necessário para fazer commits
+  pull-requests: write  # Caso precise criar PRs no futuro
+
 jobs:
   process-connections:
     runs-on: ubuntu-latest
@@ -16,6 +20,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0  # Fetch completo para evitar problemas
         
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -44,8 +49,8 @@ jobs:
     - name: Commit and push changes
       if: steps.changes.outputs.changes == 'true'
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
         git commit -m "Auto-generate connection docs from YAML [skip ci]"
         git push
         
