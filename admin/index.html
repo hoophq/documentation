@@ -4,25 +4,287 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex" />
-  <title>Hoop.dev Documentation - Content Management</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Hoop.dev Documentation - Content Manager</title>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .cms-preview {
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .connection-preview {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: white;
+    }
+
+    .connection-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .connection-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .connection-name {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .connection-desc {
+      color: #6b7280;
+      font-size: 14px;
+      margin: 4px 0;
+    }
+
+    .connection-badges {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-databases {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .badge-container-platforms {
+      background: #f3e8ff;
+      color: #7c3aed;
+    }
+
+    .badge-developer-consoles {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-infrastructure-access {
+      background: #ecfdf5;
+      color: #059669;
+    }
+
+    .badge-network-services {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .badge-new {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-stable {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .connection-section {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .connection-code {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 8px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 11px;
+      margin-top: 8px;
+      overflow-x: auto;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .tag {
+      background: #f0f9ff;
+      color: #0369a1;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+    }
+  </style>
 </head>
 
 <body>
-  <!-- Include the script that builds the page and powers Decap CMS -->
-  <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
-
-  <!-- Custom initialization if needed -->
   <script>
-    // Initialize Decap CMS
-    if (typeof CMS !== 'undefined') {
-      CMS.init();
-
-      // Add any custom configurations here
-      console.log('Decap CMS initialized for Hoop.dev Documentation');
+    // Configuração básica do CMS
+    if (window.netlifyIdentity) {
+      window.netlifyIdentity.on("init", user => {
+        if (!user) {
+          window.netlifyIdentity.on("login", () => {
+            document.location.href = "/admin/";
+          });
+        }
+      });
     }
+
+    // Preview personalizado para conexões
+    const ConnectionPreview = ({ entry, widgetFor, widgetsFor }) => {
+      const data = entry.getIn(['data']);
+
+      if (!data) return null;
+
+      // Campos exatos do nosso config.yml
+      const id = data.get('id') || 'unnamed';
+      const name = data.get('name') || 'Unnamed Connection';
+      const description = data.get('description') || '';
+      const category = data.get('category') || '';
+      const isNew = data.get('isNew') || false;
+      const connectionString = data.get('connectionString') || '';
+      const setupCommand = data.get('setupCommand') || '';
+
+      // Listas do nosso config
+      const tags = data.get('tags');
+      const methods = data.get('methods');
+      const requirements = data.get('requirements');
+
+      // Ícone baseado na categoria
+      const getIcon = (category) => {
+        switch (category) {
+          case 'databases': return '🗄️';
+          case 'container-platforms': return '🐳';
+          case 'developer-consoles': return '⚙️';
+          case 'infrastructure-access': return '🔧';
+          case 'network-services': return '🌐';
+          default: return '📋';
+        }
+      };
+
+      // Processar listas (podem vir como Immutable Lists)
+      const getListItems = (list) => {
+        if (!list) return [];
+        if (Array.isArray(list)) return list;
+        if (list.toArray) return list.toArray();
+        return [];
+      };
+
+      const tagsList = getListItems(tags);
+      const methodsList = getListItems(methods);
+      const requirementsList = getListItems(requirements);
+
+      return `
+        <div class="cms-preview">
+          <div class="connection-preview">
+            <div class="connection-header">
+              <div class="connection-icon">
+                ${getIcon(category)}
+              </div>
+              <div style="flex: 1;">
+                <h3 class="connection-name">${name}</h3>
+                <p class="connection-desc">${description}</p>
+                <div class="connection-badges">
+                  <span class="badge badge-${category}">${category}</span>
+                  ${isNew ? '<span class="badge badge-new">novo</span>' : '<span class="badge badge-stable">estável</span>'}
+                </div>
+                ${tagsList.length > 0 ? `
+                <div class="tag-list">
+                  ${tagsList.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                </div>
+                ` : ''}
+              </div>
+            </div>
+
+            ${methodsList.length > 0 ? `
+            <div class="connection-section">
+              <strong>Métodos de Conexão:</strong> ${methodsList.join(', ')}
+            </div>
+            ` : ''}
+
+            ${connectionString ? `
+            <div class="connection-section">
+              <strong>Connection String:</strong>
+              <div class="connection-code">${connectionString}</div>
+            </div>
+            ` : ''}
+
+            ${setupCommand ? `
+            <div class="connection-section">
+              <strong>Comando de Setup:</strong>
+              <div class="connection-code">${setupCommand}</div>
+            </div>
+            ` : ''}
+
+            ${requirementsList.length > 0 ? `
+            <div class="connection-section">
+              <strong>Requisitos:</strong>
+              <ul style="margin: 4px 0; padding-left: 16px;">
+                ${requirementsList.map(req => `<li>${req}</li>`).join('')}
+              </ul>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    };
+
+    // Aguardar CMS carregar antes de registrar
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(() => {
+        if (typeof CMS !== 'undefined') {
+          // Registrar preview template
+          CMS.registerPreviewTemplate('connections', ConnectionPreview);
+
+          // Validação de campos obrigatórios
+          CMS.registerEventListener({
+            name: 'preSave',
+            handler: ({ entry }) => {
+              const data = entry.getIn(['data']);
+              const id = data.get('id');
+              const name = data.get('name');
+              const category = data.get('category');
+
+              if (!id || !name || !category) {
+                throw new Error('Campos obrigatórios: ID, Nome e Categoria são necessários');
+              }
+
+              // Validar ID format
+              if (!/^[a-z0-9-]+$/.test(id)) {
+                throw new Error('ID deve conter apenas letras minúsculas, números e hífens');
+              }
+
+              console.log('Conexão validada e salva:', id);
+              return entry;
+            },
+          });
+
+          console.log('Decap CMS configurado para Hoop.dev Documentation');
+        }
+      }, 1000);
+    });
   </script>
+
+  <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
 </body>
 
 </html>
