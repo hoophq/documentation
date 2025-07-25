@@ -3,7 +3,7 @@
     {
       "id": "mongodb",
       "name": "MongoDB",
-      "description": "Banco de dados NoSQL orientado a documentos",
+      "description": "Banco de dados NoSQL orientado a documentos new Test",
       "category": "databases",
       "tags": [
         "nosql",
