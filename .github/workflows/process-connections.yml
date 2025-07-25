@@ -1,0 +1,92 @@
+name: Process Connection Changes
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'store/connections/*.yml'
+  workflow_dispatch: # Para testar manualmente
+
+jobs:
+  process-connections:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        npm install -g js-yaml mustache
+        
+    - name: Process connection files
+      run: |
+        # Criar script para processar as conexões
+        cat << 'EOF' > process_connections.js
+        const fs = require('fs');
+        const yaml = require('js-yaml');
+        const mustache = require('mustache');
+        const path = require('path');
+        
+        // Ler template
+        const template = fs.readFileSync('templates/connection-template.mdx', 'utf8');
+        
+        // Processar todos os YAMLs
+        const connectionsDir = 'store/connections';
+        const outputDir = 'connections';
+        const connections = [];
+        
+        // Garantir que o diretório de saída existe
+        if (!fs.existsSync(outputDir)) {
+          fs.mkdirSync(outputDir, { recursive: true });
+        }
+        
+        // Ler todos os arquivos YAML
+        const files = fs.readdirSync(connectionsDir).filter(file => file.endsWith('.yml'));
+        
+        files.forEach(file => {
+          try {
+            const filePath = path.join(connectionsDir, file);
+            const yamlContent = fs.readFileSync(filePath, 'utf8');
+            const connection = yaml.load(yamlContent);
+            
+            // Adicionar à lista de conexões
+            connections.push(connection);
+            
+            // Gerar MDX usando template
+            const mdxContent = mustache.render(template, connection);
+            const outputFile = path.join(outputDir, `${connection.id}.mdx`);
+            fs.writeFileSync(outputFile, mdxContent);
+            
+            console.log(`Generated: ${outputFile}`);
+          } catch (error) {
+            console.error(`Error processing ${file}:`, error);
+          }
+        });
+        
+        // Atualizar JSON consolidado
+        const jsonOutput = {
+          connections: connections
+        };
+        
+        fs.writeFileSync('store/connections.json', JSON.stringify(jsonOutput, null, 2));
+        console.log('Updated store/connections.json');
+        
+        EOF
+        
+        node process_connections.js
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add connections/*.mdx store/connections.json
+        git diff --staged --quiet || git commit -m "Auto-generate connection docs from YAML [skip ci]"
+        git push 
