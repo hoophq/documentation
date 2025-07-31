@@ -103,11 +103,11 @@ The environment variables are available when the runbook script is called, it co
 
 ### Configuring
 
-At this moment, this feature is available when a specific configuration is set in the plugin.
-It's only available via the command line, it will be available in the Webapp in the near future.
+This feature is currently available only through the command line when a specific plugin configuration is enabled.
+Web application support will be added in an upcoming release.
 
-To configure it, set time the **cache time expiration in seconds** using the configuration parameter `GIT_HOOK_CONFIG_TTL`.
-This parameter enables the runbook hooks and sets the time to live for the configuration cache.
+To enable this feature, configure the cache time expiration using the `GIT_HOOK_CONFIG_TTL` parameter.
+This parameter serves two purposes: it activates the runbook hooks functionality and sets the time-to-live (in seconds) for the configuration cache.
 
 ```sh
 hoop admin create plugin runbooks --overwrite \
