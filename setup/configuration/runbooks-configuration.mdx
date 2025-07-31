@@ -56,7 +56,7 @@ It uses a private key to clone the repository via SSH.
 ```sh
 hoop admin create plugin runbooks --overwrite \
     -c GIT_URL=git@github.com:your-org/your-repo.git \
-    -c GIT_SSH_KEY=path:$HOME/.ssh/your_key
+    -c GIT_SSH_KEY=file://$HOME/.ssh/your_key
 ```
 
 <Tip>
@@ -96,10 +96,29 @@ It requires specific files in the repository that will start the execution of a 
 
 | File Path                                     | Event Trigger | Environment Variables       |  Description   |
 | --------------------------------------------- | ------------- |---------------------------- |  ------------- |
-| `hoop-hooks/session-open.runbook.py`          | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It trigger when a session is being opened |
-| `hoop-hooks/session-close.runbook.py`         | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It trigger when a session is being closed |
+| `hoop-hooks/session-open.runbook.py`          | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being opened. It may be triggered more than once in case the connection has the review enabled. |
+| `hoop-hooks/session-close.runbook.py`         | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being closed. |
 
 The environment variables are available when the runbook script is called, it contains the payload of the event that triggered the runbook.
+
+### Configuring
+
+At this moment, this feature is available when a specific configuration is set in the plugin.
+It's only available via the command line, it will be available in the Webapp in the near future.
+
+To configure it, set time the **cache time expiration in seconds** using the configuration parameter `GIT_HOOK_CONFIG_TTL`.
+This parameter enables the runbook hooks and sets the time to live for the configuration cache.
+
+```sh
+hoop admin create plugin runbooks --overwrite \
+    -c GIT_URL=git@github.com:your-org/your-repo.git \
+    -c GIT_SSH_KEY=file://$HOME/.ssh/your_key \
+    -c GIT_HOOK_CONFIG_TTL=120
+```
+
+<Tip>
+    Use a high value in case you don't change the runbooks often, this will reduce the number of requests to the git server.
+</Tip>
 
 ### JSON Payload
 
@@ -120,6 +139,7 @@ The environment variables are available when the runbook script is called, it co
       "PWD": "/",
       "HOME": "/root"
     },
+    "connection_reviewers": [],
     "input": "SELECT * FROM customers WHERE id = 1",
     "user_email": "user@domain.tld"
   },
