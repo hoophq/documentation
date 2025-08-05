@@ -56,11 +56,19 @@ hoop admin create conn myremote-server -a <agent> --overwrite \
 
 ## How to Use it
 
+To connect automatically, it will listen to a random port and use your local `ssh` client to connect it.
+
+```bash
+hoop connect myremote-server
+```
+
+In the listen mode, it will listen for connections on the specified port when using the `--port` flag.
+
 ```bash
 hoop connect myremote-server --port 2222
 ```
 
-Connect with your local SSH client
+Connect with your local SSH client using another terminal window:
 
 ```bash
 ssh -p 2222 localhost
@@ -87,3 +95,14 @@ base64 -i ssh_host_hoop_key.pem
 </Tip>
 
 For more details, refer to the [environment variables documentation](/setup/configuration/env-vars).
+
+## Known Issues
+
+### Warp Terminal
+
+When using Warp Terminal, you might encounter issues due to its unique handling of SSH connections.
+To disable it, set this option in your bash profile or your current shell session
+
+```sh
+export WARP_USE_SSH_WRAPPER=0
+```
