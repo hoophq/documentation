@@ -2,19 +2,52 @@ id: mongodb
 name: MongoDB
 description: Banco de dados NoSQL orientado a documentos. Teste
 category: databases
+icon-name: mongodb
 tags:
   - nosql
   - document
   - cloud
 isNew: false
-connectionString: mongodb://username:password@host:port/database
-methods:
-  - Web App
-  - CLI
-  - Runbooks
-setupCommand: hoop admin add resource-name --type mongodb --agent <agent-name>
-  -e CONNECTION_STRING='mongodb://user:pass@host:27017/dbname'
-requirements:
-  - MongoDB Server 4.0+
-  - Credenciais de usuário
-  - Conectividade de rede
+
+overview:
+  description: MongoDB é um banco de dados NoSQL orientado a documentos que fornece alta escalabilidade e flexibilidade para aplicativos modernos.
+  features:
+    - Esquema flexível para evolução rápida de dados
+    - Escalabilidade horizontal com sharding automático
+    - Replicação integrada para alta disponibilidade
+    - Consultas poderosas com índices avançados
+  useCases:
+    - Aplicações web e mobile com dados variáveis
+    - Sistemas de gerenciamento de conteúdo
+    - Catálogos de produtos e-commerce
+    - Análise de dados em tempo real
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - MongoDB Server 4.0+
+    - Credenciais de usuário com privilégios adequados
+    - Conectividade de rede para porta 27017
+    - Configuração de firewall apropriada
+
+advancedConfiguration:
+  connectionString: "mongodb://username:password@host:port/database"
+  featureConfiguration:
+    - Configuração de replica set para alta disponibilidade
+    - Configuração de sharding para escalabilidade
+    - Índices otimizados para consultas frequentes
+    - Configuração SSL/TLS para conexões seguras
+  otherRequirements:
+    - Monitoramento de performance habilitado
+    - Backup automático configurado
+    - Alertas de capacidade de armazenamento
+
+gatewayInformation:
+  type: database
+  subtype: mongodb
+  credentials:
+    authType: "SCRAM-SHA-256"
+    config: "username/password authentication with SSL"

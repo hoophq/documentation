@@ -147,6 +147,24 @@
           });
         }
       });
+
+      // Lidar com redirecionamento após signup/confirmação
+      window.netlifyIdentity.on("signup", user => {
+        console.log("User signed up:", user);
+        document.location.href = "/admin/";
+      });
+
+      // Lidar com confirmação de email
+      window.netlifyIdentity.on("confirm", user => {
+        console.log("User confirmed:", user);
+        document.location.href = "/admin/";
+      });
+
+      // Para convites aceitos
+      window.netlifyIdentity.on("invite", user => {
+        console.log("User accepted invite:", user);
+        document.location.href = "/admin/";
+      });
     }
 
     // Preview personalizado para conexões

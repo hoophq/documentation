@@ -4,56 +4,68 @@ description: "Banco de dados NoSQL orientado a documentos"
 category: "databases"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import ConnectionTemplate from '/snippets/ConnectionTemplate.mdx';
 
-<Prerequisites />
-
-
-## Visão Geral
-
-Banco de dados NoSQL orientado a documentos
-
-## Categoria
-**databases**
-
-## Tags
-- nosql
-- document
-- cloud
-
-## Características
-
-### Métodos de Conexão Suportados
-- Web App
-### Métodos de Conexão Suportados
-- CLI
-### Métodos de Conexão Suportados
-- Runbooks
-
-## Configuração
-
-### String de Conexão
-```
-mongodb:&#x2F;&#x2F;username:password@host:port&#x2F;database
-```
-
-### Comando de Setup
-```bash
-hoop admin add resource-name --type mongodb --agent &lt;agent-name&gt; -e CONNECTION_STRING&#x3D;&#39;mongodb:&#x2F;&#x2F;user:pass@host:27017&#x2F;dbname&#39;
-```
-
-## Requisitos
-
-- MongoDB Server 4.0+
-- Credenciais de usuário
-- Conectividade de rede
-
-## Próximos Passos
-
-Após configurar esta conexão, você poderá:
-- Acessar via Web App do Hoop.dev
-- Utilizar o CLI para automações
-- Configurar políticas de acesso
-- Implementar mascaramento de dados (se aplicável)
-
-Para mais informações sobre como usar esta conexão, consulte nossa [documentação completa](/) ou entre em contato com nossa equipe de suporte.
+<ConnectionTemplate config={{
+  "id": "mongodb",
+  "name": "MongoDB",
+  "description": "Banco de dados NoSQL orientado a documentos",
+  "category": "databases",
+  "icon-name": "mongodb",
+  "tags": [
+    "nosql",
+    "document",
+    "cloud"
+  ],
+  "isNew": false,
+  "overview": {
+    "description": "MongoDB é um banco de dados NoSQL orientado a documentos que fornece alta escalabilidade e flexibilidade para aplicativos modernos.",
+    "features": [
+      "Esquema flexível para evolução rápida de dados",
+      "Escalabilidade horizontal com sharding automático",
+      "Replicação integrada para alta disponibilidade",
+      "Consultas poderosas com índices avançados"
+    ],
+    "useCases": [
+      "Aplicações web e mobile com dados variáveis",
+      "Sistemas de gerenciamento de conteúdo",
+      "Catálogos de produtos e-commerce",
+      "Análise de dados em tempo real"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "MongoDB Server 4.0+",
+      "Credenciais de usuário com privilégios adequados",
+      "Conectividade de rede para porta 27017",
+      "Configuração de firewall apropriada"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "mongodb://username:password@host:port/database",
+    "featureConfiguration": [
+      "Configuração de replica set para alta disponibilidade",
+      "Configuração de sharding para escalabilidade",
+      "Índices otimizados para consultas frequentes",
+      "Configuração SSL/TLS para conexões seguras"
+    ],
+    "otherRequirements": [
+      "Monitoramento de performance habilitado",
+      "Backup automático configurado",
+      "Alertas de capacidade de armazenamento"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "mongodb",
+    "credentials": {
+      "authType": "SCRAM-SHA-256",
+      "config": "username/password authentication with SSL"
+    }
+  }
+}} />
