@@ -3,7 +3,7 @@
     {
       "id": "mongodb",
       "name": "MongoDB",
-      "description": "Banco de dados NoSQL orientado a documentos",
+      "description": "NoSQL document-oriented database",
       "category": "databases",
       "icon-name": "mongodb",
       "tags": [
@@ -13,18 +13,18 @@
       ],
       "isNew": false,
       "overview": {
-        "description": "MongoDB é um banco de dados NoSQL orientado a documentos que fornece alta escalabilidade e flexibilidade para aplicativos modernos.",
+        "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
         "features": [
-          "Esquema flexível para evolução rápida de dados",
-          "Escalabilidade horizontal com sharding automático",
-          "Replicação integrada para alta disponibilidade",
-          "Consultas poderosas com índices avançados"
+          "Flexible schema for rapid data evolution",
+          "Horizontal scalability with automatic sharding",
+          "Built-in replication for high availability",
+          "Powerful queries with advanced indexing"
         ],
         "useCases": [
-          "Aplicações web e mobile com dados variáveis",
-          "Sistemas de gerenciamento de conteúdo",
-          "Catálogos de produtos e-commerce",
-          "Análise de dados em tempo real"
+          "Web and mobile applications with variable data",
+          "Content management systems",
+          "E-commerce product catalogs",
+          "Real-time data analytics"
         ]
       },
       "setupGuide": {
@@ -35,23 +35,23 @@
         },
         "requirements": [
           "MongoDB Server 4.0+",
-          "Credenciais de usuário com privilégios adequados",
-          "Conectividade de rede para porta 27017",
-          "Configuração de firewall apropriada"
+          "User credentials with appropriate privileges",
+          "Network connectivity to port 27017",
+          "Proper firewall configuration"
         ]
       },
       "advancedConfiguration": {
         "connectionString": "mongodb://username:password@host:port/database",
         "featureConfiguration": [
-          "Configuração de replica set para alta disponibilidade",
-          "Configuração de sharding para escalabilidade",
-          "Índices otimizados para consultas frequentes",
-          "Configuração SSL/TLS para conexões seguras"
+          "Replica set configuration for high availability",
+          "Sharding configuration for scalability",
+          "Optimized indexes for frequent queries",
+          "SSL/TLS configuration for secure connections"
         ],
         "otherRequirements": [
-          "Monitoramento de performance habilitado",
-          "Backup automático configurado",
-          "Alertas de capacidade de armazenamento"
+          "Performance monitoring enabled",
+          "Automatic backup configured",
+          "Storage capacity alerts"
         ]
       },
       "gatewayInformation": {

@@ -1,6 +1,6 @@
 backend:
   name: git-gateway
-  branch: feat/decap
+  branch: main
 
 media_folder: "images/uploads"
 public_folder: "/images/uploads"
@@ -14,7 +14,6 @@ collections:
     extension: "yml"
     format: "yaml"
     fields:
-      # Campos Básicos
       - { label: "ID", name: "id", widget: "string", hint: "Identificador único (ex: mongodb, postgresql)" }
       - { label: "Nome", name: "name", widget: "string" }
       - { label: "Descrição", name: "description", widget: "text" }
