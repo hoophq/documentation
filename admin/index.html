@@ -138,7 +138,7 @@
 
 <body>
   <script>
-    // Configuração básica do CMS
+    // Basic CMS Configuration
     if (window.netlifyIdentity) {
       window.netlifyIdentity.on("init", user => {
         if (!user) {
@@ -147,15 +147,28 @@
           });
         }
       });
+
+      window.netlifyIdentity.on("signup", user => {
+        console.log("User signed up:", user);
+        document.location.href = "/admin/";
+      });
+
+      window.netlifyIdentity.on("confirm", user => {
+        console.log("User confirmed:", user);
+        document.location.href = "/admin/";
+      });
+
+      window.netlifyIdentity.on("invite", user => {
+        console.log("User accepted invite:", user);
+        document.location.href = "/admin/";
+      });
     }
 
-    // Preview personalizado para conexões
     const ConnectionPreview = ({ entry, widgetFor, widgetsFor }) => {
       const data = entry.getIn(['data']);
 
       if (!data) return null;
 
-      // Campos exatos do nosso config.yml
       const id = data.get('id') || 'unnamed';
       const name = data.get('name') || 'Unnamed Connection';
       const description = data.get('description') || '';
@@ -164,12 +177,10 @@
       const connectionString = data.get('connectionString') || '';
       const setupCommand = data.get('setupCommand') || '';
 
-      // Listas do nosso config
       const tags = data.get('tags');
       const methods = data.get('methods');
       const requirements = data.get('requirements');
 
-      // Ícone baseado na categoria
       const getIcon = (category) => {
         switch (category) {
           case 'databases': return '🗄️';
@@ -181,7 +192,6 @@
         }
       };
 
-      // Processar listas (podem vir como Immutable Lists)
       const getListItems = (list) => {
         if (!list) return [];
         if (Array.isArray(list)) return list;
@@ -205,7 +215,7 @@
                 <p class="connection-desc">${description}</p>
                 <div class="connection-badges">
                   <span class="badge badge-${category}">${category}</span>
-                  ${isNew ? '<span class="badge badge-new">novo</span>' : '<span class="badge badge-stable">estável</span>'}
+                  ${isNew ? '<span class="badge badge-new">new</span>' : '<span class="badge badge-stable">stable</span>'}
                 </div>
                 ${tagsList.length > 0 ? `
                 <div class="tag-list">
@@ -217,7 +227,7 @@
 
             ${methodsList.length > 0 ? `
             <div class="connection-section">
-              <strong>Métodos de Conexão:</strong> ${methodsList.join(', ')}
+              <strong>Connection Methods:</strong> ${methodsList.join(', ')}
             </div>
             ` : ''}
 
@@ -230,14 +240,14 @@
 
             ${setupCommand ? `
             <div class="connection-section">
-              <strong>Comando de Setup:</strong>
+              <strong>Setup Command:</strong>
               <div class="connection-code">${setupCommand}</div>
             </div>
             ` : ''}
 
             ${requirementsList.length > 0 ? `
             <div class="connection-section">
-              <strong>Requisitos:</strong>
+              <strong>Requirements:</strong>
               <ul style="margin: 4px 0; padding-left: 16px;">
                 ${requirementsList.map(req => `<li>${req}</li>`).join('')}
               </ul>
@@ -248,14 +258,14 @@
       `;
     };
 
-    // Aguardar CMS carregar antes de registrar
+    // Wait for CMS to load before registering
     document.addEventListener('DOMContentLoaded', function () {
       setTimeout(() => {
         if (typeof CMS !== 'undefined') {
-          // Registrar preview template
+          // Register preview template
           CMS.registerPreviewTemplate('connections', ConnectionPreview);
 
-          // Validação de campos obrigatórios
+          // Required fields validation
           CMS.registerEventListener({
             name: 'preSave',
             handler: ({ entry }) => {
@@ -265,20 +275,20 @@
               const category = data.get('category');
 
               if (!id || !name || !category) {
-                throw new Error('Campos obrigatórios: ID, Nome e Categoria são necessários');
+                throw new Error('Required fields: ID, Name and Category are required');
               }
 
-              // Validar ID format
+              // Validate ID format
               if (!/^[a-z0-9-]+$/.test(id)) {
-                throw new Error('ID deve conter apenas letras minúsculas, números e hífens');
+                throw new Error('ID must contain only lowercase letters, numbers and hyphens');
               }
 
-              console.log('Conexão validada e salva:', id);
+              console.log('Connection validated and saved:', id);
               return entry;
             },
           });
 
-          console.log('Decap CMS configurado para Hoop.dev Documentation');
+          console.log('Decap CMS configured for Hoop.dev Documentation');
         }
       }, 1000);
     });

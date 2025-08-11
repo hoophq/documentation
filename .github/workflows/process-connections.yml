@@ -5,7 +5,11 @@ on:
     branches: [ main ]
     paths: 
       - 'store/connections/*.yml'
-  workflow_dispatch: # Para testar manualmente
+  workflow_dispatch: # For manual testing
+
+permissions:
+  contents: write  # Required for making commits
+  pull-requests: write  # In case PRs need to be created in the future
 
 jobs:
   process-connections:
@@ -16,77 +20,49 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0  # Complete fetch to avoid issues
         
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
         
     - name: Install dependencies
-      run: |
-        npm install -g js-yaml mustache
+      run: npm install
         
     - name: Process connection files
+      run: npm run process-connections
+        
+    - name: Check for changes
+      id: changes
       run: |
-        # Criar script para processar as conexões
-        cat << 'EOF' > process_connections.js
-        const fs = require('fs');
-        const yaml = require('js-yaml');
-        const mustache = require('mustache');
-        const path = require('path');
-        
-        // Ler template
-        const template = fs.readFileSync('templates/connection-template.mdx', 'utf8');
-        
-        // Processar todos os YAMLs
-        const connectionsDir = 'store/connections';
-        const outputDir = 'connections';
-        const connections = [];
-        
-        // Garantir que o diretório de saída existe
-        if (!fs.existsSync(outputDir)) {
-          fs.mkdirSync(outputDir, { recursive: true });
-        }
-        
-        // Ler todos os arquivos YAML
-        const files = fs.readdirSync(connectionsDir).filter(file => file.endsWith('.yml'));
-        
-        files.forEach(file => {
-          try {
-            const filePath = path.join(connectionsDir, file);
-            const yamlContent = fs.readFileSync(filePath, 'utf8');
-            const connection = yaml.load(yamlContent);
-            
-            // Adicionar à lista de conexões
-            connections.push(connection);
-            
-            // Gerar MDX usando template
-            const mdxContent = mustache.render(template, connection);
-            const outputFile = path.join(outputDir, `${connection.id}.mdx`);
-            fs.writeFileSync(outputFile, mdxContent);
-            
-            console.log(`Generated: ${outputFile}`);
-          } catch (error) {
-            console.error(`Error processing ${file}:`, error);
-          }
-        });
-        
-        // Atualizar JSON consolidado
-        const jsonOutput = {
-          connections: connections
-        };
-        
-        fs.writeFileSync('store/connections.json', JSON.stringify(jsonOutput, null, 2));
-        console.log('Updated store/connections.json');
-        
-        EOF
-        
-        node process_connections.js
+        git add connections/*.mdx store/connections.json
+        if git diff --staged --quiet; then
+          echo "changes=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
+        else
+          echo "changes=true" >> $GITHUB_OUTPUT
+          echo "Changes detected"
+        fi
         
     - name: Commit and push changes
+      if: steps.changes.outputs.changes == 'true'
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add connections/*.mdx store/connections.json
-        git diff --staged --quiet || git commit -m "Auto-generate connection docs from YAML [skip ci]"
-        git push 
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git commit -m "Auto-generate connection docs from YAML [skip ci]"
+        git push
+        
+    - name: Summary
+      run: |
+        echo "## 🎉 Processing Completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.changes.outputs.changes }}" == "true" ]; then
+          echo "✅ Files generated and committed successfully" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "ℹ️ No changes required" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Processed files:" >> $GITHUB_STEP_SUMMARY
+        ls store/connections/*.yml 2>/dev/null | sed 's/.*\//- /' >> $GITHUB_STEP_SUMMARY || echo "- No YAML files found" >> $GITHUB_STEP_SUMMARY
