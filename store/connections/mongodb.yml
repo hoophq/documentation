@@ -12,7 +12,6 @@ methods:
   - Web App
   - CLI
   - Runbooks
-  - Desktop App
 setupCommand: hoop admin add resource-name --type mongodb --agent <agent-name>
   -e CONNECTION_STRING='mongodb://user:pass@host:27017/dbname'
 requirements:
