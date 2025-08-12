@@ -82,7 +82,6 @@
             "clients/webapp/monitoring-sessions"
           ]
         },
-        "clients/desktop-app",
         "clients/cli"
       ]
     },

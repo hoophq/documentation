@@ -201,7 +201,7 @@ When deploying Hoop using Docker Compose for Production Environments, it's usual
   ```sh
   API_URL=https://yourdomain.com
   ```
-  Replace `https://yourdomain.com` with the full schema and host where you will serve the Hoop Gateway. If you encounter any issues after setting the `API_URL`, double-check your `.env` file and provide details about your setup for troubleshooting.  
+  Replace `https://yourdomain.com` with the full schema and host where you will serve the Hoop Gateway. If you encounter any issues after setting the `API_URL`, double-check your `.env` file and provide details about your setup for troubleshooting.
   <Info>
     If the `API_URL` variable is not set manually, it will default to `127.0.0.1`, which serves locally inside your virtual machine. To avoid this and serve the web app properly over the correct domain, ensure you update the `.env` file with your intended domain.
   </Info>
@@ -210,4 +210,3 @@ When deploying Hoop using Docker Compose for Production Environments, it's usual
   If you configure the `API_URL` with an IP address and later use DNS port forwarding, the assets might not load correctly. The `API_URL` should reflect the full domain, not just the IP.
   </Step>
 </Steps>
-
