@@ -98,7 +98,8 @@
             "quickstart/databases/oracle",
             "quickstart/databases/mssql",
             "quickstart/databases/apache-cassandra",
-            "quickstart/databases/bigquery"
+            "quickstart/databases/bigquery",
+            "quickstart/databases/redis"
           ]
         },
         {
