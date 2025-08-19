@@ -1,0 +1,77 @@
+## {config?.name}
+{config?.description}
+
+<Tabs>
+  <Tab title="Overview">
+    {config?.overview?.description}
+
+    ### Features Highlight
+    {config?.overview?.features?.map((feature, index) => (
+      `- ${feature}`
+    )).join('\n')}
+
+    ### Use Cases
+    {config?.overview?.useCases?.map((useCase, index) => (
+      `- ${useCase}`
+    )).join('\n')}
+  </Tab>
+
+  <Tab title="Setup Guide">
+    ### Connection Methods
+
+    <Columns cols={3}>
+      {config?.setupGuide?.accessMethods?.webapp && (
+        <Card title="Web App" icon="globe" horizontal>
+          Access resources and execute commands directly from Web UI.
+        </Card>
+      )}
+      {config?.setupGuide?.accessMethods?.cli && (
+        <Card title="Hoop CLI" icon="terminal" horizontal>
+          Access resources and execute commands natively in your favorite apps.
+        </Card>
+      )}
+      {config?.setupGuide?.accessMethods?.runbooks && (
+        <Card title="Runbooks" icon="play" horizontal>
+          Execute securely git-based predefined scripts in your resources.
+        </Card>
+      )}
+    </Columns>
+
+    ### Prerequisites
+    {config?.setupGuide?.requirements?.map((req, index) => (
+      `- ${req}`
+    )).join('\n')}
+  </Tab>
+
+  <Tab title="Advanced Configuration">
+        ### Connection String
+        ```
+        {config?.advancedConfiguration?.connectionString}
+        ```
+
+        ### Feature Configuration
+        {config?.advancedConfiguration?.featureConfiguration?.map((featureConfig, index) => (
+          `- ${featureConfig}`
+        )).join('\n')}
+
+        ### Other Requirements
+        {config?.advancedConfiguration?.otherRequirements?.map((req, index) => (
+          `- ${req}`
+        )).join('\n')}
+
+        ### Gateway Information
+        - **Type**: {config?.gatewayInformation?.type}
+        - **Subtype**: {config?.gatewayInformation?.subtype}
+        - **Auth Type**: {config?.gatewayInformation?.credentials?.authType}
+  </Tab>
+</Tabs>
+
+## Próximos Passos
+
+Após configurar esta conexão, você poderá:
+- Acessar via Web App do Hoop.dev
+- Utilizar o CLI para automações
+- Configurar políticas de acesso
+- Implementar mascaramento de dados (se aplicável)
+
+Para mais informações sobre como usar esta conexão, consulte nossa [documentação completa](/) ou entre em contato com nossa equipe de suporte.

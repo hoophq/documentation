@@ -1,6 +1,23 @@
 {
+  "name": "hoop-documentation",
+  "version": "1.0.0",
+  "description": "Hoop.dev Documentation with Decap CMS integration",
+  "scripts": {
+    "process-connections": "node scripts/process-connections.js",
+    "dev": "mintlify dev",
+    "build": "mintlify build"
+  },
   "dependencies": {
-    "js-yaml": "^4.1.0",
-    "mustache": "^4.2.0"
-  }
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "mintlify": "^4.0.0"
+  },
+  "keywords": [
+    "documentation",
+    "hoop",
+    "decap-cms"
+  ],
+  "author": "Hoop.dev Team",
+  "license": "MIT"
 }
