@@ -150,6 +150,157 @@ This configuration performs TLS termination at the proxy level.
     </Accordion>
 </AccordionGroup>
 
+## Istio Envoy
+
+For [Istio deployments](http://istio.io/docs/), you can configure the Envoy proxy to handle both HTTP/2 and gRPC traffic.
+
+<Tip>
+  It's important to not define any timeout or retry policies for gRPC connections (8010 port) to avoid issues with long-lived connections.
+</Tip>
+
+Below is an example of how to set up the Envoy configuration:
+
+<Tabs>
+  <Tab title="Kubernetes Gateway">
+    This example uses Kubernetes Gateway API to route traffic to Hoop Gateway
+
+    <Note>
+      Make sure to port forward the istio gateway service to access the Hoop Gateway.
+      This example doesn't support TLS termination.
+    </Note>
+
+    <AccordionGroup>
+      <Accordion title="Gateway">
+      ```yaml
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: Gateway
+      metadata:
+        name: hoopgateway
+      spec:
+        gatewayClassName: istio
+        listeners:
+        - name: http
+          hostname: "hoop.yourdomain.org"
+          port: 80
+          protocol: HTTP
+          allowedRoutes:
+            namespaces:
+              from: Same
+      ```
+      </Accordion>
+      <Accordion title="HTTPRoute">
+        ```yaml
+        apiVersion: gateway.networking.k8s.io/v1
+        kind: HTTPRoute
+        metadata:
+          name: hoopgateway-route
+        spec:
+          parentRefs:
+          - name: hoopgateway
+          hostnames: ["hoop.yourdomain.org"]
+          rules:
+          - matches:
+            - path:
+                type: PathPrefix
+                value: /protobuf.Transport
+            backendRefs:
+            - name: hoopgateway
+              port: 8010
+          - matches:
+            - path:
+                type: PathPrefix
+                value: /
+            backendRefs:
+            - name: hoopgateway
+              port: 8009
+        ```
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+  <Tab title="Istio Gateway">
+    This example uses Istio's Gateway and VirtualService to route traffic to Hoop Gateway
+
+    <Note>
+      Make sure to port forward the istio gateway service to access the Hoop Gateway.
+    </Note>
+
+    <AccordionGroup>
+      <Accordion title="Istio Gateway">
+        ```yaml
+        apiVersion: networking.istio.io/v1beta1
+        kind: Gateway
+        metadata:
+          name: hoopgateway
+        spec:
+          selector:
+            # The selector matches the istio ingress gateway. It may vary based on your Istio installation.
+            istio: ingress
+          servers:
+          - port:
+              number: 80
+              name: http
+              protocol: HTTP
+            hosts:
+            - hoop.yourdomain.org
+          - port:
+              number: 443
+              name: https
+              protocol: HTTPS
+            tls:
+              mode: SIMPLE
+              credentialName: hoopgateway-tls # Name of the TLS secret in Kubernetes
+            hosts:
+            - hoop.yourdomain.org
+        ```
+
+        <Tip>
+          To create a secret with a self signed TLS certificate for the Istio Gateway, you can use the following command:
+
+          ```sh
+          kubectl create secret tls hoopdev-tls  -n istio-ingress \
+            --key server.key \
+            --cert server-bundle.crt
+          ```
+
+          - `server.key`: Private key of the TLS certificate
+          - `server-bundle.crt`: Bundle of the TLS certificate and CA certificate
+
+        </Tip>
+      </Accordion>
+      <Accordion title="Virtual Service">
+        ```yaml
+        apiVersion: networking.istio.io/v1beta1
+        kind: VirtualService
+        metadata:
+          name: hoopgateway
+        spec:
+          hosts:
+          - hoop.yourdomain.org
+          gateways:
+          - hoopgateway
+          http:
+          - match:
+            - uri:
+                prefix: /protobuf.Transport
+            route:
+            - destination:
+                host: hoopgateway
+                port:
+                  number: 8010
+          - match:
+            - uri:
+                prefix: /
+            route:
+            - destination:
+                host: hoopgateway
+                port:
+                  number: 8009
+        ```
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+</Tabs>
+
 # Troubleshooting
 
 ### gRPC Logging
