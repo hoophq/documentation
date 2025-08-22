@@ -1,0 +1,54 @@
+id: postgres
+name: PostgreSQL
+description: Advanced open-source relational database with object-relational features
+category: databases
+icon-name: postgresql
+tags:
+  - sql
+  - relational
+  - acid-compliant
+  - open-source
+isNew: false
+
+overview:
+  description: PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.
+  features:
+    - Advanced SQL compliance with custom data types
+    - MVCC (Multi-Version Concurrency Control)
+    - Full-text search and JSON support
+    - Extensible with custom functions and operators
+  useCases:
+    - Complex web applications with advanced queries
+    - Data analytics and business intelligence
+    - Geospatial applications with PostGIS
+    - Financial systems requiring ACID compliance
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - PostgreSQL Server 12+
+    - Database user with appropriate privileges
+    - Network connectivity to port 5432
+    - SSL certificates for encrypted connections
+
+advancedConfiguration:
+  connectionString: "postgresql://username:password@host:port/database"
+  featureConfiguration:
+    - Streaming replication for high availability
+    - Connection pooling with pgBouncer
+    - Advanced indexing strategies (B-tree, GIN, GiST)
+    - SSL/TLS configuration with certificate authentication
+  otherRequirements:
+    - WAL (Write-Ahead Logging) archiving configured
+    - Performance monitoring with pg_stat_statements
+    - Regular VACUUM and ANALYZE scheduling
+
+gatewayInformation:
+  type: database
+  subtype: postgres
+  credentials:
+    authType: "scram-sha-256"
+    config: "username/password authentication with SSL and certificate support"

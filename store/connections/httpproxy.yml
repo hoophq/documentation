@@ -1,0 +1,54 @@
+id: httpproxy
+name: HTTP Proxy
+description: HTTP proxy server for web traffic routing and filtering
+category: network-services
+icon-name: httpproxy
+tags:
+  - proxy
+  - http
+  - web
+  - routing
+isNew: false
+
+overview:
+  description: HTTP Proxy servers act as intermediaries for requests from clients seeking resources from other servers, providing functionality like caching, filtering, and access control.
+  features:
+    - Web traffic filtering and content inspection
+    - Caching for improved performance
+    - Load balancing and traffic distribution
+    - SSL termination and encryption
+  useCases:
+    - Corporate web filtering and security
+    - Content delivery and caching
+    - Load balancing for web applications
+    - API gateway and routing
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - HTTP proxy server configured and running
+    - Proxy authentication credentials if required
+    - Network connectivity to proxy server
+    - Proper proxy configuration on client side
+
+advancedConfiguration:
+  connectionString: "http://proxy-server:port"
+  featureConfiguration:
+    - SSL/HTTPS proxy configuration
+    - Authentication and access control setup
+    - Content filtering and blocking rules
+    - Logging and monitoring configuration
+  otherRequirements:
+    - SSL certificate management for HTTPS
+    - Bandwidth monitoring and throttling
+    - Cache management and optimization
+
+gatewayInformation:
+  type: application
+  subtype: httpproxy
+  credentials:
+    authType: "Basic or Digest Authentication"
+    config: "HTTP proxy authentication with optional SSL"

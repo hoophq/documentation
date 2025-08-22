@@ -1,0 +1,54 @@
+id: oracle
+name: Oracle Database
+description: Enterprise-class relational database management system
+category: databases
+icon-name: oracle
+tags:
+  - sql
+  - relational
+  - enterprise
+  - high-performance
+isNew: false
+
+overview:
+  description: Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.
+  features:
+    - Advanced security with data encryption and masking
+    - Real Application Clusters (RAC) for scalability
+    - Automatic Storage Management (ASM)
+    - In-memory processing capabilities
+  useCases:
+    - Large-scale enterprise applications
+    - Data warehousing and analytics platforms
+    - Financial and banking systems
+    - High-availability mission-critical systems
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - Oracle Database 12c+
+    - Oracle user account with appropriate privileges
+    - Network connectivity to port 1521
+    - Oracle client libraries installed
+
+advancedConfiguration:
+  connectionString: "oracle://username:password@host:port/service_name"
+  featureConfiguration:
+    - Real Application Clusters (RAC) configuration
+    - Data Guard for disaster recovery
+    - Transparent Data Encryption setup
+    - Oracle Advanced Security configuration
+  otherRequirements:
+    - Oracle Enterprise Manager for monitoring
+    - RMAN backup strategy configured
+    - Automatic Workload Repository (AWR) enabled
+
+gatewayInformation:
+  type: database
+  subtype: oracle
+  credentials:
+    authType: "Oracle Database Authentication"
+    config: "username/password authentication with Oracle Advanced Security"

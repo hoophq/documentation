@@ -1,0 +1,54 @@
+id: ssh
+name: SSH
+description: Secure Shell protocol for secure remote access and command execution
+category: infrastructure-access
+icon-name: ssh
+tags:
+  - remote-access
+  - secure
+  - terminal
+  - unix
+isNew: false
+
+overview:
+  description: SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.
+  features:
+    - Encrypted communication for secure remote access
+    - Public key authentication for enhanced security
+    - Port forwarding and tunneling capabilities
+    - Session multiplexing and connection sharing
+  useCases:
+    - Remote server administration and maintenance
+    - Secure file transfers and backups
+    - Development environment access
+    - Network troubleshooting and diagnostics
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - SSH server running on target host
+    - Valid SSH credentials (password or key-based)
+    - Network connectivity to port 22
+    - Proper firewall configuration
+
+advancedConfiguration:
+  connectionString: "ssh://username@hostname:port"
+  featureConfiguration:
+    - SSH key-based authentication setup
+    - SSH agent forwarding configuration
+    - Custom SSH configuration files
+    - Jump host and bastion configuration
+  otherRequirements:
+    - SSH key management and rotation
+    - Connection logging and audit trails
+    - Fail2ban or similar intrusion prevention
+
+gatewayInformation:
+  type: application
+  subtype: ssh
+  credentials:
+    authType: "SSH Key or Password"
+    config: "SSH key-based or password authentication with optional 2FA"

@@ -1,0 +1,54 @@
+id: nodejs
+name: Node.js
+description: JavaScript runtime environment for server-side development
+category: developer-consoles
+icon-name: nodejs
+tags:
+  - javascript
+  - runtime
+  - server-side
+  - development
+isNew: false
+
+overview:
+  description: Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine, enabling server-side JavaScript development with high performance and scalability.
+  features:
+    - Event-driven, non-blocking I/O architecture
+    - Extensive NPM package ecosystem
+    - Built-in REPL for interactive development
+    - Cross-platform compatibility and deployment
+  useCases:
+    - Web API development and microservices
+    - Real-time applications (chat, gaming)
+    - Command-line tools and automation scripts
+    - Full-stack JavaScript development
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - Node.js 16+ installed
+    - NPM or Yarn package manager
+    - Project dependencies installed (npm install)
+    - Environment variables configured
+
+advancedConfiguration:
+  connectionString: "node -i script.js"
+  featureConfiguration:
+    - Package management with NPM/Yarn/PNPM
+    - Process management with PM2 or similar
+    - Environment-specific configuration (development, production)
+    - TypeScript integration and compilation
+  otherRequirements:
+    - Code linting and formatting (ESLint, Prettier)
+    - Testing framework setup (Jest, Mocha, Vitest)
+    - Performance monitoring and profiling tools
+
+gatewayInformation:
+  type: application
+  subtype: nodejs
+  credentials:
+    authType: "Environment-based authentication"
+    config: "Node.js runtime access with environment variable configuration"
