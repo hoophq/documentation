@@ -57,9 +57,709 @@
       "gatewayInformation": {
         "type": "database",
         "subtype": "mongodb",
+        "credentials": {}
+      }
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "description": "Open-source relational database management system",
+      "category": "databases",
+      "icon-name": "mysql",
+      "tags": [
+        "sql",
+        "relational",
+        "open-source"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "MySQL is the world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.",
+        "features": [
+          "ACID-compliant transactions for data integrity",
+          "High performance with optimized storage engines",
+          "Comprehensive security with SSL encryption",
+          "Scalable architecture supporting large datasets"
+        ],
+        "useCases": [
+          "Web applications and e-commerce platforms",
+          "Data warehousing and analytics",
+          "Content management systems",
+          "Financial and banking applications"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "MySQL Server 5.7+",
+          "Database user with appropriate privileges",
+          "Network connectivity to port 3306",
+          "SSL certificates for secure connections"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "mysql://username:password@host:port/database",
+        "featureConfiguration": [
+          "Master-slave replication for high availability",
+          "InnoDB storage engine optimization",
+          "Query cache configuration",
+          "SSL/TLS encryption setup"
+        ],
+        "otherRequirements": [
+          "Regular backup strategy implemented",
+          "Performance monitoring enabled",
+          "Binary logging configured"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "mysql",
         "credentials": {
-          "authType": "SCRAM-SHA-256",
+          "authType": "mysql_native_password",
           "config": "username/password authentication with SSL"
+        }
+      }
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "description": "Advanced open-source relational database with object-relational features",
+      "category": "databases",
+      "icon-name": "postgresql",
+      "tags": [
+        "sql",
+        "relational",
+        "acid-compliant",
+        "open-source"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.",
+        "features": [
+          "Advanced SQL compliance with custom data types",
+          "MVCC (Multi-Version Concurrency Control)",
+          "Full-text search and JSON support",
+          "Extensible with custom functions and operators"
+        ],
+        "useCases": [
+          "Complex web applications with advanced queries",
+          "Data analytics and business intelligence",
+          "Geospatial applications with PostGIS",
+          "Financial systems requiring ACID compliance"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "PostgreSQL Server 12+",
+          "Database user with appropriate privileges",
+          "Network connectivity to port 5432",
+          "SSL certificates for encrypted connections"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "postgresql://username:password@host:port/database",
+        "featureConfiguration": [
+          "Streaming replication for high availability",
+          "Connection pooling with pgBouncer",
+          "Advanced indexing strategies (B-tree, GIN, GiST)",
+          "SSL/TLS configuration with certificate authentication"
+        ],
+        "otherRequirements": [
+          "WAL (Write-Ahead Logging) archiving configured",
+          "Performance monitoring with pg_stat_statements",
+          "Regular VACUUM and ANALYZE scheduling"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "postgres",
+        "credentials": {
+          "authType": "scram-sha-256",
+          "config": "username/password authentication with SSL and certificate support"
+        }
+      }
+    },
+    {
+      "id": "mssql",
+      "name": "Microsoft SQL Server",
+      "description": "Enterprise-grade relational database management system from Microsoft",
+      "category": "databases",
+      "icon-name": "mssql",
+      "tags": [
+        "sql",
+        "relational",
+        "enterprise",
+        "microsoft"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Microsoft SQL Server is a relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.",
+        "features": [
+          "Advanced security with Always Encrypted technology",
+          "In-memory OLTP for high-performance workloads",
+          "Built-in machine learning and AI capabilities",
+          "Comprehensive backup and disaster recovery"
+        ],
+        "useCases": [
+          "Enterprise applications and ERP systems",
+          "Data warehousing and business intelligence",
+          "Mission-critical applications requiring high availability",
+          "Integration with Microsoft ecosystem"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "SQL Server 2017+",
+          "SQL Server authentication or Windows authentication",
+          "Network connectivity to port 1433",
+          "TLS/SSL certificates for encrypted connections"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "mssql://username:password@host:port/database",
+        "featureConfiguration": [
+          "Always On Availability Groups for high availability",
+          "Transparent Data Encryption (TDE)",
+          "Query Store for performance monitoring",
+          "Row-level security configuration"
+        ],
+        "otherRequirements": [
+          "SQL Server Agent for automated tasks",
+          "Performance monitoring with Extended Events",
+          "Regular maintenance plans configured"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "mssql",
+        "credentials": {
+          "authType": "SQL Server Authentication",
+          "config": "SQL Server or Windows authentication with TLS encryption"
+        }
+      }
+    },
+    {
+      "id": "oracle",
+      "name": "Oracle Database",
+      "description": "Enterprise-class relational database management system",
+      "category": "databases",
+      "icon-name": "oracle",
+      "tags": [
+        "sql",
+        "relational",
+        "enterprise",
+        "high-performance"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.",
+        "features": [
+          "Advanced security with data encryption and masking",
+          "Real Application Clusters (RAC) for scalability",
+          "Automatic Storage Management (ASM)",
+          "In-memory processing capabilities"
+        ],
+        "useCases": [
+          "Large-scale enterprise applications",
+          "Data warehousing and analytics platforms",
+          "Financial and banking systems",
+          "High-availability mission-critical systems"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Oracle Database 12c+",
+          "Oracle user account with appropriate privileges",
+          "Network connectivity to port 1521",
+          "Oracle client libraries installed"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "oracle://username:password@host:port/service_name",
+        "featureConfiguration": [
+          "Real Application Clusters (RAC) configuration",
+          "Data Guard for disaster recovery",
+          "Transparent Data Encryption setup",
+          "Oracle Advanced Security configuration"
+        ],
+        "otherRequirements": [
+          "Oracle Enterprise Manager for monitoring",
+          "RMAN backup strategy configured",
+          "Automatic Workload Repository (AWR) enabled"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "oracle",
+        "credentials": {
+          "authType": "Oracle Database Authentication",
+          "config": "username/password authentication with Oracle Advanced Security"
+        }
+      }
+    },
+    {
+      "id": "ssh",
+      "name": "SSH",
+      "description": "Secure Shell protocol for secure remote access and command execution",
+      "category": "infrastructure-access",
+      "icon-name": "ssh",
+      "tags": [
+        "remote-access",
+        "secure",
+        "terminal",
+        "unix"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.",
+        "features": [
+          "Encrypted communication for secure remote access",
+          "Public key authentication for enhanced security",
+          "Port forwarding and tunneling capabilities",
+          "Session multiplexing and connection sharing"
+        ],
+        "useCases": [
+          "Remote server administration and maintenance",
+          "Secure file transfers and backups",
+          "Development environment access",
+          "Network troubleshooting and diagnostics"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "SSH server running on target host",
+          "Valid SSH credentials (password or key-based)",
+          "Network connectivity to port 22",
+          "Proper firewall configuration"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "ssh://username@hostname:port",
+        "featureConfiguration": [
+          "SSH key-based authentication setup",
+          "SSH agent forwarding configuration",
+          "Custom SSH configuration files",
+          "Jump host and bastion configuration"
+        ],
+        "otherRequirements": [
+          "SSH key management and rotation",
+          "Connection logging and audit trails",
+          "Fail2ban or similar intrusion prevention"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "ssh",
+        "credentials": {
+          "authType": "SSH Key or Password",
+          "config": "SSH key-based or password authentication with optional 2FA"
+        }
+      }
+    },
+    {
+      "id": "tcp",
+      "name": "TCP Connection",
+      "description": "Direct TCP socket connections for network services and applications",
+      "category": "network-services",
+      "icon-name": "tcp",
+      "tags": [
+        "network",
+        "socket",
+        "protocol",
+        "low-level"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "TCP (Transmission Control Protocol) connections provide reliable, ordered, and error-checked delivery of data between applications running on hosts communicating via an IP network.",
+        "features": [
+          "Reliable data transmission with error correction",
+          "Connection-oriented communication",
+          "Flow control and congestion control",
+          "Support for various application protocols"
+        ],
+        "useCases": [
+          "Custom application protocols and services",
+          "Legacy system integration",
+          "Network service proxying and load balancing",
+          "IoT device communication"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Target service listening on specified port",
+          "Network connectivity to target host and port",
+          "Firewall rules allowing TCP traffic",
+          "Understanding of target protocol requirements"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "tcp://hostname:port",
+        "featureConfiguration": [
+          "Connection pooling for high-throughput scenarios",
+          "SSL/TLS encryption for secure communication",
+          "Keep-alive and timeout configuration",
+          "Custom protocol handling and parsing"
+        ],
+        "otherRequirements": [
+          "Network monitoring and latency tracking",
+          "Connection retry and failover mechanisms",
+          "Protocol-specific validation and testing"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "tcp",
+        "credentials": {
+          "authType": "Protocol-dependent",
+          "config": "Authentication varies by target application protocol"
+        }
+      }
+    },
+    {
+      "id": "httpproxy",
+      "name": "HTTP Proxy",
+      "description": "HTTP proxy server for web traffic routing and filtering",
+      "category": "network-services",
+      "icon-name": "httpproxy",
+      "tags": [
+        "proxy",
+        "http",
+        "web",
+        "routing"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "HTTP Proxy servers act as intermediaries for requests from clients seeking resources from other servers, providing functionality like caching, filtering, and access control.",
+        "features": [
+          "Web traffic filtering and content inspection",
+          "Caching for improved performance",
+          "Load balancing and traffic distribution",
+          "SSL termination and encryption"
+        ],
+        "useCases": [
+          "Corporate web filtering and security",
+          "Content delivery and caching",
+          "Load balancing for web applications",
+          "API gateway and routing"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "HTTP proxy server configured and running",
+          "Proxy authentication credentials if required",
+          "Network connectivity to proxy server",
+          "Proper proxy configuration on client side"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "http://proxy-server:port",
+        "featureConfiguration": [
+          "SSL/HTTPS proxy configuration",
+          "Authentication and access control setup",
+          "Content filtering and blocking rules",
+          "Logging and monitoring configuration"
+        ],
+        "otherRequirements": [
+          "SSL certificate management for HTTPS",
+          "Bandwidth monitoring and throttling",
+          "Cache management and optimization"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "httpproxy",
+        "credentials": {
+          "authType": "Basic or Digest Authentication",
+          "config": "HTTP proxy authentication with optional SSL"
+        }
+      }
+    },
+    {
+      "id": "ruby-on-rails",
+      "name": "Ruby on Rails",
+      "description": "Web application framework for Ruby development and Rails console access",
+      "category": "developer-consoles",
+      "icon-name": "ruby",
+      "tags": [
+        "ruby",
+        "web-framework",
+        "mvc",
+        "development"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.",
+        "features": [
+          "Convention over configuration philosophy",
+          "Active Record ORM for database interactions",
+          "Built-in testing framework and tools",
+          "Rich ecosystem of gems and plugins"
+        ],
+        "useCases": [
+          "Rapid web application development",
+          "Database migrations and management",
+          "API development and microservices",
+          "E-commerce and content management systems"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Ruby 2.7+ installed",
+          "Rails framework installed",
+          "Database connection configured",
+          "Application dependencies installed (bundle install)"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "rails console -e production",
+        "featureConfiguration": [
+          "Environment-specific configuration (development, test, production)",
+          "Database connection pooling and optimization",
+          "Caching strategies (Redis, Memcached)",
+          "Background job processing (Sidekiq, Resque)"
+        ],
+        "otherRequirements": [
+          "Application server configuration (Puma, Unicorn)",
+          "Asset pipeline and precompilation setup",
+          "Security configurations and secret management"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "ruby-on-rails",
+        "credentials": {
+          "authType": "Application-level authentication",
+          "config": "Rails application access with environment variables"
+        }
+      }
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "description": "Python interpreter and development environment access",
+      "category": "developer-consoles",
+      "icon-name": "python",
+      "tags": [
+        "python",
+        "scripting",
+        "data-science",
+        "development"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Python is a high-level, interpreted programming language known for its simplicity and versatility, widely used in web development, data science, automation, and AI applications.",
+        "features": [
+          "Interactive REPL for rapid development and testing",
+          "Extensive standard library and third-party packages",
+          "Cross-platform compatibility and portability",
+          "Strong support for data analysis and machine learning"
+        ],
+        "useCases": [
+          "Data analysis and scientific computing",
+          "Web development with frameworks like Django/Flask",
+          "Automation scripts and system administration",
+          "Machine learning and artificial intelligence"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Python 3.8+ installed",
+          "Virtual environment configured (venv/conda)",
+          "Required packages installed (pip/conda)",
+          "Environment variables configured"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "python -i script.py",
+        "featureConfiguration": [
+          "Virtual environment management (venv, conda, pipenv)",
+          "Package dependency management (requirements.txt, poetry)",
+          "Jupyter notebook integration for data science",
+          "Code formatting and linting (black, flake8, mypy)"
+        ],
+        "otherRequirements": [
+          "IDE/editor configuration (VS Code, PyCharm)",
+          "Testing framework setup (pytest, unittest)",
+          "Performance profiling and debugging tools"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "python",
+        "credentials": {
+          "authType": "Environment-based authentication",
+          "config": "Python environment access with virtual environment isolation"
+        }
+      }
+    },
+    {
+      "id": "nodejs",
+      "name": "Node.js",
+      "description": "JavaScript runtime environment for server-side development",
+      "category": "developer-consoles",
+      "icon-name": "nodejs",
+      "tags": [
+        "javascript",
+        "runtime",
+        "server-side",
+        "development"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine, enabling server-side JavaScript development with high performance and scalability.",
+        "features": [
+          "Event-driven, non-blocking I/O architecture",
+          "Extensive NPM package ecosystem",
+          "Built-in REPL for interactive development",
+          "Cross-platform compatibility and deployment"
+        ],
+        "useCases": [
+          "Web API development and microservices",
+          "Real-time applications (chat, gaming)",
+          "Command-line tools and automation scripts",
+          "Full-stack JavaScript development"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Node.js 16+ installed",
+          "NPM or Yarn package manager",
+          "Project dependencies installed (npm install)",
+          "Environment variables configured"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "node -i script.js",
+        "featureConfiguration": [
+          "Package management with NPM/Yarn/PNPM",
+          "Process management with PM2 or similar",
+          "Environment-specific configuration (development, production)",
+          "TypeScript integration and compilation"
+        ],
+        "otherRequirements": [
+          "Code linting and formatting (ESLint, Prettier)",
+          "Testing framework setup (Jest, Mocha, Vitest)",
+          "Performance monitoring and profiling tools"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "nodejs",
+        "credentials": {
+          "authType": "Environment-based authentication",
+          "config": "Node.js runtime access with environment variable configuration"
+        }
+      }
+    },
+    {
+      "id": "clojure",
+      "name": "Clojure",
+      "description": "Dynamic functional programming language for the JVM",
+      "category": "developer-consoles",
+      "icon-name": "clojure",
+      "tags": [
+        "functional",
+        "lisp",
+        "jvm",
+        "development"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Clojure is a dynamic, general-purpose programming language that combines the approachability and interactive development of a scripting language with an efficient and robust infrastructure for multithreaded programming.",
+        "features": [
+          "Immutable data structures by default",
+          "Interactive REPL-driven development",
+          "Seamless Java interoperability",
+          "Software Transactional Memory (STM) for concurrency"
+        ],
+        "useCases": [
+          "Data processing and analytics applications",
+          "Web development with Ring and Compojure",
+          "Concurrent and parallel programming",
+          "Financial systems and algorithmic trading"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Java 8+ installed (JVM)",
+          "Clojure CLI tools or Leiningen",
+          "Project dependencies resolved",
+          "REPL environment configured"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "clj -M:repl/rebel",
+        "featureConfiguration": [
+          "Build tool configuration (Leiningen, deps.edn)",
+          "REPL integration with development tools",
+          "ClojureScript compilation for frontend",
+          "Namespace and dependency management"
+        ],
+        "otherRequirements": [
+          "Editor integration (Emacs/CIDER, VS Code/Calva)",
+          "Testing framework setup (clojure.test, Midje)",
+          "Performance profiling and JVM tuning"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "clojure",
+        "credentials": {
+          "authType": "JVM-based authentication",
+          "config": "Clojure runtime access with JVM environment configuration"
         }
       }
     }
