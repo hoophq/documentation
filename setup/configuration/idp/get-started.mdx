@@ -41,3 +41,43 @@ This resource could be managed manually via Webapp or propagated by the identity
 This role should be granted to users that are responsible for managing the Gateway. All other users are regular, meaning that they can access their own resources and interacting with connections.
 
 - The **auditor** group grants the auditor role that gives read only access to session resources
+
+## Configuration Page
+
+<Note>
+  This feature is available beginning with version `1.38.12`
+</Note>
+
+Users are now able to configure the identity provider directly from the Webapp.
+
+<Frame>
+<img src="/images/idp/auth-page-configuration.png" />
+</Frame>
+
+<Warning>
+  After the configuration is saved, the identity provider will be automatically reloaded with the new settings.
+  The environment variables will not be considered as part of the configuration.
+</Warning>
+
+## Troubleshooting
+
+The IDP configuration experience could lock yourself out of the application if not configured correctly.
+
+To wipe all the configuration, connect in the Hoop Postgres database and the delete the following row:
+
+```sql
+-- clear all configuration
+DELETE FROM private.authconfig WHERE org_id = (SELECT id FROM private.orgs);
+```
+
+To update a single configuration:
+
+```sql
+UPDATE private.authconfig
+SET admin_role_name = 'my-new-admin-role-group'
+WHERE org_id = (SELECT id FROM private.orgs);
+```
+
+<Tip>
+  In the upcoming releases we will improve this experience to avoid this situation.
+</Tip>
