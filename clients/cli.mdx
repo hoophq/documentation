@@ -313,3 +313,43 @@ ready to accept connections!
   The connection is established through a secure tunnel by an encrypted channel when the gateway is setup with TLS.
   The user identity is always validated when interacting with such resources.
 </Info>
+
+## Agent as a Daemon
+
+This section describes how to start, stop, remove and get logs from a agent running has a daemon.
+
+<Note>
+  You can run the agent on any Unix system. It requires an authentication key exposed as an environment variable: HOOP_KEY.
+  ```
+  export HOOP_KEY=<agent-key>
+  ```
+</Note>
+
+
+### Start an Agent
+Use the hoop agent start commant to run the agent as a daemon. This will create a service in your system and will start it.
+
+```bash
+hoop agent start
+```
+
+### Stop an Agent
+Use the hoop agent stop command to stop the agent daemon.
+
+```bash
+hoop agent stop
+```
+
+### Remove an Agent
+Use the hoop agent remove command to remove the agent service from your system.
+
+```bash
+hoop agent remove
+```
+
+### Get Agent Logs
+Use the hoop agent logs command to get the logs from the agent daemon.
+
+```bash
+hoop agent logs
+```
