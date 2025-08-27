@@ -11,45 +11,50 @@ For deployment, the agent operates in two modes: as a standalone process (standa
 
 ## Standard Mode
 
-The *standard mode* runs the agent as a standalone process. This mode is recommended when you need to connect to multiple types of resources with a single agent or desire a more stable connection for your workloads. Consider using the standard mode if you want to connect to:
+The *standard mode* runs the agent as a standalone process. This run as background service.
+Use this mode when ou want a long-live, stable connection that can handle multiple resoruce types with automatic start/stop via the OS service manager. It's ideal for:
 
 - Databases
 - Port-Forward Internal Services
 - Container Platforms (kubectl, aws ecs, etc)
 - Act as a Jump Host
+
+
+<Note>
+Supported platforms
+
+- Linux: managed via systemd
+- macOS: managed via launchctl
+</Note>
+
 -
 - To create and run an agent in standard mode, use the 'hoop admin' command line by issuing the command below:
 
+
 ```bash
-export HOOP_KEY=$(hoop admin create agent dev)
-hoop start agent
+export HOOP_KEY="$(hoop admin create agent dev)"
+hoop agent start
 ```
+This will:
+- install or update the agent service definition
+- Enable the service to start when login
+- Start the agent immediately
 
-### Connection Auto Configuration
+#### Managing the Agent Service
 
-Use the `hoop run` subcommand to automatically configure and publish a connection. It's a suitable option when you need to connect a single resource. For instance:
+You can manage the agent service using standard system commands. Here are some examples:
 
+This command will stop the agent service:
 ```bash
-export HOOP_KEY=$(hoop admin get orgkeys)
-hoop run --name pgdemo --postgres 'postgres://user:pwd@127.0.0.1/test'
+hoop agent stop
 ```
-
-### Database Connection
-
-This example publishes a `pgdemo` connection resource.
-
+To check the status of the agent service, use:
 ```bash
-export HOOP_KEY=$(hoop admin get orgkeys)
-hoop run --name pgdemo --postgres 'postgres://<user>:<pwd>@<host>:<port>/<db>'
+hoop agent logs
 ```
-
-### Command Line & Applications
-
-This example publishes a `railsc` connection resource.
-
+To remove the agent service from your system, use:
 ```bash
-export HOOP_KEY=$(hoop admin get orgkeys)
-hoop run --name railsc --command 'rails console'
+hoop agent remove
 ```
 
 <aside>
