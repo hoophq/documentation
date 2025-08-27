@@ -56,6 +56,11 @@ To remove the agent service from your system, use:
 ```bash
 hoop agent remove
 ```
+<Note>
+Notes & tips
+- Keep HOOP_KEY set in the environment where you run hoop agent start (or configure it in the service environment as directed by your setup) so the daemon can authenticate on boot.
+- If you rotate credentials, run hoop agent stop && hoop agent start to reload them.
+</Note>
 
 <aside>
 ⚠️ *Creating an agent through `hoop admin` doesn't generate a usable token for `hoop run`. The valid token could be obtained when creating a new connection in the webapp. Agent keys created via the command line won't work with this command.*
