@@ -913,11 +913,7 @@
       },
       "gatewayInformation": {
         "type": "application",
-        "subtype": "ruby-on-rails",
-        "credentials": {
-          "authType": "Application-level authentication",
-          "config": "Rails application access with environment variables"
-        }
+        "subtype": "ruby-on-rails"
       }
     },
     {
