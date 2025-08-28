@@ -1,0 +1,72 @@
+---
+title: "TCP Connection"
+description: "Direct TCP socket connections for network services and applications"
+category: "network-services"
+---
+
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
+
+<ConnectionTemplate config={{
+  "id": "tcp",
+  "name": "TCP Connection",
+  "description": "Direct TCP socket connections for network services and applications",
+  "category": "network-services",
+  "icon-name": "tcp",
+  "tags": [
+    "network",
+    "socket",
+    "protocol",
+    "low-level"
+  ],
+  "isNew": false,
+  "overview": {
+    "description": "TCP (Transmission Control Protocol) connections provide reliable, ordered, and error-checked delivery of data between applications running on hosts communicating via an IP network.",
+    "features": [
+      "Reliable data transmission with error correction",
+      "Connection-oriented communication",
+      "Flow control and congestion control",
+      "Support for various application protocols"
+    ],
+    "useCases": [
+      "Custom application protocols and services",
+      "Legacy system integration",
+      "Network service proxying and load balancing",
+      "IoT device communication"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "Target service listening on specified port",
+      "Network connectivity to target host and port",
+      "Firewall rules allowing TCP traffic",
+      "Understanding of target protocol requirements"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "tcp://hostname:port",
+    "featureConfiguration": [
+      "Connection pooling for high-throughput scenarios",
+      "SSL/TLS encryption for secure communication",
+      "Keep-alive and timeout configuration",
+      "Custom protocol handling and parsing"
+    ],
+    "otherRequirements": [
+      "Network monitoring and latency tracking",
+      "Connection retry and failover mechanisms",
+      "Protocol-specific validation and testing"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "application",
+    "subtype": "tcp",
+    "credentials": {
+      "authType": "Protocol-dependent",
+      "config": "Authentication varies by target application protocol"
+    }
+  }
+}} />

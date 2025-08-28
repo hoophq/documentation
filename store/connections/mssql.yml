@@ -10,6 +10,26 @@ tags:
   - microsoft
 isNew: false
 
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
 overview:
   description: Microsoft SQL Server is a relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.
   features:
@@ -50,5 +70,36 @@ gatewayInformation:
   type: database
   subtype: mssql
   credentials:
-    authType: "SQL Server Authentication"
-    config: "SQL Server or Windows authentication with TLS encryption"
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the SQL Server"
+    user:
+      name: "USER"
+      type: "env-var"
+      required: true
+      description: "The username to connect to SQL Server"
+    pass:
+      name: "PASS"
+      type: "env-var"
+      required: true
+      description: "The password to connect to SQL Server"
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the SQL Server (default: 1433)"
+    db:
+      name: "DB"
+      type: "env-var"
+      required: true
+      description: "The database name to connect to"
+    insecure:
+      name: "INSECURE"
+      type: "env-var"
+      required: false
+      description: "Insecure connection mode (Optional, default: false)"
+
+documentationConfig:
+  path: "quickstart/databases/mssql"

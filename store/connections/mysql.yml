@@ -9,6 +9,27 @@ tags:
   - open-source
 isNew: false
 
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+    note: "Partial support"
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
 overview:
   description: MySQL is the world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.
   features:
@@ -49,5 +70,31 @@ gatewayInformation:
   type: database
   subtype: mysql
   credentials:
-    authType: "mysql_native_password"
-    config: "username/password authentication with SSL"
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the MySQL server"
+    user:
+      name: "USER"
+      type: "env-var"
+      required: true
+      description: "The username to connect to MySQL"
+    pass:
+      name: "PASS"
+      type: "env-var"
+      required: true
+      description: "The password to connect to MySQL"
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the MySQL server (default: 3306)"
+    db:
+      name: "DB"
+      type: "env-var"
+      required: true
+      description: "The database name to connect to"
+
+documentationConfig:
+  path: "quickstart/databases/mysql"

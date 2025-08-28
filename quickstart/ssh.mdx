@@ -1,36 +1,133 @@
 ---
-title: "Secure Shell (SSH)"
-description: "Proxy an SSH Server to remote hosts in your private network."
+title: "SSH"
+description: "Secure Shell protocol for secure remote access and command execution"
+category: "infrastructure-access"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from Hoop Web App.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- |--- |
-| Audit | <Icon icon="xmark" /> | <Icon icon="xmark" /> |  The gateway store and audit the commands being issued by the SSH client. |
-| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="xmark" /> | A policy can be enabled to mask sensitive fields dynamically for the output. |
-| Data Masking (MS Presidio) | <Icon icon="xmark" /> | <Icon icon="xmark" /> | A policy can be enabled to mask sensitive fields dynamically for the output. |
-| Credentials Offload | <Icon icon="check" /> |  <Icon icon="xmark" /> |The user authenticates via SSO instead of using SSH credentials. |
-
-## Configuration
-
-| Name | Type |Required | Description |
-| --- | --- | ----|     --- |
-| HOST | env-var | yes |The IP or hostname of the SSH server |
-| PORT | env-var | no |The port of the SSH server, default to `22` |
-| USER | env-var | yes | The username of the Linux server |
-| PASS | env-var | no | The credentials of the username if password authentication is enabled in the SSH server. |
-| AUTHORIZED_SERVER_KEYS | env-var | no | The private key of the user that corresponds to the public key at `$HOME/<user>/.ssh/authorized_keys` |
-
+<ConnectionTemplate config={{
+  "id": "ssh",
+  "name": "SSH",
+  "description": "Secure Shell protocol for secure remote access and command execution",
+  "category": "infrastructure-access",
+  "icon-name": "ssh",
+  "tags": [
+    "remote-access",
+    "secure",
+    "terminal",
+    "unix"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": false
+    },
+    "audit": {
+      "native": false,
+      "oneOff": false
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": false
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": false
+    },
+    "credentialsOffload": {
+      "native": true,
+      "oneOff": false
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": false
+    }
+  },
+  "overview": {
+    "description": "SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.",
+    "features": [
+      "Encrypted communication for secure remote access",
+      "Public key authentication for enhanced security",
+      "Port forwarding and tunneling capabilities",
+      "Session multiplexing and connection sharing"
+    ],
+    "useCases": [
+      "Remote server administration and maintenance",
+      "Secure file transfers and backups",
+      "Development environment access",
+      "Network troubleshooting and diagnostics"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "SSH server running on target host",
+      "Valid SSH credentials (password or key-based)",
+      "Network connectivity to port 22",
+      "Proper firewall configuration"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "ssh://username@hostname:port",
+    "featureConfiguration": [
+      "SSH key-based authentication setup",
+      "SSH agent forwarding configuration",
+      "Custom SSH configuration files",
+      "Jump host and bastion configuration"
+    ],
+    "otherRequirements": [
+      "SSH key management and rotation",
+      "Connection logging and audit trails",
+      "Fail2ban or similar intrusion prevention"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "application",
+    "subtype": "ssh",
+    "credentials": {
+      "host": {
+        "name": "HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The IP or hostname of the SSH server"
+      },
+      "port": {
+        "name": "PORT",
+        "type": "env-var",
+        "required": false,
+        "description": "The port of the SSH server (default: 22)"
+      },
+      "user": {
+        "name": "USER",
+        "type": "env-var",
+        "required": true,
+        "description": "The username for SSH connection"
+      },
+      "pass": {
+        "name": "PASS",
+        "type": "env-var",
+        "required": true,
+        "description": "The password for SSH connection"
+      },
+      "authorized_server_keys": {
+        "name": "AUTHORIZED_SERVER_KEYS",
+        "type": "textarea",
+        "required": true,
+        "description": "Enter your private key",
+        "placeholder": "Enter your private key"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/ssh"
+  }
+}} />
 ## Connection Setup
 
 ```sh
@@ -106,3 +203,6 @@ To disable it, set this option in your bash profile or your current shell sessio
 ```sh
 export WARP_USE_SSH_WRAPPER=0
 ```
+
+
+

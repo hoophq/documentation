@@ -1,30 +1,31 @@
 {
   "connections": [
     {
-      "id": "mongodb",
-      "name": "MongoDB",
-      "description": "NoSQL document-oriented database",
-      "category": "databases",
-      "icon-name": "mongodb",
+      "id": "clojure",
+      "name": "Clojure",
+      "description": "Dynamic functional programming language for the JVM",
+      "category": "developer-consoles",
+      "icon-name": "clojure",
       "tags": [
-        "nosql",
-        "document",
-        "cloud"
+        "functional",
+        "lisp",
+        "jvm",
+        "development"
       ],
       "isNew": false,
       "overview": {
-        "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
+        "description": "Clojure is a dynamic, general-purpose programming language that combines the approachability and interactive development of a scripting language with an efficient and robust infrastructure for multithreaded programming.",
         "features": [
-          "Flexible schema for rapid data evolution",
-          "Horizontal scalability with automatic sharding",
-          "Built-in replication for high availability",
-          "Powerful queries with advanced indexing"
+          "Immutable data structures by default",
+          "Interactive REPL-driven development",
+          "Seamless Java interoperability",
+          "Software Transactional Memory (STM) for concurrency"
         ],
         "useCases": [
-          "Web and mobile applications with variable data",
-          "Content management systems",
-          "E-commerce product catalogs",
-          "Real-time data analytics"
+          "Data processing and analytics applications",
+          "Web development with Ring and Compojure",
+          "Concurrent and parallel programming",
+          "Financial systems and algorithmic trading"
         ]
       },
       "setupGuide": {
@@ -34,412 +35,32 @@
           "runbooks": true
         },
         "requirements": [
-          "MongoDB Server 4.0+",
-          "User credentials with appropriate privileges",
-          "Network connectivity to port 27017",
-          "Proper firewall configuration"
+          "Java 8+ installed (JVM)",
+          "Clojure CLI tools or Leiningen",
+          "Project dependencies resolved",
+          "REPL environment configured"
         ]
       },
       "advancedConfiguration": {
-        "connectionString": "mongodb://username:password@host:port/database",
+        "connectionString": "clj -M:repl/rebel",
         "featureConfiguration": [
-          "Replica set configuration for high availability",
-          "Sharding configuration for scalability",
-          "Optimized indexes for frequent queries",
-          "SSL/TLS configuration for secure connections"
+          "Build tool configuration (Leiningen, deps.edn)",
+          "REPL integration with development tools",
+          "ClojureScript compilation for frontend",
+          "Namespace and dependency management"
         ],
         "otherRequirements": [
-          "Performance monitoring enabled",
-          "Automatic backup configured",
-          "Storage capacity alerts"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "database",
-        "subtype": "mongodb",
-        "credentials": {}
-      }
-    },
-    {
-      "id": "mysql",
-      "name": "MySQL",
-      "description": "Open-source relational database management system",
-      "category": "databases",
-      "icon-name": "mysql",
-      "tags": [
-        "sql",
-        "relational",
-        "open-source"
-      ],
-      "isNew": false,
-      "overview": {
-        "description": "MySQL is the world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.",
-        "features": [
-          "ACID-compliant transactions for data integrity",
-          "High performance with optimized storage engines",
-          "Comprehensive security with SSL encryption",
-          "Scalable architecture supporting large datasets"
-        ],
-        "useCases": [
-          "Web applications and e-commerce platforms",
-          "Data warehousing and analytics",
-          "Content management systems",
-          "Financial and banking applications"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "MySQL Server 5.7+",
-          "Database user with appropriate privileges",
-          "Network connectivity to port 3306",
-          "SSL certificates for secure connections"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "mysql://username:password@host:port/database",
-        "featureConfiguration": [
-          "Master-slave replication for high availability",
-          "InnoDB storage engine optimization",
-          "Query cache configuration",
-          "SSL/TLS encryption setup"
-        ],
-        "otherRequirements": [
-          "Regular backup strategy implemented",
-          "Performance monitoring enabled",
-          "Binary logging configured"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "database",
-        "subtype": "mysql",
-        "credentials": {
-          "authType": "mysql_native_password",
-          "config": "username/password authentication with SSL"
-        }
-      }
-    },
-    {
-      "id": "postgres",
-      "name": "PostgreSQL",
-      "description": "Advanced open-source relational database with object-relational features",
-      "category": "databases",
-      "icon-name": "postgresql",
-      "tags": [
-        "sql",
-        "relational",
-        "acid-compliant",
-        "open-source"
-      ],
-      "isNew": false,
-      "overview": {
-        "description": "PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.",
-        "features": [
-          "Advanced SQL compliance with custom data types",
-          "MVCC (Multi-Version Concurrency Control)",
-          "Full-text search and JSON support",
-          "Extensible with custom functions and operators"
-        ],
-        "useCases": [
-          "Complex web applications with advanced queries",
-          "Data analytics and business intelligence",
-          "Geospatial applications with PostGIS",
-          "Financial systems requiring ACID compliance"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "PostgreSQL Server 12+",
-          "Database user with appropriate privileges",
-          "Network connectivity to port 5432",
-          "SSL certificates for encrypted connections"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "postgresql://username:password@host:port/database",
-        "featureConfiguration": [
-          "Streaming replication for high availability",
-          "Connection pooling with pgBouncer",
-          "Advanced indexing strategies (B-tree, GIN, GiST)",
-          "SSL/TLS configuration with certificate authentication"
-        ],
-        "otherRequirements": [
-          "WAL (Write-Ahead Logging) archiving configured",
-          "Performance monitoring with pg_stat_statements",
-          "Regular VACUUM and ANALYZE scheduling"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "database",
-        "subtype": "postgres",
-        "credentials": {
-          "authType": "scram-sha-256",
-          "config": "username/password authentication with SSL and certificate support"
-        }
-      }
-    },
-    {
-      "id": "mssql",
-      "name": "Microsoft SQL Server",
-      "description": "Enterprise-grade relational database management system from Microsoft",
-      "category": "databases",
-      "icon-name": "mssql",
-      "tags": [
-        "sql",
-        "relational",
-        "enterprise",
-        "microsoft"
-      ],
-      "isNew": false,
-      "overview": {
-        "description": "Microsoft SQL Server is a relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.",
-        "features": [
-          "Advanced security with Always Encrypted technology",
-          "In-memory OLTP for high-performance workloads",
-          "Built-in machine learning and AI capabilities",
-          "Comprehensive backup and disaster recovery"
-        ],
-        "useCases": [
-          "Enterprise applications and ERP systems",
-          "Data warehousing and business intelligence",
-          "Mission-critical applications requiring high availability",
-          "Integration with Microsoft ecosystem"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "SQL Server 2017+",
-          "SQL Server authentication or Windows authentication",
-          "Network connectivity to port 1433",
-          "TLS/SSL certificates for encrypted connections"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "mssql://username:password@host:port/database",
-        "featureConfiguration": [
-          "Always On Availability Groups for high availability",
-          "Transparent Data Encryption (TDE)",
-          "Query Store for performance monitoring",
-          "Row-level security configuration"
-        ],
-        "otherRequirements": [
-          "SQL Server Agent for automated tasks",
-          "Performance monitoring with Extended Events",
-          "Regular maintenance plans configured"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "database",
-        "subtype": "mssql",
-        "credentials": {
-          "authType": "SQL Server Authentication",
-          "config": "SQL Server or Windows authentication with TLS encryption"
-        }
-      }
-    },
-    {
-      "id": "oracle",
-      "name": "Oracle Database",
-      "description": "Enterprise-class relational database management system",
-      "category": "databases",
-      "icon-name": "oracle",
-      "tags": [
-        "sql",
-        "relational",
-        "enterprise",
-        "high-performance"
-      ],
-      "isNew": false,
-      "overview": {
-        "description": "Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.",
-        "features": [
-          "Advanced security with data encryption and masking",
-          "Real Application Clusters (RAC) for scalability",
-          "Automatic Storage Management (ASM)",
-          "In-memory processing capabilities"
-        ],
-        "useCases": [
-          "Large-scale enterprise applications",
-          "Data warehousing and analytics platforms",
-          "Financial and banking systems",
-          "High-availability mission-critical systems"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "Oracle Database 12c+",
-          "Oracle user account with appropriate privileges",
-          "Network connectivity to port 1521",
-          "Oracle client libraries installed"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "oracle://username:password@host:port/service_name",
-        "featureConfiguration": [
-          "Real Application Clusters (RAC) configuration",
-          "Data Guard for disaster recovery",
-          "Transparent Data Encryption setup",
-          "Oracle Advanced Security configuration"
-        ],
-        "otherRequirements": [
-          "Oracle Enterprise Manager for monitoring",
-          "RMAN backup strategy configured",
-          "Automatic Workload Repository (AWR) enabled"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "database",
-        "subtype": "oracle",
-        "credentials": {
-          "authType": "Oracle Database Authentication",
-          "config": "username/password authentication with Oracle Advanced Security"
-        }
-      }
-    },
-    {
-      "id": "ssh",
-      "name": "SSH",
-      "description": "Secure Shell protocol for secure remote access and command execution",
-      "category": "infrastructure-access",
-      "icon-name": "ssh",
-      "tags": [
-        "remote-access",
-        "secure",
-        "terminal",
-        "unix"
-      ],
-      "isNew": false,
-      "overview": {
-        "description": "SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.",
-        "features": [
-          "Encrypted communication for secure remote access",
-          "Public key authentication for enhanced security",
-          "Port forwarding and tunneling capabilities",
-          "Session multiplexing and connection sharing"
-        ],
-        "useCases": [
-          "Remote server administration and maintenance",
-          "Secure file transfers and backups",
-          "Development environment access",
-          "Network troubleshooting and diagnostics"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "SSH server running on target host",
-          "Valid SSH credentials (password or key-based)",
-          "Network connectivity to port 22",
-          "Proper firewall configuration"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "ssh://username@hostname:port",
-        "featureConfiguration": [
-          "SSH key-based authentication setup",
-          "SSH agent forwarding configuration",
-          "Custom SSH configuration files",
-          "Jump host and bastion configuration"
-        ],
-        "otherRequirements": [
-          "SSH key management and rotation",
-          "Connection logging and audit trails",
-          "Fail2ban or similar intrusion prevention"
+          "Editor integration (Emacs/CIDER, VS Code/Calva)",
+          "Testing framework setup (clojure.test, Midje)",
+          "Performance profiling and JVM tuning"
         ]
       },
       "gatewayInformation": {
         "type": "application",
-        "subtype": "ssh",
+        "subtype": "clojure",
         "credentials": {
-          "authType": "SSH Key or Password",
-          "config": "SSH key-based or password authentication with optional 2FA"
-        }
-      }
-    },
-    {
-      "id": "tcp",
-      "name": "TCP Connection",
-      "description": "Direct TCP socket connections for network services and applications",
-      "category": "network-services",
-      "icon-name": "tcp",
-      "tags": [
-        "network",
-        "socket",
-        "protocol",
-        "low-level"
-      ],
-      "isNew": false,
-      "overview": {
-        "description": "TCP (Transmission Control Protocol) connections provide reliable, ordered, and error-checked delivery of data between applications running on hosts communicating via an IP network.",
-        "features": [
-          "Reliable data transmission with error correction",
-          "Connection-oriented communication",
-          "Flow control and congestion control",
-          "Support for various application protocols"
-        ],
-        "useCases": [
-          "Custom application protocols and services",
-          "Legacy system integration",
-          "Network service proxying and load balancing",
-          "IoT device communication"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "Target service listening on specified port",
-          "Network connectivity to target host and port",
-          "Firewall rules allowing TCP traffic",
-          "Understanding of target protocol requirements"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "tcp://hostname:port",
-        "featureConfiguration": [
-          "Connection pooling for high-throughput scenarios",
-          "SSL/TLS encryption for secure communication",
-          "Keep-alive and timeout configuration",
-          "Custom protocol handling and parsing"
-        ],
-        "otherRequirements": [
-          "Network monitoring and latency tracking",
-          "Connection retry and failover mechanisms",
-          "Protocol-specific validation and testing"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "application",
-        "subtype": "tcp",
-        "credentials": {
-          "authType": "Protocol-dependent",
-          "config": "Authentication varies by target application protocol"
+          "authType": "JVM-based authentication",
+          "config": "Clojure runtime access with JVM environment configuration"
         }
       }
     },
@@ -508,31 +129,57 @@
       }
     },
     {
-      "id": "ruby-on-rails",
-      "name": "Ruby on Rails",
-      "description": "Web application framework for Ruby development and Rails console access",
-      "category": "developer-consoles",
-      "icon-name": "ruby",
+      "id": "mssql",
+      "name": "Microsoft SQL Server",
+      "description": "Enterprise-grade relational database management system from Microsoft",
+      "category": "databases",
+      "icon-name": "mssql",
       "tags": [
-        "ruby",
-        "web-framework",
-        "mvc",
-        "development"
+        "sql",
+        "relational",
+        "enterprise",
+        "microsoft"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": true
+        },
+        "audit": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
       "overview": {
-        "description": "Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.",
+        "description": "Microsoft SQL Server is a relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.",
         "features": [
-          "Convention over configuration philosophy",
-          "Active Record ORM for database interactions",
-          "Built-in testing framework and tools",
-          "Rich ecosystem of gems and plugins"
+          "Advanced security with Always Encrypted technology",
+          "In-memory OLTP for high-performance workloads",
+          "Built-in machine learning and AI capabilities",
+          "Comprehensive backup and disaster recovery"
         ],
         "useCases": [
-          "Rapid web application development",
-          "Database migrations and management",
-          "API development and microservices",
-          "E-commerce and content management systems"
+          "Enterprise applications and ERP systems",
+          "Data warehousing and business intelligence",
+          "Mission-critical applications requiring high availability",
+          "Integration with Microsoft ecosystem"
         ]
       },
       "setupGuide": {
@@ -542,61 +189,123 @@
           "runbooks": true
         },
         "requirements": [
-          "Ruby 2.7+ installed",
-          "Rails framework installed",
-          "Database connection configured",
-          "Application dependencies installed (bundle install)"
+          "SQL Server 2017+",
+          "SQL Server authentication or Windows authentication",
+          "Network connectivity to port 1433",
+          "TLS/SSL certificates for encrypted connections"
         ]
       },
       "advancedConfiguration": {
-        "connectionString": "rails console -e production",
+        "connectionString": "mssql://username:password@host:port/database",
         "featureConfiguration": [
-          "Environment-specific configuration (development, test, production)",
-          "Database connection pooling and optimization",
-          "Caching strategies (Redis, Memcached)",
-          "Background job processing (Sidekiq, Resque)"
+          "Always On Availability Groups for high availability",
+          "Transparent Data Encryption (TDE)",
+          "Query Store for performance monitoring",
+          "Row-level security configuration"
         ],
         "otherRequirements": [
-          "Application server configuration (Puma, Unicorn)",
-          "Asset pipeline and precompilation setup",
-          "Security configurations and secret management"
+          "SQL Server Agent for automated tasks",
+          "Performance monitoring with Extended Events",
+          "Regular maintenance plans configured"
         ]
       },
       "gatewayInformation": {
-        "type": "application",
-        "subtype": "ruby-on-rails",
+        "type": "database",
+        "subtype": "mssql",
         "credentials": {
-          "authType": "Application-level authentication",
-          "config": "Rails application access with environment variables"
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the SQL Server"
+          },
+          "user": {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username to connect to SQL Server"
+          },
+          "pass": {
+            "name": "PASS",
+            "type": "env-var",
+            "required": true,
+            "description": "The password to connect to SQL Server"
+          },
+          "port": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": true,
+            "description": "The port of the SQL Server (default: 1433)"
+          },
+          "db": {
+            "name": "DB",
+            "type": "env-var",
+            "required": true,
+            "description": "The database name to connect to"
+          },
+          "insecure": {
+            "name": "INSECURE",
+            "type": "env-var",
+            "required": false,
+            "description": "Insecure connection mode (Optional, default: false)"
+          }
         }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/mssql"
       }
     },
     {
-      "id": "python",
-      "name": "Python",
-      "description": "Python interpreter and development environment access",
-      "category": "developer-consoles",
-      "icon-name": "python",
+      "id": "mongodb",
+      "name": "MongoDB",
+      "description": "NoSQL document-oriented database",
+      "category": "databases",
+      "icon-name": "mongodb",
       "tags": [
-        "python",
-        "scripting",
-        "data-science",
-        "development"
+        "nosql",
+        "document",
+        "cloud"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": true
+        },
+        "audit": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
       "overview": {
-        "description": "Python is a high-level, interpreted programming language known for its simplicity and versatility, widely used in web development, data science, automation, and AI applications.",
+        "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
         "features": [
-          "Interactive REPL for rapid development and testing",
-          "Extensive standard library and third-party packages",
-          "Cross-platform compatibility and portability",
-          "Strong support for data analysis and machine learning"
+          "Flexible schema for rapid data evolution",
+          "Horizontal scalability with automatic sharding",
+          "Built-in replication for high availability",
+          "Powerful queries with advanced indexing"
         ],
         "useCases": [
-          "Data analysis and scientific computing",
-          "Web development with frameworks like Django/Flask",
-          "Automation scripts and system administration",
-          "Machine learning and artificial intelligence"
+          "Web and mobile applications with variable data",
+          "Content management systems",
+          "E-commerce product catalogs",
+          "Real-time data analytics"
         ]
       },
       "setupGuide": {
@@ -606,33 +315,161 @@
           "runbooks": true
         },
         "requirements": [
-          "Python 3.8+ installed",
-          "Virtual environment configured (venv/conda)",
-          "Required packages installed (pip/conda)",
-          "Environment variables configured"
+          "MongoDB Server 4.0+",
+          "User credentials with appropriate privileges",
+          "Network connectivity to port 27017",
+          "Proper firewall configuration"
         ]
       },
       "advancedConfiguration": {
-        "connectionString": "python -i script.py",
+        "connectionString": "mongodb://username:password@host:port/database",
         "featureConfiguration": [
-          "Virtual environment management (venv, conda, pipenv)",
-          "Package dependency management (requirements.txt, poetry)",
-          "Jupyter notebook integration for data science",
-          "Code formatting and linting (black, flake8, mypy)"
+          "Replica set configuration for high availability",
+          "Sharding configuration for scalability",
+          "Optimized indexes for frequent queries",
+          "SSL/TLS configuration for secure connections"
         ],
         "otherRequirements": [
-          "IDE/editor configuration (VS Code, PyCharm)",
-          "Testing framework setup (pytest, unittest)",
-          "Performance profiling and debugging tools"
+          "Performance monitoring enabled",
+          "Automatic backup configured",
+          "Storage capacity alerts"
         ]
       },
       "gatewayInformation": {
-        "type": "application",
-        "subtype": "python",
+        "type": "database",
+        "subtype": "mongodb",
         "credentials": {
-          "authType": "Environment-based authentication",
-          "config": "Python environment access with virtual environment isolation"
+          "connectionString": {
+            "name": "CONNECTION_STRING",
+            "type": "env-var",
+            "required": true,
+            "description": "The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format."
+          }
         }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/mongodb"
+      }
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "description": "Open-source relational database management system",
+      "category": "databases",
+      "icon-name": "mysql",
+      "tags": [
+        "sql",
+        "relational",
+        "open-source"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": true,
+          "note": "Partial support"
+        },
+        "audit": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "overview": {
+        "description": "MySQL is the world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.",
+        "features": [
+          "ACID-compliant transactions for data integrity",
+          "High performance with optimized storage engines",
+          "Comprehensive security with SSL encryption",
+          "Scalable architecture supporting large datasets"
+        ],
+        "useCases": [
+          "Web applications and e-commerce platforms",
+          "Data warehousing and analytics",
+          "Content management systems",
+          "Financial and banking applications"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "MySQL Server 5.7+",
+          "Database user with appropriate privileges",
+          "Network connectivity to port 3306",
+          "SSL certificates for secure connections"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "mysql://username:password@host:port/database",
+        "featureConfiguration": [
+          "Master-slave replication for high availability",
+          "InnoDB storage engine optimization",
+          "Query cache configuration",
+          "SSL/TLS encryption setup"
+        ],
+        "otherRequirements": [
+          "Regular backup strategy implemented",
+          "Performance monitoring enabled",
+          "Binary logging configured"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "mysql",
+        "credentials": {
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the MySQL server"
+          },
+          "user": {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username to connect to MySQL"
+          },
+          "pass": {
+            "name": "PASS",
+            "type": "env-var",
+            "required": true,
+            "description": "The password to connect to MySQL"
+          },
+          "port": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": true,
+            "description": "The port of the MySQL server (default: 3306)"
+          },
+          "db": {
+            "name": "DB",
+            "type": "env-var",
+            "required": true,
+            "description": "The database name to connect to"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/mysql"
       }
     },
     {
@@ -700,31 +537,57 @@
       }
     },
     {
-      "id": "clojure",
-      "name": "Clojure",
-      "description": "Dynamic functional programming language for the JVM",
-      "category": "developer-consoles",
-      "icon-name": "clojure",
+      "id": "oracle",
+      "name": "Oracle Database",
+      "description": "Enterprise-class relational database management system",
+      "category": "databases",
+      "icon-name": "oracle",
       "tags": [
-        "functional",
-        "lisp",
-        "jvm",
-        "development"
+        "sql",
+        "relational",
+        "enterprise",
+        "high-performance"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": true
+        }
+      },
       "overview": {
-        "description": "Clojure is a dynamic, general-purpose programming language that combines the approachability and interactive development of a scripting language with an efficient and robust infrastructure for multithreaded programming.",
+        "description": "Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.",
         "features": [
-          "Immutable data structures by default",
-          "Interactive REPL-driven development",
-          "Seamless Java interoperability",
-          "Software Transactional Memory (STM) for concurrency"
+          "Advanced security with data encryption and masking",
+          "Real Application Clusters (RAC) for scalability",
+          "Automatic Storage Management (ASM)",
+          "In-memory processing capabilities"
         ],
         "useCases": [
-          "Data processing and analytics applications",
-          "Web development with Ring and Compojure",
-          "Concurrent and parallel programming",
-          "Financial systems and algorithmic trading"
+          "Large-scale enterprise applications",
+          "Data warehousing and analytics platforms",
+          "Financial and banking systems",
+          "High-availability mission-critical systems"
         ]
       },
       "setupGuide": {
@@ -734,32 +597,512 @@
           "runbooks": true
         },
         "requirements": [
-          "Java 8+ installed (JVM)",
-          "Clojure CLI tools or Leiningen",
-          "Project dependencies resolved",
-          "REPL environment configured"
+          "Oracle Database 12c+",
+          "Oracle user account with appropriate privileges",
+          "Network connectivity to port 1521",
+          "Oracle client libraries installed"
         ]
       },
       "advancedConfiguration": {
-        "connectionString": "clj -M:repl/rebel",
+        "connectionString": "oracle://username:password@host:port/service_name",
         "featureConfiguration": [
-          "Build tool configuration (Leiningen, deps.edn)",
-          "REPL integration with development tools",
-          "ClojureScript compilation for frontend",
-          "Namespace and dependency management"
+          "Real Application Clusters (RAC) configuration",
+          "Data Guard for disaster recovery",
+          "Transparent Data Encryption setup",
+          "Oracle Advanced Security configuration"
         ],
         "otherRequirements": [
-          "Editor integration (Emacs/CIDER, VS Code/Calva)",
-          "Testing framework setup (clojure.test, Midje)",
-          "Performance profiling and JVM tuning"
+          "Oracle Enterprise Manager for monitoring",
+          "RMAN backup strategy configured",
+          "Automatic Workload Repository (AWR) enabled"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "oracle",
+        "credentials": {
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the Oracle server"
+          },
+          "user": {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username to connect to Oracle"
+          },
+          "pass": {
+            "name": "PASS",
+            "type": "env-var",
+            "required": true,
+            "description": "The password to connect to Oracle"
+          },
+          "port": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": true,
+            "description": "The port of the Oracle server (default: 1521)"
+          },
+          "ld_library_path": {
+            "name": "LD_LIBRARY_PATH",
+            "type": "env-var",
+            "required": true,
+            "description": "Oracle client library path",
+            "hidden": true
+          },
+          "sid": {
+            "name": "SID",
+            "type": "env-var",
+            "required": true,
+            "description": "SID or Service name",
+            "placeholder": "SID or Service name"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/oracle"
+      }
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "description": "Advanced open-source relational database with object-relational features",
+      "category": "databases",
+      "icon-name": "postgresql",
+      "tags": [
+        "sql",
+        "relational",
+        "acid-compliant",
+        "open-source"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": true
+        },
+        "audit": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": true,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "overview": {
+        "description": "PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.",
+        "features": [
+          "Advanced SQL compliance with custom data types",
+          "MVCC (Multi-Version Concurrency Control)",
+          "Full-text search and JSON support",
+          "Extensible with custom functions and operators"
+        ],
+        "useCases": [
+          "Complex web applications with advanced queries",
+          "Data analytics and business intelligence",
+          "Geospatial applications with PostGIS",
+          "Financial systems requiring ACID compliance"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "PostgreSQL Server 12+",
+          "Database user with appropriate privileges",
+          "Network connectivity to port 5432",
+          "SSL certificates for encrypted connections"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "postgresql://username:password@host:port/database",
+        "featureConfiguration": [
+          "Streaming replication for high availability",
+          "Connection pooling with pgBouncer",
+          "Advanced indexing strategies (B-tree, GIN, GiST)",
+          "SSL/TLS configuration with certificate authentication"
+        ],
+        "otherRequirements": [
+          "WAL (Write-Ahead Logging) archiving configured",
+          "Performance monitoring with pg_stat_statements",
+          "Regular VACUUM and ANALYZE scheduling"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "postgres",
+        "credentials": {
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the PostgreSQL server"
+          },
+          "user": {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username to connect to PostgreSQL"
+          },
+          "pass": {
+            "name": "PASS",
+            "type": "env-var",
+            "required": true,
+            "description": "The password to connect to PostgreSQL"
+          },
+          "port": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": true,
+            "description": "The port of the PostgreSQL server (default: 5432)"
+          },
+          "db": {
+            "name": "DB",
+            "type": "env-var",
+            "required": true,
+            "description": "The database name to connect to"
+          },
+          "sslmode": {
+            "name": "SSLMODE",
+            "type": "env-var",
+            "required": false,
+            "description": "SSL mode for the connection (Optional)"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/postgres"
+      }
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "description": "Python interpreter and development environment access",
+      "category": "developer-consoles",
+      "icon-name": "python",
+      "tags": [
+        "python",
+        "scripting",
+        "data-science",
+        "development"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Python is a high-level, interpreted programming language known for its simplicity and versatility, widely used in web development, data science, automation, and AI applications.",
+        "features": [
+          "Interactive REPL for rapid development and testing",
+          "Extensive standard library and third-party packages",
+          "Cross-platform compatibility and portability",
+          "Strong support for data analysis and machine learning"
+        ],
+        "useCases": [
+          "Data analysis and scientific computing",
+          "Web development with frameworks like Django/Flask",
+          "Automation scripts and system administration",
+          "Machine learning and artificial intelligence"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Python 3.8+ installed",
+          "Virtual environment configured (venv/conda)",
+          "Required packages installed (pip/conda)",
+          "Environment variables configured"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "python -i script.py",
+        "featureConfiguration": [
+          "Virtual environment management (venv, conda, pipenv)",
+          "Package dependency management (requirements.txt, poetry)",
+          "Jupyter notebook integration for data science",
+          "Code formatting and linting (black, flake8, mypy)"
+        ],
+        "otherRequirements": [
+          "IDE/editor configuration (VS Code, PyCharm)",
+          "Testing framework setup (pytest, unittest)",
+          "Performance profiling and debugging tools"
         ]
       },
       "gatewayInformation": {
         "type": "application",
-        "subtype": "clojure",
+        "subtype": "python",
         "credentials": {
-          "authType": "JVM-based authentication",
-          "config": "Clojure runtime access with JVM environment configuration"
+          "authType": "Environment-based authentication",
+          "config": "Python environment access with virtual environment isolation"
+        }
+      }
+    },
+    {
+      "id": "ruby-on-rails",
+      "name": "Ruby on Rails",
+      "description": "Web application framework for Ruby development and Rails console access",
+      "category": "developer-consoles",
+      "icon-name": "ruby",
+      "tags": [
+        "ruby",
+        "web-framework",
+        "mvc",
+        "development"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.",
+        "features": [
+          "Convention over configuration philosophy",
+          "Active Record ORM for database interactions",
+          "Built-in testing framework and tools",
+          "Rich ecosystem of gems and plugins"
+        ],
+        "useCases": [
+          "Rapid web application development",
+          "Database migrations and management",
+          "API development and microservices",
+          "E-commerce and content management systems"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Ruby 2.7+ installed",
+          "Rails framework installed",
+          "Database connection configured",
+          "Application dependencies installed (bundle install)"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "rails console -e production",
+        "featureConfiguration": [
+          "Environment-specific configuration (development, test, production)",
+          "Database connection pooling and optimization",
+          "Caching strategies (Redis, Memcached)",
+          "Background job processing (Sidekiq, Resque)"
+        ],
+        "otherRequirements": [
+          "Application server configuration (Puma, Unicorn)",
+          "Asset pipeline and precompilation setup",
+          "Security configurations and secret management"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "ruby-on-rails",
+        "credentials": {
+          "authType": "Application-level authentication",
+          "config": "Rails application access with environment variables"
+        }
+      }
+    },
+    {
+      "id": "ssh",
+      "name": "SSH",
+      "description": "Secure Shell protocol for secure remote access and command execution",
+      "category": "infrastructure-access",
+      "icon-name": "ssh",
+      "tags": [
+        "remote-access",
+        "secure",
+        "terminal",
+        "unix"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": false
+        },
+        "audit": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
+      },
+      "overview": {
+        "description": "SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.",
+        "features": [
+          "Encrypted communication for secure remote access",
+          "Public key authentication for enhanced security",
+          "Port forwarding and tunneling capabilities",
+          "Session multiplexing and connection sharing"
+        ],
+        "useCases": [
+          "Remote server administration and maintenance",
+          "Secure file transfers and backups",
+          "Development environment access",
+          "Network troubleshooting and diagnostics"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "SSH server running on target host",
+          "Valid SSH credentials (password or key-based)",
+          "Network connectivity to port 22",
+          "Proper firewall configuration"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "ssh://username@hostname:port",
+        "featureConfiguration": [
+          "SSH key-based authentication setup",
+          "SSH agent forwarding configuration",
+          "Custom SSH configuration files",
+          "Jump host and bastion configuration"
+        ],
+        "otherRequirements": [
+          "SSH key management and rotation",
+          "Connection logging and audit trails",
+          "Fail2ban or similar intrusion prevention"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "ssh",
+        "credentials": {
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the SSH server"
+          },
+          "port": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": false,
+            "description": "The port of the SSH server (default: 22)"
+          },
+          "user": {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username for SSH connection"
+          },
+          "pass": {
+            "name": "PASS",
+            "type": "env-var",
+            "required": true,
+            "description": "The password for SSH connection"
+          },
+          "authorized_server_keys": {
+            "name": "AUTHORIZED_SERVER_KEYS",
+            "type": "textarea",
+            "required": true,
+            "description": "Enter your private key",
+            "placeholder": "Enter your private key"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/ssh"
+      }
+    },
+    {
+      "id": "tcp",
+      "name": "TCP Connection",
+      "description": "Direct TCP socket connections for network services and applications",
+      "category": "network-services",
+      "icon-name": "tcp",
+      "tags": [
+        "network",
+        "socket",
+        "protocol",
+        "low-level"
+      ],
+      "isNew": false,
+      "overview": {
+        "description": "TCP (Transmission Control Protocol) connections provide reliable, ordered, and error-checked delivery of data between applications running on hosts communicating via an IP network.",
+        "features": [
+          "Reliable data transmission with error correction",
+          "Connection-oriented communication",
+          "Flow control and congestion control",
+          "Support for various application protocols"
+        ],
+        "useCases": [
+          "Custom application protocols and services",
+          "Legacy system integration",
+          "Network service proxying and load balancing",
+          "IoT device communication"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Target service listening on specified port",
+          "Network connectivity to target host and port",
+          "Firewall rules allowing TCP traffic",
+          "Understanding of target protocol requirements"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "tcp://hostname:port",
+        "featureConfiguration": [
+          "Connection pooling for high-throughput scenarios",
+          "SSL/TLS encryption for secure communication",
+          "Keep-alive and timeout configuration",
+          "Custom protocol handling and parsing"
+        ],
+        "otherRequirements": [
+          "Network monitoring and latency tracking",
+          "Connection retry and failover mechanisms",
+          "Protocol-specific validation and testing"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "application",
+        "subtype": "tcp",
+        "credentials": {
+          "authType": "Protocol-dependent",
+          "config": "Authentication varies by target application protocol"
         }
       }
     }

@@ -1,38 +1,107 @@
 ---
 title: "MongoDB"
-description: "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password."
+description: "NoSQL document-oriented database"
+category: "databases"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-<Info>
-This integration only accepts [SCRAM authentication](https://www.mongodb.com/docs/manual/core/security-scram/#scram) for native connections.
-</Info>
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="check" /> | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="check" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client |
-| Data Masking (Google DLP) | <Icon icon="check" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Data Masking (MS Presidio DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
-| Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal for analysis exploration. |
-
-## Configuration
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| CONNECTION_STRING | env-var | yes | The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format. |
-
+<ConnectionTemplate config={{
+  "id": "mongodb",
+  "name": "MongoDB",
+  "description": "NoSQL document-oriented database",
+  "category": "databases",
+  "icon-name": "mongodb",
+  "tags": [
+    "nosql",
+    "document",
+    "cloud"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": true,
+      "oneOff": true
+    },
+    "audit": {
+      "native": true,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": true,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": true,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
+    "features": [
+      "Flexible schema for rapid data evolution",
+      "Horizontal scalability with automatic sharding",
+      "Built-in replication for high availability",
+      "Powerful queries with advanced indexing"
+    ],
+    "useCases": [
+      "Web and mobile applications with variable data",
+      "Content management systems",
+      "E-commerce product catalogs",
+      "Real-time data analytics"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "MongoDB Server 4.0+",
+      "User credentials with appropriate privileges",
+      "Network connectivity to port 27017",
+      "Proper firewall configuration"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "mongodb://username:password@host:port/database",
+    "featureConfiguration": [
+      "Replica set configuration for high availability",
+      "Sharding configuration for scalability",
+      "Optimized indexes for frequent queries",
+      "SSL/TLS configuration for secure connections"
+    ],
+    "otherRequirements": [
+      "Performance monitoring enabled",
+      "Automatic backup configured",
+      "Storage capacity alerts"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "mongodb",
+    "credentials": {
+      "connectionString": {
+        "name": "CONNECTION_STRING",
+        "type": "env-var",
+        "required": true,
+        "description": "The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format."
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/mongodb"
+  }
+}} />
 ## Connection Setup
 
 Create a new Database connection in hoop's web panel.
@@ -99,3 +168,7 @@ db.listingsAndReviews.find({}, {_id: 1}).limit(10)
 <Note>
     This feature is available in agent version `1.35.19` and later.
 </Note>
+
+
+
+

@@ -1,38 +1,140 @@
 ---
-title: "Oracle"
-description: "Execute queries to Oracle instances with [sqlcl](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/)."
+title: "Oracle Database"
+description: "Enterprise-class relational database management system"
+category: "databases"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="xmark" />  | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="xmark" /> | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client |
-| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Data Masking (MS Presidio) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | <Icon icon="xmark" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
-| Interactive Access | <Icon icon="xmark" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
-
-## Configuration
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| HOST | env-var | yes | The IP or Host of the Oracle server |
-| USER | env-var | yes | The user to connect in the Oracle server |
-| PASS | env-var | yes | The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters. |
-| PORT | env-var | yes | The port of the Oracle server |
-| SID | env-var | yes | The service name or SID (System identifier) to identify the database service. |
-
+<ConnectionTemplate config={{
+  "id": "oracle",
+  "name": "Oracle Database",
+  "description": "Enterprise-class relational database management system",
+  "category": "databases",
+  "icon-name": "oracle",
+  "tags": [
+    "sql",
+    "relational",
+    "enterprise",
+    "high-performance"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.",
+    "features": [
+      "Advanced security with data encryption and masking",
+      "Real Application Clusters (RAC) for scalability",
+      "Automatic Storage Management (ASM)",
+      "In-memory processing capabilities"
+    ],
+    "useCases": [
+      "Large-scale enterprise applications",
+      "Data warehousing and analytics platforms",
+      "Financial and banking systems",
+      "High-availability mission-critical systems"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "Oracle Database 12c+",
+      "Oracle user account with appropriate privileges",
+      "Network connectivity to port 1521",
+      "Oracle client libraries installed"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "oracle://username:password@host:port/service_name",
+    "featureConfiguration": [
+      "Real Application Clusters (RAC) configuration",
+      "Data Guard for disaster recovery",
+      "Transparent Data Encryption setup",
+      "Oracle Advanced Security configuration"
+    ],
+    "otherRequirements": [
+      "Oracle Enterprise Manager for monitoring",
+      "RMAN backup strategy configured",
+      "Automatic Workload Repository (AWR) enabled"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "oracle",
+    "credentials": {
+      "host": {
+        "name": "HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The IP or hostname of the Oracle server"
+      },
+      "user": {
+        "name": "USER",
+        "type": "env-var",
+        "required": true,
+        "description": "The username to connect to Oracle"
+      },
+      "pass": {
+        "name": "PASS",
+        "type": "env-var",
+        "required": true,
+        "description": "The password to connect to Oracle"
+      },
+      "port": {
+        "name": "PORT",
+        "type": "env-var",
+        "required": true,
+        "description": "The port of the Oracle server (default: 1521)"
+      },
+      "ld_library_path": {
+        "name": "LD_LIBRARY_PATH",
+        "type": "env-var",
+        "required": true,
+        "description": "Oracle client library path",
+        "hidden": true
+      },
+      "sid": {
+        "name": "SID",
+        "type": "env-var",
+        "required": true,
+        "description": "SID or Service name",
+        "placeholder": "SID or Service name"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/oracle"
+  }
+}} />
 ## Connection Setup
 
 ```sh
@@ -61,4 +163,7 @@ You can access it through hoop web panel.
 <Frame>
     <img src="/images/quickstarts/client-pg.png" alt="create tcp connection screenshot" />
 </Frame>
+
+
+
 

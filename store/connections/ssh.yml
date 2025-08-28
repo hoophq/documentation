@@ -10,6 +10,26 @@ tags:
   - unix
 isNew: false
 
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: false
+  audit:
+    native: false
+    oneOff: false
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: false
+  credentialsOffload:
+    native: true
+    oneOff: false
+  interactiveAccess:
+    native: false
+    oneOff: false
+
 overview:
   description: SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.
   features:
@@ -50,5 +70,32 @@ gatewayInformation:
   type: application
   subtype: ssh
   credentials:
-    authType: "SSH Key or Password"
-    config: "SSH key-based or password authentication with optional 2FA"
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the SSH server"
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: false
+      description: "The port of the SSH server (default: 22)"
+    user:
+      name: "USER"
+      type: "env-var"
+      required: true
+      description: "The username for SSH connection"
+    pass:
+      name: "PASS"
+      type: "env-var"
+      required: true
+      description: "The password for SSH connection"
+    authorized_server_keys:
+      name: "AUTHORIZED_SERVER_KEYS"
+      type: "textarea"
+      required: true
+      description: "Enter your private key"
+      placeholder: "Enter your private key"
+
+documentationConfig:
+  path: "quickstart/ssh"

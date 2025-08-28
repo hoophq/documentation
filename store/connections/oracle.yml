@@ -10,6 +10,26 @@ tags:
   - high-performance
 isNew: false
 
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: true
+  audit:
+    native: false
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: true
+  interactiveAccess:
+    native: false
+    oneOff: true
+
 overview:
   description: Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.
   features:
@@ -50,5 +70,38 @@ gatewayInformation:
   type: database
   subtype: oracle
   credentials:
-    authType: "Oracle Database Authentication"
-    config: "username/password authentication with Oracle Advanced Security"
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the Oracle server"
+    user:
+      name: "USER"
+      type: "env-var"
+      required: true
+      description: "The username to connect to Oracle"
+    pass:
+      name: "PASS"
+      type: "env-var"
+      required: true
+      description: "The password to connect to Oracle"
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the Oracle server (default: 1521)"
+    ld_library_path:
+      name: "LD_LIBRARY_PATH"
+      type: "env-var"
+      required: true
+      description: "Oracle client library path"
+      hidden: true
+    sid:
+      name: "SID"
+      type: "env-var"
+      required: true
+      description: "SID or Service name"
+      placeholder: "SID or Service name"
+
+documentationConfig:
+  path: "quickstart/databases/oracle"

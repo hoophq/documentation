@@ -10,6 +10,26 @@ tags:
   - open-source
 isNew: false
 
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: true
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
 overview:
   description: PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.
   features:
@@ -50,5 +70,36 @@ gatewayInformation:
   type: database
   subtype: postgres
   credentials:
-    authType: "scram-sha-256"
-    config: "username/password authentication with SSL and certificate support"
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the PostgreSQL server"
+    user:
+      name: "USER"
+      type: "env-var"
+      required: true
+      description: "The username to connect to PostgreSQL"
+    pass:
+      name: "PASS"
+      type: "env-var"
+      required: true
+      description: "The password to connect to PostgreSQL"
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the PostgreSQL server (default: 5432)"
+    db:
+      name: "DB"
+      type: "env-var"
+      required: true
+      description: "The database name to connect to"
+    sslmode:
+      name: "SSLMODE"
+      type: "env-var"
+      required: false
+      description: "SSL mode for the connection (Optional)"
+
+documentationConfig:
+  path: "quickstart/databases/postgres"
