@@ -1,6 +1,6 @@
 id: mysql
 name: MySQL
-description: Open-source relational database management system
+description: Connect to a private mysql instance from your favorite IDE
 category: databases
 icon-name: mysql
 tags:
@@ -74,27 +74,32 @@ gatewayInformation:
       name: "HOST"
       type: "env-var"
       required: true
-      description: "The IP or hostname of the MySQL server"
+      description: "The IP or Host of the MySQL server"
     user:
       name: "USER"
       type: "env-var"
       required: true
-      description: "The username to connect to MySQL"
+      description: "The user to connect in the MySQL server"
     pass:
       name: "PASS"
       type: "env-var"
       required: true
-      description: "The password to connect to MySQL"
+      description: "The password to connect to the MySQL server"
     port:
       name: "PORT"
       type: "env-var"
       required: true
-      description: "The port of the MySQL server (default: 3306)"
+      description: "The port of the MySQL server"
     db:
       name: "DB"
       type: "env-var"
       required: true
-      description: "The database name to connect to"
+      description: "The name of the database to connect (Required when using the connection via the command line)."
+    preSQLScriptFile:
+      name: "PRE_SQL_SCRIPT_FILE"
+      type: "filesystem"
+      required: false
+      description: "Append a custom SQL script at the beginning of the execution."
 
 documentationConfig:
   path: "quickstart/databases/mysql"

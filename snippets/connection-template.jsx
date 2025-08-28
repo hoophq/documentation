@@ -18,7 +18,7 @@ export const ConnectionTemplate = ({ config }) => {
 
   // Helper function to render icon
   const renderIcon = (enabled) => {
-    return enabled ? "✅" : "❌";
+    return enabled ? <Icon icon="check" /> : <Icon icon="xmark" />;
   };
 
   return (
@@ -87,6 +87,8 @@ export const ConnectionTemplate = ({ config }) => {
         </tbody>
       </table>
 
+      {finalConfig.gatewayInformation.credentials && 
+      <>
       <h2>Configuration</h2>
       <table>
         <thead>
@@ -100,19 +102,28 @@ export const ConnectionTemplate = ({ config }) => {
         <tbody>
           {Object.entries(finalConfig.gatewayInformation.credentials).map(([key, credential]) => {
             // Skip non-credential fields like 'config'
-            if (typeof credential === 'string') return null;
+            if (typeof credential === 'string' || credential.hidden) return null;
             
             return (
               <tr key={key}>
                 <td>{credential.name}</td>
                 <td>{credential.type}</td>
                 <td>{credential.required ? 'yes' : 'no'}</td>
-                <td>{credential.description}</td>
+                <td>
+                  {credential.description?.split(/(\[[^\]]+\]\([^)]+\))/).map((part, index) => {
+                    const linkMatch = part.match(/\[([^\]]+)\]\(([^)]+)\)/);
+                    if (linkMatch) {
+                      return <a key={index} href={linkMatch[2]} target="_blank" rel="noopener noreferrer">{linkMatch[1]}</a>;
+                    }
+                    return part;
+                  })}
+                </td>
               </tr>
             );
           }).filter(Boolean)}
         </tbody>
       </table>
+      </>}
     </div>
   );
 };

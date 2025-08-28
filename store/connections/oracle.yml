@@ -1,6 +1,6 @@
 id: oracle
-name: Oracle Database
-description: Enterprise-class relational database management system
+name: Oracle
+description: Execute queries to Oracle instances with [sqlcl](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/).
 category: databases
 icon-name: oracle
 tags:
@@ -74,22 +74,22 @@ gatewayInformation:
       name: "HOST"
       type: "env-var"
       required: true
-      description: "The IP or hostname of the Oracle server"
+      description: "The IP or Host of the Oracle server"
     user:
       name: "USER"
       type: "env-var"
       required: true
-      description: "The username to connect to Oracle"
+      description: "The user to connect in the Oracle server"
     pass:
       name: "PASS"
       type: "env-var"
       required: true
-      description: "The password to connect to Oracle"
+      description: "The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters."
     port:
       name: "PORT"
       type: "env-var"
       required: true
-      description: "The port of the Oracle server (default: 1521)"
+      description: "The port of the Oracle server"
     ld_library_path:
       name: "LD_LIBRARY_PATH"
       type: "env-var"
@@ -100,7 +100,7 @@ gatewayInformation:
       name: "SID"
       type: "env-var"
       required: true
-      description: "SID or Service name"
+      description: "The service name or SID (System identifier) to identify the database service."
       placeholder: "SID or Service name"
 
 documentationConfig:

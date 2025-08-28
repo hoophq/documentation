@@ -131,7 +131,7 @@
     {
       "id": "mssql",
       "name": "Microsoft SQL Server",
-      "description": "Enterprise-grade relational database management system from Microsoft",
+      "description": "Connecting to Microsoft SQL Server can be done natively using an IDE or any supported client library. Alternatively, you can use the [sqlcmd command line utility](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility) for one-off executions.",
       "category": "databases",
       "icon-name": "mssql",
       "tags": [
@@ -217,37 +217,37 @@
             "name": "HOST",
             "type": "env-var",
             "required": true,
-            "description": "The IP or hostname of the SQL Server"
+            "description": "The IP or Host of the SQL Server"
           },
           "user": {
             "name": "USER",
             "type": "env-var",
             "required": true,
-            "description": "The username to connect to SQL Server"
+            "description": "The user with access to the instance"
           },
           "pass": {
             "name": "PASS",
             "type": "env-var",
             "required": true,
-            "description": "The password to connect to SQL Server"
+            "description": "The password with access to the instance"
           },
           "port": {
             "name": "PORT",
             "type": "env-var",
             "required": true,
-            "description": "The port of the SQL Server (default: 1433)"
+            "description": "The port of the SQL server"
           },
           "db": {
             "name": "DB",
             "type": "env-var",
             "required": true,
-            "description": "The database name to connect to"
+            "description": "The name of the database to connect (Required when using the connection via the command line)."
           },
           "insecure": {
             "name": "INSECURE",
             "type": "env-var",
             "required": false,
-            "description": "Insecure connection mode (Optional, default: false)"
+            "description": "If the connection will ignore the chain of certificates presented by the server. (the connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false)"
           }
         }
       },
@@ -258,7 +258,7 @@
     {
       "id": "mongodb",
       "name": "MongoDB",
-      "description": "NoSQL document-oriented database",
+      "description": "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.",
       "category": "databases",
       "icon-name": "mongodb",
       "tags": [
@@ -343,7 +343,7 @@
             "name": "CONNECTION_STRING",
             "type": "env-var",
             "required": true,
-            "description": "The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format."
+            "description": "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format."
           }
         }
       },
@@ -354,7 +354,7 @@
     {
       "id": "mysql",
       "name": "MySQL",
-      "description": "Open-source relational database management system",
+      "description": "Connect to a private mysql instance from your favorite IDE",
       "category": "databases",
       "icon-name": "mysql",
       "tags": [
@@ -440,31 +440,37 @@
             "name": "HOST",
             "type": "env-var",
             "required": true,
-            "description": "The IP or hostname of the MySQL server"
+            "description": "The IP or Host of the MySQL server"
           },
           "user": {
             "name": "USER",
             "type": "env-var",
             "required": true,
-            "description": "The username to connect to MySQL"
+            "description": "The user to connect in the MySQL server"
           },
           "pass": {
             "name": "PASS",
             "type": "env-var",
             "required": true,
-            "description": "The password to connect to MySQL"
+            "description": "The password to connect to the MySQL server"
           },
           "port": {
             "name": "PORT",
             "type": "env-var",
             "required": true,
-            "description": "The port of the MySQL server (default: 3306)"
+            "description": "The port of the MySQL server"
           },
           "db": {
             "name": "DB",
             "type": "env-var",
             "required": true,
-            "description": "The database name to connect to"
+            "description": "The name of the database to connect (Required when using the connection via the command line)."
+          },
+          "preSQLScriptFile": {
+            "name": "PRE_SQL_SCRIPT_FILE",
+            "type": "filesystem",
+            "required": false,
+            "description": "Append a custom SQL script at the beginning of the execution."
           }
         }
       },
@@ -538,8 +544,8 @@
     },
     {
       "id": "oracle",
-      "name": "Oracle Database",
-      "description": "Enterprise-class relational database management system",
+      "name": "Oracle",
+      "description": "Execute queries to Oracle instances with [sqlcl](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/).",
       "category": "databases",
       "icon-name": "oracle",
       "tags": [
@@ -625,25 +631,25 @@
             "name": "HOST",
             "type": "env-var",
             "required": true,
-            "description": "The IP or hostname of the Oracle server"
+            "description": "The IP or Host of the Oracle server"
           },
           "user": {
             "name": "USER",
             "type": "env-var",
             "required": true,
-            "description": "The username to connect to Oracle"
+            "description": "The user to connect in the Oracle server"
           },
           "pass": {
             "name": "PASS",
             "type": "env-var",
             "required": true,
-            "description": "The password to connect to Oracle"
+            "description": "The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters."
           },
           "port": {
             "name": "PORT",
             "type": "env-var",
             "required": true,
-            "description": "The port of the Oracle server (default: 1521)"
+            "description": "The port of the Oracle server"
           },
           "ld_library_path": {
             "name": "LD_LIBRARY_PATH",
@@ -656,7 +662,7 @@
             "name": "SID",
             "type": "env-var",
             "required": true,
-            "description": "SID or Service name",
+            "description": "The service name or SID (System identifier) to identify the database service.",
             "placeholder": "SID or Service name"
           }
         }
@@ -668,7 +674,7 @@
     {
       "id": "postgres",
       "name": "PostgreSQL",
-      "description": "Advanced open-source relational database with object-relational features",
+      "description": "A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.",
       "category": "databases",
       "icon-name": "postgresql",
       "tags": [
@@ -766,25 +772,25 @@
             "name": "PASS",
             "type": "env-var",
             "required": true,
-            "description": "The password to connect to PostgreSQL"
+            "description": "The password to connect to the Postgres server. Make sure to URL encode the password if it contains any special characters."
           },
           "port": {
             "name": "PORT",
             "type": "env-var",
             "required": true,
-            "description": "The port of the PostgreSQL server (default: 5432)"
+            "description": "The port of the Postgres server"
           },
           "db": {
             "name": "DB",
             "type": "env-var",
             "required": true,
-            "description": "The database name to connect to"
+            "description": "The name of the database to connect (Required when using the connection via the command line)."
           },
           "sslmode": {
             "name": "SSLMODE",
             "type": "env-var",
             "required": false,
-            "description": "SSL mode for the connection (Optional)"
+            "description": "How to connect via tls with the remote host, it defaults to prefer. See [PostgreSQL SSL documentation](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION) for more information. Available options are: disable, prefer, require, and verify-full"
           }
         }
       },

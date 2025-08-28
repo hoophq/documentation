@@ -1,6 +1,6 @@
 ---
 title: "MongoDB"
-description: "NoSQL document-oriented database"
+description: "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password."
 category: "databases"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "mongodb",
   "name": "MongoDB",
-  "description": "NoSQL document-oriented database",
+  "description": "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.",
   "category": "databases",
   "icon-name": "mongodb",
   "tags": [
@@ -94,7 +94,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
         "name": "CONNECTION_STRING",
         "type": "env-var",
         "required": true,
-        "description": "The MongoDB connection string. See https://www.mongodb.com/docs/manual/reference/connection-string/ for more details about the proper format."
+        "description": "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format."
       }
     }
   },
@@ -168,6 +168,15 @@ db.listingsAndReviews.find({}, {_id: 1}).limit(10)
 <Note>
     This feature is available in agent version `1.35.19` and later.
 </Note>
+
+
+
+
+
+
+
+
+
 
 
 

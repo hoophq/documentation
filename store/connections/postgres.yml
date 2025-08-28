@@ -1,6 +1,6 @@
 id: postgres
 name: PostgreSQL
-description: Advanced open-source relational database with object-relational features
+description: A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.
 category: databases
 icon-name: postgresql
 tags:
@@ -84,22 +84,22 @@ gatewayInformation:
       name: "PASS"
       type: "env-var"
       required: true
-      description: "The password to connect to PostgreSQL"
+      description: "The password to connect to the Postgres server. Make sure to URL encode the password if it contains any special characters."
     port:
       name: "PORT"
       type: "env-var"
       required: true
-      description: "The port of the PostgreSQL server (default: 5432)"
+      description: "The port of the Postgres server"
     db:
       name: "DB"
       type: "env-var"
       required: true
-      description: "The database name to connect to"
+      description: "The name of the database to connect (Required when using the connection via the command line)."
     sslmode:
       name: "SSLMODE"
       type: "env-var"
       required: false
-      description: "SSL mode for the connection (Optional)"
+      description: "How to connect via tls with the remote host, it defaults to prefer. See [PostgreSQL SSL documentation](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION) for more information. Available options are: disable, prefer, require, and verify-full"
 
 documentationConfig:
   path: "quickstart/databases/postgres"

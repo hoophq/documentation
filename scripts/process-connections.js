@@ -52,7 +52,8 @@ const extractCustomContent = (filePath) => {
       '## Known Issues',
       '## Examples',
       '## Advanced Configuration',
-      '## Troubleshooting'
+      '## Troubleshooting',
+      '### Client Charset Configuration',
     ];
     
     let customStartIndex = -1;

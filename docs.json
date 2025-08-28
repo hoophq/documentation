@@ -68,8 +68,7 @@
                   "quickstart/databases/mssql",
                   "quickstart/databases/apache-cassandra",
                   "quickstart/databases/bigquery",
-                  "quickstart/databases/redis",
-                  "quickstart/databases/snowflake"
+                  "quickstart/databases/redis"
                 ]
               },
               {
