@@ -53,3 +53,41 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/web-applications/jump-hosts"
   }
 }} />
+## Connection Setup
+
+Any agent connected in the gateway could act as bastion host. You could choose which command to expose.
+
+### Expose Bash Shell
+
+```sh
+hoop admin create conn jump-host-bash -a <agent-name> -- /bin/bash
+```
+
+### Expose Python Shell
+
+```sh
+hoop admin create conn jump-host-python -a <agent-name> -- python3
+```
+
+## How to Use
+
+Start an interactive session.
+
+```sh
+# bash interactive session
+hoop connect jump-host-bash
+```
+
+In the same connection, one-off processes can be run as well.
+
+```sh
+hoop exec jump-host-bash <<EOF
+echo "one-off execution" && env
+EOF
+
+hoop exec jump-host-python -i 'import os; print(os.environ)'
+```
+
+
+
+

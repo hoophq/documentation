@@ -30,6 +30,12 @@ features:
     native: false
     oneOff: false
 
+requirements:
+  description: "The Google Service Account Credentials must have the following permissions:"
+  items:
+    - BigQuery User
+    - BigQuery Data Viewer
+
 overview:
   description: Google BigQuery is a fully managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure.
   features:

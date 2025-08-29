@@ -30,6 +30,9 @@ features:
     native: false
     oneOff: false
 
+requirements:
+  description: "Use an IAM credential with reduced scope to only create secrets and/or listing ECS services."
+
 overview:
   description: The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.
   features:

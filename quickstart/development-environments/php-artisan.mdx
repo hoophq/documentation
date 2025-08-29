@@ -95,3 +95,42 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/development-environments/php-artisan"
   }
 }} />
+## Connection Setup
+
+To proxy the `php artisan tinker` command, execute the following command.
+
+```bash
+hoop run --name artisan-demo --command 'php /path/to/artisan tinker'
+```
+
+<Info>
+If the command returns an exit code 1 when interacting via tinker.
+Configure the PsySH by disabling pcnl support:
+
+    <AccordionGroup>
+        <Accordion title="Configure Psysh">
+            ```sh
+            cat - > ~/.config/psysh/config.php <<EOF
+            <?php
+            return [
+                'usePcntl' => false,
+            ];
+            EOF
+            ```
+        </Accordion>
+    </AccordionGroup>
+</Info>
+
+
+
+## How to Use
+
+Users can now connect and perform ad-hoc executions via Webapp.
+
+```bash
+hoop connect artisan-demo
+```
+
+
+
+

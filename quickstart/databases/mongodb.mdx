@@ -102,42 +102,12 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/databases/mongodb"
   }
 }} />
-## Connection Setup
-
-Create a new Database connection in hoop's web panel.
-
-<Frame>
-    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
-</Frame>
-
-## Connection Usage
-
-You can access it through hoop CLI or hoop web panel.
-
-### Hoop CLI
-
-```bash
-hoop connect <connection-name>
-
-connection: mongo | session: f2e7634a-f4c4-47cd-bee6-48da080e2a23
-
----------------------mongo-credentials----------------------
- mongodb://noop:noop@127.0.0.1:27018/?directConnection=true
-------------------------------------------------------------
-```
-
-<Note>
-Clients must use `noop` as both the username and password, along with the `directionConnection=true` option
-</Note>
-
-### Web panel
-
-<Frame>
-    <img src="/images/quickstarts/client-mongodb.png" alt="create tcp connection screenshot" />
-</Frame>
-
-
 ## Known Issues
+
+### Wrong credentials, fail with credentials
+
+Clients must use `noop` as both the username and password, along with the `directionConnection=true` option
+
 
 ### Clients advertising the wrong server
 
@@ -168,6 +138,10 @@ db.listingsAndReviews.find({}, {_id: 1}).limit(10)
 <Note>
     This feature is available in agent version `1.35.19` and later.
 </Note>
+
+
+
+
 
 
 

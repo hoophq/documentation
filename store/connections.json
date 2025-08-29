@@ -236,6 +236,14 @@
           "oneOff": false
         }
       },
+      "requirements": {
+        "description": "The AWS credentials require the minimal set of IAM permissions to work:",
+        "items": [
+          "logs:DescribeLogGroups",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents"
+        ]
+      },
       "gatewayInformation": {
         "type": "cloud-service",
         "subtype": "aws-cloudwatch",
@@ -302,6 +310,14 @@
           "native": true,
           "oneOff": true
         }
+      },
+      "requirements": {
+        "description": "This connection uses a wrapper script available in the hoophq/hoopdev image called ecs-exec.sh. This script requires the following permissions to work:",
+        "items": [
+          "ecs:ListTasks",
+          "ecs:DescribeTasks",
+          "ecs:ExecuteCommand"
+        ]
       },
       "gatewayInformation": {
         "type": "cloud-service",
@@ -387,6 +403,13 @@
           "native": false,
           "oneOff": false
         }
+      },
+      "requirements": {
+        "description": "The Google Service Account Credentials must have the following permissions:",
+        "items": [
+          "BigQuery User",
+          "BigQuery Data Viewer"
+        ]
       },
       "overview": {
         "description": "Google BigQuery is a fully managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure.",
@@ -674,6 +697,14 @@
           "native": false,
           "oneOff": true
         }
+      },
+      "requirements": {
+        "description": "The AWS credentials require the minimal set of IAM permissions to work",
+        "items": [
+          "dynamodb:Query",
+          "dynamodb:DescribeTable",
+          "dynamodb:ListTables"
+        ]
       },
       "overview": {
         "description": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.",

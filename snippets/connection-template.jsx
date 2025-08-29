@@ -23,12 +23,23 @@ export const ConnectionTemplate = ({ config }) => {
 
   return (
     <div>
-      <h2>Prerequisites</h2>
+      <h2>Before you start</h2>
       <p>To get the most out of this guide, you will need to:</p>
       <ul>
         <li>Either <a href="https://use.hoop.dev">create an account in our managed instance</a> or <a href="/getting-started/installation/overview">deploy your own hoop.dev instance</a></li>
         <li>You must be your account administrator to perform the following commands</li>
       </ul>
+
+      {finalConfig.requirements && 
+        <>
+          <h2>Requirements</h2>
+          <p>{finalConfig.requirements.description}</p>
+          {finalConfig.requirements.items && <ul>
+            {finalConfig.requirements.items.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>}
+        </>}
 
       <h2>Features</h2>
       <p>The table below outlines the features available for this type of connection.</p>

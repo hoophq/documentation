@@ -45,6 +45,14 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": true
     }
   },
+  "requirements": {
+    "description": "The AWS credentials require the minimal set of IAM permissions to work",
+    "items": [
+      "dynamodb:Query",
+      "dynamodb:DescribeTable",
+      "dynamodb:ListTables"
+    ]
+  },
   "overview": {
     "description": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.",
     "features": [
@@ -147,11 +155,15 @@ hoop exec my-dynamodb -i 'aws dynamodb scan --table-name Movies'
 ### Web panel
 
 When you select a table in the interface, the terminal will propagate the name as `TABLE_NAME` environment variable, allowing you to use it in your scripts.
-The example above shows the variable being used in a script to scan the `Movies` table.
+The example below shows the variable being used in a script to scan the `Movies` table.
 
 <Frame>
     <img src="/images/quickstarts/client-dynamodb.png" alt="dynamodb screenshot" />
 </Frame>
+
+
+
+
 
 
 

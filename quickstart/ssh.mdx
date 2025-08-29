@@ -128,6 +128,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/ssh"
   }
 }} />
+
 ## Connection Setup
 
 ```sh
@@ -145,11 +146,6 @@ hoop admin create conn myremote-server -a <agent> --overwrite \
     -e USER=root \
     -e AUTHORIZED_SERVER_KEYS=file:///path/to/your/private/key
 ```
-
-<Info>
-  In upcoming releases, we plan to automate the management of users, keys, and passwords on the remote server.
-  Additionally, our roadmap includes adding a UI for managing such type of connections.
-</Info>
 
 ## How to Use it
 
@@ -203,6 +199,10 @@ To disable it, set this option in your bash profile or your current shell sessio
 ```sh
 export WARP_USE_SSH_WRAPPER=0
 ```
+
+
+
+
 
 
 

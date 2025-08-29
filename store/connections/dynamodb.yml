@@ -30,6 +30,13 @@ features:
     native: false
     oneOff: true
 
+requirements:
+  description: The AWS credentials require the minimal set of IAM permissions to work
+  items:
+    - dynamodb:Query
+    - dynamodb:DescribeTable
+    - dynamodb:ListTables
+
 overview:
   description: Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.
   features:

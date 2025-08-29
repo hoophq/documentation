@@ -30,6 +30,13 @@ features:
     native: false
     oneOff: false
 
+requirements:
+  description: "The AWS credentials require the minimal set of IAM permissions to work:"
+  items:
+    - logs:DescribeLogGroups
+    - logs:GetLogEvents
+    - logs:FilterLogEvents
+
 gatewayInformation:
   type: cloud-service
   subtype: aws-cloudwatch

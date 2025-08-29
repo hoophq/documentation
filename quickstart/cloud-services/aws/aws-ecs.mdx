@@ -45,6 +45,14 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": true
     }
   },
+  "requirements": {
+    "description": "This connection uses a wrapper script available in the hoophq/hoopdev image called ecs-exec.sh. This script requires the following permissions to work:",
+    "items": [
+      "ecs:ListTasks",
+      "ecs:DescribeTasks",
+      "ecs:ExecuteCommand"
+    ]
+  },
   "gatewayInformation": {
     "type": "cloud-service",
     "subtype": "aws-ecs",
