@@ -1,6 +1,6 @@
 ---
 title: "Ruby on Rails"
-description: "Web application framework for Ruby development and Rails console access"
+description: "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application."
 category: "developer-consoles"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "ruby-on-rails",
   "name": "Ruby on Rails",
-  "description": "Web application framework for Ruby development and Rails console access",
+  "description": "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application.",
   "category": "developer-consoles",
   "icon-name": "ruby",
   "tags": [
@@ -19,6 +19,32 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "development"
   ],
   "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
   "overview": {
     "description": "Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.",
     "features": [
@@ -63,6 +89,9 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   },
   "gatewayInformation": {
     "type": "application",
-    "subtype": "ruby-on-rails",
+    "subtype": "ruby-on-rails"
+  },
+  "documentationConfig": {
+    "path": "quickstart/development-environments/ruby-on-rails"
   }
 }} />

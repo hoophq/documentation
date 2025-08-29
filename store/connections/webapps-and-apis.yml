@@ -1,0 +1,49 @@
+id: webapps-and-apis
+name: Web Applications and APIs
+description: Interact with web applications and APIs tunneling through hoop.dev.
+category: web-applications
+icon-name: globe
+tags:
+  - web
+  - api
+  - http
+  - monitoring
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: false
+  audit:
+    native: true
+    oneOff: false
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: false
+  credentialsOffload:
+    native: true
+    oneOff: false
+  interactiveAccess:
+    native: false
+    oneOff: false
+
+gatewayInformation:
+  type: web-application
+  subtype: webapp-api
+  credentials:
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the service"
+    PORT:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the service"
+
+documentationConfig:
+  path: "quickstart/web-applications/webapps-and-apis"

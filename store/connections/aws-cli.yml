@@ -1,0 +1,62 @@
+id: aws-cli
+name: AWS CLI
+description: Hoop could be configured to use the AWS command line to manage resources in multiple accounts.
+category: cloud-services
+icon-name: aws
+tags:
+  - aws
+  - cloud
+  - cli
+  - management
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: true
+  audit:
+    native: false
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: true
+  interactiveAccess:
+    native: false
+    oneOff: false
+
+overview:
+  description: The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.
+  features:
+    - Comprehensive AWS service management
+    - Scriptable automation capabilities
+    - Multiple output formats (JSON, table, text)
+    - Profile and credential management
+
+gatewayInformation:
+  type: cloud-service
+  subtype: aws-cli
+  credentials:
+    aws_access_key_id:
+      name: "AWS_ACCESS_KEY_ID"
+      type: "env-var"
+      required: true
+      description: "The access key credential"
+    aws_secret_access_key:
+      name: "AWS_SECRET_ACCESS_KEY"
+      type: "env-var"
+      required: true
+      description: "The secret key credential"
+    aws_region:
+      name: "AWS_REGION"
+      type: "env-var"
+      required: true
+      description: "The AWS region"
+
+documentationConfig:
+  path: "quickstart/cloud-services/aws/aws-cli"

@@ -89,7 +89,8 @@
                 "group": "Web Applications",
                 "pages": [
                   "quickstart/web-applications/webapps-and-apis",
-                  "quickstart/web-applications/jump-hosts"
+                  "quickstart/web-applications/jump-hosts",
+                  "quickstart/web-applications/httpproxy"
                 ]
               },
               {
@@ -104,7 +105,9 @@
                     ]
                   },
                   "quickstart/development-environments/php-artisan",
-                  "quickstart/development-environments/elixir-IEx"
+                  "quickstart/development-environments/elixir-IEx",
+                  "quickstart/development-environments/clojure",
+                  "quickstart/development-environments/nodejs"
                 ]
               },
               "quickstart/ssh"

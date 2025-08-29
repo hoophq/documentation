@@ -1,117 +1,93 @@
 ---
 title: "AWS ECS"
 description: "Interact with Elastic Container Service, executing one-off sessions into ECS tasks/containers."
+category: "cloud-services"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-
-## Overview
-
-This connection uses a wrapper script available in the `hoophq/hoopdev` image called `ecs-exec.sh`. This script requires the following permissions to work:
-
-- `ecs:ListTasks`
-- `ecs:DescribeTasks`
-- `ecs:ExecuteCommand`
-
-<Info>
-It’s important to configure the ECS tasks before trying this feature. Please refer to the [AWS documentation first](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html)
-</Info>
-
-## Connection Configuration
-
-| Name | Type | Description |
-| --- | --- | --- |
-| CLUSTER_NAME | env-var | The name or arn of the ECS Cluster |
-| SERVICE_NAME | env-var | The name of the service on ECS |
-| CONTAINER | env-var | The name of the container defaults to the first one. |
-| AWS_ACCESS_KEY_ID | env-var | The access key credential |
-| AWS_SECRET_ACCESS_KEY | env-var | The secret key credential |
-| AWS_DEFAULT_REGION | env-var | The AWS region |
-
-## Connection Configuration (Assume Role)
-
-| Name | Type | Value | Description |
-| --- | --- | --- | --- |
-| CLUSTER_NAME | env-var | - | The name or arn of the ECS Cluster |
-| SERVICE_NAME | env-var | - | The name of the service on ECS |
-| CONTAINER | env-var | - | The name of the container defaults to the first one. |
-| ECS_AGENT_URI | env-var | system.agent.envs | The access key credential |
-| AWS_EXECUTION_ENV | env-var | system.agent.envs | ECS launch type |
-| AWS_CONTAINER_CREDENTIALS_RELATIVE_URI | env-var | system.agent.envs | full HTTP URL endpoint when making a request for credentials |
-| ECS_CONTAINER_METADATA_URI_V4 | env-var | system.agent.envs | This path returns metadata for the container. |
-| AWS_DEFAULT_REGION | env-var | system.agent.envs | The default AWS region |
-
-The value `system.agent.envs` will expose the upstream environment variable from the agent to the connection, allowing the wrapper script to use the IAM task role.
-
-## AWS ECS - Interactive Sessions
-
-The AWS Elastic Container Service allows users to connect to tasks and start interactive sessions. These commands can be mapped to Hoop to obtain interactive sessions by allocating a pseudo TTY.
-
-<Info>
-Before attempting to use this feature, it's essential to configure the ECS tasks. Please refer to the [AWS documentation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html) for guidance.
-</Info>
-
-### Connection Command
-
-```bash
-ecs-exec.sh --interactive --cluster=$CLUSTER_NAME --service-name=$SERVICE_NAME
-```
-
-### How to Use
-
-Start an interactive session.
-
-```bash
-hoop connect my-ecs -- --interactive --pipe /bin/bash
-hoop connect my-ecs -- --interactive --pipe 'rails console'
-hoop connect my-ecs -- --interactive --pipe clojure
-```
-
-## AWS ECS - Execute one-off commands
-
-### Connection Command
-
-```bash
-ecs-exec.sh --cluster=$CLUSTER_NAME --service-name=$SERVICE_NAME
-```
-
-### How to Use
-
-Now it’s possible to execute the Ruby script straight from Hoop.dev
-
-```bash
-hoop exec ecs-exec -- --pipe 'rails runner -' <<EOF
-myvar='Hello from Rails'
-puts myvar
-EOF
-hoop exec ecs-exec -i 'puts Rails.env' -- --pipe 'rails runner -'
-```
-
-<Info>
-The `--pipe` option necessitates the availability of the `base64` command in the image. This command decodes the input content, preventing leakage of shell content such as single or double quotes. This helps address a limitation of the `aws ecs execute-command`.
-</Info>
-
-It’s possible to pipe any command.
-
-```bash
-hoop exec ecs-exec -i '(println "Clojure REPL")' -- --pipe 'clojure'
-hoop exec ecs-exec -- --pipe 'python3' <<EOF
-import os
-print(os.environ.get("CLUSTER_NAME"))
-EOF
-# defaults to /bin/bash
-hoop exec ecs-exec --input 'echo "hello world from bash"'
-```
-
-Easily call the scripts.
-
-```bash
-hoop exec ecs-exec -i '/path/to/my/script.sh'
-# override the ecs task-id
-hoop exec ecs-exec -i '/path/to/my/script.sh' -- --task mytaskid
-# execute a rails script
-hoop exec ecs-exec -i 'rails runner /path/to/script.rb'
-```
+<ConnectionTemplate config={{
+  "id": "aws-ecs",
+  "name": "AWS ECS",
+  "description": "Interact with Elastic Container Service, executing one-off sessions into ECS tasks/containers.",
+  "category": "cloud-services",
+  "icon-name": "aws",
+  "tags": [
+    "aws",
+    "containers",
+    "orchestration",
+    "ecs"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "gatewayInformation": {
+    "type": "cloud-service",
+    "subtype": "aws-ecs",
+    "credentials": {
+      "cluster_name": {
+        "name": "CLUSTER_NAME",
+        "type": "env-var",
+        "required": true,
+        "description": "The name or arn of the ECS Cluster"
+      },
+      "service_name": {
+        "name": "SERVICE_NAME",
+        "type": "env-var",
+        "required": true,
+        "description": "The name of the service on ECS"
+      },
+      "container": {
+        "name": "CONTAINER",
+        "type": "env-var",
+        "required": true,
+        "description": "The name of the container defaults to the first one."
+      },
+      "aws_access_key_id": {
+        "name": "AWS_ACCESS_KEY_ID",
+        "type": "env-var",
+        "required": true,
+        "description": "The access key credential"
+      },
+      "aws_secret_access_key": {
+        "name": "AWS_SECRET_ACCESS_KEY",
+        "type": "env-var",
+        "required": true,
+        "description": "The secret key credential"
+      },
+      "aws_default_region": {
+        "name": "AWS_DEFAULT_REGION",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS region"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/cloud-services/aws/aws-ecs"
+  }
+}} />

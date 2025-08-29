@@ -1,6 +1,6 @@
 ---
-title: "SSH"
-description: "Secure Shell protocol for secure remote access and command execution"
+title: "Secure Shell (SSH)"
+description: "Proxy an SSH Server to remote hosts in your private network."
 category: "infrastructure-access"
 ---
 
@@ -8,8 +8,8 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
 <ConnectionTemplate config={{
   "id": "ssh",
-  "name": "SSH",
-  "description": "Secure Shell protocol for secure remote access and command execution",
+  "name": "Secure Shell (SSH)",
+  "description": "Proxy an SSH Server to remote hosts in your private network.",
   "category": "infrastructure-access",
   "icon-name": "ssh",
   "tags": [
@@ -21,7 +21,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   "isNew": false,
   "features": {
     "tlsTerminationProxy": {
-      "native": false,
+      "native": true,
       "oneOff": false
     },
     "audit": {
@@ -41,7 +41,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": false
     },
     "interactiveAccess": {
-      "native": false,
+      "native": true,
       "oneOff": false
     }
   },
@@ -101,25 +101,25 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
         "name": "PORT",
         "type": "env-var",
         "required": false,
-        "description": "The port of the SSH server (default: 22)"
+        "description": "The port of the SSH server, default to 22"
       },
       "user": {
         "name": "USER",
         "type": "env-var",
         "required": true,
-        "description": "The username for SSH connection"
+        "description": "The username of the Linux server"
       },
       "pass": {
         "name": "PASS",
         "type": "env-var",
-        "required": true,
-        "description": "The password for SSH connection"
+        "required": false,
+        "description": "The credentials of the username if password authentication is enabled in the SSH server."
       },
       "authorized_server_keys": {
         "name": "AUTHORIZED_SERVER_KEYS",
         "type": "textarea",
-        "required": true,
-        "description": "Enter your private key",
+        "required": false,
+        "description": "The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys",
         "placeholder": "Enter your private key"
       }
     }
@@ -203,6 +203,9 @@ To disable it, set this option in your bash profile or your current shell sessio
 ```sh
 export WARP_USE_SSH_WRAPPER=0
 ```
+
+
+
 
 
 

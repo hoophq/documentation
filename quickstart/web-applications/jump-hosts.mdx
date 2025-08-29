@@ -1,43 +1,55 @@
 ---
 title: "Jump Hosts"
 description: "Hoop could act as a bastion server allowing the execution of one-off sessions."
+category: "web-applications"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Connection Configuration
-
-Any agent connected in the gateway could act as bastion host. You could choose which command to expose.
-
-### Expose Bash Shell
-
-```sh
-hoop admin create conn jump-host-bash -a <agent-name> -- /bin/bash
-```
-
-### Expose Python Shell
-
-```sh
-hoop admin create conn jump-host-python -a <agent-name> -- python3
-```
-
-## How to Use
-
-Start an interactive session.
-
-```sh
-# bash interactive session
-hoop connect jump-host-bash
-```
-
-In the same connection, one-off processes can be run as well.
-
-```sh
-hoop exec jump-host-bash <<EOF
-echo "one-off execution" && env
-EOF
-
-hoop exec jump-host-python -i 'import os; print(os.environ)'
-```
+<ConnectionTemplate config={{
+  "id": "jump-hosts",
+  "name": "Jump Hosts",
+  "description": "Hoop could act as a bastion server allowing the execution of one-off sessions.",
+  "category": "web-applications",
+  "icon-name": "server",
+  "tags": [
+    "security",
+    "bastion",
+    "ssh-tunnel",
+    "network"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "gatewayInformation": {
+    "type": "web-application",
+    "subtype": "jump-host"
+  },
+  "documentationConfig": {
+    "path": "quickstart/web-applications/jump-hosts"
+  }
+}} />

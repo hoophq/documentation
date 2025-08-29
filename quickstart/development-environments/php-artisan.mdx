@@ -1,45 +1,97 @@
 ---
 title: "PHP Artisan"
-description: "Interact with the Artisan console or execute ad-hoc scripts."
+description: "Interact with the Laravel Artisan console or execute ad-hoc PHP scripts."
+category: "development-environments"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Configuration
-
-To proxy the `php artisan tinker` command, execute the following command.
-
-```bash
-hoop run --name artisan-demo --command 'php /path/to/artisan tinker'
-```
-
-<Info>
-If the command returns an exit code 1 when interacting via tinker.
-Configure the PsySH by disabling pcnl support:
-
-    <AccordionGroup>
-        <Accordion title="Configure Psysh">
-            ```sh
-            cat - > ~/.config/psysh/config.php <<EOF
-            <?php
-            return [
-                'usePcntl' => false,
-            ];
-            EOF
-            ```
-        </Accordion>
-    </AccordionGroup>
-</Info>
-
-
-
-## How to Use
-
-Users can now connect and perform ad-hoc executions via Webapp.
-
-```bash
-hoop connect artisan-demo
-```
-
+<ConnectionTemplate config={{
+  "id": "php-artisan",
+  "name": "PHP Artisan",
+  "description": "Interact with the Laravel Artisan console or execute ad-hoc PHP scripts.",
+  "category": "development-environments",
+  "icon-name": "php",
+  "tags": [
+    "php",
+    "laravel",
+    "artisan",
+    "development"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Laravel Artisan is the command-line interface included with Laravel, providing helpful commands for application development.",
+    "features": [
+      "Interactive PHP shell (Tinker)",
+      "Database migrations and seeding",
+      "Queue management and processing",
+      "Custom command creation and execution"
+    ],
+    "useCases": [
+      "Laravel application development and management",
+      "Database operations and migrations",
+      "Background job processing",
+      "Application debugging and testing"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "PHP 8.0+ installed",
+      "Laravel framework installed",
+      "Composer dependencies resolved",
+      "Application environment configured"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "php artisan tinker",
+    "featureConfiguration": [
+      "Laravel configuration files",
+      "Database connection settings",
+      "Queue and cache configuration",
+      "Custom Artisan commands"
+    ],
+    "otherRequirements": [
+      "Environment variables configuration",
+      "Application key generation",
+      "Storage permissions setup"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "development-environment",
+    "subtype": "php-artisan"
+  },
+  "documentationConfig": {
+    "path": "quickstart/development-environments/php-artisan"
+  }
+}} />

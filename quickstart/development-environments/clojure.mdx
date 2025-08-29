@@ -19,6 +19,32 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "development"
   ],
   "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
   "overview": {
     "description": "Clojure is a dynamic, general-purpose programming language that combines the approachability and interactive development of a scripting language with an efficient and robust infrastructure for multithreaded programming.",
     "features": [
@@ -63,10 +89,9 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   },
   "gatewayInformation": {
     "type": "application",
-    "subtype": "clojure",
-    "credentials": {
-      "authType": "JVM-based authentication",
-      "config": "Clojure runtime access with JVM environment configuration"
-    }
+    "subtype": "clojure"
+  },
+  "documentationConfig": {
+    "path": "quickstart/development-environments/clojure"
   }
 }} />

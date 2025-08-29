@@ -1,18 +1,108 @@
 ---
 title: "Kubernetes"
 description: "Hoop.dev can be configured to use the kubectl command line to manage resources and execute actions on workloads in Kubernetes."
+category: "cloud-services"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Connection Configuration
-
-| Name | Type | Description |
-| --- | --- | --- |
-| KUBECONFIG | filesystem | A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster |
-
+<ConnectionTemplate config={{
+  "id": "kubernetes",
+  "name": "Kubernetes",
+  "description": "Hoop.dev can be configured to use the kubectl command line to manage resources and execute actions on workloads in Kubernetes.",
+  "category": "cloud-services",
+  "icon-name": "kubernetes",
+  "tags": [
+    "orchestration",
+    "containers",
+    "cloud-native",
+    "devops"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Kubernetes is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications.",
+    "features": [
+      "Automated deployment and scaling",
+      "Service discovery and load balancing",
+      "Storage orchestration and management",
+      "Self-healing and rolling updates"
+    ],
+    "useCases": [
+      "Microservices architecture deployment",
+      "Container orchestration and management",
+      "CI/CD pipeline automation",
+      "Multi-cloud and hybrid cloud deployments"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "Kubernetes cluster access",
+      "kubectl command-line tool installed",
+      "Valid kubeconfig file with cluster credentials",
+      "Network connectivity to Kubernetes API server"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "kubectl via kubeconfig",
+    "featureConfiguration": [
+      "RBAC (Role-Based Access Control) configuration",
+      "Service accounts and token authentication",
+      "Network policies and security contexts",
+      "Helm chart deployments and management"
+    ],
+    "otherRequirements": [
+      "Understanding of Kubernetes resources and manifests",
+      "Cluster monitoring and logging setup",
+      "Backup and disaster recovery planning"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "cloud-service",
+    "subtype": "kubernetes",
+    "credentials": {
+      "kubeconfig": {
+        "name": "KUBECONFIG",
+        "type": "filesystem",
+        "required": true,
+        "description": "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/cloud-services/kubernetes"
+  }
+}} />
 ## Connection Setup
 
 There are multiple ways to set up a connection to Kubernetes. It will depend how do you want users to interact with it.
@@ -104,4 +194,7 @@ There are multiple ways to set up a connection to Kubernetes. It will depend how
 		</Info>
 	</Tab>
 </Tabs>
+
+
+
 

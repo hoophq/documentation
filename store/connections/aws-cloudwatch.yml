@@ -1,0 +1,54 @@
+id: aws-cloudwatch
+name: AWS CloudWatch
+description: CloudWatch in Hoop simplifies AWS log analysis by providing direct access to log groups with automatic environment variable setup and an optimized interface for log exploration.
+category: cloud-services
+icon-name: aws
+tags:
+  - aws
+  - monitoring
+  - logs
+  - metrics
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: true
+  audit:
+    native: false
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: true
+  interactiveAccess:
+    native: false
+    oneOff: false
+
+gatewayInformation:
+  type: cloud-service
+  subtype: aws-cloudwatch
+  credentials:
+    aws_access_key_id:
+      name: "AWS_ACCESS_KEY_ID"
+      type: "env-var"
+      required: true
+      description: "The AWS access key ID for CloudWatch Logs accesss"
+    aws_secret_access_key:
+      name: "AWS_SECRET_ACCESS_KEY"
+      type: "env-var"
+      required: true
+      description: "The AWS secret access key for CloudWatch Logs access"
+    aws_region:
+      name: "AWS_REGION"
+      type: "env-var"
+      required: true
+      description: "The AWS region where your CloudWatch log groups are located (e.g., us-east-1, eu-west-1)"
+
+documentationConfig:
+  path: "quickstart/cloud-services/aws/aws-cloudwatch"

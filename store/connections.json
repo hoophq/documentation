@@ -1,6 +1,464 @@
 {
   "connections": [
     {
+      "id": "apache-cassandra",
+      "name": "Apache Cassandra",
+      "description": "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html).",
+      "category": "databases",
+      "icon-name": "cassandra",
+      "tags": [
+        "nosql",
+        "distributed",
+        "column-family",
+        "high-availability"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": true
+        }
+      },
+      "overview": {
+        "description": "Apache Cassandra is a highly scalable, distributed NoSQL database designed to handle large amounts of data across many commodity servers.",
+        "features": [
+          "Linear scalability and high availability",
+          "Fault-tolerant with no single point of failure",
+          "Tunable consistency levels",
+          "Support for structured, semi-structured, and unstructured data"
+        ],
+        "useCases": [
+          "High-volume web applications",
+          "Time-series data and IoT applications",
+          "Content management systems",
+          "Real-time analytics and reporting"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Apache Cassandra 3.0+ cluster",
+          "Network connectivity to Cassandra nodes",
+          "Valid authentication credentials",
+          "CQL (Cassandra Query Language) knowledge"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "cqlsh host port -u username -p password",
+        "featureConfiguration": [
+          "Keyspace and table configuration",
+          "Replication strategy setup",
+          "Consistency level tuning",
+          "SSL/TLS encryption configuration"
+        ],
+        "otherRequirements": [
+          "Understanding of Cassandra data modeling",
+          "Cluster topology and replication planning",
+          "Monitoring and maintenance procedures"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "cassandra",
+        "credentials": {
+          "keyspace": {
+            "name": "CQLSH_KEYSPACE",
+            "type": "env-var",
+            "required": true,
+            "description": "The keyspace target"
+          },
+          "host": {
+            "name": "CQLSH_HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The host of the Cassandra cluster"
+          },
+          "port": {
+            "name": "CQLSH_PORT",
+            "type": "env-var",
+            "required": false,
+            "description": "The Vault Token. Defaults to 9043"
+          },
+          "username": {
+            "name": "CQLSH_USER",
+            "type": "env-var",
+            "required": false,
+            "description": "The user can connect in the Cassandra cluster."
+          },
+          "password": {
+            "name": "CQLSH_PASSWD",
+            "type": "env-var",
+            "required": false,
+            "description": "The password to connect in the Cassandra cluster."
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/apache-cassandra"
+      }
+    },
+    {
+      "id": "aws-cli",
+      "name": "AWS CLI",
+      "description": "Hoop could be configured to use the AWS command line to manage resources in multiple accounts.",
+      "category": "cloud-services",
+      "icon-name": "aws",
+      "tags": [
+        "aws",
+        "cloud",
+        "cli",
+        "management"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
+      },
+      "overview": {
+        "description": "The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.",
+        "features": [
+          "Comprehensive AWS service management",
+          "Scriptable automation capabilities",
+          "Multiple output formats (JSON, table, text)",
+          "Profile and credential management"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "cloud-service",
+        "subtype": "aws-cli",
+        "credentials": {
+          "aws_access_key_id": {
+            "name": "AWS_ACCESS_KEY_ID",
+            "type": "env-var",
+            "required": true,
+            "description": "The access key credential"
+          },
+          "aws_secret_access_key": {
+            "name": "AWS_SECRET_ACCESS_KEY",
+            "type": "env-var",
+            "required": true,
+            "description": "The secret key credential"
+          },
+          "aws_region": {
+            "name": "AWS_REGION",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS region"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/aws/aws-cli"
+      }
+    },
+    {
+      "id": "aws-cloudwatch",
+      "name": "AWS CloudWatch",
+      "description": "CloudWatch in Hoop simplifies AWS log analysis by providing direct access to log groups with automatic environment variable setup and an optimized interface for log exploration.",
+      "category": "cloud-services",
+      "icon-name": "aws",
+      "tags": [
+        "aws",
+        "monitoring",
+        "logs",
+        "metrics"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
+      },
+      "gatewayInformation": {
+        "type": "cloud-service",
+        "subtype": "aws-cloudwatch",
+        "credentials": {
+          "aws_access_key_id": {
+            "name": "AWS_ACCESS_KEY_ID",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS access key ID for CloudWatch Logs accesss"
+          },
+          "aws_secret_access_key": {
+            "name": "AWS_SECRET_ACCESS_KEY",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS secret access key for CloudWatch Logs access"
+          },
+          "aws_region": {
+            "name": "AWS_REGION",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS region where your CloudWatch log groups are located (e.g., us-east-1, eu-west-1)"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/aws/aws-cloudwatch"
+      }
+    },
+    {
+      "id": "aws-ecs",
+      "name": "AWS ECS",
+      "description": "Interact with Elastic Container Service, executing one-off sessions into ECS tasks/containers.",
+      "category": "cloud-services",
+      "icon-name": "aws",
+      "tags": [
+        "aws",
+        "containers",
+        "orchestration",
+        "ecs"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "gatewayInformation": {
+        "type": "cloud-service",
+        "subtype": "aws-ecs",
+        "credentials": {
+          "cluster_name": {
+            "name": "CLUSTER_NAME",
+            "type": "env-var",
+            "required": true,
+            "description": "The name or arn of the ECS Cluster"
+          },
+          "service_name": {
+            "name": "SERVICE_NAME",
+            "type": "env-var",
+            "required": true,
+            "description": "The name of the service on ECS"
+          },
+          "container": {
+            "name": "CONTAINER",
+            "type": "env-var",
+            "required": true,
+            "description": "The name of the container defaults to the first one."
+          },
+          "aws_access_key_id": {
+            "name": "AWS_ACCESS_KEY_ID",
+            "type": "env-var",
+            "required": true,
+            "description": "The access key credential"
+          },
+          "aws_secret_access_key": {
+            "name": "AWS_SECRET_ACCESS_KEY",
+            "type": "env-var",
+            "required": true,
+            "description": "The secret key credential"
+          },
+          "aws_default_region": {
+            "name": "AWS_DEFAULT_REGION",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS region"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/aws/aws-ecs"
+      }
+    },
+    {
+      "id": "bigquery",
+      "name": "BigQuery",
+      "description": "Execute queries to Big Query with the [bq command line tool](https://cloud.google.com/bigquery/docs/bq-command-line-tool).",
+      "category": "databases",
+      "icon-name": "bigquery",
+      "tags": [
+        "analytics",
+        "data-warehouse",
+        "google-cloud",
+        "sql"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
+      },
+      "overview": {
+        "description": "Google BigQuery is a fully managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure.",
+        "features": [
+          "Serverless and fully managed data warehouse",
+          "Petabyte-scale analytics with standard SQL",
+          "Built-in machine learning capabilities",
+          "Real-time data streaming and analysis"
+        ],
+        "useCases": [
+          "Large-scale data analytics and reporting",
+          "Business intelligence and data visualization",
+          "Machine learning model training on big data",
+          "Real-time streaming analytics"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": false,
+          "runbooks": true
+        },
+        "requirements": [
+          "Google Cloud Platform account",
+          "BigQuery API enabled in your GCP project",
+          "Service account with BigQuery permissions",
+          "Google Cloud SDK (gcloud) installed"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "bq command-line tool with service account",
+        "featureConfiguration": [
+          "IAM roles and permissions for BigQuery access",
+          "Dataset and table-level security controls",
+          "Query optimization and slot management",
+          "Data encryption and compliance settings"
+        ],
+        "otherRequirements": [
+          "Understanding of BigQuery pricing model",
+          "Data modeling for optimal query performance",
+          "Monitoring with Cloud Logging and Monitoring"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "bigquery",
+        "credentials": {
+          "google_application_credentials": {
+            "name": "GOOGLE_APPLICATION_CREDENTIALS",
+            "type": "filesystem",
+            "required": true,
+            "description": "The service account credentials file in JSON format"
+          },
+          "cloudsdk_core_project": {
+            "name": "CLOUDSDK_CORE_PROJECT",
+            "type": "env-var",
+            "required": true,
+            "description": "The project id to use for request"
+          },
+          "cloudsdk_python": {
+            "name": "CLOUDSDK_PYTHON",
+            "type": "env-var",
+            "required": false,
+            "description": "The path of python interpreter, defaults to /usr/bin/python3.9"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/bigquery"
+      }
+    },
+    {
       "id": "clojure",
       "name": "Clojure",
       "description": "Dynamic functional programming language for the JVM",
@@ -13,6 +471,32 @@
         "development"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
       "overview": {
         "description": "Clojure is a dynamic, general-purpose programming language that combines the approachability and interactive development of a scripting language with an efficient and robust infrastructure for multithreaded programming.",
         "features": [
@@ -57,11 +541,283 @@
       },
       "gatewayInformation": {
         "type": "application",
-        "subtype": "clojure",
-        "credentials": {
-          "authType": "JVM-based authentication",
-          "config": "Clojure runtime access with JVM environment configuration"
+        "subtype": "clojure"
+      },
+      "documentationConfig": {
+        "path": "quickstart/development-environments/clojure"
+      }
+    },
+    {
+      "id": "django",
+      "name": "Django",
+      "description": "Interact with the Artisan console or execute ad-hoc scripts.",
+      "category": "development-environments",
+      "icon-name": "django",
+      "tags": [
+        "python",
+        "web-framework",
+        "management",
+        "development"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
         }
+      },
+      "overview": {
+        "description": "Django is a high-level Python web framework that encourages rapid development and clean, pragmatic design with built-in administrative interface.",
+        "features": [
+          "Powerful admin interface for content management",
+          "ORM for database interactions",
+          "Built-in authentication and authorization",
+          "Comprehensive management commands"
+        ],
+        "useCases": [
+          "Web application development and management",
+          "Database schema migrations and management",
+          "User and content administration",
+          "Custom management command execution"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Python 3.8+ installed",
+          "Django framework installed",
+          "Django project configured",
+          "Database configured and migrated"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "python manage.py shell",
+        "featureConfiguration": [
+          "Django settings configuration",
+          "Database connection settings",
+          "Static files and media configuration",
+          "Custom management commands"
+        ],
+        "otherRequirements": [
+          "Virtual environment setup",
+          "Requirements.txt with dependencies",
+          "Environment-specific settings files"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "development-environment",
+        "subtype": "django"
+      },
+      "documentationConfig": {
+        "path": "quickstart/development-environments/python/django-admin"
+      }
+    },
+    {
+      "id": "dynamodb",
+      "name": "DynamoDB",
+      "description": "DynamoDB in Hoop offers a unique experience where tables are treated as databases, with automatic environment variable configuration and an interface optimized for NoSQL.",
+      "category": "databases",
+      "icon-name": "dynamodb",
+      "tags": [
+        "nosql",
+        "aws",
+        "managed",
+        "serverless"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": true
+        }
+      },
+      "overview": {
+        "description": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.",
+        "features": [
+          "Fully managed serverless database",
+          "Single-digit millisecond latency",
+          "Built-in security and backup capabilities",
+          "Global tables for multi-region deployment"
+        ],
+        "useCases": [
+          "Web and mobile applications",
+          "Gaming applications with leaderboards",
+          "IoT data collection and processing",
+          "Real-time personalization engines"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": false,
+          "runbooks": true
+        },
+        "requirements": [
+          "AWS Account with DynamoDB access",
+          "IAM user with appropriate DynamoDB permissions",
+          "AWS Access Key ID and Secret Access Key",
+          "Network connectivity to AWS DynamoDB endpoints"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "AWS DynamoDB API via SDK",
+        "featureConfiguration": [
+          "IAM roles and policies for fine-grained access",
+          "VPC endpoints for private connectivity",
+          "DynamoDB Accelerator (DAX) for caching",
+          "Global Secondary Indexes (GSI) configuration"
+        ],
+        "otherRequirements": [
+          "Understanding of DynamoDB data modeling",
+          "Capacity planning for read/write units",
+          "Monitoring with CloudWatch metrics"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "dynamodb",
+        "credentials": {
+          "aws_access_key_id": {
+            "name": "AWS_ACCESS_KEY_ID",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS access key ID for DynamoDB access"
+          },
+          "aws_secret_access_key": {
+            "name": "AWS_SECRET_ACCESS_KEY",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS secret access key for DynamoDB access"
+          },
+          "aws_region": {
+            "name": "AWS_REGION",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS region where your DynamoDB tables are located (e.g., us-east-1, eu-west-1)"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/dynamodb"
+      }
+    },
+    {
+      "id": "elixir-IEx",
+      "name": "Elixir IEx",
+      "description": "Interact with the IEx console or execute ad-hoc scripts.",
+      "category": "development-environments",
+      "icon-name": "elixir",
+      "tags": [
+        "elixir",
+        "functional",
+        "erlang-vm",
+        "development"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "overview": {
+        "description": "Elixir is a dynamic, functional language designed for building maintainable and scalable applications, running on the Erlang Virtual Machine.",
+        "features": [
+          "Interactive development with IEx",
+          "Actor-based concurrency model",
+          "Fault-tolerant and distributed systems",
+          "Hot code swapping capabilities"
+        ],
+        "useCases": [
+          "Real-time web applications with Phoenix",
+          "IoT and embedded systems",
+          "Distributed and concurrent applications",
+          "Microservices architecture"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Elixir 1.12+ installed",
+          "Erlang/OTP runtime",
+          "Mix build tool configured",
+          "Project dependencies compiled"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "development-environment",
+        "subtype": "elixir"
+      },
+      "documentationConfig": {
+        "path": "quickstart/development-environments/elixir-IEx"
       }
     },
     {
@@ -77,6 +833,32 @@
         "routing"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": true,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
+      },
       "overview": {
         "description": "HTTP Proxy servers act as intermediaries for requests from clients seeking resources from other servers, providing functionality like caching, filtering, and access control.",
         "features": [
@@ -123,9 +905,160 @@
         "type": "application",
         "subtype": "httpproxy",
         "credentials": {
-          "authType": "Basic or Digest Authentication",
-          "config": "HTTP proxy authentication with optional SSL"
+          "remote_host": {
+            "name": "REMOTE_HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the remote host"
+          }
         }
+      },
+      "documentationConfig": {
+        "path": "quickstart/web-applications/httpproxy"
+      }
+    },
+    {
+      "id": "jump-hosts",
+      "name": "Jump Hosts",
+      "description": "Hoop could act as a bastion server allowing the execution of one-off sessions.",
+      "category": "web-applications",
+      "icon-name": "server",
+      "tags": [
+        "security",
+        "bastion",
+        "ssh-tunnel",
+        "network"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "gatewayInformation": {
+        "type": "web-application",
+        "subtype": "jump-host"
+      },
+      "documentationConfig": {
+        "path": "quickstart/web-applications/jump-hosts"
+      }
+    },
+    {
+      "id": "kubernetes",
+      "name": "Kubernetes",
+      "description": "Hoop.dev can be configured to use the kubectl command line to manage resources and execute actions on workloads in Kubernetes.",
+      "category": "cloud-services",
+      "icon-name": "kubernetes",
+      "tags": [
+        "orchestration",
+        "containers",
+        "cloud-native",
+        "devops"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "overview": {
+        "description": "Kubernetes is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications.",
+        "features": [
+          "Automated deployment and scaling",
+          "Service discovery and load balancing",
+          "Storage orchestration and management",
+          "Self-healing and rolling updates"
+        ],
+        "useCases": [
+          "Microservices architecture deployment",
+          "Container orchestration and management",
+          "CI/CD pipeline automation",
+          "Multi-cloud and hybrid cloud deployments"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Kubernetes cluster access",
+          "kubectl command-line tool installed",
+          "Valid kubeconfig file with cluster credentials",
+          "Network connectivity to Kubernetes API server"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "kubectl via kubeconfig",
+        "featureConfiguration": [
+          "RBAC (Role-Based Access Control) configuration",
+          "Service accounts and token authentication",
+          "Network policies and security contexts",
+          "Helm chart deployments and management"
+        ],
+        "otherRequirements": [
+          "Understanding of Kubernetes resources and manifests",
+          "Cluster monitoring and logging setup",
+          "Backup and disaster recovery planning"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "cloud-service",
+        "subtype": "kubernetes",
+        "credentials": {
+          "kubeconfig": {
+            "name": "KUBECONFIG",
+            "type": "filesystem",
+            "required": true,
+            "description": "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster"
+          }
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/kubernetes"
       }
     },
     {
@@ -491,6 +1424,32 @@
         "development"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
       "overview": {
         "description": "Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine, enabling server-side JavaScript development with high performance and scalability.",
         "features": [
@@ -535,11 +1494,10 @@
       },
       "gatewayInformation": {
         "type": "application",
-        "subtype": "nodejs",
-        "credentials": {
-          "authType": "Environment-based authentication",
-          "config": "Node.js runtime access with environment variable configuration"
-        }
+        "subtype": "nodejs"
+      },
+      "documentationConfig": {
+        "path": "quickstart/development-environments/nodejs"
       }
     },
     {
@@ -672,6 +1630,95 @@
       }
     },
     {
+      "id": "php-artisan",
+      "name": "PHP Artisan",
+      "description": "Interact with the Laravel Artisan console or execute ad-hoc PHP scripts.",
+      "category": "development-environments",
+      "icon-name": "php",
+      "tags": [
+        "php",
+        "laravel",
+        "artisan",
+        "development"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "overview": {
+        "description": "Laravel Artisan is the command-line interface included with Laravel, providing helpful commands for application development.",
+        "features": [
+          "Interactive PHP shell (Tinker)",
+          "Database migrations and seeding",
+          "Queue management and processing",
+          "Custom command creation and execution"
+        ],
+        "useCases": [
+          "Laravel application development and management",
+          "Database operations and migrations",
+          "Background job processing",
+          "Application debugging and testing"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "PHP 8.0+ installed",
+          "Laravel framework installed",
+          "Composer dependencies resolved",
+          "Application environment configured"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "php artisan tinker",
+        "featureConfiguration": [
+          "Laravel configuration files",
+          "Database connection settings",
+          "Queue and cache configuration",
+          "Custom Artisan commands"
+        ],
+        "otherRequirements": [
+          "Environment variables configuration",
+          "Application key generation",
+          "Storage permissions setup"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "development-environment",
+        "subtype": "php-artisan"
+      },
+      "documentationConfig": {
+        "path": "quickstart/development-environments/php-artisan"
+      }
+    },
+    {
       "id": "postgres",
       "name": "PostgreSQL",
       "description": "A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.",
@@ -799,31 +1846,57 @@
       }
     },
     {
-      "id": "python",
-      "name": "Python",
-      "description": "Python interpreter and development environment access",
-      "category": "developer-consoles",
+      "id": "python-scripts",
+      "name": "Python Scripts",
+      "description": "Execute Python scripts and interact with the Python interpreter for development and automation tasks.",
+      "category": "development-environments",
       "icon-name": "python",
       "tags": [
         "python",
         "scripting",
-        "data-science",
-        "development"
+        "development",
+        "automation"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
       "overview": {
-        "description": "Python is a high-level, interpreted programming language known for its simplicity and versatility, widely used in web development, data science, automation, and AI applications.",
+        "description": "Python is a versatile, high-level programming language perfect for scripting, automation, data analysis, and application development.",
         "features": [
-          "Interactive REPL for rapid development and testing",
-          "Extensive standard library and third-party packages",
-          "Cross-platform compatibility and portability",
-          "Strong support for data analysis and machine learning"
+          "Interactive Python REPL",
+          "Extensive standard library",
+          "Rich ecosystem of third-party packages",
+          "Cross-platform compatibility"
         ],
         "useCases": [
           "Data analysis and scientific computing",
-          "Web development with frameworks like Django/Flask",
-          "Automation scripts and system administration",
-          "Machine learning and artificial intelligence"
+          "Automation and scripting tasks",
+          "Web development and APIs",
+          "Machine learning and AI applications"
         ]
       },
       "setupGuide": {
@@ -834,38 +1907,128 @@
         },
         "requirements": [
           "Python 3.8+ installed",
-          "Virtual environment configured (venv/conda)",
-          "Required packages installed (pip/conda)",
-          "Environment variables configured"
+          "Virtual environment configured",
+          "Required packages installed via pip",
+          "Script execution permissions"
         ]
       },
       "advancedConfiguration": {
-        "connectionString": "python -i script.py",
+        "connectionString": "python -i",
         "featureConfiguration": [
-          "Virtual environment management (venv, conda, pipenv)",
-          "Package dependency management (requirements.txt, poetry)",
-          "Jupyter notebook integration for data science",
-          "Code formatting and linting (black, flake8, mypy)"
+          "Virtual environment activation",
+          "Package management with pip/pipenv/poetry",
+          "Environment variables configuration",
+          "Custom module imports"
         ],
         "otherRequirements": [
-          "IDE/editor configuration (VS Code, PyCharm)",
-          "Testing framework setup (pytest, unittest)",
-          "Performance profiling and debugging tools"
+          "Dependencies listed in requirements.txt",
+          "Environment-specific configuration files",
+          "Proper Python path configuration"
         ]
       },
       "gatewayInformation": {
-        "type": "application",
-        "subtype": "python",
-        "credentials": {
-          "authType": "Environment-based authentication",
-          "config": "Python environment access with virtual environment isolation"
+        "type": "development-environment",
+        "subtype": "python"
+      },
+      "documentationConfig": {
+        "path": "quickstart/development-environments/python/python-scripts"
+      }
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "description": "Execute queries to Redis with the redis-cli command line tool.",
+      "category": "databases",
+      "icon-name": "redis",
+      "tags": [
+        "nosql",
+        "cache",
+        "key-value",
+        "in-memory"
+      ],
+      "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": true
+        },
+        "audit": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
         }
+      },
+      "overview": {
+        "description": "Redis is an in-memory data structure store, used as a database, cache, and message broker with support for various data structures.",
+        "features": [
+          "High-performance in-memory data storage",
+          "Support for strings, hashes, lists, sets, and more",
+          "Built-in replication and clustering",
+          "Pub/Sub messaging capabilities"
+        ],
+        "useCases": [
+          "Application caching and session storage",
+          "Real-time analytics and leaderboards",
+          "Message queuing and pub/sub systems",
+          "High-speed data processing pipelines"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        },
+        "requirements": [
+          "Redis Server 6.0+",
+          {
+            "Network connectivity to Redis port (default": "6379)"
+          },
+          "Authentication credentials if AUTH is enabled",
+          "SSL/TLS configuration for encrypted connections"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "redis://username:password@host:port/database",
+        "featureConfiguration": [
+          "Redis Cluster configuration for scalability",
+          "Sentinel setup for high availability",
+          "Memory optimization and persistence settings",
+          "SSL/TLS encryption configuration"
+        ],
+        "otherRequirements": [
+          "Memory allocation planning for dataset size",
+          "Backup and persistence strategy (RDB/AOF)",
+          "Monitoring with Redis INFO commands"
+        ]
+      },
+      "gatewayInformation": {
+        "type": "database",
+        "subtype": "redis"
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/redis"
       }
     },
     {
       "id": "ruby-on-rails",
       "name": "Ruby on Rails",
-      "description": "Web application framework for Ruby development and Rails console access",
+      "description": "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application.",
       "category": "developer-consoles",
       "icon-name": "ruby",
       "tags": [
@@ -875,6 +2038,32 @@
         "development"
       ],
       "isNew": false,
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
       "overview": {
         "description": "Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.",
         "features": [
@@ -920,12 +2109,15 @@
       "gatewayInformation": {
         "type": "application",
         "subtype": "ruby-on-rails"
+      },
+      "documentationConfig": {
+        "path": "quickstart/development-environments/ruby-on-rails"
       }
     },
     {
       "id": "ssh",
-      "name": "SSH",
-      "description": "Secure Shell protocol for secure remote access and command execution",
+      "name": "Secure Shell (SSH)",
+      "description": "Proxy an SSH Server to remote hosts in your private network.",
       "category": "infrastructure-access",
       "icon-name": "ssh",
       "tags": [
@@ -937,7 +2129,7 @@
       "isNew": false,
       "features": {
         "tlsTerminationProxy": {
-          "native": false,
+          "native": true,
           "oneOff": false
         },
         "audit": {
@@ -957,7 +2149,7 @@
           "oneOff": false
         },
         "interactiveAccess": {
-          "native": false,
+          "native": true,
           "oneOff": false
         }
       },
@@ -1017,25 +2209,25 @@
             "name": "PORT",
             "type": "env-var",
             "required": false,
-            "description": "The port of the SSH server (default: 22)"
+            "description": "The port of the SSH server, default to 22"
           },
           "user": {
             "name": "USER",
             "type": "env-var",
             "required": true,
-            "description": "The username for SSH connection"
+            "description": "The username of the Linux server"
           },
           "pass": {
             "name": "PASS",
             "type": "env-var",
-            "required": true,
-            "description": "The password for SSH connection"
+            "required": false,
+            "description": "The credentials of the username if password authentication is enabled in the SSH server."
           },
           "authorized_server_keys": {
             "name": "AUTHORIZED_SERVER_KEYS",
             "type": "textarea",
-            "required": true,
-            "description": "Enter your private key",
+            "required": false,
+            "description": "The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys",
             "placeholder": "Enter your private key"
           }
         }
@@ -1045,67 +2237,64 @@
       }
     },
     {
-      "id": "tcp",
-      "name": "TCP Connection",
-      "description": "Direct TCP socket connections for network services and applications",
-      "category": "network-services",
-      "icon-name": "tcp",
+      "id": "webapps-and-apis",
+      "name": "Web Applications and APIs",
+      "description": "Interact with web applications and APIs tunneling through hoop.dev.",
+      "category": "web-applications",
+      "icon-name": "globe",
       "tags": [
-        "network",
-        "socket",
-        "protocol",
-        "low-level"
+        "web",
+        "api",
+        "http",
+        "monitoring"
       ],
       "isNew": false,
-      "overview": {
-        "description": "TCP (Transmission Control Protocol) connections provide reliable, ordered, and error-checked delivery of data between applications running on hosts communicating via an IP network.",
-        "features": [
-          "Reliable data transmission with error correction",
-          "Connection-oriented communication",
-          "Flow control and congestion control",
-          "Support for various application protocols"
-        ],
-        "useCases": [
-          "Custom application protocols and services",
-          "Legacy system integration",
-          "Network service proxying and load balancing",
-          "IoT device communication"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
         },
-        "requirements": [
-          "Target service listening on specified port",
-          "Network connectivity to target host and port",
-          "Firewall rules allowing TCP traffic",
-          "Understanding of target protocol requirements"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "tcp://hostname:port",
-        "featureConfiguration": [
-          "Connection pooling for high-throughput scenarios",
-          "SSL/TLS encryption for secure communication",
-          "Keep-alive and timeout configuration",
-          "Custom protocol handling and parsing"
-        ],
-        "otherRequirements": [
-          "Network monitoring and latency tracking",
-          "Connection retry and failover mechanisms",
-          "Protocol-specific validation and testing"
-        ]
+        "audit": {
+          "native": true,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
       },
       "gatewayInformation": {
-        "type": "application",
-        "subtype": "tcp",
+        "type": "web-application",
+        "subtype": "webapp-api",
         "credentials": {
-          "authType": "Protocol-dependent",
-          "config": "Authentication varies by target application protocol"
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the service"
+          },
+          "PORT": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": true,
+            "description": "The port of the service"
+          }
         }
+      },
+      "documentationConfig": {
+        "path": "quickstart/web-applications/webapps-and-apis"
       }
     }
   ]

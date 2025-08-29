@@ -19,6 +19,32 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "routing"
   ],
   "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": true,
+      "oneOff": false
+    },
+    "audit": {
+      "native": true,
+      "oneOff": false
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": false
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": false
+    },
+    "credentialsOffload": {
+      "native": true,
+      "oneOff": false
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": false
+    }
+  },
   "overview": {
     "description": "HTTP Proxy servers act as intermediaries for requests from clients seeking resources from other servers, providing functionality like caching, filtering, and access control.",
     "features": [
@@ -65,8 +91,15 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "type": "application",
     "subtype": "httpproxy",
     "credentials": {
-      "authType": "Basic or Digest Authentication",
-      "config": "HTTP proxy authentication with optional SSL"
+      "remote_host": {
+        "name": "REMOTE_HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The IP or hostname of the remote host"
+      }
     }
+  },
+  "documentationConfig": {
+    "path": "quickstart/web-applications/httpproxy"
   }
 }} />

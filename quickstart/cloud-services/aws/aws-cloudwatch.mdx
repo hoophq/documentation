@@ -1,41 +1,78 @@
 ---
 title: "AWS CloudWatch"
 description: "CloudWatch in Hoop simplifies AWS log analysis by providing direct access to log groups with automatic environment variable setup and an optimized interface for log exploration."
+category: "cloud-services"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="xmark" /> | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="xmark" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client |
-| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the logs. |
-| Data Masking (MS Presidio DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the logs. |
-| Credentials Offload | <Icon icon="xmark" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using the service credentials. |
-| Interactive Access | <Icon icon="xmark" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal for log analysis exploration. |
-
-## Configuration
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| AWS_ACCESS_KEY_ID | env-var | yes | The AWS access key ID for CloudWatch Logs access |
-| AWS_SECRET_ACCESS_KEY | env-var | yes | The AWS secret access key for CloudWatch Logs access |
-| AWS_REGION | env-var | yes | The AWS region where your CloudWatch log groups are located (e.g., `us-east-1`, `eu-west-1`) |
-
-The AWS credentials require the minimal set of IAM permissions to work:
-- `logs:DescribeLogGroups`
-- `logs:FilterLogEvents`
-- `logs:GetLogEvents`
-
+<ConnectionTemplate config={{
+  "id": "aws-cloudwatch",
+  "name": "AWS CloudWatch",
+  "description": "CloudWatch in Hoop simplifies AWS log analysis by providing direct access to log groups with automatic environment variable setup and an optimized interface for log exploration.",
+  "category": "cloud-services",
+  "icon-name": "aws",
+  "tags": [
+    "aws",
+    "monitoring",
+    "logs",
+    "metrics"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": false
+    }
+  },
+  "gatewayInformation": {
+    "type": "cloud-service",
+    "subtype": "aws-cloudwatch",
+    "credentials": {
+      "aws_access_key_id": {
+        "name": "AWS_ACCESS_KEY_ID",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS access key ID for CloudWatch Logs accesss"
+      },
+      "aws_secret_access_key": {
+        "name": "AWS_SECRET_ACCESS_KEY",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS secret access key for CloudWatch Logs access"
+      },
+      "aws_region": {
+        "name": "AWS_REGION",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS region where your CloudWatch log groups are located (e.g., us-east-1, eu-west-1)"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/cloud-services/aws/aws-cloudwatch"
+  }
+}} />
 ## Connection Setup
 
 The flag `--type custom/cloudwatch` allows displaying the introspection schema in the web interface.
@@ -74,3 +111,6 @@ The example above shows the variable being used in a script to filter events fro
 <Frame>
     <img src="/images/aws/client-aws-cloudwatch.png" alt="cloudwatch screenshot" />
 </Frame>
+
+
+
