@@ -1,0 +1,74 @@
+id: redis
+name: Redis
+description: Execute queries to Redis with the redis-cli command line tool.
+category: databases
+icon-name: redis
+tags:
+  - nosql
+  - cache
+  - key-value
+  - in-memory
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: false
+  interactiveAccess:
+    native: true
+    oneOff: true
+
+overview:
+  description: Redis is an in-memory data structure store, used as a database, cache, and message broker with support for various data structures.
+  features:
+    - High-performance in-memory data storage
+    - Support for strings, hashes, lists, sets, and more
+    - Built-in replication and clustering
+    - Pub/Sub messaging capabilities
+  useCases:
+    - Application caching and session storage
+    - Real-time analytics and leaderboards
+    - Message queuing and pub/sub systems
+    - High-speed data processing pipelines
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - Redis Server 6.0+
+    - Network connectivity to Redis port (default: 6379)
+    - Authentication credentials if AUTH is enabled
+    - SSL/TLS configuration for encrypted connections
+
+advancedConfiguration:
+  connectionString: "redis://username:password@host:port/database"
+  featureConfiguration:
+    - Redis Cluster configuration for scalability
+    - Sentinel setup for high availability
+    - Memory optimization and persistence settings
+    - SSL/TLS encryption configuration
+  otherRequirements:
+    - Memory allocation planning for dataset size
+    - Backup and persistence strategy (RDB/AOF)
+    - Monitoring with Redis INFO commands
+
+gatewayInformation:
+  type: database
+  subtype: redis
+
+documentationConfig:
+  path: "quickstart/databases/redis"

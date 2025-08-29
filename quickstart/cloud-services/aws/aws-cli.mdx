@@ -1,59 +1,84 @@
 ---
 title: "AWS CLI"
 description: "Hoop could be configured to use the AWS command line to manage resources in multiple accounts."
+category: "cloud-services"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Connection Configuration
-
-| Name | Type | Description |
-| --- | --- | --- |
-| AWS_ACCESS_KEY_ID | env-var | The access key credential |
-| AWS_SECRET_ACCESS_KEY | env-var | The secret key credential |
-| AWS_REGION | env-var | The AWS region |
-
-<Info>
-Use an IAM credential with reduced scope to only create secrets and/or listing ECS services
-</Info>
-
-### Connection Command
-
-- secretsmanager
-
-```bash
-hoop admin create conn secretsmanager -a <agent> \
-	-e AWS_ACCESS_KEY_ID=<key-id> \
-	-e AWS_SECRET_ACCESS_KEY=<key> \
-	-e AWS_REGION=us-east-1 \
-	-- aws secretsmanager create-secret
-```
-
-- list-services-prod
-
-```bash
-hoop admin create conn list-services-prod -a <agent> \
-	-e AWS_ACCESS_KEY_ID=<key-id> \
-	-e AWS_SECRET_ACCESS_KEY=<key> \
-	-e AWS_REGION=us-east-1 \
-	-- aws ecs list-services --cluster prod
-```
-
-## How to Use
-
-Now, it’s possible to create credentials on the AWS Secrets Manager service.
-
-```bash
-hoop exec secretsmanager -- \
-    --name MyTestSecret
-    --description "My test secret created with the CLI." \
-    --secret-string "{\"user\":\"diegor\",\"password\":\"EXAMPLE-PASSWORD\"}"
-```
-
-Or listing ECS Services from cluster `prod`
-
-```bash
-hoop exec list-services-prod
-```
+<ConnectionTemplate config={{
+  "id": "aws-cli",
+  "name": "AWS CLI",
+  "description": "Hoop could be configured to use the AWS command line to manage resources in multiple accounts.",
+  "category": "cloud-services",
+  "icon-name": "aws",
+  "tags": [
+    "aws",
+    "cloud",
+    "cli",
+    "management"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": false
+    }
+  },
+  "overview": {
+    "description": "The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.",
+    "features": [
+      "Comprehensive AWS service management",
+      "Scriptable automation capabilities",
+      "Multiple output formats (JSON, table, text)",
+      "Profile and credential management"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "cloud-service",
+    "subtype": "aws-cli",
+    "credentials": {
+      "aws_access_key_id": {
+        "name": "AWS_ACCESS_KEY_ID",
+        "type": "env-var",
+        "required": true,
+        "description": "The access key credential"
+      },
+      "aws_secret_access_key": {
+        "name": "AWS_SECRET_ACCESS_KEY",
+        "type": "env-var",
+        "required": true,
+        "description": "The secret key credential"
+      },
+      "aws_region": {
+        "name": "AWS_REGION",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS region"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/cloud-services/aws/aws-cli"
+  }
+}} />

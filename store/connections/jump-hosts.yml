@@ -1,0 +1,38 @@
+id: jump-hosts
+name: Jump Hosts
+description: Hoop could act as a bastion server allowing the execution of one-off sessions.
+category: web-applications
+icon-name: server
+tags:
+  - security
+  - bastion
+  - ssh-tunnel
+  - network
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: true
+  audit:
+    native: false
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
+gatewayInformation:
+  type: web-application
+  subtype: jump-host
+
+documentationConfig:
+  path: "quickstart/web-applications/jump-hosts"

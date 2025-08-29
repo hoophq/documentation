@@ -1,0 +1,76 @@
+id: aws-ecs
+name: AWS ECS
+description: Interact with Elastic Container Service, executing one-off sessions into ECS tasks/containers.
+category: cloud-services
+icon-name: aws
+tags:
+  - aws
+  - containers
+  - orchestration
+  - ecs
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: true
+  audit:
+    native: false
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
+requirements:
+  description: "This connection uses a wrapper script available in the hoophq/hoopdev image called ecs-exec.sh. This script requires the following permissions to work:"
+  items:
+    - ecs:ListTasks
+    - ecs:DescribeTasks
+    - ecs:ExecuteCommand
+
+gatewayInformation:
+  type: cloud-service
+  subtype: aws-ecs
+  credentials:
+    cluster_name:
+      name: "CLUSTER_NAME"
+      type: "env-var"
+      required: true
+      description: "The name or arn of the ECS Cluster"
+    service_name:
+      name: "SERVICE_NAME"
+      type: "env-var"
+      required: true
+      description: "The name of the service on ECS"
+    container:
+      name: "CONTAINER"
+      type: "env-var"
+      required: true
+      description: "The name of the container defaults to the first one."
+    aws_access_key_id:
+      name: "AWS_ACCESS_KEY_ID"
+      type: "env-var"
+      required: true
+      description: "The access key credential"
+    aws_secret_access_key:
+      name: "AWS_SECRET_ACCESS_KEY"
+      type: "env-var"
+      required: true
+      description: "The secret key credential"
+    aws_default_region:
+      name: "AWS_DEFAULT_REGION"
+      type: "env-var"
+      required: true
+      description: "The AWS region"
+
+documentationConfig:
+  path: "quickstart/cloud-services/aws/aws-ecs"

@@ -1,0 +1,105 @@
+id: mysql
+name: MySQL
+description: Connect to a private mysql instance from your favorite IDE
+category: databases
+icon-name: mysql
+tags:
+  - sql
+  - relational
+  - open-source
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+    note: "Partial support"
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
+overview:
+  description: MySQL is the world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.
+  features:
+    - ACID-compliant transactions for data integrity
+    - High performance with optimized storage engines
+    - Comprehensive security with SSL encryption
+    - Scalable architecture supporting large datasets
+  useCases:
+    - Web applications and e-commerce platforms
+    - Data warehousing and analytics
+    - Content management systems
+    - Financial and banking applications
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - MySQL Server 5.7+
+    - Database user with appropriate privileges
+    - Network connectivity to port 3306
+    - SSL certificates for secure connections
+
+advancedConfiguration:
+  connectionString: "mysql://username:password@host:port/database"
+  featureConfiguration:
+    - Master-slave replication for high availability
+    - InnoDB storage engine optimization
+    - Query cache configuration
+    - SSL/TLS encryption setup
+  otherRequirements:
+    - Regular backup strategy implemented
+    - Performance monitoring enabled
+    - Binary logging configured
+
+gatewayInformation:
+  type: database
+  subtype: mysql
+  credentials:
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or Host of the MySQL server"
+    user:
+      name: "USER"
+      type: "env-var"
+      required: true
+      description: "The user to connect in the MySQL server"
+    pass:
+      name: "PASS"
+      type: "env-var"
+      required: true
+      description: "The password to connect to the MySQL server"
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the MySQL server"
+    db:
+      name: "DB"
+      type: "env-var"
+      required: true
+      description: "The name of the database to connect (Required when using the connection via the command line)."
+    preSQLScriptFile:
+      name: "PRE_SQL_SCRIPT_FILE"
+      type: "filesystem"
+      required: false
+      description: "Append a custom SQL script at the beginning of the execution."
+
+documentationConfig:
+  path: "quickstart/databases/mysql"
