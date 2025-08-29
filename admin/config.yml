@@ -15,16 +15,16 @@ collections:
     extension: "yml"
     format: "yaml"
     fields:
-      - { label: "ID", name: "id", widget: "string", hint: "Identificador único (ex: mongodb, postgresql)" }
-      - { label: "Nome", name: "name", widget: "string" }
-      - { label: "Descrição", name: "description", widget: "text" }
+      - { label: "ID", name: "id", widget: "string", hint: "Unique identifier (e.g., mongodb, postgresql)" }
+      - { label: "Name", name: "name", widget: "string" }
+      - { label: "Description", name: "description", widget: "text" }
       - { 
-          label: "Categoria", 
+          label: "Category", 
           name: "category", 
           widget: "select", 
           options: ["databases", "container-platforms", "developer-consoles", "infrastructure-access", "network-services"]
         }
-      - { label: "Nome do Ícone", name: "icon-name", widget: "string", hint: "Nome do ícone para exibição" }
+      - { label: "Icon Name", name: "icon-name", widget: "string", hint: "Icon name for display" }
       - { 
           label: "Tags", 
           name: "tags", 
@@ -33,7 +33,7 @@ collections:
           collapsed: false,
           field: { label: "Tag", name: "tag", widget: "string" }
         }
-      - { label: "Novo", name: "isNew", widget: "boolean", default: false }
+      - { label: "New", name: "isNew", widget: "boolean", default: false }
 
       # Overview Section
       - label: "Overview"
@@ -41,7 +41,7 @@ collections:
         widget: "object"
         collapsed: false
         fields:
-          - { label: "Descrição Detalhada", name: "description", widget: "text", hint: "Descrição mais completa para a seção overview" }
+          - { label: "Detailed Description", name: "description", widget: "text", hint: "More complete description for the overview section" }
           - { 
               label: "Features", 
               name: "features", 
@@ -51,21 +51,21 @@ collections:
               field: { label: "Feature", name: "feature", widget: "string" }
             }
           - { 
-              label: "Casos de Uso", 
+              label: "Use Cases", 
               name: "useCases", 
               widget: "list", 
               allow_add: true,
               collapsed: true,
-              field: { label: "Caso de Uso", name: "useCase", widget: "string" }
+              field: { label: "Use Case", name: "useCase", widget: "string" }
             }
 
       # Setup Guide Section
-      - label: "Guia de Configuração"
+      - label: "Setup Guide"
         name: "setupGuide"
         widget: "object"
         collapsed: false
         fields:
-          - label: "Métodos de Acesso"
+          - label: "Access Methods"
             name: "accessMethods"
             widget: "object"
             fields:
@@ -73,16 +73,16 @@ collections:
               - { label: "CLI", name: "cli", widget: "boolean", default: false }
               - { label: "Runbooks", name: "runbooks", widget: "boolean", default: false }
           - { 
-              label: "Requisitos", 
+              label: "Requirements", 
               name: "requirements", 
               widget: "list",
               allow_add: true,
               collapsed: false,
-              field: { label: "Requisito", name: "requirement", widget: "string" }
+              field: { label: "Requirement", name: "requirement", widget: "string" }
             }
 
       # Advanced Configuration Section
-      - label: "Configuração Avançada"
+      - label: "Advanced Configuration"
         name: "advancedConfiguration"
         widget: "object"
         collapsed: true
@@ -91,21 +91,21 @@ collections:
               label: "Connection String", 
               name: "connectionString", 
               widget: "text", 
-              hint: "Exemplo de string de conexão com placeholders" 
+              hint: "Connection string example with placeholders" 
             }
           - { 
-              label: "Configurações de Features", 
+              label: "Feature Configuration", 
               name: "featureConfiguration", 
               widget: "list",
               allow_add: true,
               collapsed: true,
-              field: { label: "Configuração", name: "config", widget: "string" }
+              field: { label: "Configuration", name: "config", widget: "string" }
             }
           - { 
-              label: "Outros Requisitos", 
+              label: "Other Requirements", 
               name: "otherRequirements", 
               widget: "list",
               allow_add: true,
               collapsed: true,
-              field: { label: "Requisito", name: "requirement", widget: "string" }
+              field: { label: "Requirement", name: "requirement", widget: "string" }
             }
