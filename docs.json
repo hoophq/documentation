@@ -8,6 +8,15 @@
     "dark": "#111928"
   },
   "favicon": "/favicon.svg",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/admin",
+      "conditions": {
+        "host": "localhost:3000"
+      }
+    }
+  ],
   "navigation": {
     "anchors": [
       {

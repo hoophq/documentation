@@ -66,7 +66,7 @@ const extractCustomContent = (filePath) => {
     }
     
     if (customStartIndex !== -1) {
-      return '\n' + lines.slice(customStartIndex).join('\n');
+      return '\n' + lines.slice(customStartIndex).join('\n').trimEnd();
     }
     
     return '';

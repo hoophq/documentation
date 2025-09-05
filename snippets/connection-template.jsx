@@ -14,7 +14,7 @@ export const ConnectionTemplate = ({ config }) => {
   };
 
   // Merge provided config with defaults
-  const finalConfig = config || defaultConfig;
+  const finalConfig = Object.assign({}, defaultConfig, config);
 
   // Helper function to render icon
   const renderIcon = (enabled) => {
