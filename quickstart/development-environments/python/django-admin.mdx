@@ -1,13 +1,101 @@
 ---
 title: "Django"
 description: "Interact with the Artisan console or execute ad-hoc scripts."
+category: "development-environments"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Configuration
+<ConnectionTemplate config={{
+  "id": "django",
+  "name": "Django",
+  "description": "Interact with the Artisan console or execute ad-hoc scripts.",
+  "category": "development-environments",
+  "icon-name": "django",
+  "tags": [
+    "python",
+    "web-framework",
+    "management",
+    "development"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Django is a high-level Python web framework that encourages rapid development and clean, pragmatic design with built-in administrative interface.",
+    "features": [
+      "Powerful admin interface for content management",
+      "ORM for database interactions",
+      "Built-in authentication and authorization",
+      "Comprehensive management commands"
+    ],
+    "useCases": [
+      "Web application development and management",
+      "Database schema migrations and management",
+      "User and content administration",
+      "Custom management command execution"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "Python 3.8+ installed",
+      "Django framework installed",
+      "Django project configured",
+      "Database configured and migrated"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "python manage.py shell",
+    "featureConfiguration": [
+      "Django settings configuration",
+      "Database connection settings",
+      "Static files and media configuration",
+      "Custom management commands"
+    ],
+    "otherRequirements": [
+      "Virtual environment setup",
+      "Requirements.txt with dependencies",
+      "Environment-specific settings files"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "development-environment",
+    "subtype": "django"
+  },
+  "documentationConfig": {
+    "path": "quickstart/development-environments/python/django-admin"
+  }
+}} />
+## Connection Setup
 
 To proxy the `manage.py shell` command, execute the following command within your root application path.
 
@@ -31,4 +119,3 @@ hoop connect django-demo
 
 ```bash
 hoop exec django-demo -i 'print("Hello World")'
-```

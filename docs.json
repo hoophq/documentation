@@ -1,0 +1,255 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Hoop.dev - the only access gateway with data masking",
+  "colors": {
+    "primary": "#111928",
+    "light": "#E5E7EB",
+    "dark": "#111928"
+  },
+  "favicon": "/favicon.svg",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/admin",
+      "conditions": {
+        "host": "localhost:3000"
+      }
+    }
+  ],
+  "navigation": {
+    "anchors": [
+      {
+        "anchor": "Documentation",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "introduction/getting-started"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "learn/features/ai-data-masking",
+              {
+                "group": "Reviews",
+                "pages": [
+                  "learn/features/reviews/overview",
+                  "learn/features/reviews/command-reviews",
+                  "learn/features/reviews/jit-reviews"
+                ]
+              },
+              "learn/features/access-control",
+              "learn/features/guardrails",
+              "learn/features/runbooks",
+              "learn/features/secrets-manager",
+              "learn/features/session-recording"
+            ]
+          },
+          {
+            "group": "Clients",
+            "pages": [
+              {
+                "group": "Web App",
+                "pages": [
+                  "clients/webapp/overview",
+                  "clients/webapp/creating-connections",
+                  "clients/webapp/managing-access",
+                  "clients/webapp/monitoring-sessions"
+                ]
+              },
+              "clients/cli"
+            ]
+          },
+          {
+            "group": "Quickstart",
+            "pages": [
+              {
+                "group": "Databases",
+                "pages": [
+                  "quickstart/databases/postgres",
+                  "quickstart/databases/mysql",
+                  "quickstart/databases/mongodb",
+                  "quickstart/databases/dynamodb",
+                  "quickstart/databases/oracle",
+                  "quickstart/databases/mssql",
+                  "quickstart/databases/apache-cassandra",
+                  "quickstart/databases/bigquery",
+                  "quickstart/databases/redis"
+                ]
+              },
+              {
+                "group": "Cloud Services",
+                "pages": [
+                  {
+                    "group": "AWS",
+                    "pages": [
+                      "quickstart/cloud-services/aws/aws-cli",
+                      "quickstart/cloud-services/aws/aws-cloudwatch",
+                      "quickstart/cloud-services/aws/aws-ecs"
+                    ]
+                  },
+                  "quickstart/cloud-services/kubernetes"
+                ]
+              },
+              {
+                "group": "Web Applications",
+                "pages": [
+                  "quickstart/web-applications/webapps-and-apis",
+                  "quickstart/web-applications/jump-hosts",
+                  "quickstart/web-applications/httpproxy"
+                ]
+              },
+              {
+                "group": "Development Environments",
+                "pages": [
+                  "quickstart/development-environments/ruby-on-rails",
+                  {
+                    "group": "Python",
+                    "pages": [
+                      "quickstart/development-environments/python/python-scripts",
+                      "quickstart/development-environments/python/django-admin"
+                    ]
+                  },
+                  "quickstart/development-environments/php-artisan",
+                  "quickstart/development-environments/elixir-IEx",
+                  "quickstart/development-environments/clojure",
+                  "quickstart/development-environments/nodejs"
+                ]
+              },
+              "quickstart/ssh"
+            ]
+          },
+          {
+            "group": "Setup & Administration",
+            "pages": [
+              "setup/architecture",
+              {
+                "group": "Deployment",
+                "pages": [
+                  "setup/deployment/overview",
+                  "setup/deployment/docker-compose",
+                  "setup/deployment/kubernetes",
+                  "setup/deployment/AWS"
+                ]
+              },
+              {
+                "group": "Configuration",
+                "pages": [
+                  {
+                    "group": "AI Data Masking",
+                    "pages": [
+                      "setup/configuration/ai-data-masking/get-started",
+                      "setup/configuration/ai-data-masking/fields"
+                    ]
+                  },
+                  {
+                    "group": "Reviews",
+                    "pages": [
+                      "setup/configuration/reviews/command-reviews-configuration",
+                      "setup/configuration/reviews/jit-reviews-configuration"
+                    ]
+                  },
+                  "setup/configuration/access-control-configuration",
+                  "setup/configuration/guardrails-configuration",
+                  "setup/configuration/runbooks-configuration",
+                  "setup/configuration/secrets-manager-configuration",
+                  "setup/configuration/env-vars",
+                  "setup/configuration/reverse-proxy",
+                  {
+                    "group": "Identity Providers",
+                    "pages": [
+                      "setup/configuration/idp/get-started",
+                      "setup/configuration/idp/auth0",
+                      "setup/configuration/idp/okta",
+                      "setup/configuration/idp/google",
+                      "setup/configuration/idp/azure",
+                      "setup/configuration/idp/jumpcloud",
+                      "setup/configuration/idp/aws-cognito"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "APIs and Integration",
+                "pages": [
+                  "setup/apis/api-key",
+                  "setup/apis/service-accounts",
+                  "setup/apis/webhooks-siem"
+                ]
+              },
+              "setup/license-management"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/agents",
+              "concepts/connections"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/slack",
+              "integrations/teams",
+              "integrations/jira",
+              "integrations/svix",
+              "integrations/aws"
+            ]
+          }
+        ]
+      },
+      {
+        "anchor": "Community",
+        "href": "https://github.com/hoophq/hoop/discussions",
+        "icon": "github"
+      },
+      {
+        "anchor": "Blog",
+        "href": "https://hoop.dev/blog",
+        "icon": "newspaper"
+      },
+      {
+        "anchor": "API Reference",
+        "openapi": {
+          "source": "https://use.hoop.dev/api/openapiv3.json",
+          "directory": "api-reference"
+        },
+        "icon": "square-terminal"
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "https://hoop.dev"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Sign In",
+        "href": "https://use.hoop.dev"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get started",
+      "href": "https://hoop.dev/start"
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/hoopdotdev",
+      "github": "https://github.com/hoophq",
+      "linkedin": "https://www.linkedin.com/company/hoopdev"
+    }
+  },
+  "integrations": {
+    "segment": {
+      "key": "043Lv52mAcoGOHWVq7n3bxZAVvocyqx0"
+    }
+  }
+}

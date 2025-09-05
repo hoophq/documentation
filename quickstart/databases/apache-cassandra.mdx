@@ -1,38 +1,132 @@
 ---
 title: "Apache Cassandra"
-description: "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html)."
+description: "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html)."
+category: "databases"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="xmark" /> | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="xmark" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client |
-| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Data Masking (MS Presidio DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | <Icon icon="xmark" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using the service credentials. |
-| Interactive Access | <Icon icon="xmark" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal for analysis exploration. |
-
-## Configuration
-
-| Name | Required | Description |
-| --- | --- | --- |
-| CQLSH_KEYSPACE | yes | The keyspace target |
-| CQLSH_HOST | yes | The host of the Cassandra cluster |
-| CQLSH_PORT | no | The Vault Token. Defaults to 9043 |
-| CQLSH_USER | no | The user can connect in the Cassandra cluster. |
-| CQLSH_PASSWD | no | The password to connect in the Cassandra cluster. |
-
+<ConnectionTemplate config={{
+  "id": "apache-cassandra",
+  "name": "Apache Cassandra",
+  "description": "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html).",
+  "category": "databases",
+  "icon-name": "cassandra",
+  "tags": [
+    "nosql",
+    "distributed",
+    "column-family",
+    "high-availability"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Apache Cassandra is a highly scalable, distributed NoSQL database designed to handle large amounts of data across many commodity servers.",
+    "features": [
+      "Linear scalability and high availability",
+      "Fault-tolerant with no single point of failure",
+      "Tunable consistency levels",
+      "Support for structured, semi-structured, and unstructured data"
+    ],
+    "useCases": [
+      "High-volume web applications",
+      "Time-series data and IoT applications",
+      "Content management systems",
+      "Real-time analytics and reporting"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "Apache Cassandra 3.0+ cluster",
+      "Network connectivity to Cassandra nodes",
+      "Valid authentication credentials",
+      "CQL (Cassandra Query Language) knowledge"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "cqlsh host port -u username -p password",
+    "featureConfiguration": [
+      "Keyspace and table configuration",
+      "Replication strategy setup",
+      "Consistency level tuning",
+      "SSL/TLS encryption configuration"
+    ],
+    "otherRequirements": [
+      "Understanding of Cassandra data modeling",
+      "Cluster topology and replication planning",
+      "Monitoring and maintenance procedures"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "cassandra",
+    "credentials": {
+      "keyspace": {
+        "name": "CQLSH_KEYSPACE",
+        "type": "env-var",
+        "required": true,
+        "description": "The keyspace target"
+      },
+      "host": {
+        "name": "CQLSH_HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The host of the Cassandra cluster"
+      },
+      "port": {
+        "name": "CQLSH_PORT",
+        "type": "env-var",
+        "required": false,
+        "description": "The Vault Token. Defaults to 9043"
+      },
+      "username": {
+        "name": "CQLSH_USER",
+        "type": "env-var",
+        "required": false,
+        "description": "The user can connect in the Cassandra cluster."
+      },
+      "password": {
+        "name": "CQLSH_PASSWD",
+        "type": "env-var",
+        "required": false,
+        "description": "The password to connect in the Cassandra cluster."
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/apache-cassandra"
+  }
+}} />
 ## Connection Setup
 
 ```bash

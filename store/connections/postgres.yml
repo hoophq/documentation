@@ -1,0 +1,105 @@
+id: postgres
+name: PostgreSQL
+description: A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.
+category: databases
+icon-name: postgresql
+tags:
+  - sql
+  - relational
+  - acid-compliant
+  - open-source
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: true
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
+overview:
+  description: PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.
+  features:
+    - Advanced SQL compliance with custom data types
+    - MVCC (Multi-Version Concurrency Control)
+    - Full-text search and JSON support
+    - Extensible with custom functions and operators
+  useCases:
+    - Complex web applications with advanced queries
+    - Data analytics and business intelligence
+    - Geospatial applications with PostGIS
+    - Financial systems requiring ACID compliance
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - PostgreSQL Server 12+
+    - Database user with appropriate privileges
+    - Network connectivity to port 5432
+    - SSL certificates for encrypted connections
+
+advancedConfiguration:
+  connectionString: "postgresql://username:password@host:port/database"
+  featureConfiguration:
+    - Streaming replication for high availability
+    - Connection pooling with pgBouncer
+    - Advanced indexing strategies (B-tree, GIN, GiST)
+    - SSL/TLS configuration with certificate authentication
+  otherRequirements:
+    - WAL (Write-Ahead Logging) archiving configured
+    - Performance monitoring with pg_stat_statements
+    - Regular VACUUM and ANALYZE scheduling
+
+gatewayInformation:
+  type: database
+  subtype: postgres
+  credentials:
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the PostgreSQL server"
+    user:
+      name: "USER"
+      type: "env-var"
+      required: true
+      description: "The username to connect to PostgreSQL"
+    pass:
+      name: "PASS"
+      type: "env-var"
+      required: true
+      description: "The password to connect to the Postgres server. Make sure to URL encode the password if it contains any special characters."
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the Postgres server"
+    db:
+      name: "DB"
+      type: "env-var"
+      required: true
+      description: "The name of the database to connect (Required when using the connection via the command line)."
+    sslmode:
+      name: "SSLMODE"
+      type: "env-var"
+      required: false
+      description: "How to connect via tls with the remote host, it defaults to prefer. See [PostgreSQL SSL documentation](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION) for more information. Available options are: disable, prefer, require, and verify-full"
+
+documentationConfig:
+  path: "quickstart/databases/postgres"

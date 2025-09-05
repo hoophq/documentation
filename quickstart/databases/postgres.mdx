@@ -1,71 +1,135 @@
 ---
 title: "PostgreSQL"
 description: "A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password."
+category: "databases"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-<Info>
-This type of connection accepts only `MD5` or `scram-sha-256` [authentication methods](https://www.postgresql.org/docs/14/auth-password.html).
-</Info>
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="check" />  | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="check" /> | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client. |
-| Data Masking (Google DLP) | <Icon icon="check" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Data Masking (MS Presidio) | <Icon icon="check" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
-| Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
-
-## Configuration
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| HOST | env-var | yes | The IP or Host of the Postgres server |
-| USER | env-var | yes | The user to connect in the Postgres server |
-| PASS | env-var | yes | The password to connect to the Postgres server. Make sure to URL encode the password if it contains any special characters. |
-| PORT | env-var | yes | The port of the Postgres server |
-| DB | env-var | yes | The name of the database to connect (Required when using the connection via the command line). |
-| SSLMODE | env-var | no | How to connect via tls with the remote host, it defaults to prefer. https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION for more information. Available options are: disable, prefer, require, and verify-full  |
-
-## Connection Setup
-
-Create a new Database connection in hoop's web panel.
-
-<Frame>
-    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
-</Frame>
-
-## Connection Usage
-
-You can access it through hoop CLI or hoop web panel.
-
-#### CLI
-
-```bash
-hoop connect <connection-name>
-
-connection: pg | session: 0ebc7492-94bf-498e-ac9c-430f2d5e89b0
-
---------------------postgres-credentials--------------------
-      host=127.0.0.1 port=5433 user=noop password=noop
-------------------------------------------------------------
-ready to accept connections!
-```
-
-#### Web panel
-
-<Frame>
-    <img src="/images/quickstarts/client-pg.png" alt="create tcp connection screenshot" />
-</Frame>
-
+<ConnectionTemplate config={{
+  "id": "postgres",
+  "name": "PostgreSQL",
+  "description": "A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.",
+  "category": "databases",
+  "icon-name": "postgresql",
+  "tags": [
+    "sql",
+    "relational",
+    "acid-compliant",
+    "open-source"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": true,
+      "oneOff": true
+    },
+    "audit": {
+      "native": true,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": true,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": true,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": true,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.",
+    "features": [
+      "Advanced SQL compliance with custom data types",
+      "MVCC (Multi-Version Concurrency Control)",
+      "Full-text search and JSON support",
+      "Extensible with custom functions and operators"
+    ],
+    "useCases": [
+      "Complex web applications with advanced queries",
+      "Data analytics and business intelligence",
+      "Geospatial applications with PostGIS",
+      "Financial systems requiring ACID compliance"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "PostgreSQL Server 12+",
+      "Database user with appropriate privileges",
+      "Network connectivity to port 5432",
+      "SSL certificates for encrypted connections"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "postgresql://username:password@host:port/database",
+    "featureConfiguration": [
+      "Streaming replication for high availability",
+      "Connection pooling with pgBouncer",
+      "Advanced indexing strategies (B-tree, GIN, GiST)",
+      "SSL/TLS configuration with certificate authentication"
+    ],
+    "otherRequirements": [
+      "WAL (Write-Ahead Logging) archiving configured",
+      "Performance monitoring with pg_stat_statements",
+      "Regular VACUUM and ANALYZE scheduling"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "postgres",
+    "credentials": {
+      "host": {
+        "name": "HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The IP or hostname of the PostgreSQL server"
+      },
+      "user": {
+        "name": "USER",
+        "type": "env-var",
+        "required": true,
+        "description": "The username to connect to PostgreSQL"
+      },
+      "pass": {
+        "name": "PASS",
+        "type": "env-var",
+        "required": true,
+        "description": "The password to connect to the Postgres server. Make sure to URL encode the password if it contains any special characters."
+      },
+      "port": {
+        "name": "PORT",
+        "type": "env-var",
+        "required": true,
+        "description": "The port of the Postgres server"
+      },
+      "db": {
+        "name": "DB",
+        "type": "env-var",
+        "required": true,
+        "description": "The name of the database to connect (Required when using the connection via the command line)."
+      },
+      "sslmode": {
+        "name": "SSLMODE",
+        "type": "env-var",
+        "required": false,
+        "description": "How to connect via tls with the remote host, it defaults to prefer. See [PostgreSQL SSL documentation](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION) for more information. Available options are: disable, prefer, require, and verify-full"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/postgres"
+  }
+}} />

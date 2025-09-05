@@ -1,42 +1,127 @@
 ---
-title: "Big Query"
-description: "Execute queries to Big Query with the [bq command line tool](https://cloud.google.com/bigquery/docs/bq-command-line-tool)."
+title: "BigQuery"
+description: "Execute queries to Big Query with the [bq command line tool](https://cloud.google.com/bigquery/docs/bq-command-line-tool)."
+category: "databases"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="xmark" />  | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="xmark" /> | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client |
-| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Data Masking (MS Presidio) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | <Icon icon="xmark" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
-| Interactive Access | <Icon icon="xmark" /> | <Icon icon="xmark" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
-
-## Configuration
-
-| Name                           | Type       | Required | Description |
-| ------------------------------ | ---------- | ---------| ----------- |
-| GOOGLE_APPLICATION_CREDENTIALS | filesystem | yes      | The service account credentials file in JSON format |
-| CLOUDSDK_CORE_PROJECT          | envvar     | yes      | The project id to use for request |
-| CLOUDSDK_PYTHON                | envvar     | no       | The path of python interpreter, defaults to `/usr/bin/python3.9` |
-
-<Note>
-    The Google Service Account Credentials must have the following permissions:
-    - `BigQuery User`
-    - `BigQuery Data Viewer`
-</Note>
-
+<ConnectionTemplate config={{
+  "id": "bigquery",
+  "name": "BigQuery",
+  "description": "Execute queries to Big Query with the [bq command line tool](https://cloud.google.com/bigquery/docs/bq-command-line-tool).",
+  "category": "databases",
+  "icon-name": "bigquery",
+  "tags": [
+    "analytics",
+    "data-warehouse",
+    "google-cloud",
+    "sql"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": false
+    }
+  },
+  "requirements": {
+    "description": "The Google Service Account Credentials must have the following permissions:",
+    "items": [
+      "BigQuery User",
+      "BigQuery Data Viewer"
+    ]
+  },
+  "overview": {
+    "description": "Google BigQuery is a fully managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure.",
+    "features": [
+      "Serverless and fully managed data warehouse",
+      "Petabyte-scale analytics with standard SQL",
+      "Built-in machine learning capabilities",
+      "Real-time data streaming and analysis"
+    ],
+    "useCases": [
+      "Large-scale data analytics and reporting",
+      "Business intelligence and data visualization",
+      "Machine learning model training on big data",
+      "Real-time streaming analytics"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": false,
+      "runbooks": true
+    },
+    "requirements": [
+      "Google Cloud Platform account",
+      "BigQuery API enabled in your GCP project",
+      "Service account with BigQuery permissions",
+      "Google Cloud SDK (gcloud) installed"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "bq command-line tool with service account",
+    "featureConfiguration": [
+      "IAM roles and permissions for BigQuery access",
+      "Dataset and table-level security controls",
+      "Query optimization and slot management",
+      "Data encryption and compliance settings"
+    ],
+    "otherRequirements": [
+      "Understanding of BigQuery pricing model",
+      "Data modeling for optimal query performance",
+      "Monitoring with Cloud Logging and Monitoring"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "bigquery",
+    "credentials": {
+      "google_application_credentials": {
+        "name": "GOOGLE_APPLICATION_CREDENTIALS",
+        "type": "filesystem",
+        "required": true,
+        "description": "The service account credentials file in JSON format"
+      },
+      "cloudsdk_core_project": {
+        "name": "CLOUDSDK_CORE_PROJECT",
+        "type": "env-var",
+        "required": true,
+        "description": "The project id to use for request"
+      },
+      "cloudsdk_python": {
+        "name": "CLOUDSDK_PYTHON",
+        "type": "env-var",
+        "required": false,
+        "description": "The path of python interpreter, defaults to /usr/bin/python3.9"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/bigquery"
+  }
+}} />
 ## Connection Setup
 
 The command below provides access to `bq query` command, enabling you to execute queries directly against BigQuery datasets.
@@ -52,12 +137,3 @@ hoop admin create conn bq-query -a <agent> \
 <Note>
     The `bq` command-line tool is included in agent Docker images version **1.35.16** and later.
 </Note>
-
-## Connection Usage
-
-You can access it through hoop web panel and issue queries to your Datasets.
-
-<Frame>
-    <img src="/images/quickstarts/client-pg.png" />
-</Frame>
-

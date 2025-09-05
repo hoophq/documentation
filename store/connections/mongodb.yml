@@ -1,6 +1,6 @@
 id: mongodb
 name: MongoDB
-description: NoSQL document-oriented database
+description: A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.
 category: databases
 icon-name: mongodb
 tags:
@@ -8,6 +8,26 @@ tags:
   - document
   - cloud
 isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: true
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
 
 overview:
   description: MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.
@@ -49,5 +69,11 @@ gatewayInformation:
   type: database
   subtype: mongodb
   credentials:
-    authType: "SCRAM-SHA-256"
-    config: "username/password authentication with SSL"
+    connectionString:
+      name: "CONNECTION_STRING"
+      type: "env-var"
+      required: true
+      description: "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format."
+
+documentationConfig:
+  path: "quickstart/databases/mongodb"

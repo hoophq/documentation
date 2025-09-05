@@ -1,13 +1,101 @@
 ---
 title: "Ruby on Rails"
 description: "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application."
+category: "developer-consoles"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Configuration
+<ConnectionTemplate config={{
+  "id": "ruby-on-rails",
+  "name": "Ruby on Rails",
+  "description": "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application.",
+  "category": "developer-consoles",
+  "icon-name": "ruby",
+  "tags": [
+    "ruby",
+    "web-framework",
+    "mvc",
+    "development"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.",
+    "features": [
+      "Convention over configuration philosophy",
+      "Active Record ORM for database interactions",
+      "Built-in testing framework and tools",
+      "Rich ecosystem of gems and plugins"
+    ],
+    "useCases": [
+      "Rapid web application development",
+      "Database migrations and management",
+      "API development and microservices",
+      "E-commerce and content management systems"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "Ruby 2.7+ installed",
+      "Rails framework installed",
+      "Database connection configured",
+      "Application dependencies installed (bundle install)"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "rails console -e production",
+    "featureConfiguration": [
+      "Environment-specific configuration (development, test, production)",
+      "Database connection pooling and optimization",
+      "Caching strategies (Redis, Memcached)",
+      "Background job processing (Sidekiq, Resque)"
+    ],
+    "otherRequirements": [
+      "Application server configuration (Puma, Unicorn)",
+      "Asset pipeline and precompilation setup",
+      "Security configurations and secret management"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "application",
+    "subtype": "ruby-on-rails"
+  },
+  "documentationConfig": {
+    "path": "quickstart/development-environments/ruby-on-rails"
+  }
+}} />
+## Connection Setup
 
 To proxy the `rails console` command, execute the following command within your root application path.
 

@@ -1,41 +1,128 @@
 ---
 title: "DynamoDB"
 description: "DynamoDB in Hoop offers a unique experience where tables are treated as databases, with automatic environment variable configuration and an interface optimized for NoSQL."
+category: "databases"
 ---
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<Prerequisites />
-
-## Features
-
-The table below outlines the features available for this type of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="xmark" /> | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="xmark" /> | <Icon icon="check" /> | The gateway stores and audits the queries being issued by the client |
-| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Data Masking (MS Presidio DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | <Icon icon="xmark" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using the service credentials. |
-| Interactive Access | <Icon icon="xmark" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal for analysis exploration. |
-
-## Configuration
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| AWS_ACCESS_KEY_ID | env-var | yes | The AWS access key ID for DynamoDB access |
-| AWS_SECRET_ACCESS_KEY | env-var | yes | The AWS secret access key for DynamoDB access |
-| AWS_REGION | env-var | yes | The AWS region where your DynamoDB tables are located (e.g., `us-east-1`, `eu-west-1`) |
-
-The AWS credentials require the minimal set of IAM permissions to work:
-- `dynamodb:Query`
-- `dynamodb:DescribeTable`
-- `dynamodb:ListTables`
-
+<ConnectionTemplate config={{
+  "id": "dynamodb",
+  "name": "DynamoDB",
+  "description": "DynamoDB in Hoop offers a unique experience where tables are treated as databases, with automatic environment variable configuration and an interface optimized for NoSQL.",
+  "category": "databases",
+  "icon-name": "dynamodb",
+  "tags": [
+    "nosql",
+    "aws",
+    "managed",
+    "serverless"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": true
+    }
+  },
+  "requirements": {
+    "description": "The AWS credentials require the minimal set of IAM permissions to work",
+    "items": [
+      "dynamodb:Query",
+      "dynamodb:DescribeTable",
+      "dynamodb:ListTables"
+    ]
+  },
+  "overview": {
+    "description": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.",
+    "features": [
+      "Fully managed serverless database",
+      "Single-digit millisecond latency",
+      "Built-in security and backup capabilities",
+      "Global tables for multi-region deployment"
+    ],
+    "useCases": [
+      "Web and mobile applications",
+      "Gaming applications with leaderboards",
+      "IoT data collection and processing",
+      "Real-time personalization engines"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": false,
+      "runbooks": true
+    },
+    "requirements": [
+      "AWS Account with DynamoDB access",
+      "IAM user with appropriate DynamoDB permissions",
+      "AWS Access Key ID and Secret Access Key",
+      "Network connectivity to AWS DynamoDB endpoints"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "AWS DynamoDB API via SDK",
+    "featureConfiguration": [
+      "IAM roles and policies for fine-grained access",
+      "VPC endpoints for private connectivity",
+      "DynamoDB Accelerator (DAX) for caching",
+      "Global Secondary Indexes (GSI) configuration"
+    ],
+    "otherRequirements": [
+      "Understanding of DynamoDB data modeling",
+      "Capacity planning for read/write units",
+      "Monitoring with CloudWatch metrics"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "dynamodb",
+    "credentials": {
+      "aws_access_key_id": {
+        "name": "AWS_ACCESS_KEY_ID",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS access key ID for DynamoDB access"
+      },
+      "aws_secret_access_key": {
+        "name": "AWS_SECRET_ACCESS_KEY",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS secret access key for DynamoDB access"
+      },
+      "aws_region": {
+        "name": "AWS_REGION",
+        "type": "env-var",
+        "required": true,
+        "description": "The AWS region where your DynamoDB tables are located (e.g., us-east-1, eu-west-1)"
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/dynamodb"
+  }
+}} />
 ## Connection Setup
 
 The flag `--type custom/dynamodb` allows displaying the introspection schema in the web interface.
@@ -68,7 +155,7 @@ hoop exec my-dynamodb -i 'aws dynamodb scan --table-name Movies'
 ### Web panel
 
 When you select a table in the interface, the terminal will propagate the name as `TABLE_NAME` environment variable, allowing you to use it in your scripts.
-The example above shows the variable being used in a script to scan the `Movies` table.
+The example below shows the variable being used in a script to scan the `Movies` table.
 
 <Frame>
     <img src="/images/quickstarts/client-dynamodb.png" alt="dynamodb screenshot" />

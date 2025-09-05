@@ -1,66 +1,135 @@
 ---
-title: "MSSQL"
+title: "Microsoft SQL Server"
+description: "Connecting to Microsoft SQL Server can be done natively using an IDE or any supported client library. Alternatively, you can use the [sqlcmd command line utility](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility) for one-off executions."
+category: "databases"
 ---
 
-Connecting to Microsoft SQL Server can be done natively using an IDE or any supported client library. Alternatively, you can use the [sqlcmd command line utility](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility) for one-off executions.
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-import Prerequisites from '/snippets/QuickstartsPrerequisites.mdx';
-
-<Prerequisites />
-
-## Features
-
-The table below explains which features are available for this kind of connection.
-
-- **Native** - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through `hoop connect <connection-name>`.
-- **One Off -** This term refers to accessing this connection from hoop web panel.
-
-| Feature | Native | One Off | Description |
-| --- | --- | --- | --- |
-| TLS Termination Proxy | <Icon icon="check" /> | <Icon icon="check" /> | The local proxy terminates the connection with TLS, enabling the connection with the remote server to be TLS encrypted. |
-| Audit | <Icon icon="check" /> | <Icon icon="check" /> | The gateway store and audit the queries being issued by the client |
-| Data Masking (Google DLP) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Data Masking (MS Presidio) | <Icon icon="xmark" /> | <Icon icon="check" /> | A policy can be enabled to mask sensitive fields dynamically when performing queries in the database. |
-| Credentials Offload | <Icon icon="check" /> | <Icon icon="check" /> | The user authenticates via SSO instead of using database credentials. |
-| Interactive Access | <Icon icon="check" /> | <Icon icon="check" /> | Interactive access is available when using an IDE or connecting via a terminal to perform analysis exploration. |
-
-## Configuration
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| HOST | env-var | yes | The IP or Host of the SQL Server |
-| PORT | env-var | yes | The port of the SQL server |
-| USER | env-var | yes | The user with access to the instance |
-| PASS | env-var | yes | The password with access to the instance |
-| DB | env-var | yes | The name of the database to connect (Required when using the connection via the command line). |
-| INSECURE | env-var | no | If the connection will ignore the chain of certificates presented by the server. (the connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false) |
-
-## Connection Setup
-
-Create a new Database connection in hoop's web panel.
-
-<Frame>
-    <img src="/images/quickstarts/create-database-connection-screenshot.png" alt="create tcp connection screenshot" />
-</Frame>
-
-## Connection Usage
-
-### CLI
-
-```bash
-hoop connect <connection-name>
-
-connection: mssql | session: 5531dc59-febc-4eee-af26-96e0e0de6769
-
----------------------mssql-credentials----------------------
-      host=127.0.0.1 port=1444 user=noop password=noop
-------------------------------------------------------------
-ready to accept connections!
-```
-
-### Web panel
-
-<Frame>
-    <img src="/images/quickstarts/client-pg.png" alt="create tcp connection screenshot" />
-</Frame>
-
+<ConnectionTemplate config={{
+  "id": "mssql",
+  "name": "Microsoft SQL Server",
+  "description": "Connecting to Microsoft SQL Server can be done natively using an IDE or any supported client library. Alternatively, you can use the [sqlcmd command line utility](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility) for one-off executions.",
+  "category": "databases",
+  "icon-name": "mssql",
+  "tags": [
+    "sql",
+    "relational",
+    "enterprise",
+    "microsoft"
+  ],
+  "isNew": false,
+  "features": {
+    "tlsTerminationProxy": {
+      "native": true,
+      "oneOff": true
+    },
+    "audit": {
+      "native": true,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": true,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Microsoft SQL Server is a relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.",
+    "features": [
+      "Advanced security with Always Encrypted technology",
+      "In-memory OLTP for high-performance workloads",
+      "Built-in machine learning and AI capabilities",
+      "Comprehensive backup and disaster recovery"
+    ],
+    "useCases": [
+      "Enterprise applications and ERP systems",
+      "Data warehousing and business intelligence",
+      "Mission-critical applications requiring high availability",
+      "Integration with Microsoft ecosystem"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    },
+    "requirements": [
+      "SQL Server 2017+",
+      "SQL Server authentication or Windows authentication",
+      "Network connectivity to port 1433",
+      "TLS/SSL certificates for encrypted connections"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "mssql://username:password@host:port/database",
+    "featureConfiguration": [
+      "Always On Availability Groups for high availability",
+      "Transparent Data Encryption (TDE)",
+      "Query Store for performance monitoring",
+      "Row-level security configuration"
+    ],
+    "otherRequirements": [
+      "SQL Server Agent for automated tasks",
+      "Performance monitoring with Extended Events",
+      "Regular maintenance plans configured"
+    ]
+  },
+  "gatewayInformation": {
+    "type": "database",
+    "subtype": "mssql",
+    "credentials": {
+      "host": {
+        "name": "HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The IP or Host of the SQL Server"
+      },
+      "user": {
+        "name": "USER",
+        "type": "env-var",
+        "required": true,
+        "description": "The user with access to the instance"
+      },
+      "pass": {
+        "name": "PASS",
+        "type": "env-var",
+        "required": true,
+        "description": "The password with access to the instance"
+      },
+      "port": {
+        "name": "PORT",
+        "type": "env-var",
+        "required": true,
+        "description": "The port of the SQL server"
+      },
+      "db": {
+        "name": "DB",
+        "type": "env-var",
+        "required": true,
+        "description": "The name of the database to connect (Required when using the connection via the command line)."
+      },
+      "insecure": {
+        "name": "INSECURE",
+        "type": "env-var",
+        "required": false,
+        "description": "If the connection will ignore the chain of certificates presented by the server. The connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false."
+      }
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/mssql"
+  }
+}} />

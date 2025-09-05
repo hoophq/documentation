@@ -1,0 +1,97 @@
+id: dynamodb
+name: DynamoDB
+description: DynamoDB in Hoop offers a unique experience where tables are treated as databases, with automatic environment variable configuration and an interface optimized for NoSQL.
+category: databases
+icon-name: dynamodb
+tags:
+  - nosql
+  - aws
+  - managed
+  - serverless
+isNew: false
+
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: true
+  audit:
+    native: false
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: true
+  interactiveAccess:
+    native: false
+    oneOff: true
+
+requirements:
+  description: The AWS credentials require the minimal set of IAM permissions to work
+  items:
+    - dynamodb:Query
+    - dynamodb:DescribeTable
+    - dynamodb:ListTables
+
+overview:
+  description: Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.
+  features:
+    - Fully managed serverless database
+    - Single-digit millisecond latency
+    - Built-in security and backup capabilities
+    - Global tables for multi-region deployment
+  useCases:
+    - Web and mobile applications
+    - Gaming applications with leaderboards
+    - IoT data collection and processing
+    - Real-time personalization engines
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: false
+    runbooks: true
+  requirements:
+    - AWS Account with DynamoDB access
+    - IAM user with appropriate DynamoDB permissions
+    - AWS Access Key ID and Secret Access Key
+    - Network connectivity to AWS DynamoDB endpoints
+
+advancedConfiguration:
+  connectionString: "AWS DynamoDB API via SDK"
+  featureConfiguration:
+    - IAM roles and policies for fine-grained access
+    - VPC endpoints for private connectivity
+    - DynamoDB Accelerator (DAX) for caching
+    - Global Secondary Indexes (GSI) configuration
+  otherRequirements:
+    - Understanding of DynamoDB data modeling
+    - Capacity planning for read/write units
+    - Monitoring with CloudWatch metrics
+
+gatewayInformation:
+  type: database
+  subtype: dynamodb
+  credentials:
+    aws_access_key_id:
+      name: "AWS_ACCESS_KEY_ID"
+      type: "env-var"
+      required: true
+      description: "The AWS access key ID for DynamoDB access"
+    aws_secret_access_key:
+      name: "AWS_SECRET_ACCESS_KEY"
+      type: "env-var"
+      required: true
+      description: "The AWS secret access key for DynamoDB access"
+    aws_region:
+      name: "AWS_REGION"
+      type: "env-var"
+      required: true
+      description: "The AWS region where your DynamoDB tables are located (e.g., us-east-1, eu-west-1)"
+
+documentationConfig:
+  path: "quickstart/databases/dynamodb"
