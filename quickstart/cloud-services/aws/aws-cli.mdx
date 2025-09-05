@@ -1,6 +1,6 @@
 ---
 title: "AWS CLI"
-description: "Hoop could be configured to use the AWS command line to manage resources in multiple accounts."
+description: "Hoop can be configured to use the AWS command line to manage resources in multiple accounts."
 category: "cloud-services"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "aws-cli",
   "name": "AWS CLI",
-  "description": "Hoop could be configured to use the AWS command line to manage resources in multiple accounts.",
+  "description": "Hoop can be configured to use the AWS command line to manage resources in multiple accounts.",
   "category": "cloud-services",
   "icon-name": "aws",
   "tags": [
@@ -44,6 +44,9 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "native": false,
       "oneOff": false
     }
+  },
+  "requirements": {
+    "description": "Use an IAM credential with reduced scope to only create secrets and/or listing ECS services."
   },
   "overview": {
     "description": "The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.",

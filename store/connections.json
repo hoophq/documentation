@@ -124,7 +124,7 @@
     {
       "id": "aws-cli",
       "name": "AWS CLI",
-      "description": "Hoop could be configured to use the AWS command line to manage resources in multiple accounts.",
+      "description": "Hoop can be configured to use the AWS command line to manage resources in multiple accounts.",
       "category": "cloud-services",
       "icon-name": "aws",
       "tags": [
@@ -159,6 +159,9 @@
           "native": false,
           "oneOff": false
         }
+      },
+      "requirements": {
+        "description": "Use an IAM credential with reduced scope to only create secrets and/or listing ECS services."
       },
       "overview": {
         "description": "The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.",
@@ -852,103 +855,6 @@
       }
     },
     {
-      "id": "httpproxy",
-      "name": "HTTP Proxy",
-      "description": "HTTP proxy server for web traffic routing and filtering",
-      "category": "network-services",
-      "icon-name": "httpproxy",
-      "tags": [
-        "proxy",
-        "http",
-        "web",
-        "routing"
-      ],
-      "isNew": false,
-      "features": {
-        "tlsTerminationProxy": {
-          "native": true,
-          "oneOff": false
-        },
-        "audit": {
-          "native": true,
-          "oneOff": false
-        },
-        "dataMaskingGoogleDLP": {
-          "native": false,
-          "oneOff": false
-        },
-        "dataMaskingMSPresidio": {
-          "native": false,
-          "oneOff": false
-        },
-        "credentialsOffload": {
-          "native": true,
-          "oneOff": false
-        },
-        "interactiveAccess": {
-          "native": false,
-          "oneOff": false
-        }
-      },
-      "overview": {
-        "description": "HTTP Proxy servers act as intermediaries for requests from clients seeking resources from other servers, providing functionality like caching, filtering, and access control.",
-        "features": [
-          "Web traffic filtering and content inspection",
-          "Caching for improved performance",
-          "Load balancing and traffic distribution",
-          "SSL termination and encryption"
-        ],
-        "useCases": [
-          "Corporate web filtering and security",
-          "Content delivery and caching",
-          "Load balancing for web applications",
-          "API gateway and routing"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "HTTP proxy server configured and running",
-          "Proxy authentication credentials if required",
-          "Network connectivity to proxy server",
-          "Proper proxy configuration on client side"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "http://proxy-server:port",
-        "featureConfiguration": [
-          "SSL/HTTPS proxy configuration",
-          "Authentication and access control setup",
-          "Content filtering and blocking rules",
-          "Logging and monitoring configuration"
-        ],
-        "otherRequirements": [
-          "SSL certificate management for HTTPS",
-          "Bandwidth monitoring and throttling",
-          "Cache management and optimization"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "application",
-        "subtype": "httpproxy",
-        "credentials": {
-          "remote_host": {
-            "name": "REMOTE_HOST",
-            "type": "env-var",
-            "required": true,
-            "description": "The IP or hostname of the remote host"
-          }
-        }
-      },
-      "documentationConfig": {
-        "path": "quickstart/web-applications/httpproxy"
-      }
-    },
-    {
       "id": "jump-hosts",
       "name": "Jump Hosts",
       "description": "Hoop could act as a bastion server allowing the execution of one-off sessions.",
@@ -1211,7 +1117,7 @@
             "name": "INSECURE",
             "type": "env-var",
             "required": false,
-            "description": "If the connection will ignore the chain of certificates presented by the server. (the connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false)"
+            "description": "If the connection will ignore the chain of certificates presented by the server. The connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false."
           }
         }
       },

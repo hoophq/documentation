@@ -1,6 +1,6 @@
 id: aws-cli
 name: AWS CLI
-description: Hoop could be configured to use the AWS command line to manage resources in multiple accounts.
+description: Hoop can be configured to use the AWS command line to manage resources in multiple accounts.
 category: cloud-services
 icon-name: aws
 tags:
