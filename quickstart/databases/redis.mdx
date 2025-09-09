@@ -97,28 +97,3 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/databases/redis"
   }
 }} />
-## Connection Setup
-
-```sh
-hoop admin create conn redis-cli -a default \
-    -e REDIS_HOST=$HOST_IP  \
-    -- xargs redis-cli -u 'redis://$REDIS_HOST:6379'
-```
-
-## Connection Usage
-
-You can access it through hoop CLI or hoop Web Console.
-
-<Tip>
-    See the [Redis Cheat Sheet](https://redis.io/learn/howtos/quick-start/cheat-sheet) with more information on how to interact with your Redis instance.
-</Tip>
-
-#### CLI
-
-Interactive Access
-
-```bash
-hoop connect redis-cli
-redis-cli -u redis://$REDIS_HOST:6379 (stdin and tty allocated)
-192.168.18.14:6379>
-```
