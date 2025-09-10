@@ -8,7 +8,6 @@ tags:
   - relational
   - acid-compliant
   - open-source
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Performance monitoring with pg_stat_statements
     - Regular VACUUM and ANALYZE scheduling
 
-gatewayInformation:
+resourceConfiguration:
   type: database
   subtype: postgres
   credentials:

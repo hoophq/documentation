@@ -8,7 +8,6 @@ tags:
   - containers
   - orchestration
   - ecs
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -37,7 +36,7 @@ requirements:
     - ecs:DescribeTasks
     - ecs:ExecuteCommand
 
-gatewayInformation:
+resourceConfiguration:
   type: cloud-service
   subtype: aws-ecs
   credentials:

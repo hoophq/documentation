@@ -1,6 +1,42 @@
 {
   "connections": [
     {
+      "resourceConfiguration": {
+        "type": "database",
+        "subtype": "cassandra",
+        "credentials": {
+          "keyspace": {
+            "name": "CQLSH_KEYSPACE",
+            "type": "env-var",
+            "required": true,
+            "description": "The keyspace target"
+          },
+          "host": {
+            "name": "CQLSH_HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The host of the Cassandra cluster"
+          },
+          "port": {
+            "name": "CQLSH_PORT",
+            "type": "env-var",
+            "required": false,
+            "description": "The Vault Token. Defaults to 9043"
+          },
+          "username": {
+            "name": "CQLSH_USER",
+            "type": "env-var",
+            "required": false,
+            "description": "The user can connect in the Cassandra cluster."
+          },
+          "password": {
+            "name": "CQLSH_PASSWD",
+            "type": "env-var",
+            "required": false,
+            "description": "The password to connect in the Cassandra cluster."
+          }
+        }
+      },
       "id": "apache-cassandra",
       "name": "Apache Cassandra",
       "description": "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html).",
@@ -12,33 +48,6 @@
         "column-family",
         "high-availability"
       ],
-      "isNew": false,
-      "features": {
-        "tlsTerminationProxy": {
-          "native": false,
-          "oneOff": true
-        },
-        "audit": {
-          "native": false,
-          "oneOff": true
-        },
-        "dataMaskingGoogleDLP": {
-          "native": false,
-          "oneOff": true
-        },
-        "dataMaskingMSPresidio": {
-          "native": false,
-          "oneOff": true
-        },
-        "credentialsOffload": {
-          "native": false,
-          "oneOff": true
-        },
-        "interactiveAccess": {
-          "native": false,
-          "oneOff": true
-        }
-      },
       "overview": {
         "description": "Apache Cassandra is a highly scalable, distributed NoSQL database designed to handle large amounts of data across many commodity servers.",
         "features": [
@@ -81,44 +90,34 @@
           "Monitoring and maintenance procedures"
         ]
       },
-      "gatewayInformation": {
-        "type": "database",
-        "subtype": "cassandra",
-        "credentials": {
-          "keyspace": {
-            "name": "CQLSH_KEYSPACE",
-            "type": "env-var",
-            "required": true,
-            "description": "The keyspace target"
-          },
-          "host": {
-            "name": "CQLSH_HOST",
-            "type": "env-var",
-            "required": true,
-            "description": "The host of the Cassandra cluster"
-          },
-          "port": {
-            "name": "CQLSH_PORT",
-            "type": "env-var",
-            "required": false,
-            "description": "The Vault Token. Defaults to 9043"
-          },
-          "username": {
-            "name": "CQLSH_USER",
-            "type": "env-var",
-            "required": false,
-            "description": "The user can connect in the Cassandra cluster."
-          },
-          "password": {
-            "name": "CQLSH_PASSWD",
-            "type": "env-var",
-            "required": false,
-            "description": "The password to connect in the Cassandra cluster."
-          }
-        }
-      },
       "documentationConfig": {
         "path": "quickstart/databases/apache-cassandra"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": true
+        }
       }
     },
     {
@@ -133,7 +132,6 @@
         "cli",
         "management"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -172,7 +170,7 @@
           "Profile and credential management"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "cloud-service",
         "subtype": "aws-cli",
         "credentials": {
@@ -212,7 +210,6 @@
         "logs",
         "metrics"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -247,7 +244,7 @@
           "logs:FilterLogEvents"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "cloud-service",
         "subtype": "aws-cloudwatch",
         "credentials": {
@@ -287,7 +284,6 @@
         "orchestration",
         "ecs"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -322,7 +318,7 @@
           "ecs:ExecuteCommand"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "cloud-service",
         "subtype": "aws-ecs",
         "credentials": {
@@ -380,7 +376,6 @@
         "google-cloud",
         "sql"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -456,7 +451,7 @@
           "Monitoring with Cloud Logging and Monitoring"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "bigquery",
         "credentials": {
@@ -496,7 +491,6 @@
         "jvm",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -565,7 +559,7 @@
           "Performance profiling and JVM tuning"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "application",
         "subtype": "clojure"
       },
@@ -585,7 +579,6 @@
         "management",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -654,7 +647,7 @@
           "Environment-specific settings files"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "django"
       },
@@ -674,7 +667,6 @@
         "managed",
         "serverless"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -751,7 +743,7 @@
           "Monitoring with CloudWatch metrics"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "dynamodb",
         "credentials": {
@@ -791,7 +783,6 @@
         "erlang-vm",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -846,7 +837,7 @@
           "Project dependencies compiled"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "elixir"
       },
@@ -866,7 +857,6 @@
         "ssh-tunnel",
         "network"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -893,7 +883,7 @@
           "oneOff": true
         }
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "web-application",
         "subtype": "jump-host"
       },
@@ -913,7 +903,6 @@
         "cloud-native",
         "devops"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -982,7 +971,7 @@
           "Backup and disaster recovery planning"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "cloud-service",
         "subtype": "kubernetes",
         "credentials": {
@@ -1010,7 +999,6 @@
         "enterprise",
         "microsoft"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1079,7 +1067,7 @@
           "Regular maintenance plans configured"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "mssql",
         "credentials": {
@@ -1136,7 +1124,51 @@
         "document",
         "cloud"
       ],
-      "isNew": false,
+      "overview": {
+        "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
+        "features": [
+          "Flexible schema for rapid data evolution",
+          "Horizontal scalability with automatic sharding",
+          "Built-in replication for high availability",
+          "Powerful queries with advanced indexing"
+        ],
+        "useCases": [
+          "Web and mobile applications with variable data",
+          "Content management systems",
+          "E-commerce product catalogs",
+          "Real-time data analytics"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": false,
+          "cli": false,
+          "runbooks": false
+        },
+        "requirements": [
+          "MongoDB Server 4.0+",
+          "User credentials with appropriate privileges",
+          "Network connectivity to port 27017",
+          "Proper firewall configuration"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "mongodb://username:password@host:port/database",
+        "featureConfiguration": [
+          "Replica set configuration for high availability",
+          "Sharding configuration for scalability",
+          "Optimized indexes for frequent queries",
+          "SSL/TLS configuration for secure connections"
+        ],
+        "otherRequirements": [
+          "Performance monitoring enabled",
+          "Automatic backup configured",
+          "Storage capacity alerts"
+        ]
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/mongodb"
+      },
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1163,49 +1195,7 @@
           "oneOff": true
         }
       },
-      "overview": {
-        "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
-        "features": [
-          "Flexible schema for rapid data evolution",
-          "Horizontal scalability with automatic sharding",
-          "Built-in replication for high availability",
-          "Powerful queries with advanced indexing"
-        ],
-        "useCases": [
-          "Web and mobile applications with variable data",
-          "Content management systems",
-          "E-commerce product catalogs",
-          "Real-time data analytics"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "MongoDB Server 4.0+",
-          "User credentials with appropriate privileges",
-          "Network connectivity to port 27017",
-          "Proper firewall configuration"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "mongodb://username:password@host:port/database",
-        "featureConfiguration": [
-          "Replica set configuration for high availability",
-          "Sharding configuration for scalability",
-          "Optimized indexes for frequent queries",
-          "SSL/TLS configuration for secure connections"
-        ],
-        "otherRequirements": [
-          "Performance monitoring enabled",
-          "Automatic backup configured",
-          "Storage capacity alerts"
-        ]
-      },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "mongodb",
         "credentials": {
@@ -1216,9 +1206,6 @@
             "description": "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format."
           }
         }
-      },
-      "documentationConfig": {
-        "path": "quickstart/databases/mongodb"
       }
     },
     {
@@ -1232,7 +1219,6 @@
         "relational",
         "open-source"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1302,7 +1288,7 @@
           "Binary logging configured"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "mysql",
         "credentials": {
@@ -1360,7 +1346,6 @@
         "server-side",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1429,7 +1414,7 @@
           "Performance monitoring and profiling tools"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "application",
         "subtype": "nodejs"
       },
@@ -1449,7 +1434,6 @@
         "enterprise",
         "high-performance"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1518,7 +1502,7 @@
           "Automatic Workload Repository (AWR) enabled"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "oracle",
         "credentials": {
@@ -1578,7 +1562,6 @@
         "artisan",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1647,7 +1630,7 @@
           "Storage permissions setup"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "php-artisan"
       },
@@ -1667,7 +1650,6 @@
         "acid-compliant",
         "open-source"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1736,7 +1718,7 @@
           "Regular VACUUM and ANALYZE scheduling"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "postgres",
         "credentials": {
@@ -1794,7 +1776,6 @@
         "development",
         "automation"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1863,7 +1844,7 @@
           "Proper Python path configuration"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "python"
       },
@@ -1883,7 +1864,6 @@
         "key-value",
         "in-memory"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1954,7 +1934,7 @@
           "Monitoring with Redis INFO commands"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "redis"
       },
@@ -1974,7 +1954,6 @@
         "mvc",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -2043,7 +2022,7 @@
           "Security configurations and secret management"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "application",
         "subtype": "ruby-on-rails"
       },
@@ -2063,7 +2042,6 @@
         "terminal",
         "unix"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -2132,7 +2110,7 @@
           "Fail2ban or similar intrusion prevention"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "application",
         "subtype": "ssh",
         "credentials": {
@@ -2185,7 +2163,6 @@
         "http",
         "monitoring"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -2212,7 +2189,7 @@
           "oneOff": false
         }
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "web-application",
         "subtype": "webapp-api",
         "credentials": {

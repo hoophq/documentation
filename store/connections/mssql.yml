@@ -8,7 +8,6 @@ tags:
   - relational
   - enterprise
   - microsoft
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Performance monitoring with Extended Events
     - Regular maintenance plans configured
 
-gatewayInformation:
+resourceConfiguration:
   type: database
   subtype: mssql
   credentials:

@@ -8,7 +8,6 @@ tags:
   - lisp
   - jvm
   - development
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Testing framework setup (clojure.test, Midje)
     - Performance profiling and JVM tuning
 
-gatewayInformation:
+resourceConfiguration:
   type: application
   subtype: clojure
 

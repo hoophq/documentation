@@ -8,7 +8,6 @@ tags:
   - api
   - http
   - monitoring
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -30,7 +29,7 @@ features:
     native: false
     oneOff: false
 
-gatewayInformation:
+resourceConfiguration:
   type: web-application
   subtype: webapp-api
   credentials:

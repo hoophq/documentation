@@ -7,6 +7,43 @@ category: "databases"
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
 <ConnectionTemplate config={{
+  "additionalInformation": "## Test\n\n<Note> Mais um teste aqui</Note>",
+  "resourceConfiguration": {
+    "type": "database",
+    "subtype": "cassandra",
+    "credentials": {
+      "keyspace": {
+        "name": "CQLSH_KEYSPACE",
+        "type": "env-var",
+        "required": true,
+        "description": "The keyspace target"
+      },
+      "host": {
+        "name": "CQLSH_HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The host of the Cassandra cluster"
+      },
+      "port": {
+        "name": "CQLSH_PORT",
+        "type": "env-var",
+        "required": false,
+        "description": "The Vault Token. Defaults to 9043"
+      },
+      "username": {
+        "name": "CQLSH_USER",
+        "type": "env-var",
+        "required": false,
+        "description": "The user can connect in the Cassandra cluster."
+      },
+      "password": {
+        "name": "CQLSH_PASSWD",
+        "type": "env-var",
+        "required": false,
+        "description": "The password to connect in the Cassandra cluster."
+      }
+    }
+  },
   "id": "apache-cassandra",
   "name": "Apache Cassandra",
   "description": "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html).",
@@ -18,33 +55,6 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "column-family",
     "high-availability"
   ],
-  "isNew": false,
-  "features": {
-    "tlsTerminationProxy": {
-      "native": false,
-      "oneOff": true
-    },
-    "audit": {
-      "native": false,
-      "oneOff": true
-    },
-    "dataMaskingGoogleDLP": {
-      "native": false,
-      "oneOff": true
-    },
-    "dataMaskingMSPresidio": {
-      "native": false,
-      "oneOff": true
-    },
-    "credentialsOffload": {
-      "native": false,
-      "oneOff": true
-    },
-    "interactiveAccess": {
-      "native": false,
-      "oneOff": true
-    }
-  },
   "overview": {
     "description": "Apache Cassandra is a highly scalable, distributed NoSQL database designed to handle large amounts of data across many commodity servers.",
     "features": [
@@ -87,43 +97,42 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "Monitoring and maintenance procedures"
     ]
   },
-  "gatewayInformation": {
-    "type": "database",
-    "subtype": "cassandra",
-    "credentials": {
-      "keyspace": {
-        "name": "CQLSH_KEYSPACE",
-        "type": "env-var",
-        "required": true,
-        "description": "The keyspace target"
-      },
-      "host": {
-        "name": "CQLSH_HOST",
-        "type": "env-var",
-        "required": true,
-        "description": "The host of the Cassandra cluster"
-      },
-      "port": {
-        "name": "CQLSH_PORT",
-        "type": "env-var",
-        "required": false,
-        "description": "The Vault Token. Defaults to 9043"
-      },
-      "username": {
-        "name": "CQLSH_USER",
-        "type": "env-var",
-        "required": false,
-        "description": "The user can connect in the Cassandra cluster."
-      },
-      "password": {
-        "name": "CQLSH_PASSWD",
-        "type": "env-var",
-        "required": false,
-        "description": "The password to connect in the Cassandra cluster."
-      }
-    }
-  },
   "documentationConfig": {
     "path": "quickstart/databases/apache-cassandra"
+  },
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": true
+    }
   }
 }} />
+
+## Test
+
+<Note> Mais um teste aqui</Note>
+
+
+## Test
+
+<Note> Mais um teste aqui</Note>

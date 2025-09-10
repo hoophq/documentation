@@ -4,8 +4,8 @@
   "description": "Hoop.dev Documentation with Decap CMS integration",
   "scripts": {
     "process-connections": "node scripts/process-connections.js",
-    "dev": "mintlify dev",
-    "build": "mintlify build"
+    "dev": "mint dev",
+    "build": "mint build"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"

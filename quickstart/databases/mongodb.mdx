@@ -17,7 +17,51 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "document",
     "cloud"
   ],
-  "isNew": false,
+  "overview": {
+    "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
+    "features": [
+      "Flexible schema for rapid data evolution",
+      "Horizontal scalability with automatic sharding",
+      "Built-in replication for high availability",
+      "Powerful queries with advanced indexing"
+    ],
+    "useCases": [
+      "Web and mobile applications with variable data",
+      "Content management systems",
+      "E-commerce product catalogs",
+      "Real-time data analytics"
+    ]
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": false,
+      "cli": false,
+      "runbooks": false
+    },
+    "requirements": [
+      "MongoDB Server 4.0+",
+      "User credentials with appropriate privileges",
+      "Network connectivity to port 27017",
+      "Proper firewall configuration"
+    ]
+  },
+  "advancedConfiguration": {
+    "connectionString": "mongodb://username:password@host:port/database",
+    "featureConfiguration": [
+      "Replica set configuration for high availability",
+      "Sharding configuration for scalability",
+      "Optimized indexes for frequent queries",
+      "SSL/TLS configuration for secure connections"
+    ],
+    "otherRequirements": [
+      "Performance monitoring enabled",
+      "Automatic backup configured",
+      "Storage capacity alerts"
+    ]
+  },
+  "documentationConfig": {
+    "path": "quickstart/databases/mongodb"
+  },
   "features": {
     "tlsTerminationProxy": {
       "native": true,
@@ -44,49 +88,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": true
     }
   },
-  "overview": {
-    "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
-    "features": [
-      "Flexible schema for rapid data evolution",
-      "Horizontal scalability with automatic sharding",
-      "Built-in replication for high availability",
-      "Powerful queries with advanced indexing"
-    ],
-    "useCases": [
-      "Web and mobile applications with variable data",
-      "Content management systems",
-      "E-commerce product catalogs",
-      "Real-time data analytics"
-    ]
-  },
-  "setupGuide": {
-    "accessMethods": {
-      "webapp": true,
-      "cli": true,
-      "runbooks": true
-    },
-    "requirements": [
-      "MongoDB Server 4.0+",
-      "User credentials with appropriate privileges",
-      "Network connectivity to port 27017",
-      "Proper firewall configuration"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "mongodb://username:password@host:port/database",
-    "featureConfiguration": [
-      "Replica set configuration for high availability",
-      "Sharding configuration for scalability",
-      "Optimized indexes for frequent queries",
-      "SSL/TLS configuration for secure connections"
-    ],
-    "otherRequirements": [
-      "Performance monitoring enabled",
-      "Automatic backup configured",
-      "Storage capacity alerts"
-    ]
-  },
-  "gatewayInformation": {
+  "resourceConfiguration": {
     "type": "database",
     "subtype": "mongodb",
     "credentials": {
@@ -97,9 +99,6 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
         "description": "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format."
       }
     }
-  },
-  "documentationConfig": {
-    "path": "quickstart/databases/mongodb"
   }
 }} />
 ## Known Issues
@@ -138,3 +137,5 @@ db.listingsAndReviews.find({}, {_id: 1}).limit(10)
 <Note>
     This feature is available in agent version `1.35.19` and later.
 </Note>
+
+

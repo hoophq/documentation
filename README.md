@@ -1,32 +1,92 @@
-# Mintlify Starter Kit
+# Hoop.dev Documentation
 
-Click on `Use this template` to copy the Mintlify starter kit. The starter kit contains examples including
+This documentation is built with [Mintlify](https://mintlify.com) and uses [Decap CMS](https://decapcms.org) for content management.
 
-- Guide pages
-- Navigation
-- Customizations
-- API Reference pages
-- Use of popular components
-
-### Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the documentation changes locally. To install, use the following command
+## 📁 Project Structure
 
 ```
-npm i -g mintlify
+documentation/
+├── docs.json              # Mintlify configuration
+├── admin/                 # Decap CMS interface
+├── clients/               # Client documentation (CLI, Web App)
+├── concepts/              # Core concepts
+├── integrations/          # Available integrations
+├── quickstart/            # Quick start guides
+├── setup/                 # Configuration and deployment
+├── store/                 # Connection templates and data
+└── scripts/               # Automation scripts
 ```
 
-Run the following command at the root of your documentation (where mint.json is)
+## 🚀 Development
 
+### Prerequisites
+
+- [Node.js](https://nodejs.org) (v16+)
+- [Mintlify CLI](https://www.mintlify.com/docs/installation)
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Install Mintlify CLI globally
+npm i -g mint
 ```
-mintlify dev
+
+### Available Scripts
+
+```bash
+# Development server
+npm run dev
+
+# Build documentation
+npm run build
+
+# Process connection templates
+npm run process-connections
 ```
 
-### Publishing Changes
+### Decap CMS (Development)
 
-Install our Github App to auto propagate changes from your repo to your deployment. Changes will be deployed to production automatically after pushing to the default branch. Find the link to install on your dashboard. 
+To use CMS in development:
 
-#### Troubleshooting
+```bash
+# Initialize Decap server
+npx decap-server
 
-- Mintlify dev isn't running - Run `mintlify install` it'll re-install dependencies.
-- Page loads as a 404 - Make sure you are running in a folder with `mint.json`
+# Access admin at
+# http://localhost:3000/admin
+```
+
+## 📝 Contributing
+
+1. **CMS Editing**: Use `/admin` interface to edit content
+2. **Connection Templates**: Use `store/connections/*.yml` for connection configurations
+
+### ⚠️ Important: Quickstart Connection Guides
+
+**Quickstart MDX files related to connections should NOT be edited directly.** Instead:
+
+- **Edit via Decap CMS**: Use `/admin` interface to modify connection configurations
+- **Edit YAML templates**: Modify files in `store/connections/*.yml` directly
+- **Run processing script**: After YAML changes, run `npm run process-connections`
+
+The connection quickstarts (like `quickstart/databases/postgres.mdx`) are generated from YAML templates and use the `ConnectionTemplate` component. Direct edits to these MDX files will be overwritten.
+
+## 🔧 Important Configurations
+
+- **Theme**: Configured in `docs.json`
+- **Navigation**: Structured in `docs.json > navigation`
+- **Redirects**: Configured in `_redirects`
+- **Templates**: Connections in `store/connections/`
+
+## 📚 Resources
+
+- [Mintlify Documentation](https://mintlify.com/docs)
+- [Decap CMS Guide](https://decapcms.org/docs/)
+- [Hoop.dev Website](https://hoop.dev)
+
+---
+
+🐛 **Issues?** Make sure you're running in a folder with `docs.json`

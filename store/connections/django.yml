@@ -8,7 +8,6 @@ tags:
   - web-framework
   - management
   - development
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Requirements.txt with dependencies
     - Environment-specific settings files
 
-gatewayInformation:
+resourceConfiguration:
   type: development-environment
   subtype: django
 

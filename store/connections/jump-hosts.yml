@@ -8,7 +8,6 @@ tags:
   - bastion
   - ssh-tunnel
   - network
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -30,7 +29,7 @@ features:
     native: true
     oneOff: true
 
-gatewayInformation:
+resourceConfiguration:
   type: web-application
   subtype: jump-host
 

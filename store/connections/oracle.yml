@@ -8,7 +8,6 @@ tags:
   - relational
   - enterprise
   - high-performance
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - RMAN backup strategy configured
     - Automatic Workload Repository (AWR) enabled
 
-gatewayInformation:
+resourceConfiguration:
   type: database
   subtype: oracle
   credentials:

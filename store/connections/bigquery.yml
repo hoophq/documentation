@@ -8,7 +8,6 @@ tags:
   - data-warehouse
   - google-cloud
   - sql
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -72,7 +71,7 @@ advancedConfiguration:
     - Data modeling for optimal query performance
     - Monitoring with Cloud Logging and Monitoring
 
-gatewayInformation:
+resourceConfiguration:
   type: database
   subtype: bigquery
   credentials:

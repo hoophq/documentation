@@ -8,7 +8,6 @@ tags:
   - secure
   - terminal
   - unix
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Connection logging and audit trails
     - Fail2ban or similar intrusion prevention
 
-gatewayInformation:
+resourceConfiguration:
   type: application
   subtype: ssh
   credentials:

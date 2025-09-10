@@ -7,7 +7,6 @@ tags:
   - sql
   - relational
   - open-source
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Performance monitoring enabled
     - Binary logging configured
 
-gatewayInformation:
+resourceConfiguration:
   type: database
   subtype: mysql
   credentials:

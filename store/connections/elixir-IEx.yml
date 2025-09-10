@@ -8,7 +8,6 @@ tags:
   - functional
   - erlang-vm
   - development
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -54,7 +53,7 @@ setupGuide:
     - Mix build tool configured
     - Project dependencies compiled
 
-gatewayInformation:
+resourceConfiguration:
   type: development-environment
   subtype: elixir
 
