@@ -1,7 +1,3 @@
-additionalInformation: |-
-  # TEST
-
-  <Note>Test de note</Note>
 resourceConfiguration:
   type: cloud-service
   subtype: aws-cli

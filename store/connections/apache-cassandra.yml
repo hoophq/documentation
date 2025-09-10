@@ -1,7 +1,3 @@
-additionalInformation: |-
-  ## Test
-
-  <Note> Mais um teste aqui</Note>
 resourceConfiguration:
   type: database
   subtype: cassandra

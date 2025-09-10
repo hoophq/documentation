@@ -2,7 +2,7 @@ name: Process Connection Changes
 
 on:
   push:
-    branches: [ improvement/add-fields-yml ]
+    branches: [ main ]
     paths: 
       - 'store/connections/*.yml'
   workflow_dispatch: # For manual testing
