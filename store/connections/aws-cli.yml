@@ -1,6 +1,33 @@
-id: aws-cli
+additionalInformation: |-
+  # TEST
+
+  <Note>Test de note</Note>
+resourceConfiguration:
+  type: cloud-service
+  subtype: aws-cli
+  credentials:
+    aws_access_key_id:
+      name: AWS_ACCESS_KEY_ID
+      type: env-var
+      required: true
+      description: The access key credential
+    aws_secret_access_key:
+      name: AWS_SECRET_ACCESS_KEY
+      type: env-var
+      required: true
+      description: The secret key credential
+    aws_region:
+      name: AWS_REGION
+      type: env-var
+      required: true
+      description: The AWS region
 name: AWS CLI
-description: Hoop can be configured to use the AWS command line to manage resources in multiple accounts.
+requirements:
+  description: Use an IAM credential with reduced scope to only create secrets
+    and/or listing ECS services.
+id: aws-cli
+description: Hoop can be configured to use the AWS command line to manage
+  resources in multiple accounts.
 category: cloud-services
 icon-name: aws
 tags:
@@ -8,7 +35,23 @@ tags:
   - cloud
   - cli
   - management
-
+overview:
+  description: The AWS Command Line Interface (CLI) is a unified tool to manage
+    your AWS services from the command line.
+  features:
+    - Comprehensive AWS service management
+    - Scriptable automation capabilities
+    - Multiple output formats (JSON, table, text)
+    - Profile and credential management
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+advancedConfiguration:
+  connectionString: fafaf
+documentationConfig:
+  path: quickstart/cloud-services/aws/aws-cli
 features:
   tlsTerminationProxy:
     native: false
@@ -28,37 +71,3 @@ features:
   interactiveAccess:
     native: false
     oneOff: false
-
-requirements:
-  description: "Use an IAM credential with reduced scope to only create secrets and/or listing ECS services."
-
-overview:
-  description: The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.
-  features:
-    - Comprehensive AWS service management
-    - Scriptable automation capabilities
-    - Multiple output formats (JSON, table, text)
-    - Profile and credential management
-
-resourceConfiguration:
-  type: cloud-service
-  subtype: aws-cli
-  credentials:
-    aws_access_key_id:
-      name: "AWS_ACCESS_KEY_ID"
-      type: "env-var"
-      required: true
-      description: "The access key credential"
-    aws_secret_access_key:
-      name: "AWS_SECRET_ACCESS_KEY"
-      type: "env-var"
-      required: true
-      description: "The secret key credential"
-    aws_region:
-      name: "AWS_REGION"
-      type: "env-var"
-      required: true
-      description: "The AWS region"
-
-documentationConfig:
-  path: "quickstart/cloud-services/aws/aws-cli"
