@@ -2041,6 +2041,43 @@
       }
     },
     {
+      "resourceConfiguration": {
+        "type": "application",
+        "subtype": "ssh",
+        "credentials": {
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the SSH server"
+          },
+          "port": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": false,
+            "description": "The port of the SSH server, default to 22"
+          },
+          "user": {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username of the Linux server"
+          },
+          "pass": {
+            "name": "PASS",
+            "type": "env-var",
+            "required": false,
+            "description": "The credentials of the username if password authentication is enabled in the SSH server."
+          },
+          "authorized_server_keys": {
+            "name": "AUTHORIZED_SERVER_KEYS",
+            "type": "textarea",
+            "required": false,
+            "description": "The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys",
+            "placeholder": "Enter your private key"
+          }
+        }
+      },
       "id": "ssh",
       "name": "Secure Shell (SSH)",
       "description": "Proxy an SSH Server to remote hosts in your private network.",
@@ -2052,32 +2089,6 @@
         "terminal",
         "unix"
       ],
-      "features": {
-        "tlsTerminationProxy": {
-          "native": true,
-          "oneOff": false
-        },
-        "audit": {
-          "native": false,
-          "oneOff": false
-        },
-        "dataMaskingGoogleDLP": {
-          "native": false,
-          "oneOff": false
-        },
-        "dataMaskingMSPresidio": {
-          "native": false,
-          "oneOff": false
-        },
-        "credentialsOffload": {
-          "native": true,
-          "oneOff": false
-        },
-        "interactiveAccess": {
-          "native": true,
-          "oneOff": false
-        }
-      },
       "overview": {
         "description": "SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.",
         "features": [
@@ -2120,45 +2131,34 @@
           "Fail2ban or similar intrusion prevention"
         ]
       },
-      "resourceConfiguration": {
-        "type": "application",
-        "subtype": "ssh",
-        "credentials": {
-          "host": {
-            "name": "HOST",
-            "type": "env-var",
-            "required": true,
-            "description": "The IP or hostname of the SSH server"
-          },
-          "port": {
-            "name": "PORT",
-            "type": "env-var",
-            "required": false,
-            "description": "The port of the SSH server, default to 22"
-          },
-          "user": {
-            "name": "USER",
-            "type": "env-var",
-            "required": true,
-            "description": "The username of the Linux server"
-          },
-          "pass": {
-            "name": "PASS",
-            "type": "env-var",
-            "required": false,
-            "description": "The credentials of the username if password authentication is enabled in the SSH server."
-          },
-          "authorized_server_keys": {
-            "name": "AUTHORIZED_SERVER_KEYS",
-            "type": "textarea",
-            "required": false,
-            "description": "The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys",
-            "placeholder": "Enter your private key"
-          }
-        }
-      },
       "documentationConfig": {
         "path": "quickstart/ssh"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": false
+        }
       }
     },
     {

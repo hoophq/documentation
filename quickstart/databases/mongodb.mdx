@@ -101,41 +101,5 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   }
 }} />
-## Known Issues
-
-### Wrong credentials, fail with credentials
-
-Clients must use `noop` as both the username and password, along with the `directionConnection=true` option
-
-
-### Clients advertising the wrong server
-
-The **native** implementation has a known issue in cluster setups where clients may incorrectly advertise connections to the wrong server.
-Hoop selects a server at random and attempts to upgrade the connection to the primary server.
-However, this transition is not properly propagated to clients, resulting in the advertisement of incorrect server information.
-
-Users can manually switch to the primary server after connecting to a secondary server. For example, using `mongoshell`:
-
-```sh
-> db.getMongo().setReadPref('primary')
-```
-
-### Syntax Error Issues
-
-The one-off execution uses the `mongo` legacy utility as a client to execute scripts.
-Since input is provided through stdin, syntax errors may occur for more complex inputs.
-To avoid these issues, use `mongosh` instead.
-
-Add the comment in the beginning of the script to indicate that it should be executed with `mongosh`:
-
-```sh
-// mongosh
-use sample_airbnb
-db.listingsAndReviews.find({}, {_id: 1}).limit(10)
-```
-
-<Note>
-    This feature is available in agent version `1.35.19` and later.
-</Note>
 
 

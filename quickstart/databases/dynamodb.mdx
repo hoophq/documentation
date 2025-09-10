@@ -122,42 +122,5 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/databases/dynamodb"
   }
 }} />
-## Connection Setup
-
-The flag `--type custom/dynamodb` allows displaying the introspection schema in the web interface.
-
-```bash
-hoop admin create conn my-dynamodb -a <agent-name> \
-    --overwrite \
-    --type custom/dynamodb \
-    --schema=enabled \
-    --skip-validation \
-    -e AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
-    -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
-    -e AWS_REGION=us-west-2 \
-    -- bash
-```
-
-<Warning>
-    Currently, DynamoDB connections cannot be **created** through the web interface.
-    Use the CLI command above to create the connection, then it will be available in the web app for use.
-</Warning>
-
-## Connection Usage
-
-### CLI
-
-```bash
-hoop exec my-dynamodb -i 'aws dynamodb scan --table-name Movies'
-```
-
-### Web panel
-
-When you select a table in the interface, the terminal will propagate the name as `TABLE_NAME` environment variable, allowing you to use it in your scripts.
-The example below shows the variable being used in a script to scan the `Movies` table.
-
-<Frame>
-    <img src="/images/quickstarts/client-dynamodb.png" alt="dynamodb screenshot" />
-</Frame>
 
 

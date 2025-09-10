@@ -31,6 +31,9 @@ if (files.length === 0) {
 
 // MDX template using reusable snippet
 const createMDXContent = (connection) => {
+  // Remove additionalInformation from the config passed to ConnectionTemplate
+  const { additionalInformation, ...configForTemplate } = connection;
+  
   return `---
 title: "${connection.name}"
 description: "${connection.description}"
@@ -39,9 +42,9 @@ category: "${connection.category}"
 
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<ConnectionTemplate config={${JSON.stringify(connection, null, 2)}} />
+<ConnectionTemplate config={${JSON.stringify(configForTemplate, null, 2)}} />
 
-${connection.additionalInformation ? `\n${connection.additionalInformation}` : ''}
+${additionalInformation ? `\n${additionalInformation}` : ''}
 `;
 };
 
