@@ -7,105 +7,18 @@ This page provides instructions on how to configure the Helm chart to install Ho
 ## Quick Start
 
 <Steps>
-  <Step title="Setup Postgres Database">
-    Create a new namespace and install a Postgres database in your Kubernetes cluster
-
-    <AccordionGroup>
-      <Accordion title="Database Setup">
-
-        1. Create a namespace
-
-        ```sh
-        kubectl create ns hoopdev
-        ```
-
-        2. Save the deployment assets to a local file
-
-        ```sh
-        cat - > /tmp/postgres-spec.yml <<EOF
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: postgres
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: postgres
-          strategy:
-            type: Recreate
-          template:
-            metadata:
-              labels:
-                app: postgres
-            spec:
-              containers:
-              - env:
-                - name: POSTGRES_USER
-                  value: root
-                - name: POSTGRES_PASSWORD
-                  value: 1a2b3c4d
-                - name: POSTGRES_DB
-                  value: hoopdb
-                image: postgres
-                name: postgres
-                ports:
-                - containerPort: 5432
-                  name: pg
-                  protocol: TCP
-        ---
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: postgres
-        spec:
-          ports:
-          - name: postgres
-            port: 5432
-            protocol: TCP
-            targetPort: 5432
-          selector:
-            app: postgres
-        EOF
-        ```
-
-        3. Deploy it
-
-        ```sh
-        kubectl -n hoopdev apply -f /tmp/postgres-spec.yml
-        ```
-
-      </Accordion>
-    </AccordionGroup>
-
-  </Step>
-  <Step title="Configure the values.yml">
-
-    ```sh
-    cat - > ./values.yaml <<EOF
-    config:
-      POSTGRES_DB_URI: 'postgres://root:1a2b3c4d@postgres.hoopdev:5432/hoopdb?sslmode=disable'
-      API_URL: 'http://127.0.0.1:8009'
-
-    dataMasking:
-      enabled: true
-
-    defaultAgent:
-      enabled: true
-    EOF
-    ```
-  </Step>
-
   <Step title="Deploy the Gateway">
 
     ```sh
     VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
-    helm upgrade --install hoop \
-      oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
-      -f values.yaml \
-      --namespace hoopdev
+    helm upgrade hoop --install oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+      --namespace hoopdev --create-namespace \
+      --set postgres.enabled=true \
+      --set defaultAgent.enabled=true \
+      --set dataMasking.enabled=true \
+      --set config.POSTGRES_DB_URI=postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable \
+      --set config.API_URL=http://localhost:8009
     ```
-
   </Step>
 
   <Step title="Access it">
@@ -113,10 +26,18 @@ This page provides instructions on how to configure the Helm chart to install Ho
     1. Forward the hoopgateway service ports to your local machine to access the WebApp
 
     ```sh
-    kubectl port-forward service/hoopgateway 8009:8009 -n hoopdev
+    kubectl port-forward service/hoopgateway 8009:8009 8010:8010 -n hoopdev
     ```
 
     2. [Visit the Webapp at http://127.0.0.1:8009/login](http://127.0.0.1:8009/login)
+
+    <Note>
+      The default installation method install a Postgres database with Host mounted storage.
+      In case the node is decommissioned, all data will be lost.
+
+      For more durable setups, use a Persistent Volume by providing the option below:
+      - `--set postgres.storageClassName=<your-storage-class>`
+    </Note>
 
   </Step>
 </Steps>
@@ -400,9 +321,33 @@ Check the [environment variables section](/setup/configuration/env-vars) for mor
   </Tab>
 </Tabs>
 
+### Default Database
+
+The chart allows deploying a Postgres database as part of the installation.
+
+```yaml
+# -- Enable PostgreSQL
+postgres:
+  # it default to host mount when enabled
+  enabled: false
+
+  # set a storage class name to use a Persistent Volume Claim
+  storageClassName: null
+
+  # -- Size of PVC
+  size: 10Gi
+  # annotations: {}
+```
+
+<Tip>
+  It creates a default Service resource named `hoopgateway-pg`.
+  This service name could be used in the `POSTGRES_DB_URI` configuration.
+</Tip>
+
 ### Persistence
 
-We recommend using persistent volumes for session blobs to avoid losing sessions during outages or restarts. The following example shows how to enable a 100GB persistent volume when using AWS/EKS.
+We recommend using SSD for large deployments, it will help speed the I/O when handling many concurrent requests.
+The following example shows how to enable a 50GB persistent volume when using AWS/EKS.
 
 ```yaml
 persistence:
@@ -411,7 +356,7 @@ persistence:
   storageClassName: gp2
 
   # -- Size of persistent volume claim
-  size: 100Gi
+  size: 50Gi
 ```
 
 ### Ingress Configuration
