@@ -21,7 +21,6 @@ if (!fs.existsSync(connectionsDir)) {
   process.exit(1);
 }
 
-
 // Read all YAML files
 const files = fs.readdirSync(connectionsDir).filter(file => file.endsWith('.yml'));
 
@@ -30,49 +29,8 @@ if (files.length === 0) {
   process.exit(0);
 }
 
-// Function to extract custom content from existing files
-const extractCustomContent = (filePath) => {
-  if (!fs.existsSync(filePath)) {
-    return '';
-  }
-  
-  try {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.split('\n');
-    
-    // Find the ConnectionTemplate component and get everything after it
-    let templateEndIndex = -1;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.includes('<ConnectionTemplate') && line.includes('/>')) {
-        // Single line component
-        templateEndIndex = i;
-        break;
-      } else if (line.includes('<ConnectionTemplate')) {
-        // Multi-line component - find the closing />
-        for (let j = i; j < lines.length; j++) {
-          if (lines[j].includes('/>')) {
-            templateEndIndex = j;
-            break;
-          }
-        }
-        break;
-      }
-    }
-    
-    if (templateEndIndex !== -1 && templateEndIndex < lines.length - 1) {
-      return '\n' + lines.slice(templateEndIndex + 1).join('\n').trimEnd();
-    }
-    
-    return '';
-  } catch (error) {
-    console.warn(`Error extracting custom content from ${filePath}:`, error.message);
-    return '';
-  }
-};
-
 // MDX template using reusable snippet
-const createMDXContent = (connection, customContent = '') => {
+const createMDXContent = (connection) => {
   return `---
 title: "${connection.name}"
 description: "${connection.description}"
@@ -81,7 +39,7 @@ category: "${connection.category}"
 
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
-<ConnectionTemplate config={${JSON.stringify(connection, null, 2)}} />${customContent}
+<ConnectionTemplate config={${JSON.stringify(connection, null, 2)}} />
 
 ${connection.additionalInformation ? `\n${connection.additionalInformation}` : ''}
 `;
@@ -106,14 +64,12 @@ files.forEach(file => {
 
     // Only process connections that have documentation path configured
     if (connection.documentationConfig?.path) {
-      let customContent = '';
       let outputFile = `${connection.documentationConfig.path}.mdx`;
 
-      customContent = extractCustomContent(outputFile);
       console.log(`Processing file: ${outputFile}`);
 
       // Generate MDX using reusable snippet with custom content
-      const mdxContent = createMDXContent(connection, customContent);
+      const mdxContent = createMDXContent(connection);
       
       // Ensure directory exists
       const outputDirPath = path.dirname(outputFile);
@@ -126,14 +82,12 @@ files.forEach(file => {
       // Check fallback in existing JSON for legacy support
       const existingConnection = existingConnections.find(c => c.id === connection.id);
       if (existingConnection?.documentationConfig?.path) {
-        let customContent = '';
         let outputFile = `${existingConnection.documentationConfig.path}.mdx`;
 
-        customContent = extractCustomContent(outputFile);
         console.log(`Processing legacy file: ${outputFile}`);
 
         // Generate MDX using reusable snippet with custom content
-        const mdxContent = createMDXContent(connection, customContent);
+        const mdxContent = createMDXContent(connection);
         
         // Ensure directory exists
         const outputDirPath = path.dirname(outputFile);
