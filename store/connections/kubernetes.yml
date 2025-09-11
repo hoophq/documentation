@@ -1,6 +1,112 @@
+additionalInformation: >-
+  ## Connection Setup
+
+
+  There are multiple ways to set up a connection to Kubernetes. It will depend how do you want users to interact with it.
+
+
+  <Tabs>
+  	<Tab title="Cluster Administration">
+  		Cluster administration is done through the `kubectl` command line.
+
+  		- **Connection Setup**
+
+  		```bash
+  		hoop admin create conn k8s -a <agent> \
+  			-e KUBECONFIG=file://$HOME/.kube/config \
+  			-- xargs kubectl
+  		```
+
+  		The command above will allow users to execute `kubectl` commands from the Web Console.
+  		This is useful for cluster administration tasks.
+
+  		<Note>
+  			Note that `xargs` is used to pass the command line arguments to `kubectl`.
+  			The input is passed to `xargs` and then to `kubectl` as arguments.
+  		</Note>
+
+  		- **Command Line Usage Example**
+
+  		```bash
+  		hoop exec k8s --input 'get pods'
+  		hoop exec k8s -i 'rollout restart deployment/myapp -n mynamespace'
+  		```
+  	</Tab>
+  	<Tab title="One Off Commands in Containers">
+  		One-off commands can be executed inside a container using the `kubectl exec` command.
+  		The Web Console would accept inputs that is executed inside the container.
+
+  		- **Connection Setup**
+
+  		```bash
+  		hoop admin create conn k8s -a <agent> \
+  			-e KUBECONFIG=file://$HOME/.kube/config \
+  			-- kubectl exec --stdin deployment/myapp -- bash
+  		```
+
+  		The command above will allow users to execute commands inside the `myapp` deployment.
+  		This is useful for running scripts inside a container.
+
+  		- **Command Line Usage Example**
+
+  		```bash
+  		# execute 'env' inside the default container
+  		hoop exec k8s --input 'env'
+  		# execute 'ls -l' inside the default container
+  		hoop exec k8s -i 'ls -l'
+  		```
+  	</Tab>
+  	<Tab title="Interactive Access">
+  		Interactive access can be achieved by using the `kubectl exec` command with the `--stdin` and `--tty` flags.
+
+  		- **Connection Setup**
+
+  		```bash
+  		hoop admin create conn myapp -a <agent> \
+  			-e KUBECONFIG=file://$HOME/.kube/config \
+  			-- kubectl exec --stdin --tty deployment/myapp --
+  		```
+
+  		<Tip>
+  			To narrow down the scope to a specific command, you can use the name of the command you want to run.
+  			E.g.: `-- bash` or `-- rails console`.
+
+  			In this example users could use any runtime command inside the `myapp` deployment.
+  		</Tip>
+
+  		This will allow users to open an interactive shell inside the `myapp` deployment.
+  		This is useful for debugging or running commands interactively inside a container.
+
+  		- **Command Line Usage Example**
+
+  		```bash
+  		# Open an interactive session with the deployment myapp using 'bash'
+  		hoop connect myapp -- bash
+  		# Open an interactive session with the deployment myapp using 'rails console'
+  		hoop connect myapp -- rails console
+  		```
+
+  		<Info>
+  			Note that `kubectl exec` is used with `-tty` and `--stdin` arguments.
+  			These flags are required when using `hoop connect`
+  		</Info>
+  	</Tab>
+  </Tabs>
+resourceConfiguration:
+  type: cloud-service
+  subtype: kubernetes
+  credentials:
+    kubeconfig:
+      name: KUBECONFIG
+      type: filesystem
+      required: true
+      description: A [Kubeconfig
+        File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
+        with permission to access the cluster
 id: kubernetes
 name: Kubernetes
-description: Hoop.dev can be configured to use the kubectl command line to manage resources and execute actions on workloads in Kubernetes.
+description: Hoop.dev can be configured to use the kubectl command line to
+  manage resources and execute actions on workloads in Kubernetes.
 category: cloud-services
 icon-name: kubernetes
 tags:
@@ -8,7 +114,43 @@ tags:
   - containers
   - cloud-native
   - devops
-
+overview:
+  description: Kubernetes is an open-source container orchestration platform that
+    automates the deployment, scaling, and management of containerized
+    applications.
+  features:
+    - Automated deployment and scaling
+    - Service discovery and load balancing
+    - Storage orchestration and management
+    - Self-healing and rolling updates
+  useCases:
+    - Microservices architecture deployment
+    - Container orchestration and management
+    - CI/CD pipeline automation
+    - Multi-cloud and hybrid cloud deployments
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - Kubernetes cluster access
+    - kubectl command-line tool installed
+    - Valid kubeconfig file with cluster credentials
+    - Network connectivity to Kubernetes API server
+advancedConfiguration:
+  connectionString: kubectl via kubeconfig
+  featureConfiguration:
+    - RBAC (Role-Based Access Control) configuration
+    - Service accounts and token authentication
+    - Network policies and security contexts
+    - Helm chart deployments and management
+  otherRequirements:
+    - Understanding of Kubernetes resources and manifests
+    - Cluster monitoring and logging setup
+    - Backup and disaster recovery planning
+documentationConfig:
+  path: quickstart/cloud-services/kubernetes
 features:
   tlsTerminationProxy:
     native: false
@@ -28,52 +170,3 @@ features:
   interactiveAccess:
     native: true
     oneOff: true
-
-overview:
-  description: Kubernetes is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications.
-  features:
-    - Automated deployment and scaling
-    - Service discovery and load balancing
-    - Storage orchestration and management
-    - Self-healing and rolling updates
-  useCases:
-    - Microservices architecture deployment
-    - Container orchestration and management
-    - CI/CD pipeline automation
-    - Multi-cloud and hybrid cloud deployments
-
-setupGuide:
-  accessMethods:
-    webapp: true
-    cli: true
-    runbooks: true
-  requirements:
-    - Kubernetes cluster access
-    - kubectl command-line tool installed
-    - Valid kubeconfig file with cluster credentials
-    - Network connectivity to Kubernetes API server
-
-advancedConfiguration:
-  connectionString: "kubectl via kubeconfig"
-  featureConfiguration:
-    - RBAC (Role-Based Access Control) configuration
-    - Service accounts and token authentication
-    - Network policies and security contexts
-    - Helm chart deployments and management
-  otherRequirements:
-    - Understanding of Kubernetes resources and manifests
-    - Cluster monitoring and logging setup
-    - Backup and disaster recovery planning
-
-resourceConfiguration:
-  type: cloud-service
-  subtype: kubernetes
-  credentials:
-    kubeconfig:
-      name: "KUBECONFIG"
-      type: "filesystem"
-      required: true
-      description: "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster"
-
-documentationConfig:
-  path: "quickstart/cloud-services/kubernetes"
