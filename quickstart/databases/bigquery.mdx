@@ -122,18 +122,3 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/databases/bigquery"
   }
 }} />
-## Connection Setup
-
-The command below provides access to `bq query` command, enabling you to execute queries directly against BigQuery datasets.
-For additional examples and advanced connection options, refer to the [BigQuery Command-Line Reference documentation](https://cloud.google.com/bigquery/docs/bq-command-line-tool).
-
-```sh
-hoop admin create conn bq-query -a <agent> \
-    -e filesystem:GOOGLE_APPLICATION_CREDENTIALS=file:///path/to/google-service-account.json \
-    -e CLOUDSDK_CORE_PROJECT=<project-id-name> \
-    -- bq query --use_legacy_sql=false
-```
-
-<Note>
-    The `bq` command-line tool is included in agent Docker images version **1.35.16** and later.
-</Note>

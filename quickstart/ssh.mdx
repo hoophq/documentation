@@ -128,24 +128,6 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/ssh"
   }
 }} />
-## Connection Setup
-
-```sh
-# ssh server must enable password based authentication
-hoop admin create conn myremote-server -a <agent> --overwrite \
-    --type application/ssh \
-    -e HOST=10.20.30.40 \
-    -e USER=root \
-    -e PASS=myrootpasswd
-
-# ssh server must enable public key authentication
-hoop admin create conn myremote-server -a <agent> --overwrite \
-    --type application/ssh \
-    -e HOST=10.20.30.40 \
-    -e USER=root \
-    -e AUTHORIZED_SERVER_KEYS=file:///path/to/your/private/key
-```
-
 ## How to Use it
 
 To connect automatically, it will listen to a random port and use your local `ssh` client to connect it.

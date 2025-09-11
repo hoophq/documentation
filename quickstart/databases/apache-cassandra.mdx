@@ -127,19 +127,3 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/databases/apache-cassandra"
   }
 }} />
-## Connection Setup
-
-```bash
-hoop admin create conn my-cqlsh-test -a <agent> \
-  -e CQLSH_KEYSPACE=<keyspace> \
-  -e CQLSH_HOST=<host> \
-  -e CQLSH_USER=<user> \
-  -e CQLSH_PASSWD=<user> \
- -- cqlsh
-```
-
-## Connection Usage
-
-```bash
-hoop exec my-cqlsh-test -i 'SELECT * FROM table1;'
-```

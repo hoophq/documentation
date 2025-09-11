@@ -81,28 +81,3 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/development-environments/elixir-IEx"
   }
 }} />
-## Connection Setup
-
-To proxy the `iex -S mix` command, execute the following command within your root application path.
-
-```bash
-hoop run --name iexc-demo --command 'iex -S mix'
-```
-
-To proxy ad-hoc executions add the command `iex -S mix -` .
-
-```bash
-hoop run --name iexc-demo --command 'iex -S mix -'
-```
-
-## How to Use
-
-Users can now connect and perform ad-hoc executions.
-
-```bash
-hoop connect iexc-demo
-```
-
-```bash
-hoop exec iexc-demo -i 'puts "Hello World"'
-```
