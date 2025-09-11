@@ -8,7 +8,6 @@ tags:
   - containers
   - cloud-native
   - devops
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Cluster monitoring and logging setup
     - Backup and disaster recovery planning
 
-gatewayInformation:
+resourceConfiguration:
   type: cloud-service
   subtype: kubernetes
   credentials:

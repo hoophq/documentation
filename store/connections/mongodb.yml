@@ -1,14 +1,3 @@
-gatewayInformation:
-  type: database
-  subtype: mongodb
-  credentials:
-    connectionString:
-      name: CONNECTION_STRING
-      type: env-var
-      required: true
-      description: The MongoDB connection string. See [MongoDB connection
-        string](https://www.mongodb.com/docs/manual/reference/connection-string/)
-        for more details about the proper format.
 id: mongodb
 name: MongoDB
 description: A MongoDB connection is a native type, allowing for the auditing of
@@ -20,7 +9,6 @@ tags:
   - nosql
   - document
   - cloud
-isNew: false
 overview:
   description: MongoDB is a NoSQL document-oriented database that provides high
     scalability and flexibility for modern applications.
@@ -76,3 +64,14 @@ features:
   interactiveAccess:
     native: true
     oneOff: true
+resourceConfiguration:
+  type: database
+  subtype: mongodb
+  credentials:
+    connectionString:
+      name: CONNECTION_STRING
+      type: env-var
+      required: true
+      description: The MongoDB connection string. See [MongoDB connection
+        string](https://www.mongodb.com/docs/manual/reference/connection-string/)
+        for more details about the proper format.

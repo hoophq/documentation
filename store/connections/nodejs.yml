@@ -8,7 +8,6 @@ tags:
   - runtime
   - server-side
   - development
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Testing framework setup (Jest, Mocha, Vitest)
     - Performance monitoring and profiling tools
 
-gatewayInformation:
+resourceConfiguration:
   type: application
   subtype: nodejs
 

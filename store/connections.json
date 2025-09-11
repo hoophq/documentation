@@ -1,6 +1,42 @@
 {
   "connections": [
     {
+      "resourceConfiguration": {
+        "type": "database",
+        "subtype": "cassandra",
+        "credentials": {
+          "keyspace": {
+            "name": "CQLSH_KEYSPACE",
+            "type": "env-var",
+            "required": true,
+            "description": "The keyspace target"
+          },
+          "host": {
+            "name": "CQLSH_HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The host of the Cassandra cluster"
+          },
+          "port": {
+            "name": "CQLSH_PORT",
+            "type": "env-var",
+            "required": false,
+            "description": "The Vault Token. Defaults to 9043"
+          },
+          "username": {
+            "name": "CQLSH_USER",
+            "type": "env-var",
+            "required": false,
+            "description": "The user can connect in the Cassandra cluster."
+          },
+          "password": {
+            "name": "CQLSH_PASSWD",
+            "type": "env-var",
+            "required": false,
+            "description": "The password to connect in the Cassandra cluster."
+          }
+        }
+      },
       "id": "apache-cassandra",
       "name": "Apache Cassandra",
       "description": "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html).",
@@ -12,33 +48,6 @@
         "column-family",
         "high-availability"
       ],
-      "isNew": false,
-      "features": {
-        "tlsTerminationProxy": {
-          "native": false,
-          "oneOff": true
-        },
-        "audit": {
-          "native": false,
-          "oneOff": true
-        },
-        "dataMaskingGoogleDLP": {
-          "native": false,
-          "oneOff": true
-        },
-        "dataMaskingMSPresidio": {
-          "native": false,
-          "oneOff": true
-        },
-        "credentialsOffload": {
-          "native": false,
-          "oneOff": true
-        },
-        "interactiveAccess": {
-          "native": false,
-          "oneOff": true
-        }
-      },
       "overview": {
         "description": "Apache Cassandra is a highly scalable, distributed NoSQL database designed to handle large amounts of data across many commodity servers.",
         "features": [
@@ -81,49 +90,66 @@
           "Monitoring and maintenance procedures"
         ]
       },
-      "gatewayInformation": {
-        "type": "database",
-        "subtype": "cassandra",
-        "credentials": {
-          "keyspace": {
-            "name": "CQLSH_KEYSPACE",
-            "type": "env-var",
-            "required": true,
-            "description": "The keyspace target"
-          },
-          "host": {
-            "name": "CQLSH_HOST",
-            "type": "env-var",
-            "required": true,
-            "description": "The host of the Cassandra cluster"
-          },
-          "port": {
-            "name": "CQLSH_PORT",
-            "type": "env-var",
-            "required": false,
-            "description": "The Vault Token. Defaults to 9043"
-          },
-          "username": {
-            "name": "CQLSH_USER",
-            "type": "env-var",
-            "required": false,
-            "description": "The user can connect in the Cassandra cluster."
-          },
-          "password": {
-            "name": "CQLSH_PASSWD",
-            "type": "env-var",
-            "required": false,
-            "description": "The password to connect in the Cassandra cluster."
-          }
-        }
-      },
       "documentationConfig": {
         "path": "quickstart/databases/apache-cassandra"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": false,
+          "oneOff": true
+        },
+        "audit": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": true
+        }
       }
     },
     {
-      "id": "aws-cli",
+      "resourceConfiguration": {
+        "type": "cloud-service",
+        "subtype": "aws-cli",
+        "credentials": {
+          "aws_access_key_id": {
+            "name": "AWS_ACCESS_KEY_ID",
+            "type": "env-var",
+            "required": true,
+            "description": "The access key credential"
+          },
+          "aws_secret_access_key": {
+            "name": "AWS_SECRET_ACCESS_KEY",
+            "type": "env-var",
+            "required": true,
+            "description": "The secret key credential"
+          },
+          "aws_region": {
+            "name": "AWS_REGION",
+            "type": "env-var",
+            "required": true,
+            "description": "The AWS region"
+          }
+        }
+      },
       "name": "AWS CLI",
+      "requirements": {
+        "description": "Use an IAM credential with reduced scope to only create secrets and/or listing ECS services."
+      },
+      "id": "aws-cli",
       "description": "Hoop can be configured to use the AWS command line to manage resources in multiple accounts.",
       "category": "cloud-services",
       "icon-name": "aws",
@@ -133,7 +159,28 @@
         "cli",
         "management"
       ],
-      "isNew": false,
+      "overview": {
+        "description": "The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.",
+        "features": [
+          "Comprehensive AWS service management",
+          "Scriptable automation capabilities",
+          "Multiple output formats (JSON, table, text)",
+          "Profile and credential management"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        }
+      },
+      "advancedConfiguration": {
+        "connectionString": "fafaf"
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/aws/aws-cli"
+      },
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -159,45 +206,6 @@
           "native": false,
           "oneOff": false
         }
-      },
-      "requirements": {
-        "description": "Use an IAM credential with reduced scope to only create secrets and/or listing ECS services."
-      },
-      "overview": {
-        "description": "The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.",
-        "features": [
-          "Comprehensive AWS service management",
-          "Scriptable automation capabilities",
-          "Multiple output formats (JSON, table, text)",
-          "Profile and credential management"
-        ]
-      },
-      "gatewayInformation": {
-        "type": "cloud-service",
-        "subtype": "aws-cli",
-        "credentials": {
-          "aws_access_key_id": {
-            "name": "AWS_ACCESS_KEY_ID",
-            "type": "env-var",
-            "required": true,
-            "description": "The access key credential"
-          },
-          "aws_secret_access_key": {
-            "name": "AWS_SECRET_ACCESS_KEY",
-            "type": "env-var",
-            "required": true,
-            "description": "The secret key credential"
-          },
-          "aws_region": {
-            "name": "AWS_REGION",
-            "type": "env-var",
-            "required": true,
-            "description": "The AWS region"
-          }
-        }
-      },
-      "documentationConfig": {
-        "path": "quickstart/cloud-services/aws/aws-cli"
       }
     },
     {
@@ -212,7 +220,6 @@
         "logs",
         "metrics"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -247,7 +254,7 @@
           "logs:FilterLogEvents"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "cloud-service",
         "subtype": "aws-cloudwatch",
         "credentials": {
@@ -287,7 +294,6 @@
         "orchestration",
         "ecs"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -322,7 +328,7 @@
           "ecs:ExecuteCommand"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "cloud-service",
         "subtype": "aws-ecs",
         "credentials": {
@@ -380,7 +386,6 @@
         "google-cloud",
         "sql"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -456,7 +461,7 @@
           "Monitoring with Cloud Logging and Monitoring"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "bigquery",
         "credentials": {
@@ -496,7 +501,6 @@
         "jvm",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -565,7 +569,7 @@
           "Performance profiling and JVM tuning"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "application",
         "subtype": "clojure"
       },
@@ -585,7 +589,6 @@
         "management",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -654,7 +657,7 @@
           "Environment-specific settings files"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "django"
       },
@@ -674,7 +677,6 @@
         "managed",
         "serverless"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -751,7 +753,7 @@
           "Monitoring with CloudWatch metrics"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "dynamodb",
         "credentials": {
@@ -791,7 +793,6 @@
         "erlang-vm",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -846,7 +847,7 @@
           "Project dependencies compiled"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "elixir"
       },
@@ -866,7 +867,6 @@
         "ssh-tunnel",
         "network"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -893,7 +893,7 @@
           "oneOff": true
         }
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "web-application",
         "subtype": "jump-host"
       },
@@ -913,7 +913,6 @@
         "cloud-native",
         "devops"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -982,7 +981,7 @@
           "Backup and disaster recovery planning"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "cloud-service",
         "subtype": "kubernetes",
         "credentials": {
@@ -1010,7 +1009,6 @@
         "enterprise",
         "microsoft"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1079,7 +1077,7 @@
           "Regular maintenance plans configured"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "mssql",
         "credentials": {
@@ -1136,7 +1134,51 @@
         "document",
         "cloud"
       ],
-      "isNew": false,
+      "overview": {
+        "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
+        "features": [
+          "Flexible schema for rapid data evolution",
+          "Horizontal scalability with automatic sharding",
+          "Built-in replication for high availability",
+          "Powerful queries with advanced indexing"
+        ],
+        "useCases": [
+          "Web and mobile applications with variable data",
+          "Content management systems",
+          "E-commerce product catalogs",
+          "Real-time data analytics"
+        ]
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": false,
+          "cli": false,
+          "runbooks": false
+        },
+        "requirements": [
+          "MongoDB Server 4.0+",
+          "User credentials with appropriate privileges",
+          "Network connectivity to port 27017",
+          "Proper firewall configuration"
+        ]
+      },
+      "advancedConfiguration": {
+        "connectionString": "mongodb://username:password@host:port/database",
+        "featureConfiguration": [
+          "Replica set configuration for high availability",
+          "Sharding configuration for scalability",
+          "Optimized indexes for frequent queries",
+          "SSL/TLS configuration for secure connections"
+        ],
+        "otherRequirements": [
+          "Performance monitoring enabled",
+          "Automatic backup configured",
+          "Storage capacity alerts"
+        ]
+      },
+      "documentationConfig": {
+        "path": "quickstart/databases/mongodb"
+      },
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1163,49 +1205,7 @@
           "oneOff": true
         }
       },
-      "overview": {
-        "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
-        "features": [
-          "Flexible schema for rapid data evolution",
-          "Horizontal scalability with automatic sharding",
-          "Built-in replication for high availability",
-          "Powerful queries with advanced indexing"
-        ],
-        "useCases": [
-          "Web and mobile applications with variable data",
-          "Content management systems",
-          "E-commerce product catalogs",
-          "Real-time data analytics"
-        ]
-      },
-      "setupGuide": {
-        "accessMethods": {
-          "webapp": true,
-          "cli": true,
-          "runbooks": true
-        },
-        "requirements": [
-          "MongoDB Server 4.0+",
-          "User credentials with appropriate privileges",
-          "Network connectivity to port 27017",
-          "Proper firewall configuration"
-        ]
-      },
-      "advancedConfiguration": {
-        "connectionString": "mongodb://username:password@host:port/database",
-        "featureConfiguration": [
-          "Replica set configuration for high availability",
-          "Sharding configuration for scalability",
-          "Optimized indexes for frequent queries",
-          "SSL/TLS configuration for secure connections"
-        ],
-        "otherRequirements": [
-          "Performance monitoring enabled",
-          "Automatic backup configured",
-          "Storage capacity alerts"
-        ]
-      },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "mongodb",
         "credentials": {
@@ -1216,9 +1216,6 @@
             "description": "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format."
           }
         }
-      },
-      "documentationConfig": {
-        "path": "quickstart/databases/mongodb"
       }
     },
     {
@@ -1232,7 +1229,6 @@
         "relational",
         "open-source"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1302,7 +1298,7 @@
           "Binary logging configured"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "mysql",
         "credentials": {
@@ -1360,7 +1356,6 @@
         "server-side",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1429,7 +1424,7 @@
           "Performance monitoring and profiling tools"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "application",
         "subtype": "nodejs"
       },
@@ -1449,7 +1444,6 @@
         "enterprise",
         "high-performance"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1518,7 +1512,7 @@
           "Automatic Workload Repository (AWR) enabled"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "oracle",
         "credentials": {
@@ -1578,7 +1572,6 @@
         "artisan",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1647,7 +1640,7 @@
           "Storage permissions setup"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "php-artisan"
       },
@@ -1667,7 +1660,6 @@
         "acid-compliant",
         "open-source"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1736,7 +1728,7 @@
           "Regular VACUUM and ANALYZE scheduling"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "postgres",
         "credentials": {
@@ -1794,7 +1786,6 @@
         "development",
         "automation"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -1863,7 +1854,7 @@
           "Proper Python path configuration"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "development-environment",
         "subtype": "python"
       },
@@ -1883,7 +1874,6 @@
         "key-value",
         "in-memory"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -1954,7 +1944,7 @@
           "Monitoring with Redis INFO commands"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "database",
         "subtype": "redis"
       },
@@ -1974,7 +1964,6 @@
         "mvc",
         "development"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": false,
@@ -2043,7 +2032,7 @@
           "Security configurations and secret management"
         ]
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "application",
         "subtype": "ruby-on-rails"
       },
@@ -2052,6 +2041,43 @@
       }
     },
     {
+      "resourceConfiguration": {
+        "type": "application",
+        "subtype": "ssh",
+        "credentials": {
+          "host": {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The IP or hostname of the SSH server"
+          },
+          "port": {
+            "name": "PORT",
+            "type": "env-var",
+            "required": false,
+            "description": "The port of the SSH server, default to 22"
+          },
+          "user": {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username of the Linux server"
+          },
+          "pass": {
+            "name": "PASS",
+            "type": "env-var",
+            "required": false,
+            "description": "The credentials of the username if password authentication is enabled in the SSH server."
+          },
+          "authorized_server_keys": {
+            "name": "AUTHORIZED_SERVER_KEYS",
+            "type": "textarea",
+            "required": false,
+            "description": "The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys",
+            "placeholder": "Enter your private key"
+          }
+        }
+      },
       "id": "ssh",
       "name": "Secure Shell (SSH)",
       "description": "Proxy an SSH Server to remote hosts in your private network.",
@@ -2063,33 +2089,6 @@
         "terminal",
         "unix"
       ],
-      "isNew": false,
-      "features": {
-        "tlsTerminationProxy": {
-          "native": true,
-          "oneOff": false
-        },
-        "audit": {
-          "native": false,
-          "oneOff": false
-        },
-        "dataMaskingGoogleDLP": {
-          "native": false,
-          "oneOff": false
-        },
-        "dataMaskingMSPresidio": {
-          "native": false,
-          "oneOff": false
-        },
-        "credentialsOffload": {
-          "native": true,
-          "oneOff": false
-        },
-        "interactiveAccess": {
-          "native": true,
-          "oneOff": false
-        }
-      },
       "overview": {
         "description": "SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.",
         "features": [
@@ -2132,45 +2131,34 @@
           "Fail2ban or similar intrusion prevention"
         ]
       },
-      "gatewayInformation": {
-        "type": "application",
-        "subtype": "ssh",
-        "credentials": {
-          "host": {
-            "name": "HOST",
-            "type": "env-var",
-            "required": true,
-            "description": "The IP or hostname of the SSH server"
-          },
-          "port": {
-            "name": "PORT",
-            "type": "env-var",
-            "required": false,
-            "description": "The port of the SSH server, default to 22"
-          },
-          "user": {
-            "name": "USER",
-            "type": "env-var",
-            "required": true,
-            "description": "The username of the Linux server"
-          },
-          "pass": {
-            "name": "PASS",
-            "type": "env-var",
-            "required": false,
-            "description": "The credentials of the username if password authentication is enabled in the SSH server."
-          },
-          "authorized_server_keys": {
-            "name": "AUTHORIZED_SERVER_KEYS",
-            "type": "textarea",
-            "required": false,
-            "description": "The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys",
-            "placeholder": "Enter your private key"
-          }
-        }
-      },
       "documentationConfig": {
         "path": "quickstart/ssh"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": false
+        }
       }
     },
     {
@@ -2185,7 +2173,6 @@
         "http",
         "monitoring"
       ],
-      "isNew": false,
       "features": {
         "tlsTerminationProxy": {
           "native": true,
@@ -2212,7 +2199,7 @@
           "oneOff": false
         }
       },
-      "gatewayInformation": {
+      "resourceConfiguration": {
         "type": "web-application",
         "subtype": "webapp-api",
         "credentials": {

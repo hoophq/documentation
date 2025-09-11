@@ -8,7 +8,6 @@ tags:
   - monitoring
   - logs
   - metrics
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -37,7 +36,7 @@ requirements:
     - logs:GetLogEvents
     - logs:FilterLogEvents
 
-gatewayInformation:
+resourceConfiguration:
   type: cloud-service
   subtype: aws-cloudwatch
   credentials:

@@ -191,11 +191,9 @@
                 label: 'Tags',
                 name: 'tags',
                 widget: 'list',
-                allow_add: true,
                 collapsed: false,
                 field: { label: 'Tag', name: 'tag', widget: 'string' }
               },
-              { label: 'New', name: 'isNew', widget: 'boolean', default: false },
 
               // Overview Section
               {
@@ -214,7 +212,6 @@
                     label: 'Features',
                     name: 'features',
                     widget: 'list',
-                    allow_add: true,
                     collapsed: true,
                     field: { label: 'Feature', name: 'feature', widget: 'string' }
                   },
@@ -222,7 +219,6 @@
                     label: 'Use Cases',
                     name: 'useCases',
                     widget: 'list',
-                    allow_add: true,
                     collapsed: true,
                     field: { label: 'Use Case', name: 'useCase', widget: 'string' }
                   }
@@ -250,7 +246,6 @@
                     label: 'Requirements',
                     name: 'requirements',
                     widget: 'list',
-                    allow_add: true,
                     collapsed: false,
                     field: { label: 'Requirement', name: 'requirement', widget: 'string' }
                   }
@@ -274,7 +269,6 @@
                     label: 'Feature Configuration',
                     name: 'featureConfiguration',
                     widget: 'list',
-                    allow_add: true,
                     collapsed: true,
                     field: { label: 'Configuration', name: 'config', widget: 'string' }
                   },
@@ -282,11 +276,15 @@
                     label: 'Other Requirements',
                     name: 'otherRequirements',
                     widget: 'list',
-                    allow_add: true,
                     collapsed: true,
                     field: { label: 'Requirement', name: 'requirement', widget: 'string' }
                   }
                 ]
+              },
+              {
+                label: 'Additional Information',
+                name: 'additionalInformation',
+                widget: 'markdown',
               }
             ]
           }

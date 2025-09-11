@@ -37,7 +37,10 @@ jobs:
     - name: Check for changes
       id: changes
       run: |
-        git add connections/*.mdx store/connections.json
+        # Add generated MDX files (they can be anywhere based on documentationConfig.path)
+        git add -A "*.mdx" 2>/dev/null || true
+        [ -f "store/connections.json" ] && git add store/connections.json || true
+        
         if git diff --staged --quiet; then
           echo "changes=false" >> $GITHUB_OUTPUT
           echo "No changes detected"
@@ -64,5 +67,5 @@ jobs:
           echo "ℹ️ No changes required" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Processed files:" >> $GITHUB_STEP_SUMMARY
+        echo "### Processed YAML files:" >> $GITHUB_STEP_SUMMARY
         ls store/connections/*.yml 2>/dev/null | sed 's/.*\//- /' >> $GITHUB_STEP_SUMMARY || echo "- No YAML files found" >> $GITHUB_STEP_SUMMARY

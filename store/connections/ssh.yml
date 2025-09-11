@@ -1,3 +1,140 @@
+additionalInformation: >-
+  ## Connection Setup
+
+
+  ```sh
+
+  # ssh server must enable password based authentication
+
+  hoop admin create conn myremote-server -a <agent> --overwrite \
+      --type application/ssh \
+      -e HOST=10.20.30.40 \
+      -e USER=root \
+      -e PASS=myrootpasswd
+
+  # ssh server must enable public key authentication
+
+  hoop admin create conn myremote-server -a <agent> --overwrite \
+      --type application/ssh \
+      -e HOST=10.20.30.40 \
+      -e USER=root \
+      -e AUTHORIZED_SERVER_KEYS=file:///path/to/your/private/key
+  ```
+
+
+  ## How to Use it
+
+
+  To connect automatically, it will listen to a random port and use your local `ssh` client to connect it.
+
+
+  ```bash
+
+  hoop connect myremote-server
+
+  ```
+
+
+  In the listen mode, it will listen for connections on the specified port when using the `--port` flag.
+
+
+  ```bash
+
+  hoop connect myremote-server --port 2222
+
+  ```
+
+
+  Connect with your local SSH client using another terminal window:
+
+
+  ```bash
+
+  ssh -p 2222 localhost
+
+  ```
+
+
+  ## SSH Hosts Key
+
+
+  To prevent fingerprint issues when connecting with the local SSH client server,
+
+  add the client host key environment variable during gateway setup.
+
+
+  The key must be in `PKCS#8` format and encoded as base64. You can generate a key with `openssl` utility:
+
+
+  ```bash
+
+  openssl genpkey -algorithm RSA -out ssh_host_hoop_key.pem \
+    -pkeyopt rsa_keygen_bits:4096
+  base64 -i ssh_host_hoop_key.pem
+
+  ```
+
+
+  - `SSH_CLIENT_HOST_KEY=<base64-encoded-key>`
+
+
+  <Tip>
+    To troubleshoot the SSH connection with hosts keys, use the `--debug` flag when running the `hoop connect` command.
+    This will provide detailed information about the connection process, including any issues related to parsing the host key.
+  </Tip>
+
+
+  For more details, refer to the [environment variables documentation](/setup/configuration/env-vars).
+
+
+  ## Known Issues
+
+
+  ### Warp Terminal
+
+
+  When using Warp Terminal, you might encounter issues due to its unique handling of SSH connections.
+
+  To disable it, set this option in your bash profile or your current shell session
+
+
+  ```sh
+
+  export WARP_USE_SSH_WRAPPER=0
+
+  ```
+resourceConfiguration:
+  type: application
+  subtype: ssh
+  credentials:
+    host:
+      name: HOST
+      type: env-var
+      required: true
+      description: The IP or hostname of the SSH server
+    port:
+      name: PORT
+      type: env-var
+      required: false
+      description: The port of the SSH server, default to 22
+    user:
+      name: USER
+      type: env-var
+      required: true
+      description: The username of the Linux server
+    pass:
+      name: PASS
+      type: env-var
+      required: false
+      description: The credentials of the username if password authentication is
+        enabled in the SSH server.
+    authorized_server_keys:
+      name: AUTHORIZED_SERVER_KEYS
+      type: textarea
+      required: false
+      description: The private key of the user that corresponds to the public key at
+        $HOME/<user>/.ssh/authorized_keys
+      placeholder: Enter your private key
 id: ssh
 name: Secure Shell (SSH)
 description: Proxy an SSH Server to remote hosts in your private network.
@@ -8,8 +145,43 @@ tags:
   - secure
   - terminal
   - unix
-isNew: false
-
+overview:
+  description: SSH (Secure Shell) is a cryptographic network protocol for
+    operating network services securely over an unsecured network, commonly used
+    for remote command-line login and remote command execution.
+  features:
+    - Encrypted communication for secure remote access
+    - Public key authentication for enhanced security
+    - Port forwarding and tunneling capabilities
+    - Session multiplexing and connection sharing
+  useCases:
+    - Remote server administration and maintenance
+    - Secure file transfers and backups
+    - Development environment access
+    - Network troubleshooting and diagnostics
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - SSH server running on target host
+    - Valid SSH credentials (password or key-based)
+    - Network connectivity to port 22
+    - Proper firewall configuration
+advancedConfiguration:
+  connectionString: ssh://username@hostname:port
+  featureConfiguration:
+    - SSH key-based authentication setup
+    - SSH agent forwarding configuration
+    - Custom SSH configuration files
+    - Jump host and bastion configuration
+  otherRequirements:
+    - SSH key management and rotation
+    - Connection logging and audit trails
+    - Fail2ban or similar intrusion prevention
+documentationConfig:
+  path: quickstart/ssh
 features:
   tlsTerminationProxy:
     native: true
@@ -29,73 +201,3 @@ features:
   interactiveAccess:
     native: true
     oneOff: false
-
-overview:
-  description: SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login and remote command execution.
-  features:
-    - Encrypted communication for secure remote access
-    - Public key authentication for enhanced security
-    - Port forwarding and tunneling capabilities
-    - Session multiplexing and connection sharing
-  useCases:
-    - Remote server administration and maintenance
-    - Secure file transfers and backups
-    - Development environment access
-    - Network troubleshooting and diagnostics
-
-setupGuide:
-  accessMethods:
-    webapp: true
-    cli: true
-    runbooks: true
-  requirements:
-    - SSH server running on target host
-    - Valid SSH credentials (password or key-based)
-    - Network connectivity to port 22
-    - Proper firewall configuration
-
-advancedConfiguration:
-  connectionString: "ssh://username@hostname:port"
-  featureConfiguration:
-    - SSH key-based authentication setup
-    - SSH agent forwarding configuration
-    - Custom SSH configuration files
-    - Jump host and bastion configuration
-  otherRequirements:
-    - SSH key management and rotation
-    - Connection logging and audit trails
-    - Fail2ban or similar intrusion prevention
-
-gatewayInformation:
-  type: application
-  subtype: ssh
-  credentials:
-    host:
-      name: "HOST"
-      type: "env-var"
-      required: true
-      description: "The IP or hostname of the SSH server"
-    port:
-      name: "PORT"
-      type: "env-var"
-      required: false
-      description: "The port of the SSH server, default to 22"
-    user:
-      name: "USER"
-      type: "env-var"
-      required: true
-      description: "The username of the Linux server"
-    pass:
-      name: "PASS"
-      type: "env-var"
-      required: false
-      description: "The credentials of the username if password authentication is enabled in the SSH server."
-    authorized_server_keys:
-      name: "AUTHORIZED_SERVER_KEYS"
-      type: "textarea"
-      required: false
-      description: "The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys"
-      placeholder: "Enter your private key"
-
-documentationConfig:
-  path: "quickstart/ssh"

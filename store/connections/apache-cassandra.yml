@@ -1,6 +1,36 @@
+resourceConfiguration:
+  type: database
+  subtype: cassandra
+  credentials:
+    keyspace:
+      name: CQLSH_KEYSPACE
+      type: env-var
+      required: true
+      description: The keyspace target
+    host:
+      name: CQLSH_HOST
+      type: env-var
+      required: true
+      description: The host of the Cassandra cluster
+    port:
+      name: CQLSH_PORT
+      type: env-var
+      required: false
+      description: The Vault Token. Defaults to 9043
+    username:
+      name: CQLSH_USER
+      type: env-var
+      required: false
+      description: The user can connect in the Cassandra cluster.
+    password:
+      name: CQLSH_PASSWD
+      type: env-var
+      required: false
+      description: The password to connect in the Cassandra cluster.
 id: apache-cassandra
 name: Apache Cassandra
-description: "Execute queries to a Cassandra cluster with [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html)."
+description: Execute queries to a Cassandra cluster with
+  [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html).
 category: databases
 icon-name: cassandra
 tags:
@@ -8,8 +38,42 @@ tags:
   - distributed
   - column-family
   - high-availability
-isNew: false
-
+overview:
+  description: Apache Cassandra is a highly scalable, distributed NoSQL database
+    designed to handle large amounts of data across many commodity servers.
+  features:
+    - Linear scalability and high availability
+    - Fault-tolerant with no single point of failure
+    - Tunable consistency levels
+    - Support for structured, semi-structured, and unstructured data
+  useCases:
+    - High-volume web applications
+    - Time-series data and IoT applications
+    - Content management systems
+    - Real-time analytics and reporting
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+  requirements:
+    - Apache Cassandra 3.0+ cluster
+    - Network connectivity to Cassandra nodes
+    - Valid authentication credentials
+    - CQL (Cassandra Query Language) knowledge
+advancedConfiguration:
+  connectionString: cqlsh host port -u username -p password
+  featureConfiguration:
+    - Keyspace and table configuration
+    - Replication strategy setup
+    - Consistency level tuning
+    - SSL/TLS encryption configuration
+  otherRequirements:
+    - Understanding of Cassandra data modeling
+    - Cluster topology and replication planning
+    - Monitoring and maintenance procedures
+documentationConfig:
+  path: quickstart/databases/apache-cassandra
 features:
   tlsTerminationProxy:
     native: false
@@ -29,72 +93,3 @@ features:
   interactiveAccess:
     native: false
     oneOff: true
-
-overview:
-  description: Apache Cassandra is a highly scalable, distributed NoSQL database designed to handle large amounts of data across many commodity servers.
-  features:
-    - Linear scalability and high availability
-    - Fault-tolerant with no single point of failure
-    - Tunable consistency levels
-    - Support for structured, semi-structured, and unstructured data
-  useCases:
-    - High-volume web applications
-    - Time-series data and IoT applications
-    - Content management systems
-    - Real-time analytics and reporting
-
-setupGuide:
-  accessMethods:
-    webapp: true
-    cli: true
-    runbooks: true
-  requirements:
-    - Apache Cassandra 3.0+ cluster
-    - Network connectivity to Cassandra nodes
-    - Valid authentication credentials
-    - CQL (Cassandra Query Language) knowledge
-
-advancedConfiguration:
-  connectionString: "cqlsh host port -u username -p password"
-  featureConfiguration:
-    - Keyspace and table configuration
-    - Replication strategy setup
-    - Consistency level tuning
-    - SSL/TLS encryption configuration
-  otherRequirements:
-    - Understanding of Cassandra data modeling
-    - Cluster topology and replication planning
-    - Monitoring and maintenance procedures
-
-gatewayInformation:
-  type: database
-  subtype: cassandra
-  credentials:
-    keyspace:
-      name: "CQLSH_KEYSPACE"
-      type: "env-var"
-      required: true
-      description: "The keyspace target"
-    host:
-      name: "CQLSH_HOST"
-      type: "env-var"
-      required: true
-      description: "The host of the Cassandra cluster"
-    port:
-      name: "CQLSH_PORT"
-      type: "env-var"
-      required: false
-      description: "The Vault Token. Defaults to 9043"
-    username:
-      name: "CQLSH_USER"
-      type: "env-var"
-      required: false
-      description: "The user can connect in the Cassandra cluster."
-    password:
-      name: "CQLSH_PASSWD"
-      type: "env-var"
-      required: false
-      description: "The password to connect in the Cassandra cluster."
-
-documentationConfig:
-  path: "quickstart/databases/apache-cassandra"

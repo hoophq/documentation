@@ -18,7 +18,6 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "logs",
     "metrics"
   ],
-  "isNew": false,
   "features": {
     "tlsTerminationProxy": {
       "native": false,
@@ -53,7 +52,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "logs:FilterLogEvents"
     ]
   },
-  "gatewayInformation": {
+  "resourceConfiguration": {
     "type": "cloud-service",
     "subtype": "aws-cloudwatch",
     "credentials": {
@@ -81,41 +80,5 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "path": "quickstart/cloud-services/aws/aws-cloudwatch"
   }
 }} />
-## Connection Setup
 
-The flag `--type custom/cloudwatch` allows displaying the introspection schema in the web interface.
 
-```bash
-hoop admin create conn my-cloudwatch -a <agent-name> \
-    --type custom/cloudwatch \
-    --overwrite \
-    --schema=enabled \
-    --skip-validation \
-    -e AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
-    -e AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
-    -e AWS_REGION=us-west-2 \
-    -- bash
-```
-
-<Warning>
-    Currently, CloudWatch connections cannot be **created** through the web interface.
-    Use the CLI command above to create the connection, then it will be available in the web app for use.
-</Warning>
-
-## Connection Usage
-
-### CLI
-
-```bash
-hoop exec my-cloudwatch \
-  -i 'aws logs filter-log-events --log-group-name /aws/lambda/my-function'
-```
-
-### Web panel
-
-When you select a log group in the interface, the terminal will propagate the name as `LOG_GROUP_NAME` environment variable, allowing you to use it in your scripts.
-The example above shows the variable being used in a script to filter events from the `/aws/lambda/my-function` log group.
-
-<Frame>
-    <img src="/images/aws/client-aws-cloudwatch.png" alt="cloudwatch screenshot" />
-</Frame>

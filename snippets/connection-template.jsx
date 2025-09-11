@@ -98,7 +98,7 @@ export const ConnectionTemplate = ({ config }) => {
         </tbody>
       </table>
 
-      {finalConfig.gatewayInformation.credentials && 
+      {finalConfig.resourceConfiguration.credentials && 
       <>
       <h2>Configuration</h2>
       <table>
@@ -111,7 +111,7 @@ export const ConnectionTemplate = ({ config }) => {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(finalConfig.gatewayInformation.credentials).map(([key, credential]) => {
+          {Object.entries(finalConfig.resourceConfiguration.credentials).map(([key, credential]) => {
             // Skip non-credential fields like 'config'
             if (typeof credential === 'string' || credential.hidden) return null;
             

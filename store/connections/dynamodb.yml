@@ -8,7 +8,6 @@ tags:
   - aws
   - managed
   - serverless
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -73,7 +72,7 @@ advancedConfiguration:
     - Capacity planning for read/write units
     - Monitoring with CloudWatch metrics
 
-gatewayInformation:
+resourceConfiguration:
   type: database
   subtype: dynamodb
   credentials:

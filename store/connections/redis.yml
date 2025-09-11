@@ -8,7 +8,6 @@ tags:
   - cache
   - key-value
   - in-memory
-isNew: false
 
 features:
   tlsTerminationProxy:
@@ -66,7 +65,7 @@ advancedConfiguration:
     - Backup and persistence strategy (RDB/AOF)
     - Monitoring with Redis INFO commands
 
-gatewayInformation:
+resourceConfiguration:
   type: database
   subtype: redis
 
