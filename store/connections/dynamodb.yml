@@ -60,17 +60,6 @@ setupGuide:
     - AWS Access Key ID and Secret Access Key
     - Network connectivity to AWS DynamoDB endpoints
 
-advancedConfiguration:
-  connectionString: "AWS DynamoDB API via SDK"
-  featureConfiguration:
-    - IAM roles and policies for fine-grained access
-    - VPC endpoints for private connectivity
-    - DynamoDB Accelerator (DAX) for caching
-    - Global Secondary Indexes (GSI) configuration
-  otherRequirements:
-    - Understanding of DynamoDB data modeling
-    - Capacity planning for read/write units
-    - Monitoring with CloudWatch metrics
 
 resourceConfiguration:
   type: database

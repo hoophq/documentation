@@ -53,17 +53,6 @@ setupGuide:
     - Database connection configured
     - Application dependencies installed (bundle install)
 
-advancedConfiguration:
-  connectionString: "rails console -e production"
-  featureConfiguration:
-    - Environment-specific configuration (development, test, production)
-    - Database connection pooling and optimization
-    - Caching strategies (Redis, Memcached)
-    - Background job processing (Sidekiq, Resque)
-  otherRequirements:
-    - Application server configuration (Puma, Unicorn)
-    - Asset pipeline and precompilation setup
-    - Security configurations and secret management
 
 resourceConfiguration:
   type: application

@@ -53,17 +53,6 @@ setupGuide:
     - Required packages installed via pip
     - Script execution permissions
 
-advancedConfiguration:
-  connectionString: "python -i"
-  featureConfiguration:
-    - Virtual environment activation
-    - Package management with pip/pipenv/poetry
-    - Environment variables configuration
-    - Custom module imports
-  otherRequirements:
-    - Dependencies listed in requirements.txt
-    - Environment-specific configuration files
-    - Proper Python path configuration
 
 resourceConfiguration:
   type: development-environment

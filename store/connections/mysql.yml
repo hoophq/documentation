@@ -53,17 +53,6 @@ setupGuide:
     - Network connectivity to port 3306
     - SSL certificates for secure connections
 
-advancedConfiguration:
-  connectionString: "mysql://username:password@host:port/database"
-  featureConfiguration:
-    - Master-slave replication for high availability
-    - InnoDB storage engine optimization
-    - Query cache configuration
-    - SSL/TLS encryption setup
-  otherRequirements:
-    - Regular backup strategy implemented
-    - Performance monitoring enabled
-    - Binary logging configured
 
 resourceConfiguration:
   type: database

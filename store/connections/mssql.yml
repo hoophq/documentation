@@ -53,17 +53,6 @@ setupGuide:
     - Network connectivity to port 1433
     - TLS/SSL certificates for encrypted connections
 
-advancedConfiguration:
-  connectionString: "mssql://username:password@host:port/database"
-  featureConfiguration:
-    - Always On Availability Groups for high availability
-    - Transparent Data Encryption (TDE)
-    - Query Store for performance monitoring
-    - Row-level security configuration
-  otherRequirements:
-    - SQL Server Agent for automated tasks
-    - Performance monitoring with Extended Events
-    - Regular maintenance plans configured
 
 resourceConfiguration:
   type: database

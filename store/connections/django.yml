@@ -53,17 +53,6 @@ setupGuide:
     - Django project configured
     - Database configured and migrated
 
-advancedConfiguration:
-  connectionString: "python manage.py shell"
-  featureConfiguration:
-    - Django settings configuration
-    - Database connection settings
-    - Static files and media configuration
-    - Custom management commands
-  otherRequirements:
-    - Virtual environment setup
-    - Requirements.txt with dependencies
-    - Environment-specific settings files
 
 resourceConfiguration:
   type: development-environment

@@ -53,17 +53,6 @@ setupGuide:
     - Composer dependencies resolved
     - Application environment configured
 
-advancedConfiguration:
-  connectionString: "php artisan tinker"
-  featureConfiguration:
-    - Laravel configuration files
-    - Database connection settings
-    - Queue and cache configuration
-    - Custom Artisan commands
-  otherRequirements:
-    - Environment variables configuration
-    - Application key generation
-    - Storage permissions setup
 
 resourceConfiguration:
   type: development-environment

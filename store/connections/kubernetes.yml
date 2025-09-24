@@ -138,17 +138,6 @@ setupGuide:
     - kubectl command-line tool installed
     - Valid kubeconfig file with cluster credentials
     - Network connectivity to Kubernetes API server
-advancedConfiguration:
-  connectionString: kubectl via kubeconfig
-  featureConfiguration:
-    - RBAC (Role-Based Access Control) configuration
-    - Service accounts and token authentication
-    - Network policies and security contexts
-    - Helm chart deployments and management
-  otherRequirements:
-    - Understanding of Kubernetes resources and manifests
-    - Cluster monitoring and logging setup
-    - Backup and disaster recovery planning
 documentationConfig:
   path: quickstart/cloud-services/kubernetes
 features:

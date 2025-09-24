@@ -61,17 +61,6 @@ setupGuide:
     - Network connectivity to Cassandra nodes
     - Valid authentication credentials
     - CQL (Cassandra Query Language) knowledge
-advancedConfiguration:
-  connectionString: cqlsh host port -u username -p password
-  featureConfiguration:
-    - Keyspace and table configuration
-    - Replication strategy setup
-    - Consistency level tuning
-    - SSL/TLS encryption configuration
-  otherRequirements:
-    - Understanding of Cassandra data modeling
-    - Cluster topology and replication planning
-    - Monitoring and maintenance procedures
 documentationConfig:
   path: quickstart/databases/apache-cassandra
 features:

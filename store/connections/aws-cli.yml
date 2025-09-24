@@ -44,8 +44,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-advancedConfiguration:
-  connectionString: fafaf
 documentationConfig:
   path: quickstart/cloud-services/aws/aws-cli
 features:

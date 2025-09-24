@@ -53,17 +53,6 @@ setupGuide:
     - Project dependencies installed (npm install)
     - Environment variables configured
 
-advancedConfiguration:
-  connectionString: "node -i script.js"
-  featureConfiguration:
-    - Package management with NPM/Yarn/PNPM
-    - Process management with PM2 or similar
-    - Environment-specific configuration (development, production)
-    - TypeScript integration and compilation
-  otherRequirements:
-    - Code linting and formatting (ESLint, Prettier)
-    - Testing framework setup (Jest, Mocha, Vitest)
-    - Performance monitoring and profiling tools
 
 resourceConfiguration:
   type: application

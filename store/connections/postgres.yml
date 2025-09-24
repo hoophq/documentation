@@ -53,18 +53,6 @@ setupGuide:
     - Network connectivity to port 5432
     - SSL certificates for encrypted connections
 
-advancedConfiguration:
-  connectionString: "postgresql://username:password@host:port/database"
-  featureConfiguration:
-    - Streaming replication for high availability
-    - Connection pooling with pgBouncer
-    - Advanced indexing strategies (B-tree, GIN, GiST)
-    - SSL/TLS configuration with certificate authentication
-  otherRequirements:
-    - WAL (Write-Ahead Logging) archiving configured
-    - Performance monitoring with pg_stat_statements
-    - Regular VACUUM and ANALYZE scheduling
-
 resourceConfiguration:
   type: database
   subtype: postgres

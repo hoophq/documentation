@@ -53,17 +53,6 @@ setupGuide:
     - Network connectivity to port 1521
     - Oracle client libraries installed
 
-advancedConfiguration:
-  connectionString: "oracle://username:password@host:port/service_name"
-  featureConfiguration:
-    - Real Application Clusters (RAC) configuration
-    - Data Guard for disaster recovery
-    - Transparent Data Encryption setup
-    - Oracle Advanced Security configuration
-  otherRequirements:
-    - Oracle Enterprise Manager for monitoring
-    - RMAN backup strategy configured
-    - Automatic Workload Repository (AWR) enabled
 
 resourceConfiguration:
   type: database

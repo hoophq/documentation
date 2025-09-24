@@ -169,17 +169,6 @@ setupGuide:
     - Valid SSH credentials (password or key-based)
     - Network connectivity to port 22
     - Proper firewall configuration
-advancedConfiguration:
-  connectionString: ssh://username@hostname:port
-  featureConfiguration:
-    - SSH key-based authentication setup
-    - SSH agent forwarding configuration
-    - Custom SSH configuration files
-    - Jump host and bastion configuration
-  otherRequirements:
-    - SSH key management and rotation
-    - Connection logging and audit trails
-    - Fail2ban or similar intrusion prevention
 documentationConfig:
   path: quickstart/ssh
 features:

@@ -59,17 +59,6 @@ setupGuide:
     - Service account with BigQuery permissions
     - Google Cloud SDK (gcloud) installed
 
-advancedConfiguration:
-  connectionString: "bq command-line tool with service account"
-  featureConfiguration:
-    - IAM roles and permissions for BigQuery access
-    - Dataset and table-level security controls
-    - Query optimization and slot management
-    - Data encryption and compliance settings
-  otherRequirements:
-    - Understanding of BigQuery pricing model
-    - Data modeling for optimal query performance
-    - Monitoring with Cloud Logging and Monitoring
 
 resourceConfiguration:
   type: database

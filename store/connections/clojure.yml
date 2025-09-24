@@ -53,17 +53,6 @@ setupGuide:
     - Project dependencies resolved
     - REPL environment configured
 
-advancedConfiguration:
-  connectionString: "clj -M:repl/rebel"
-  featureConfiguration:
-    - Build tool configuration (Leiningen, deps.edn)
-    - REPL integration with development tools
-    - ClojureScript compilation for frontend
-    - Namespace and dependency management
-  otherRequirements:
-    - Editor integration (Emacs/CIDER, VS Code/Calva)
-    - Testing framework setup (clojure.test, Midje)
-    - Performance profiling and JVM tuning
 
 resourceConfiguration:
   type: application

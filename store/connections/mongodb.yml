@@ -32,16 +32,6 @@ setupGuide:
     - User credentials with appropriate privileges
     - Network connectivity to port 27017
     - Proper firewall configuration
-advancedConfiguration:
-  connectionString: mongodb://username:password@host:port/database
-  featureConfiguration:
-    - Replica set configuration for high availability
-    - Sharding configuration for scalability
-    - Optimized indexes for frequent queries
-    - SSL/TLS configuration for secure connections
-  otherRequirements:
-    - Performance monitoring enabled
-    - Automatic backup configured
     - Storage capacity alerts
 documentationConfig:
   path: quickstart/databases/mongodb
