@@ -123,11 +123,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Kubernetes cluster access
-    - kubectl command-line tool installed
-    - Valid kubeconfig file with cluster credentials
-    - Network connectivity to Kubernetes API server
 documentationConfig:
   path: quickstart/cloud-services/kubernetes
 features:

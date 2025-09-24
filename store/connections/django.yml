@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Python 3.8+ installed
-    - Django framework installed
-    - Django project configured
-    - Database configured and migrated
 
 
 resourceConfiguration:

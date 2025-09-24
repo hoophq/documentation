@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - SQL Server 2017+
-    - SQL Server authentication or Windows authentication
-    - Network connectivity to port 1433
-    - TLS/SSL certificates for encrypted connections
 
 
 resourceConfiguration:

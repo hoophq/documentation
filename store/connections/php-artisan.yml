@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - PHP 8.0+ installed
-    - Laravel framework installed
-    - Composer dependencies resolved
-    - Application environment configured
 
 
 resourceConfiguration:

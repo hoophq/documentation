@@ -154,11 +154,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - SSH server running on target host
-    - Valid SSH credentials (password or key-based)
-    - Network connectivity to port 22
-    - Proper firewall configuration
 documentationConfig:
   path: quickstart/ssh
 features:

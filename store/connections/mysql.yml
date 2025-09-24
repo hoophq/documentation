@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - MySQL Server 5.7+
-    - Database user with appropriate privileges
-    - Network connectivity to port 3306
-    - SSL certificates for secure connections
 
 
 resourceConfiguration:

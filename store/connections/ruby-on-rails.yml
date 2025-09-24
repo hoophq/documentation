@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Ruby 2.7+ installed
-    - Rails framework installed
-    - Database connection configured
-    - Application dependencies installed (bundle install)
 
 
 resourceConfiguration:

@@ -46,11 +46,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Apache Cassandra 3.0+ cluster
-    - Network connectivity to Cassandra nodes
-    - Valid authentication credentials
-    - CQL (Cassandra Query Language) knowledge
 documentationConfig:
   path: quickstart/databases/apache-cassandra
 features:

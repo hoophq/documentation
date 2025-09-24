@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Elixir 1.12+ installed
-    - Erlang/OTP runtime
-    - Mix build tool configured
-    - Project dependencies compiled
 
 resourceConfiguration:
   type: development-environment

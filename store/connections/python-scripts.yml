@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Python 3.8+ installed
-    - Virtual environment configured
-    - Required packages installed via pip
-    - Script execution permissions
 
 
 resourceConfiguration:

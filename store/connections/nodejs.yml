@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Node.js 16+ installed
-    - NPM or Yarn package manager
-    - Project dependencies installed (npm install)
-    - Environment variables configured
 
 
 resourceConfiguration:

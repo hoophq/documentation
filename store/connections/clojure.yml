@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Java 8+ installed (JVM)
-    - Clojure CLI tools or Leiningen
-    - Project dependencies resolved
-    - REPL environment configured
 
 
 resourceConfiguration:

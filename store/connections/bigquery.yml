@@ -43,11 +43,6 @@ setupGuide:
     webapp: true
     cli: false
     runbooks: true
-  requirements:
-    - Google Cloud Platform account
-    - BigQuery API enabled in your GCP project
-    - Service account with BigQuery permissions
-    - Google Cloud SDK (gcloud) installed
 
 
 resourceConfiguration:

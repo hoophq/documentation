@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Oracle Database 12c+
-    - Oracle user account with appropriate privileges
-    - Network connectivity to port 1521
-    - Oracle client libraries installed
 
 
 resourceConfiguration:

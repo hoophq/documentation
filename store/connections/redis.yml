@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - Redis Server 6.0+
-    - Network connectivity to Redis port (default: 6379)
-    - Authentication credentials if AUTH is enabled
-    - SSL/TLS configuration for encrypted connections
 
 
 resourceConfiguration:

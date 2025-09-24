@@ -37,11 +37,6 @@ setupGuide:
     webapp: true
     cli: true
     runbooks: true
-  requirements:
-    - PostgreSQL Server 12+
-    - Database user with appropriate privileges
-    - Network connectivity to port 5432
-    - SSL certificates for encrypted connections
 
 resourceConfiguration:
   type: database

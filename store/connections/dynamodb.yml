@@ -44,11 +44,6 @@ setupGuide:
     webapp: true
     cli: false
     runbooks: true
-  requirements:
-    - AWS Account with DynamoDB access
-    - IAM user with appropriate DynamoDB permissions
-    - AWS Access Key ID and Secret Access Key
-    - Network connectivity to AWS DynamoDB endpoints
 
 
 resourceConfiguration:
