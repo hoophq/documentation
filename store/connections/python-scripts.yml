@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Python is a versatile, high-level programming language perfect for scripting, automation, data analysis, and application development.
-  features:
-    - Interactive Python REPL
-    - Extensive standard library
-    - Rich ecosystem of third-party packages
-    - Cross-platform compatibility
-  useCases:
-    - Data analysis and scientific computing
-    - Automation and scripting tasks
-    - Web development and APIs
-    - Machine learning and AI applications
 
 setupGuide:
   accessMethods:

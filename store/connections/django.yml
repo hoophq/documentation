@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Django is a high-level Python web framework that encourages rapid development and clean, pragmatic design with built-in administrative interface.
-  features:
-    - Powerful admin interface for content management
-    - ORM for database interactions
-    - Built-in authentication and authorization
-    - Comprehensive management commands
-  useCases:
-    - Web application development and management
-    - Database schema migrations and management
-    - User and content administration
-    - Custom management command execution
 
 setupGuide:
   accessMethods:

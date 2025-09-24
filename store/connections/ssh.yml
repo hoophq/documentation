@@ -149,16 +149,6 @@ overview:
   description: SSH (Secure Shell) is a cryptographic network protocol for
     operating network services securely over an unsecured network, commonly used
     for remote command-line login and remote command execution.
-  features:
-    - Encrypted communication for secure remote access
-    - Public key authentication for enhanced security
-    - Port forwarding and tunneling capabilities
-    - Session multiplexing and connection sharing
-  useCases:
-    - Remote server administration and maintenance
-    - Secure file transfers and backups
-    - Development environment access
-    - Network troubleshooting and diagnostics
 setupGuide:
   accessMethods:
     webapp: true

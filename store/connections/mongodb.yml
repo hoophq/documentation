@@ -12,16 +12,6 @@ tags:
 overview:
   description: MongoDB is a NoSQL document-oriented database that provides high
     scalability and flexibility for modern applications.
-  features:
-    - Flexible schema for rapid data evolution
-    - Horizontal scalability with automatic sharding
-    - Built-in replication for high availability
-    - Powerful queries with advanced indexing
-  useCases:
-    - Web and mobile applications with variable data
-    - Content management systems
-    - E-commerce product catalogs
-    - Real-time data analytics
 setupGuide:
   accessMethods:
     webapp: false

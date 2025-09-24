@@ -118,16 +118,6 @@ overview:
   description: Kubernetes is an open-source container orchestration platform that
     automates the deployment, scaling, and management of containerized
     applications.
-  features:
-    - Automated deployment and scaling
-    - Service discovery and load balancing
-    - Storage orchestration and management
-    - Self-healing and rolling updates
-  useCases:
-    - Microservices architecture deployment
-    - Container orchestration and management
-    - CI/CD pipeline automation
-    - Multi-cloud and hybrid cloud deployments
 setupGuide:
   accessMethods:
     webapp: true

@@ -38,16 +38,6 @@ requirements:
 
 overview:
   description: Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.
-  features:
-    - Fully managed serverless database
-    - Single-digit millisecond latency
-    - Built-in security and backup capabilities
-    - Global tables for multi-region deployment
-  useCases:
-    - Web and mobile applications
-    - Gaming applications with leaderboards
-    - IoT data collection and processing
-    - Real-time personalization engines
 
 setupGuide:
   accessMethods:

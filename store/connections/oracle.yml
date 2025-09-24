@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.
-  features:
-    - Advanced security with data encryption and masking
-    - Real Application Clusters (RAC) for scalability
-    - Automatic Storage Management (ASM)
-    - In-memory processing capabilities
-  useCases:
-    - Large-scale enterprise applications
-    - Data warehousing and analytics platforms
-    - Financial and banking systems
-    - High-availability mission-critical systems
 
 setupGuide:
   accessMethods:

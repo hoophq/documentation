@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Laravel Artisan is the command-line interface included with Laravel, providing helpful commands for application development.
-  features:
-    - Interactive PHP shell (Tinker)
-    - Database migrations and seeding
-    - Queue management and processing
-    - Custom command creation and execution
-  useCases:
-    - Laravel application development and management
-    - Database operations and migrations
-    - Background job processing
-    - Application debugging and testing
 
 setupGuide:
   accessMethods:

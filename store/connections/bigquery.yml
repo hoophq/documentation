@@ -37,16 +37,6 @@ requirements:
 
 overview:
   description: Google BigQuery is a fully managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure.
-  features:
-    - Serverless and fully managed data warehouse
-    - Petabyte-scale analytics with standard SQL
-    - Built-in machine learning capabilities
-    - Real-time data streaming and analysis
-  useCases:
-    - Large-scale data analytics and reporting
-    - Business intelligence and data visualization
-    - Machine learning model training on big data
-    - Real-time streaming analytics
 
 setupGuide:
   accessMethods:

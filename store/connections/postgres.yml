@@ -31,16 +31,6 @@ features:
 
 overview:
   description: PostgreSQL is a powerful, open-source object-relational database system with a strong reputation for reliability, feature robustness, and performance.
-  features:
-    - Advanced SQL compliance with custom data types
-    - MVCC (Multi-Version Concurrency Control)
-    - Full-text search and JSON support
-    - Extensible with custom functions and operators
-  useCases:
-    - Complex web applications with advanced queries
-    - Data analytics and business intelligence
-    - Geospatial applications with PostGIS
-    - Financial systems requiring ACID compliance
 
 setupGuide:
   accessMethods:

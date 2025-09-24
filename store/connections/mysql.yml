@@ -31,16 +31,6 @@ features:
 
 overview:
   description: MySQL is the world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.
-  features:
-    - ACID-compliant transactions for data integrity
-    - High performance with optimized storage engines
-    - Comprehensive security with SSL encryption
-    - Scalable architecture supporting large datasets
-  useCases:
-    - Web applications and e-commerce platforms
-    - Data warehousing and analytics
-    - Content management systems
-    - Financial and banking applications
 
 setupGuide:
   accessMethods:

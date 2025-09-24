@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Elixir is a dynamic, functional language designed for building maintainable and scalable applications, running on the Erlang Virtual Machine.
-  features:
-    - Interactive development with IEx
-    - Actor-based concurrency model
-    - Fault-tolerant and distributed systems
-    - Hot code swapping capabilities
-  useCases:
-    - Real-time web applications with Phoenix
-    - IoT and embedded systems
-    - Distributed and concurrent applications
-    - Microservices architecture
 
 setupGuide:
   accessMethods:

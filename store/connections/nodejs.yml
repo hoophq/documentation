@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine, enabling server-side JavaScript development with high performance and scalability.
-  features:
-    - Event-driven, non-blocking I/O architecture
-    - Extensive NPM package ecosystem
-    - Built-in REPL for interactive development
-    - Cross-platform compatibility and deployment
-  useCases:
-    - Web API development and microservices
-    - Real-time applications (chat, gaming)
-    - Command-line tools and automation scripts
-    - Full-stack JavaScript development
 
 setupGuide:
   accessMethods:

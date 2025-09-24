@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Redis is an in-memory data structure store, used as a database, cache, and message broker with support for various data structures.
-  features:
-    - High-performance in-memory data storage
-    - Support for strings, hashes, lists, sets, and more
-    - Built-in replication and clustering
-    - Pub/Sub messaging capabilities
-  useCases:
-    - Application caching and session storage
-    - Real-time analytics and leaderboards
-    - Message queuing and pub/sub systems
-    - High-speed data processing pipelines
 
 setupGuide:
   accessMethods:

@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Clojure is a dynamic, general-purpose programming language that combines the approachability and interactive development of a scripting language with an efficient and robust infrastructure for multithreaded programming.
-  features:
-    - Immutable data structures by default
-    - Interactive REPL-driven development
-    - Seamless Java interoperability
-    - Software Transactional Memory (STM) for concurrency
-  useCases:
-    - Data processing and analytics applications
-    - Web development with Ring and Compojure
-    - Concurrent and parallel programming
-    - Financial systems and algorithmic trading
 
 setupGuide:
   accessMethods:

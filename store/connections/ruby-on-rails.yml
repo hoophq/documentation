@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.
-  features:
-    - Convention over configuration philosophy
-    - Active Record ORM for database interactions
-    - Built-in testing framework and tools
-    - Rich ecosystem of gems and plugins
-  useCases:
-    - Rapid web application development
-    - Database migrations and management
-    - API development and microservices
-    - E-commerce and content management systems
 
 setupGuide:
   accessMethods:

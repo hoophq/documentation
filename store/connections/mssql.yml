@@ -31,16 +31,6 @@ features:
 
 overview:
   description: Microsoft SQL Server is a relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.
-  features:
-    - Advanced security with Always Encrypted technology
-    - In-memory OLTP for high-performance workloads
-    - Built-in machine learning and AI capabilities
-    - Comprehensive backup and disaster recovery
-  useCases:
-    - Enterprise applications and ERP systems
-    - Data warehousing and business intelligence
-    - Mission-critical applications requiring high availability
-    - Integration with Microsoft ecosystem
 
 setupGuide:
   accessMethods:
