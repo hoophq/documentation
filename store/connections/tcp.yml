@@ -1,0 +1,51 @@
+id: tcp
+name: TCP
+description: Connect to a TCP server using the tcp command line tool.
+category: applications
+icon-name: tcp
+tags:
+  - tcp
+  - network
+  - port
+  - connection
+  - remote
+  - server
+  - client
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: true
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+
+resourceConfiguration:
+  type: application
+  subtype: tcp
+  credentials:
+    host:
+      name: "HOST"
+      type: "env-var"
+      required: true
+      description: "The IP or hostname of the service"
+    port:
+      name: "PORT"
+      type: "env-var"
+      required: true
+      description: "The port of the service"
+
+documentationConfig:
+  path: "quickstart/applications/tcp"
