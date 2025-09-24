@@ -2,7 +2,7 @@ id: postgres
 name: PostgreSQL
 description: A Postgres connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.
 category: databases
-icon-name: postgresql
+icon-name: postgres
 tags:
   - sql
   - relational

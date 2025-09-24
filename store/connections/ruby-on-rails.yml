@@ -2,7 +2,7 @@ id: ruby-on-rails
 name: Ruby on Rails
 description: Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application.
 category: developer-consoles
-icon-name: ruby
+icon-name: rails
 tags:
   - ruby
   - web-framework

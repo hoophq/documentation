@@ -2,7 +2,7 @@ id: nodejs
 name: Node.js
 description: JavaScript runtime environment for server-side development
 category: developer-consoles
-icon-name: nodejs
+icon-name: node
 tags:
   - javascript
   - runtime

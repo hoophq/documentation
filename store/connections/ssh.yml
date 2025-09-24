@@ -130,7 +130,7 @@ resourceConfiguration:
         enabled in the SSH server.
     authorized_server_keys:
       name: AUTHORIZED_SERVER_KEYS
-      type: textarea
+      type: env-var
       required: false
       description: The private key of the user that corresponds to the public key at
         $HOME/<user>/.ssh/authorized_keys
