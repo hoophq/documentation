@@ -14,9 +14,9 @@ overview:
     scalability and flexibility for modern applications.
 setupGuide:
   accessMethods:
-    webapp: false
-    cli: false
-    runbooks: false
+    webapp: true
+    cli: true
+    runbooks: true
 documentationConfig:
   path: quickstart/databases/mongodb
 features:

@@ -44,7 +44,7 @@ overview:
 setupGuide:
   accessMethods:
     webapp: true
-    cli: true
+    cli: false
     runbooks: true
 documentationConfig:
   path: quickstart/databases/apache-cassandra

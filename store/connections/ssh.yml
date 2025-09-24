@@ -151,9 +151,9 @@ overview:
     for remote command-line login and remote command execution.
 setupGuide:
   accessMethods:
-    webapp: true
+    webapp: false
     cli: true
-    runbooks: true
+    runbooks: false
 documentationConfig:
   path: quickstart/ssh
 features:

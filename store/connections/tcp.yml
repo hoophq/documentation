@@ -12,6 +12,12 @@ tags:
   - server
   - client
 
+setupGuide:
+  accessMethods:
+    webapp: false
+    cli: true
+    runbooks: false
+
 features:
   tlsTerminationProxy:
     native: true
