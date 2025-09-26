@@ -1,5 +1,5 @@
 ---
-title: "Apache Cassandra"
+title: "Elastic Search"
 description: "A highly scalable, distributed NoSQL database designed for handling large amounts of data across many servers."
 category: "databases"
 ---
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "resourceConfiguration": {
     "type": "custom",
-    "subtype": "cassandra",
+    "subtype": "elastic-search",
     "command": [
       "cqlsh",
       "-k",
@@ -60,14 +60,16 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       }
     ]
   },
-  "id": "apache-cassandra",
-  "name": "Apache Cassandra",
+  "id": "elastic-search",
+  "name": "Elastic Search",
   "description": "A highly scalable, distributed NoSQL database designed for handling large amounts of data across many servers.",
   "category": "databases",
-  "icon-name": "cassandra",
+  "icon-name": "elastic-search",
   "tags": [
-    "database",
-    "nosql"
+    "nosql",
+    "distributed",
+    "column-family",
+    "high-availability"
   ],
   "overview": {
     "description": "Access your Cassandra clusters securely through Hoop.dev with comprehensive audit trails, AI-powered data masking for sensitive information, and granular access controls. Execute CQL queries with confidence knowing all interactions are monitored and protected."
@@ -80,7 +82,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "documentationConfig": {
-    "path": "quickstart/databases/apache-cassandra"
+    "path": "quickstart/databases/elastic-search"
   },
   "features": {
     "tlsTerminationProxy": {

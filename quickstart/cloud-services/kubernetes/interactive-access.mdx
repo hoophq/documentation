@@ -1,0 +1,115 @@
+---
+title: "Kubernetes Interactive Access"
+description: "Open interactive shell sessions inside Kubernetes containers with full TTY support and session recording."
+category: "cloud-services"
+---
+
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
+
+<ConnectionTemplate config={{
+  "id": "kubernetes-interactive",
+  "name": "Kubernetes Interactive Access",
+  "description": "Open interactive shell sessions inside Kubernetes containers with full TTY support and session recording.",
+  "category": "cloud-services",
+  "icon-name": "kubernetes",
+  "tags": [
+    "containers",
+    "interactive",
+    "development"
+  ],
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Access your Kubernetes containers interactively through Hoop.dev with full TTY support, comprehensive session recording, and intelligent access controls. Open shell sessions for debugging, development, and administrative tasks with complete audit trails."
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": false,
+      "cli": true,
+      "runbooks": false
+    }
+  },
+  "resourceConfiguration": {
+    "type": "custom",
+    "subtype": "kubernetes-interactive",
+    "command": [
+      "kubectl",
+      "exec",
+      "--stdin",
+      "--tty",
+      "$KUBERNETES_RESOURCE",
+      "--"
+    ],
+    "credentials": [
+      {
+        "name": "KUBECONFIG",
+        "type": "filesystem",
+        "required": true,
+        "description": "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster",
+        "placeholder": "file content of ~/.kube/config"
+      },
+      {
+        "name": "KUBERNETES_RESOURCE",
+        "type": "env-var",
+        "required": true,
+        "description": "The Kubernetes resource to target for interactive access (e.g., deployment/myapp, pod/mypod, statefulset/myapp)",
+        "placeholder": "deployment/myapp"
+      }
+    ]
+  },
+  "documentationConfig": {
+    "path": "quickstart/cloud-services/kubernetes/interactive-access"
+  }
+}} />
+
+
+### Connection Setup
+Interactive access can be achieved by using the `kubectl exec` command with the `--stdin` and `--tty` flags.
+```bash
+  hoop admin create conn myapp -a <agent> \
+	-e KUBECONFIG=file://$HOME/.kube/config \
+	-e KUBERNETES_RESOURCE=deployment/myapp \
+	-- kubectl exec --stdin --tty $KUBERNETES_RESOURCE --
+```
+<Tip>
+	To narrow down the scope to a specific command, you can use the name of the command you want to run.
+	E.g.: `-- bash` or `-- rails console`.
+
+	In this example users could use any runtime command inside the specified Kubernetes resource.
+</Tip>
+This will allow users to open an interactive shell inside the specified Kubernetes resource. This is useful for debugging or running commands interactively inside a container.
+### Command Line Usage Examples
+```bash
+  # Open an interactive session with the deployment myapp using 'bash'
+  hoop connect myapp -- bash
+  # Open an interactive session with the deployment myapp using 'rails console'
+  hoop connect myapp -- rails console
+```
+<Info>
+	Note that `kubectl exec` is used with `-tty` and `--stdin` arguments.
+	These flags are required when using `hoop connect`
+</Info>
