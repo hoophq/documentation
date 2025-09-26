@@ -17,6 +17,11 @@
       }
     }
   ],
+  "errors": {
+    "404": {
+      "redirect": true
+    }
+  },
   "navigation": {
     "anchors": [
       {
@@ -105,7 +110,8 @@
                 "group": "Web Applications",
                 "pages": [
                   "quickstart/web-applications/webapps-and-apis",
-                  "quickstart/web-applications/http-proxy"
+                  "quickstart/web-applications/http-proxy",
+                  "quickstart/web-applications/jump-hosts"
                 ]
               },
               {
