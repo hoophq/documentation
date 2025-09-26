@@ -1,6 +1,6 @@
 id: oracle
 name: Oracle
-description: Execute queries to Oracle instances with [sqlcl](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/).
+description: A multi-model database management system designed for enterprise grid computing and high-performance applications.
 category: databases
 icon-name: oracle
 tags:
@@ -30,7 +30,7 @@ features:
     oneOff: true
 
 overview:
-  description: Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.
+  description: Access your Oracle databases through Hoop.dev with enterprise-level security and compliance features, comprehensive audit trails, and automated data protection. Execute SQL operations with granular access controls and intelligent masking for sensitive enterprise data.
 
 setupGuide:
   accessMethods:
@@ -43,38 +43,37 @@ resourceConfiguration:
   type: database
   subtype: oracle
   credentials:
-    host:
-      name: "HOST"
-      type: "env-var"
+    - name: HOST
+      type: env-var
       required: true
-      description: "The IP or Host of the Oracle server"
-    user:
-      name: "USER"
-      type: "env-var"
+      description: The IP or Host of the Oracle server
+      placeholder: localhost
+    - name: USER
+      type: env-var
       required: true
-      description: "The user to connect in the Oracle server"
-    pass:
-      name: "PASS"
-      type: "env-var"
+      description: The user to connect in the Oracle server
+      placeholder: hr
+    - name: PASS
+      type: env-var
       required: true
-      description: "The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters."
-    port:
-      name: "PORT"
-      type: "env-var"
+      description: The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters.
+      placeholder: password
+    - name: PORT
+      type: env-var
       required: true
-      description: "The port of the Oracle server"
-    ld_library_path:
-      name: "LD_LIBRARY_PATH"
-      type: "env-var"
+      description: The port of the Oracle server
+      placeholder: "1521"
+    - name: LD_LIBRARY_PATH
+      type: env-var
       required: true
-      description: "Oracle client library path"
+      description: Oracle client library path
       hidden: true
-    sid:
-      name: "SID"
-      type: "env-var"
+      placeholder: /opt/oracle/instantclient
+    - name: SID
+      type: env-var
       required: true
-      description: "The service name or SID (System identifier) to identify the database service."
-      placeholder: "SID or Service name"
+      description: The service name or SID (System identifier) to identify the database service.
+      placeholder: SID or Service name
 
 documentationConfig:
   path: "quickstart/databases/oracle"

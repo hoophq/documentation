@@ -1,7 +1,7 @@
 id: clojure
 name: Clojure
-description: Dynamic functional programming language for the JVM
-category: developer-consoles
+description: A dynamic, general-purpose programming language that combines interactive development with efficient infrastructure for multithreaded programming.
+category: development-environments
 icon-name: clojure
 tags:
   - functional
@@ -30,7 +30,7 @@ features:
     oneOff: true
 
 overview:
-  description: Clojure is a dynamic, general-purpose programming language that combines the approachability and interactive development of a scripting language with an efficient and robust infrastructure for multithreaded programming.
+  description: Access your Clojure REPL environments securely through Hoop.dev with comprehensive session recording, intelligent code execution monitoring, and automated dependency management. Execute Clojure expressions with built-in safeguards, audit trails, and seamless JVM integration.
 
 setupGuide:
   accessMethods:
@@ -40,8 +40,9 @@ setupGuide:
 
 
 resourceConfiguration:
-  type: application
+  type: custom
   subtype: clojure
+  command: [clj]
 
 documentationConfig:
   path: "quickstart/development-environments/clojure"

@@ -1,7 +1,7 @@
 ---
 title: "Ruby on Rails"
-description: "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application."
-category: "developer-consoles"
+description: "A web application framework written in Ruby that follows the MVC pattern, providing tools for rapid web development."
+category: "development-environments"
 ---
 
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
@@ -9,9 +9,9 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "ruby-on-rails",
   "name": "Ruby on Rails",
-  "description": "Interact with the rails console or execute ad-hoc scripts in a Ruby On Rails application.",
-  "category": "developer-consoles",
-  "icon-name": "ruby",
+  "description": "A web application framework written in Ruby that follows the MVC pattern, providing tools for rapid web development.",
+  "category": "development-environments",
+  "icon-name": "rails",
   "tags": [
     "ruby",
     "web-framework",
@@ -45,50 +45,23 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "Ruby on Rails is a web application framework written in Ruby that follows the model-view-controller (MVC) architectural pattern, providing tools for rapid web development.",
-    "features": [
-      "Convention over configuration philosophy",
-      "Active Record ORM for database interactions",
-      "Built-in testing framework and tools",
-      "Rich ecosystem of gems and plugins"
-    ],
-    "useCases": [
-      "Rapid web application development",
-      "Database migrations and management",
-      "API development and microservices",
-      "E-commerce and content management systems"
-    ]
+    "description": "Access your Rails console securely through Hoop.dev with comprehensive audit logging, automated secret management, and intelligent access controls. Execute Rails commands and interact with your application models with full session recording and data protection."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
-      "cli": true,
+      "cli": false,
       "runbooks": true
-    },
-    "requirements": [
-      "Ruby 2.7+ installed",
-      "Rails framework installed",
-      "Database connection configured",
-      "Application dependencies installed (bundle install)"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "rails console -e production",
-    "featureConfiguration": [
-      "Environment-specific configuration (development, test, production)",
-      "Database connection pooling and optimization",
-      "Caching strategies (Redis, Memcached)",
-      "Background job processing (Sidekiq, Resque)"
-    ],
-    "otherRequirements": [
-      "Application server configuration (Puma, Unicorn)",
-      "Asset pipeline and precompilation setup",
-      "Security configurations and secret management"
-    ]
+    }
   },
   "resourceConfiguration": {
-    "type": "application",
-    "subtype": "ruby-on-rails"
+    "type": "custom",
+    "subtype": "ruby-on-rails",
+    "command": [
+      "rails",
+      "runner",
+      "-"
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/development-environments/ruby-on-rails"

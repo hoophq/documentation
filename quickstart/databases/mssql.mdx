@@ -1,6 +1,6 @@
 ---
 title: "Microsoft SQL Server"
-description: "Connecting to Microsoft SQL Server can be done natively using an IDE or any supported client library. Alternatively, you can use the [sqlcmd command line utility](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility) for one-off executions."
+description: "A relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities."
 category: "databases"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "mssql",
   "name": "Microsoft SQL Server",
-  "description": "Connecting to Microsoft SQL Server can be done natively using an IDE or any supported client library. Alternatively, you can use the [sqlcmd command line utility](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility) for one-off executions.",
+  "description": "A relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.",
   "category": "databases",
   "icon-name": "mssql",
   "tags": [
@@ -45,88 +45,62 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "Microsoft SQL Server is a relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.",
-    "features": [
-      "Advanced security with Always Encrypted technology",
-      "In-memory OLTP for high-performance workloads",
-      "Built-in machine learning and AI capabilities",
-      "Comprehensive backup and disaster recovery"
-    ],
-    "useCases": [
-      "Enterprise applications and ERP systems",
-      "Data warehousing and business intelligence",
-      "Mission-critical applications requiring high availability",
-      "Integration with Microsoft ecosystem"
-    ]
+    "description": "Connect to your SQL Server databases through Hoop.dev with enterprise-grade security, automated compliance logging, and real-time data protection. Execute T-SQL queries with advanced access controls and intelligent masking of sensitive business data."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
       "cli": true,
       "runbooks": true
-    },
-    "requirements": [
-      "SQL Server 2017+",
-      "SQL Server authentication or Windows authentication",
-      "Network connectivity to port 1433",
-      "TLS/SSL certificates for encrypted connections"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "mssql://username:password@host:port/database",
-    "featureConfiguration": [
-      "Always On Availability Groups for high availability",
-      "Transparent Data Encryption (TDE)",
-      "Query Store for performance monitoring",
-      "Row-level security configuration"
-    ],
-    "otherRequirements": [
-      "SQL Server Agent for automated tasks",
-      "Performance monitoring with Extended Events",
-      "Regular maintenance plans configured"
-    ]
+    }
   },
   "resourceConfiguration": {
     "type": "database",
     "subtype": "mssql",
-    "credentials": {
-      "host": {
+    "credentials": [
+      {
         "name": "HOST",
         "type": "env-var",
         "required": true,
-        "description": "The IP or Host of the SQL Server"
+        "description": "The IP or Host of the SQL Server",
+        "placeholder": "localhost"
       },
-      "user": {
+      {
         "name": "USER",
         "type": "env-var",
         "required": true,
-        "description": "The user with access to the instance"
+        "description": "The user with access to the instance",
+        "placeholder": "sa"
       },
-      "pass": {
+      {
         "name": "PASS",
         "type": "env-var",
         "required": true,
-        "description": "The password with access to the instance"
+        "description": "The password with access to the instance",
+        "placeholder": "password"
       },
-      "port": {
+      {
         "name": "PORT",
         "type": "env-var",
         "required": true,
-        "description": "The port of the SQL server"
+        "description": "The port of the SQL server",
+        "placeholder": "1433"
       },
-      "db": {
+      {
         "name": "DB",
         "type": "env-var",
         "required": true,
-        "description": "The name of the database to connect (Required when using the connection via the command line)."
+        "description": "The name of the database to connect (Required when using the connection via the command line).",
+        "placeholder": "mydb"
       },
-      "insecure": {
+      {
         "name": "INSECURE",
         "type": "env-var",
         "required": false,
-        "description": "If the connection will ignore the chain of certificates presented by the server. The connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false."
+        "description": "If the connection will ignore the chain of certificates presented by the server. The connection will be subject to man-in-the-middle attacks if the network is not reliable. By default, this option is set to false.",
+        "placeholder": "false"
       }
-    }
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/databases/mssql"

@@ -1,13 +1,16 @@
 id: webapps-and-apis
 name: Web Applications and APIs
-description: Interact with web applications and APIs tunneling through hoop.dev.
+description: Web applications and APIs that provide HTTP/HTTPS endpoints for various services, applications, and data access interfaces.
 category: web-applications
-icon-name: globe
+icon-name: tcp
 tags:
   - web
   - api
   - http
   - monitoring
+
+overview:
+  description: Access your web applications and APIs securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls. Tunnel HTTP/HTTPS connections with built-in data masking and session recording for complete API governance.
 
 setupGuide:
   accessMethods:
@@ -39,16 +42,16 @@ resourceConfiguration:
   type: web-application
   subtype: webapp-api
   credentials:
-    host:
-      name: "HOST"
-      type: "env-var"
+    - name: HOST
+      type: env-var
       required: true
-      description: "The IP or hostname of the service"
-    PORT:
-      name: "PORT"
-      type: "env-var"
+      description: The IP or hostname of the service
+      placeholder: localhost
+    - name: PORT
+      type: env-var
       required: true
-      description: "The port of the service"
+      description: The port of the service
+      placeholder: "8080"
 
 documentationConfig:
   path: "quickstart/web-applications/webapps-and-apis"

@@ -1,8 +1,6 @@
 id: mongodb
 name: MongoDB
-description: A MongoDB connection is a native type, allowing for the auditing of
-  queries and redaction of their output. It facilitates a local TCP connection
-  without requiring a password.
+description: A NoSQL document-oriented database that provides high scalability and flexibility for modern applications.
 category: databases
 icon-name: mongodb
 tags:
@@ -10,8 +8,7 @@ tags:
   - document
   - cloud
 overview:
-  description: MongoDB is a NoSQL document-oriented database that provides high
-    scalability and flexibility for modern applications.
+  description: Connect to your MongoDB instances through Hoop.dev's secure access gateway with automated data protection, comprehensive query auditing, and intelligent access controls. Execute database operations with real-time masking of sensitive document fields.
 setupGuide:
   accessMethods:
     webapp: true
@@ -42,10 +39,8 @@ resourceConfiguration:
   type: database
   subtype: mongodb
   credentials:
-    connectionString:
-      name: CONNECTION_STRING
+    - name: CONNECTION_STRING
       type: env-var
       required: true
-      description: The MongoDB connection string. See [MongoDB connection
-        string](https://www.mongodb.com/docs/manual/reference/connection-string/)
-        for more details about the proper format.
+      description: The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format.
+      placeholder: mongodb://localhost:27017/mydb

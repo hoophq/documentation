@@ -1,6 +1,6 @@
 id: django
 name: Django
-description: Interact with the Artisan console or execute ad-hoc scripts.
+description: A high-level Python web framework that encourages rapid development and clean, pragmatic design with built-in admin interface.
 category: development-environments
 icon-name: django
 tags:
@@ -30,7 +30,7 @@ features:
     oneOff: true
 
 overview:
-  description: Django is a high-level Python web framework that encourages rapid development and clean, pragmatic design with built-in administrative interface.
+  description: Access your Django management console securely through Hoop.dev with comprehensive command logging, automated database migration tracking, and intelligent access controls. Execute manage.py commands with full audit trails and built-in security safeguards.
 
 setupGuide:
   accessMethods:
@@ -40,8 +40,9 @@ setupGuide:
 
 
 resourceConfiguration:
-  type: development-environment
+  type: custom
   subtype: django
+  command: [python, manage.py, shell, "-c"]
 
 documentationConfig:
   path: "quickstart/development-environments/python/django-admin"

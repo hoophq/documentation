@@ -1,8 +1,8 @@
 id: php-artisan
 name: PHP Artisan
-description: Interact with the Laravel Artisan console or execute ad-hoc PHP scripts.
+description: Laravel Artisan is the command-line interface included with Laravel, providing helpful commands for application development.
 category: development-environments
-icon-name: php
+icon-name: laravel
 tags:
   - php
   - laravel
@@ -30,18 +30,19 @@ features:
     oneOff: true
 
 overview:
-  description: Laravel Artisan is the command-line interface included with Laravel, providing helpful commands for application development.
+  description: Access your Laravel Artisan console securely through Hoop.dev with comprehensive command monitoring, database migration tracking, and intelligent access controls. Execute PHP artisan commands with complete audit logging and built-in security guardrails.
 
 setupGuide:
   accessMethods:
     webapp: true
-    cli: true
+    cli: false
     runbooks: true
 
 
 resourceConfiguration:
-  type: development-environment
+  type: custom
   subtype: php-artisan
+  command: [php, artisan, tinker, "-"]
 
 documentationConfig:
   path: "quickstart/development-environments/php-artisan"

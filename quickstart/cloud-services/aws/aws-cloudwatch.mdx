@@ -1,6 +1,6 @@
 ---
 title: "AWS CloudWatch"
-description: "CloudWatch in Hoop simplifies AWS log analysis by providing direct access to log groups with automatic environment variable setup and an optimized interface for log exploration."
+description: "A monitoring and observability service that provides data and actionable insights for AWS, hybrid, and on-premises applications and infrastructure resources."
 category: "cloud-services"
 ---
 
@@ -9,15 +9,25 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "aws-cloudwatch",
   "name": "AWS CloudWatch",
-  "description": "CloudWatch in Hoop simplifies AWS log analysis by providing direct access to log groups with automatic environment variable setup and an optimized interface for log exploration.",
+  "description": "A monitoring and observability service that provides data and actionable insights for AWS, hybrid, and on-premises applications and infrastructure resources.",
   "category": "cloud-services",
-  "icon-name": "aws",
+  "icon-name": "aws-cloudwatch",
   "tags": [
     "aws",
     "monitoring",
     "logs",
     "metrics"
   ],
+  "overview": {
+    "description": "Access AWS CloudWatch logs securely through Hoop.dev with intelligent log analysis, automated data classification, and comprehensive audit trails. Monitor your AWS infrastructure with built-in cost controls and session recording for complete observability governance."
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": false,
+      "runbooks": true
+    }
+  },
   "features": {
     "tlsTerminationProxy": {
       "native": false,
@@ -53,28 +63,34 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     ]
   },
   "resourceConfiguration": {
-    "type": "cloud-service",
+    "type": "custom",
     "subtype": "aws-cloudwatch",
-    "credentials": {
-      "aws_access_key_id": {
+    "command": [
+      "bash"
+    ],
+    "credentials": [
+      {
         "name": "AWS_ACCESS_KEY_ID",
         "type": "env-var",
         "required": true,
-        "description": "The AWS access key ID for CloudWatch Logs accesss"
+        "description": "The AWS access key ID for CloudWatch Logs access",
+        "placeholder": "AKIAIOSFODNN7EXAMPLE"
       },
-      "aws_secret_access_key": {
+      {
         "name": "AWS_SECRET_ACCESS_KEY",
         "type": "env-var",
         "required": true,
-        "description": "The AWS secret access key for CloudWatch Logs access"
+        "description": "The AWS secret access key for CloudWatch Logs access",
+        "placeholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
       },
-      "aws_region": {
+      {
         "name": "AWS_REGION",
         "type": "env-var",
         "required": true,
-        "description": "The AWS region where your CloudWatch log groups are located (e.g., us-east-1, eu-west-1)"
+        "description": "The AWS region where your CloudWatch log groups are located (e.g., us-east-1, eu-west-1)",
+        "placeholder": "us-east-1"
       }
-    }
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/cloud-services/aws/aws-cloudwatch"

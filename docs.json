@@ -91,15 +91,21 @@
                       "quickstart/cloud-services/aws/aws-ecs"
                     ]
                   },
-                  "quickstart/cloud-services/kubernetes"
+                  {
+                    "group": "Kubernetes",
+                    "pages": [
+                      "quickstart/cloud-services/kubernetes/container-commands",
+                      "quickstart/cloud-services/kubernetes/cluster-administration",
+                      "quickstart/cloud-services/kubernetes/interactive-access"
+                    ]
+                  }
                 ]
               },
               {
                 "group": "Web Applications",
                 "pages": [
                   "quickstart/web-applications/webapps-and-apis",
-                  "quickstart/web-applications/jump-hosts",
-                  "quickstart/web-applications/httpproxy"
+                  "quickstart/web-applications/http-proxy"
                 ]
               },
               {

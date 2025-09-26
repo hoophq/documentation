@@ -1,6 +1,6 @@
 ---
 title: "MySQL"
-description: "Connect to a private mysql instance from your favorite IDE"
+description: "The world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use."
 category: "databases"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "mysql",
   "name": "MySQL",
-  "description": "Connect to a private mysql instance from your favorite IDE",
+  "description": "The world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.",
   "category": "databases",
   "icon-name": "mysql",
   "tags": [
@@ -45,88 +45,62 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "MySQL is the world's most popular open-source relational database, offering proven performance, reliability, and ease-of-use.",
-    "features": [
-      "ACID-compliant transactions for data integrity",
-      "High performance with optimized storage engines",
-      "Comprehensive security with SSL encryption",
-      "Scalable architecture supporting large datasets"
-    ],
-    "useCases": [
-      "Web applications and e-commerce platforms",
-      "Data warehousing and analytics",
-      "Content management systems",
-      "Financial and banking applications"
-    ]
+    "description": "Access your MySQL databases securely through Hoop.dev with comprehensive audit logging, real-time data protection, and streamlined access management. Execute queries with built-in guardrails that prevent risky operations while maintaining developer productivity."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
       "cli": true,
       "runbooks": true
-    },
-    "requirements": [
-      "MySQL Server 5.7+",
-      "Database user with appropriate privileges",
-      "Network connectivity to port 3306",
-      "SSL certificates for secure connections"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "mysql://username:password@host:port/database",
-    "featureConfiguration": [
-      "Master-slave replication for high availability",
-      "InnoDB storage engine optimization",
-      "Query cache configuration",
-      "SSL/TLS encryption setup"
-    ],
-    "otherRequirements": [
-      "Regular backup strategy implemented",
-      "Performance monitoring enabled",
-      "Binary logging configured"
-    ]
+    }
   },
   "resourceConfiguration": {
     "type": "database",
     "subtype": "mysql",
-    "credentials": {
-      "host": {
+    "credentials": [
+      {
         "name": "HOST",
         "type": "env-var",
         "required": true,
-        "description": "The IP or Host of the MySQL server"
+        "description": "The IP or Host of the MySQL server",
+        "placeholder": "localhost"
       },
-      "user": {
+      {
         "name": "USER",
         "type": "env-var",
         "required": true,
-        "description": "The user to connect in the MySQL server"
+        "description": "The user to connect in the MySQL server",
+        "placeholder": "root"
       },
-      "pass": {
+      {
         "name": "PASS",
         "type": "env-var",
         "required": true,
-        "description": "The password to connect to the MySQL server"
+        "description": "The password to connect to the MySQL server",
+        "placeholder": "password"
       },
-      "port": {
+      {
         "name": "PORT",
         "type": "env-var",
         "required": true,
-        "description": "The port of the MySQL server"
+        "description": "The port of the MySQL server",
+        "placeholder": "3306"
       },
-      "db": {
+      {
         "name": "DB",
         "type": "env-var",
         "required": true,
-        "description": "The name of the database to connect (Required when using the connection via the command line)."
+        "description": "The name of the database to connect (Required when using the connection via the command line).",
+        "placeholder": "mydb"
       },
-      "preSQLScriptFile": {
+      {
         "name": "PRE_SQL_SCRIPT_FILE",
         "type": "filesystem",
         "required": false,
-        "description": "Append a custom SQL script at the beginning of the execution."
+        "description": "Append a custom SQL script at the beginning of the execution.",
+        "placeholder": "/path/to/script.sql"
       }
-    }
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/databases/mysql"

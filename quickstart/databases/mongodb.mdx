@@ -1,6 +1,6 @@
 ---
 title: "MongoDB"
-description: "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password."
+description: "A NoSQL document-oriented database that provides high scalability and flexibility for modern applications."
 category: "databases"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "mongodb",
   "name": "MongoDB",
-  "description": "A MongoDB connection is a native type, allowing for the auditing of queries and redaction of their output. It facilitates a local TCP connection without requiring a password.",
+  "description": "A NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
   "category": "databases",
   "icon-name": "mongodb",
   "tags": [
@@ -18,46 +18,14 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "cloud"
   ],
   "overview": {
-    "description": "MongoDB is a NoSQL document-oriented database that provides high scalability and flexibility for modern applications.",
-    "features": [
-      "Flexible schema for rapid data evolution",
-      "Horizontal scalability with automatic sharding",
-      "Built-in replication for high availability",
-      "Powerful queries with advanced indexing"
-    ],
-    "useCases": [
-      "Web and mobile applications with variable data",
-      "Content management systems",
-      "E-commerce product catalogs",
-      "Real-time data analytics"
-    ]
+    "description": "Connect to your MongoDB instances through Hoop.dev's secure access gateway with automated data protection, comprehensive query auditing, and intelligent access controls. Execute database operations with real-time masking of sensitive document fields."
   },
   "setupGuide": {
     "accessMethods": {
-      "webapp": false,
-      "cli": false,
-      "runbooks": false
-    },
-    "requirements": [
-      "MongoDB Server 4.0+",
-      "User credentials with appropriate privileges",
-      "Network connectivity to port 27017",
-      "Proper firewall configuration"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "mongodb://username:password@host:port/database",
-    "featureConfiguration": [
-      "Replica set configuration for high availability",
-      "Sharding configuration for scalability",
-      "Optimized indexes for frequent queries",
-      "SSL/TLS configuration for secure connections"
-    ],
-    "otherRequirements": [
-      "Performance monitoring enabled",
-      "Automatic backup configured",
-      "Storage capacity alerts"
-    ]
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    }
   },
   "documentationConfig": {
     "path": "quickstart/databases/mongodb"
@@ -91,14 +59,15 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   "resourceConfiguration": {
     "type": "database",
     "subtype": "mongodb",
-    "credentials": {
-      "connectionString": {
+    "credentials": [
+      {
         "name": "CONNECTION_STRING",
         "type": "env-var",
         "required": true,
-        "description": "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format."
+        "description": "The MongoDB connection string. See [MongoDB connection string](https://www.mongodb.com/docs/manual/reference/connection-string/) for more details about the proper format.",
+        "placeholder": "mongodb://localhost:27017/mydb"
       }
-    }
+    ]
   }
 }} />
 

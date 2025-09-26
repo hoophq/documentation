@@ -1,6 +1,6 @@
 ---
 title: "Redis"
-description: "Execute queries to Redis with the redis-cli command line tool."
+description: "An in-memory data structure store, used as a database, cache, and message broker with support for various data types."
 category: "databases"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "redis",
   "name": "Redis",
-  "description": "Execute queries to Redis with the redis-cli command line tool.",
+  "description": "An in-memory data structure store, used as a database, cache, and message broker with support for various data types.",
   "category": "databases",
   "icon-name": "redis",
   "tags": [
@@ -45,52 +45,55 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "Redis is an in-memory data structure store, used as a database, cache, and message broker with support for various data structures.",
-    "features": [
-      "High-performance in-memory data storage",
-      "Support for strings, hashes, lists, sets, and more",
-      "Built-in replication and clustering",
-      "Pub/Sub messaging capabilities"
-    ],
-    "useCases": [
-      "Application caching and session storage",
-      "Real-time analytics and leaderboards",
-      "Message queuing and pub/sub systems",
-      "High-speed data processing pipelines"
-    ]
+    "description": "Access your Redis instances securely through Hoop.dev with high-performance connection management, session recording, and intelligent data protection. Execute Redis commands with built-in safeguards and comprehensive audit trails for cache operations and data queries."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
-      "cli": true,
+      "cli": false,
       "runbooks": true
-    },
-    "requirements": [
-      "Redis Server 6.0+",
-      {
-        "Network connectivity to Redis port (default": "6379)"
-      },
-      "Authentication credentials if AUTH is enabled",
-      "SSL/TLS configuration for encrypted connections"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "redis://username:password@host:port/database",
-    "featureConfiguration": [
-      "Redis Cluster configuration for scalability",
-      "Sentinel setup for high availability",
-      "Memory optimization and persistence settings",
-      "SSL/TLS encryption configuration"
-    ],
-    "otherRequirements": [
-      "Memory allocation planning for dataset size",
-      "Backup and persistence strategy (RDB/AOF)",
-      "Monitoring with Redis INFO commands"
-    ]
+    }
   },
   "resourceConfiguration": {
-    "type": "database",
-    "subtype": "redis"
+    "type": "custom",
+    "subtype": "redis",
+    "credentials": [
+      {
+        "name": "HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The host of the Redis server",
+        "placeholder": "localhost"
+      },
+      {
+        "name": "PORT",
+        "type": "env-var",
+        "required": true,
+        "description": "The port of the Redis server",
+        "placeholder": "6379"
+      },
+      {
+        "name": "USER",
+        "type": "env-var",
+        "required": false,
+        "description": "The username for Redis authentication (Redis 6.0+)",
+        "placeholder": "default"
+      },
+      {
+        "name": "PASSWORD",
+        "type": "env-var",
+        "required": false,
+        "description": "The password for Redis authentication",
+        "placeholder": "password"
+      },
+      {
+        "name": "DB_NUMBER",
+        "type": "env-var",
+        "required": false,
+        "description": "The database number to select (0-15)",
+        "placeholder": "0"
+      }
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/databases/redis"

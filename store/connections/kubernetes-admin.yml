@@ -1,0 +1,80 @@
+id: kubernetes-admin
+name: Kubernetes Cluster Administration
+description: Administer your Kubernetes cluster through kubectl commands with comprehensive audit trails and session recording.
+category: cloud-services
+icon-name: kubernetes
+tags:
+  - orchestration
+  - containers
+  - cloud-native
+  - devops
+  - administration
+
+features:
+  tlsTerminationProxy:
+    native: false
+    oneOff: true
+  audit:
+    native: false
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: false
+    oneOff: true
+  interactiveAccess:
+    native: false
+    oneOff: false
+
+overview:
+  description: Manage your Kubernetes clusters securely through Hoop.dev with comprehensive kubectl command auditing, RBAC-integrated access controls, and intelligent namespace protection. Execute cluster administration operations with complete session recording and built-in security guardrails.
+
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+
+resourceConfiguration:
+  type: custom
+  subtype: kubernetes-admin
+  command: [xargs, kubectl]
+  credentials:
+    - name: KUBECONFIG
+      type: filesystem
+      required: true
+      description: A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster
+      placeholder: /path/to/.kube/config
+
+documentationConfig:
+  path: quickstart/cloud-services/kubernetes/cluster-administration
+
+additionalInformation: >-
+  ### Connection Setup
+
+   Cluster administration is done through the `kubectl` command line.
+
+  ```bash
+    hoop admin create conn k8s -a <agent> \
+  	-e KUBECONFIG=file://$HOME/.kube/config \
+  	-- xargs kubectl
+  ```
+
+  The command above will allow users to execute `kubectl` commands from the Web Console.
+  This is useful for cluster administration tasks.
+
+  <Note>
+  	Note that `xargs` is used to pass the command line arguments to `kubectl`.
+  	The input is passed to `xargs` and then to `kubectl` as arguments.
+  </Note>
+
+  ### Command Line Usage Examples
+
+  ```bash
+    hoop exec k8s --input 'get pods'
+    hoop exec k8s -i 'rollout restart deployment/myapp -n mynamespace'
+  ```

@@ -1,6 +1,6 @@
 ---
 title: "Elixir IEx"
-description: "Interact with the IEx console or execute ad-hoc scripts."
+description: "A dynamic, functional language designed for building maintainable and scalable applications, running on the Erlang Virtual Machine."
 category: "development-environments"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "elixir-IEx",
   "name": "Elixir IEx",
-  "description": "Interact with the IEx console or execute ad-hoc scripts.",
+  "description": "A dynamic, functional language designed for building maintainable and scalable applications, running on the Erlang Virtual Machine.",
   "category": "development-environments",
   "icon-name": "elixir",
   "tags": [
@@ -45,36 +45,24 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "Elixir is a dynamic, functional language designed for building maintainable and scalable applications, running on the Erlang Virtual Machine.",
-    "features": [
-      "Interactive development with IEx",
-      "Actor-based concurrency model",
-      "Fault-tolerant and distributed systems",
-      "Hot code swapping capabilities"
-    ],
-    "useCases": [
-      "Real-time web applications with Phoenix",
-      "IoT and embedded systems",
-      "Distributed and concurrent applications",
-      "Microservices architecture"
-    ]
+    "description": "Access your Elixir IEx console securely through Hoop.dev with comprehensive interactive session recording, intelligent process monitoring, and automated OTP supervision. Execute Elixir code with built-in concurrency safeguards and complete audit trails for distributed systems development."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
-      "cli": true,
+      "cli": false,
       "runbooks": true
-    },
-    "requirements": [
-      "Elixir 1.12+ installed",
-      "Erlang/OTP runtime",
-      "Mix build tool configured",
-      "Project dependencies compiled"
-    ]
+    }
   },
   "resourceConfiguration": {
-    "type": "development-environment",
-    "subtype": "elixir"
+    "type": "custom",
+    "subtype": "elixir",
+    "command": [
+      "iex",
+      "-S",
+      "mix",
+      "-"
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/development-environments/elixir-IEx"

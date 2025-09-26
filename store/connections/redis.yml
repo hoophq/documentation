@@ -1,6 +1,6 @@
 id: redis
 name: Redis
-description: Execute queries to Redis with the redis-cli command line tool.
+description: An in-memory data structure store, used as a database, cache, and message broker with support for various data types.
 category: databases
 icon-name: redis
 tags:
@@ -30,18 +30,44 @@ features:
     oneOff: true
 
 overview:
-  description: Redis is an in-memory data structure store, used as a database, cache, and message broker with support for various data structures.
+  description: Access your Redis instances securely through Hoop.dev with high-performance connection management, session recording, and intelligent data protection. Execute Redis commands with built-in safeguards and comprehensive audit trails for cache operations and data queries.
 
 setupGuide:
   accessMethods:
     webapp: true
-    cli: true
+    cli: false
     runbooks: true
 
 
 resourceConfiguration:
-  type: database
+  type: custom
   subtype: redis
+  credentials:
+    - name: HOST
+      type: env-var
+      required: true
+      description: The host of the Redis server
+      placeholder: localhost
+    - name: PORT
+      type: env-var
+      required: true
+      description: The port of the Redis server
+      placeholder: "6379"
+    - name: USER
+      type: env-var
+      required: false
+      description: The username for Redis authentication (Redis 6.0+)
+      placeholder: default
+    - name: PASSWORD
+      type: env-var
+      required: false
+      description: The password for Redis authentication
+      placeholder: password
+    - name: DB_NUMBER
+      type: env-var
+      required: false
+      description: The database number to select (0-15)
+      placeholder: "0"
 
 documentationConfig:
   path: "quickstart/databases/redis"

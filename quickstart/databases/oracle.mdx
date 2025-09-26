@@ -1,6 +1,6 @@
 ---
 title: "Oracle"
-description: "Execute queries to Oracle instances with [sqlcl](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/)."
+description: "A multi-model database management system designed for enterprise grid computing and high-performance applications."
 category: "databases"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "oracle",
   "name": "Oracle",
-  "description": "Execute queries to Oracle instances with [sqlcl](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/).",
+  "description": "A multi-model database management system designed for enterprise grid computing and high-performance applications.",
   "category": "databases",
   "icon-name": "oracle",
   "tags": [
@@ -45,90 +45,63 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "Oracle Database is a multi-model database management system produced by Oracle Corporation, designed for enterprise grid computing and high-performance applications.",
-    "features": [
-      "Advanced security with data encryption and masking",
-      "Real Application Clusters (RAC) for scalability",
-      "Automatic Storage Management (ASM)",
-      "In-memory processing capabilities"
-    ],
-    "useCases": [
-      "Large-scale enterprise applications",
-      "Data warehousing and analytics platforms",
-      "Financial and banking systems",
-      "High-availability mission-critical systems"
-    ]
+    "description": "Access your Oracle databases through Hoop.dev with enterprise-level security and compliance features, comprehensive audit trails, and automated data protection. Execute SQL operations with granular access controls and intelligent masking for sensitive enterprise data."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
-      "cli": true,
+      "cli": false,
       "runbooks": true
-    },
-    "requirements": [
-      "Oracle Database 12c+",
-      "Oracle user account with appropriate privileges",
-      "Network connectivity to port 1521",
-      "Oracle client libraries installed"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "oracle://username:password@host:port/service_name",
-    "featureConfiguration": [
-      "Real Application Clusters (RAC) configuration",
-      "Data Guard for disaster recovery",
-      "Transparent Data Encryption setup",
-      "Oracle Advanced Security configuration"
-    ],
-    "otherRequirements": [
-      "Oracle Enterprise Manager for monitoring",
-      "RMAN backup strategy configured",
-      "Automatic Workload Repository (AWR) enabled"
-    ]
+    }
   },
   "resourceConfiguration": {
     "type": "database",
     "subtype": "oracle",
-    "credentials": {
-      "host": {
+    "credentials": [
+      {
         "name": "HOST",
         "type": "env-var",
         "required": true,
-        "description": "The IP or Host of the Oracle server"
+        "description": "The IP or Host of the Oracle server",
+        "placeholder": "localhost"
       },
-      "user": {
+      {
         "name": "USER",
         "type": "env-var",
         "required": true,
-        "description": "The user to connect in the Oracle server"
+        "description": "The user to connect in the Oracle server",
+        "placeholder": "hr"
       },
-      "pass": {
+      {
         "name": "PASS",
         "type": "env-var",
         "required": true,
-        "description": "The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters."
+        "description": "The password to connect to the Oracle server. Make sure to URL encode the password if it contains any special characters.",
+        "placeholder": "password"
       },
-      "port": {
+      {
         "name": "PORT",
         "type": "env-var",
         "required": true,
-        "description": "The port of the Oracle server"
+        "description": "The port of the Oracle server",
+        "placeholder": "1521"
       },
-      "ld_library_path": {
+      {
         "name": "LD_LIBRARY_PATH",
         "type": "env-var",
         "required": true,
         "description": "Oracle client library path",
-        "hidden": true
+        "hidden": true,
+        "placeholder": "/opt/oracle/instantclient"
       },
-      "sid": {
+      {
         "name": "SID",
         "type": "env-var",
         "required": true,
         "description": "The service name or SID (System identifier) to identify the database service.",
         "placeholder": "SID or Service name"
       }
-    }
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/databases/oracle"
