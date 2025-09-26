@@ -72,7 +72,7 @@ resourceConfiguration:
       type: filesystem
       required: false
       description: Append a custom SQL script at the beginning of the execution.
-      placeholder: /path/to/script.sql
+      placeholder: file content of script.sql
 
 documentationConfig:
   path: "quickstart/databases/mysql"

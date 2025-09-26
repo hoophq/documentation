@@ -444,7 +444,7 @@
             "type": "filesystem",
             "required": true,
             "description": "The service account credentials file in JSON format",
-            "placeholder": "/path/to/service-account.json"
+            "placeholder": "file content of service-account.json"
           },
           {
             "name": "CLOUDSDK_CORE_PROJECT",
@@ -849,7 +849,7 @@
             "type": "filesystem",
             "required": true,
             "description": "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster",
-            "placeholder": "/path/to/.kube/config"
+            "placeholder": "file content of ~/.kube/config"
           }
         ]
       },
@@ -920,7 +920,7 @@
             "type": "filesystem",
             "required": true,
             "description": "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster",
-            "placeholder": "/path/to/.kube/config"
+            "placeholder": "file content of ~/.kube/config"
           },
           {
             "name": "KUBERNETES_RESOURCE",
@@ -999,7 +999,7 @@
             "type": "filesystem",
             "required": true,
             "description": "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster",
-            "placeholder": "/path/to/.kube/config"
+            "placeholder": "file content of ~/.kube/config"
           },
           {
             "name": "KUBERNETES_RESOURCE",
@@ -1268,7 +1268,7 @@
             "type": "filesystem",
             "required": false,
             "description": "Append a custom SQL script at the beginning of the execution.",
-            "placeholder": "/path/to/script.sql"
+            "placeholder": "file content of script.sql"
           }
         ]
       },

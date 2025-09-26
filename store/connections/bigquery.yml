@@ -53,7 +53,7 @@ resourceConfiguration:
       type: filesystem
       required: true
       description: The service account credentials file in JSON format
-      placeholder: /path/to/service-account.json
+      placeholder: file content of service-account.json
     - name: CLOUDSDK_CORE_PROJECT
       type: env-var
       required: true
