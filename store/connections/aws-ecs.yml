@@ -6,8 +6,6 @@ icon-name: aws
 tags:
   - aws
   - containers
-  - orchestration
-  - ecs
 
 overview:
   description: Execute commands in your ECS containers securely through Hoop.dev with comprehensive session recording, intelligent resource monitoring, and automated access controls. Run one-off tasks and debug containerized applications with complete audit trails and built-in security guardrails.

@@ -4,9 +4,9 @@ description: The world's most popular open-source relational database, offering 
 category: databases
 icon-name: mysql
 tags:
+  - database
   - sql
-  - relational
-  - open-source
+  - development
 
 features:
   tlsTerminationProxy:

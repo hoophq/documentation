@@ -4,9 +4,6 @@ description: A JavaScript runtime built on Chrome's V8 engine, enabling server-s
 category: development-environments
 icon-name: node
 tags:
-  - javascript
-  - runtime
-  - server-side
   - development
 
 features:

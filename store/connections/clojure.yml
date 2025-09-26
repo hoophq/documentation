@@ -4,10 +4,8 @@ description: A dynamic, general-purpose programming language that combines inter
 category: development-environments
 icon-name: clojure
 tags:
-  - functional
-  - lisp
-  - jvm
   - development
+  - interactive
 
 features:
   tlsTerminationProxy:

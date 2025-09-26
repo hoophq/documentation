@@ -4,10 +4,8 @@ description: A dynamic, functional language designed for building maintainable a
 category: development-environments
 icon-name: elixir
 tags:
-  - elixir
-  - functional
-  - erlang-vm
   - development
+  - interactive
 
 features:
   tlsTerminationProxy:

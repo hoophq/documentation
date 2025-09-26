@@ -28,9 +28,8 @@ category: cloud-services
 icon-name: aws
 tags:
   - aws
-  - cloud
   - cli
-  - management
+  - automation
 overview:
   description: Access your AWS resources securely through Hoop.dev with comprehensive command auditing, intelligent cost monitoring, and automated credential management. Execute AWS CLI commands with built-in compliance tracking and session recording for complete infrastructure governance.
 setupGuide:

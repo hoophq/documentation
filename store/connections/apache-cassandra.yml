@@ -34,10 +34,8 @@ description: A highly scalable, distributed NoSQL database designed for handling
 category: databases
 icon-name: cassandra
 tags:
+  - database
   - nosql
-  - distributed
-  - column-family
-  - high-availability
 overview:
   description: Access your Cassandra clusters securely through Hoop.dev with comprehensive audit trails, AI-powered data masking for sensitive information, and granular access controls. Execute CQL queries with confidence knowing all interactions are monitored and protected.
 setupGuide:

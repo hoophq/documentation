@@ -60,10 +60,8 @@
       "category": "databases",
       "icon-name": "cassandra",
       "tags": [
-        "nosql",
-        "distributed",
-        "column-family",
-        "high-availability"
+        "database",
+        "nosql"
       ],
       "overview": {
         "description": "Access your Cassandra clusters securely through Hoop.dev with comprehensive audit trails, AI-powered data masking for sensitive information, and granular access controls. Execute CQL queries with confidence knowing all interactions are monitored and protected."
@@ -146,9 +144,8 @@
       "icon-name": "aws",
       "tags": [
         "aws",
-        "cloud",
         "cli",
-        "management"
+        "automation"
       ],
       "overview": {
         "description": "Access your AWS resources securely through Hoop.dev with comprehensive command auditing, intelligent cost monitoring, and automated credential management. Execute AWS CLI commands with built-in compliance tracking and session recording for complete infrastructure governance."
@@ -197,10 +194,7 @@
       "category": "cloud-services",
       "icon-name": "aws-cloudwatch",
       "tags": [
-        "aws",
-        "monitoring",
-        "logs",
-        "metrics"
+        "aws"
       ],
       "overview": {
         "description": "Access AWS CloudWatch logs securely through Hoop.dev with intelligent log analysis, automated data classification, and comprehensive audit trails. Monitor your AWS infrastructure with built-in cost controls and session recording for complete observability governance."
@@ -288,9 +282,7 @@
       "icon-name": "aws",
       "tags": [
         "aws",
-        "containers",
-        "orchestration",
-        "ecs"
+        "containers"
       ],
       "overview": {
         "description": "Execute commands in your ECS containers securely through Hoop.dev with comprehensive session recording, intelligent resource monitoring, and automated access controls. Run one-off tasks and debug containerized applications with complete audit trails and built-in security guardrails."
@@ -395,8 +387,8 @@
       "category": "databases",
       "icon-name": "google-bigquery",
       "tags": [
+        "database",
         "analytics",
-        "data-warehouse",
         "google-cloud",
         "sql"
       ],
@@ -474,10 +466,8 @@
       "category": "development-environments",
       "icon-name": "clojure",
       "tags": [
-        "functional",
-        "lisp",
-        "jvm",
-        "development"
+        "development",
+        "interactive"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -534,8 +524,7 @@
       "icon-name": "django",
       "tags": [
         "python",
-        "web-framework",
-        "management",
+        "web",
         "development"
       ],
       "features": {
@@ -595,10 +584,9 @@
       "category": "databases",
       "icon-name": "aws-dynamodb",
       "tags": [
+        "database",
         "nosql",
-        "aws",
-        "managed",
-        "serverless"
+        "aws"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -685,10 +673,8 @@
       "category": "development-environments",
       "icon-name": "elixir",
       "tags": [
-        "elixir",
-        "functional",
-        "erlang-vm",
-        "development"
+        "development",
+        "interactive"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -747,11 +733,8 @@
       "category": "web-applications",
       "icon-name": "httpproxy",
       "tags": [
-        "http",
-        "proxy",
         "web",
-        "api",
-        "monitoring"
+        "security"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -813,11 +796,9 @@
       "category": "cloud-services",
       "icon-name": "kubernetes",
       "tags": [
-        "orchestration",
         "containers",
-        "cloud-native",
-        "devops",
-        "administration"
+        "cli",
+        "automation"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -883,11 +864,8 @@
       "category": "cloud-services",
       "icon-name": "kubernetes",
       "tags": [
-        "orchestration",
         "containers",
-        "cloud-native",
-        "devops",
-        "exec"
+        "development"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -964,12 +942,9 @@
       "category": "cloud-services",
       "icon-name": "kubernetes",
       "tags": [
-        "orchestration",
         "containers",
-        "cloud-native",
-        "devops",
         "interactive",
-        "shell"
+        "development"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -1046,10 +1021,8 @@
       "category": "databases",
       "icon-name": "mssql",
       "tags": [
-        "sql",
-        "relational",
-        "enterprise",
-        "microsoft"
+        "database",
+        "sql"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -1146,9 +1119,9 @@
       "category": "databases",
       "icon-name": "mongodb",
       "tags": [
+        "database",
         "nosql",
-        "document",
-        "cloud"
+        "development"
       ],
       "overview": {
         "description": "Connect to your MongoDB instances through Hoop.dev's secure access gateway with automated data protection, comprehensive query auditing, and intelligent access controls. Execute database operations with real-time masking of sensitive document fields."
@@ -1210,9 +1183,9 @@
       "category": "databases",
       "icon-name": "mysql",
       "tags": [
+        "database",
         "sql",
-        "relational",
-        "open-source"
+        "development"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -1310,9 +1283,6 @@
       "category": "development-environments",
       "icon-name": "node",
       "tags": [
-        "javascript",
-        "runtime",
-        "server-side",
         "development"
       ],
       "features": {
@@ -1370,10 +1340,8 @@
       "category": "databases",
       "icon-name": "oracle",
       "tags": [
-        "sql",
-        "relational",
-        "enterprise",
-        "high-performance"
+        "database",
+        "sql"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -1471,9 +1439,7 @@
       "category": "development-environments",
       "icon-name": "laravel",
       "tags": [
-        "php",
-        "laravel",
-        "artisan",
+        "web",
         "development"
       ],
       "features": {
@@ -1533,10 +1499,9 @@
       "category": "databases",
       "icon-name": "postgres",
       "tags": [
+        "database",
         "sql",
-        "relational",
-        "acid-compliant",
-        "open-source"
+        "development"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -1634,7 +1599,6 @@
       "icon-name": "python",
       "tags": [
         "python",
-        "scripting",
         "development",
         "automation"
       ],
@@ -1693,10 +1657,9 @@
       "category": "databases",
       "icon-name": "redis",
       "tags": [
-        "nosql",
+        "database",
         "cache",
-        "key-value",
-        "in-memory"
+        "nosql"
       ],
       "features": {
         "tlsTerminationProxy": {
@@ -1786,9 +1749,7 @@
       "category": "development-environments",
       "icon-name": "rails",
       "tags": [
-        "ruby",
-        "web-framework",
-        "mvc",
+        "web",
         "development"
       ],
       "features": {
@@ -1888,10 +1849,9 @@
       "category": "infrastructure-access",
       "icon-name": "ssh",
       "tags": [
-        "remote-access",
-        "secure",
-        "terminal",
-        "unix"
+        "security",
+        "interactive",
+        "cli"
       ],
       "overview": {
         "description": "Access your servers securely through Hoop.dev with comprehensive SSH session recording, intelligent command monitoring, and automated access controls. Connect to remote hosts with complete audit trails, data masking capabilities, and built-in security guardrails that eliminate the need for traditional VPN access."
@@ -1940,10 +1900,7 @@
       "category": "web-applications",
       "icon-name": "tcp",
       "tags": [
-        "web",
-        "api",
-        "http",
-        "monitoring"
+        "web"
       ],
       "overview": {
         "description": "Access your web applications and APIs securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls. Tunnel HTTP/HTTPS connections with built-in data masking and session recording for complete API governance."

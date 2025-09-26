@@ -4,10 +4,9 @@ description: An in-memory data structure store, used as a database, cache, and m
 category: databases
 icon-name: redis
 tags:
-  - nosql
+  - database
   - cache
-  - key-value
-  - in-memory
+  - nosql
 
 features:
   tlsTerminationProxy:

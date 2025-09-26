@@ -4,11 +4,8 @@ description: Access HTTP/HTTPS endpoints securely through Hoop.dev with intellig
 category: web-applications
 icon-name: httpproxy
 tags:
-  - http
-  - proxy
   - web
-  - api
-  - monitoring
+  - security
 
 features:
   tlsTerminationProxy:

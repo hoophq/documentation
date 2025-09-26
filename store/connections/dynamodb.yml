@@ -4,10 +4,9 @@ description: Amazon DynamoDB is a fully managed NoSQL database service that prov
 category: databases
 icon-name: aws-dynamodb
 tags:
+  - database
   - nosql
   - aws
-  - managed
-  - serverless
 
 features:
   tlsTerminationProxy:

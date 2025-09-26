@@ -4,10 +4,8 @@ description: A multi-model database management system designed for enterprise gr
 category: databases
 icon-name: oracle
 tags:
+  - database
   - sql
-  - relational
-  - enterprise
-  - high-performance
 
 features:
   tlsTerminationProxy:

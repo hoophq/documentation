@@ -4,11 +4,9 @@ description: Administer your Kubernetes cluster through kubectl commands with co
 category: cloud-services
 icon-name: kubernetes
 tags:
-  - orchestration
   - containers
-  - cloud-native
-  - devops
-  - administration
+  - cli
+  - automation
 
 features:
   tlsTerminationProxy:

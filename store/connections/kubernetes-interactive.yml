@@ -4,12 +4,9 @@ description: Open interactive shell sessions inside Kubernetes containers with f
 category: cloud-services
 icon-name: kubernetes
 tags:
-  - orchestration
   - containers
-  - cloud-native
-  - devops
   - interactive
-  - shell
+  - development
 
 features:
   tlsTerminationProxy:

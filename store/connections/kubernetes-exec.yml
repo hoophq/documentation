@@ -4,11 +4,8 @@ description: Execute one-off commands inside Kubernetes containers with comprehe
 category: cloud-services
 icon-name: kubernetes
 tags:
-  - orchestration
   - containers
-  - cloud-native
-  - devops
-  - exec
+  - development
 
 features:
   tlsTerminationProxy:

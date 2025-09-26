@@ -4,9 +4,7 @@ description: Laravel Artisan is the command-line interface included with Laravel
 category: development-environments
 icon-name: laravel
 tags:
-  - php
-  - laravel
-  - artisan
+  - web
   - development
 
 features:

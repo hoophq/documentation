@@ -4,10 +4,8 @@ description: A relational database management system developed by Microsoft, off
 category: databases
 icon-name: mssql
 tags:
+  - database
   - sql
-  - relational
-  - enterprise
-  - microsoft
 
 features:
   tlsTerminationProxy:
