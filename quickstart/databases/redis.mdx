@@ -56,6 +56,19 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   "resourceConfiguration": {
     "type": "custom",
     "subtype": "redis",
+    "command": [
+      "redis-cli",
+      "-h",
+      "$HOST",
+      "-p",
+      "$PORT",
+      "--user",
+      "$USER",
+      "-a",
+      "$PASSWORD",
+      "-n",
+      "$DB_NUMBER"
+    ],
     "credentials": [
       {
         "name": "HOST",
@@ -74,21 +87,21 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       {
         "name": "USER",
         "type": "env-var",
-        "required": false,
+        "required": true,
         "description": "The username for Redis authentication (Redis 6.0+)",
         "placeholder": "default"
       },
       {
         "name": "PASSWORD",
         "type": "env-var",
-        "required": false,
+        "required": true,
         "description": "The password for Redis authentication",
         "placeholder": "password"
       },
       {
         "name": "DB_NUMBER",
         "type": "env-var",
-        "required": false,
+        "required": true,
         "description": "The database number to select (0-15)",
         "placeholder": "0"
       }

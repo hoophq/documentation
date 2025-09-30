@@ -11,10 +11,9 @@
           "-u",
           "$CQLSH_USER",
           "-p",
-          "$CQLSH_PASSWORD",
+          "$CQLSH_PASSWD",
           "$CQLSH_HOST",
-          "$CQLSH_PORT",
-          "-e"
+          "$CQLSH_PORT"
         ],
         "credentials": [
           {
@@ -331,6 +330,12 @@
       "resourceConfiguration": {
         "type": "custom",
         "subtype": "aws-ecs",
+        "command": [
+          "ecs-exec.sh",
+          "--cluster=$CLUSTER_NAME",
+          "--service-name=$SERVICE_NAME",
+          "--container=$CONTAINER"
+        ],
         "credentials": [
           {
             "name": "CLUSTER_NAME",
@@ -438,6 +443,13 @@
       "resourceConfiguration": {
         "type": "custom",
         "subtype": "bigquery",
+        "command": [
+          "bq",
+          "query",
+          "--use_legacy_sql=false",
+          "--format=prettyjson",
+          "--project_id=$CLOUDSDK_CORE_PROJECT"
+        ],
         "credentials": [
           {
             "name": "GOOGLE_APPLICATION_CREDENTIALS",
@@ -569,8 +581,7 @@
         "command": [
           "python",
           "manage.py",
-          "shell",
-          "-c"
+          "shell"
         ]
       },
       "documentationConfig": {
@@ -718,8 +729,7 @@
         "command": [
           "iex",
           "-S",
-          "mix",
-          "-"
+          "mix"
         ]
       },
       "documentationConfig": {
@@ -832,7 +842,7 @@
       "setupGuide": {
         "accessMethods": {
           "webapp": true,
-          "cli": true,
+          "cli": false,
           "runbooks": true
         }
       },
@@ -899,7 +909,7 @@
       "setupGuide": {
         "accessMethods": {
           "webapp": true,
-          "cli": true,
+          "cli": false,
           "runbooks": true
         }
       },
@@ -1325,8 +1335,7 @@
         "type": "custom",
         "subtype": "nodejs",
         "command": [
-          "node",
-          "-e"
+          "node"
         ]
       },
       "documentationConfig": {
@@ -1484,8 +1493,7 @@
         "command": [
           "php",
           "artisan",
-          "tinker",
-          "-"
+          "tinker"
         ]
       },
       "documentationConfig": {
@@ -1643,7 +1651,7 @@
         "subtype": "python",
         "command": [
           "python3",
-          "-c"
+          "-"
         ]
       },
       "documentationConfig": {
@@ -1700,6 +1708,19 @@
       "resourceConfiguration": {
         "type": "custom",
         "subtype": "redis",
+        "command": [
+          "redis-cli",
+          "-h",
+          "$HOST",
+          "-p",
+          "$PORT",
+          "--user",
+          "$USER",
+          "-a",
+          "$PASSWORD",
+          "-n",
+          "$DB_NUMBER"
+        ],
         "credentials": [
           {
             "name": "HOST",
@@ -1718,21 +1739,21 @@
           {
             "name": "USER",
             "type": "env-var",
-            "required": false,
+            "required": true,
             "description": "The username for Redis authentication (Redis 6.0+)",
             "placeholder": "default"
           },
           {
             "name": "PASSWORD",
             "type": "env-var",
-            "required": false,
+            "required": true,
             "description": "The password for Redis authentication",
             "placeholder": "password"
           },
           {
             "name": "DB_NUMBER",
             "type": "env-var",
-            "required": false,
+            "required": true,
             "description": "The database number to select (0-15)",
             "placeholder": "0"
           }
