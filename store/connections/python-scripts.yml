@@ -41,7 +41,7 @@ setupGuide:
 resourceConfiguration:
   type: custom
   subtype: python
-  command: [python3, -c]
+  command: [python3, "-"]
 
 documentationConfig:
   path: "quickstart/development-environments/python/python-scripts"

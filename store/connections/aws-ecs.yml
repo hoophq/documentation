@@ -46,6 +46,7 @@ requirements:
 resourceConfiguration:
   type: custom
   subtype: aws-ecs
+  command: [ecs-exec.sh, --cluster=$CLUSTER_NAME, --service-name=$SERVICE_NAME, --container=$CONTAINER]
   credentials:
     - name: CLUSTER_NAME
       type: env-var

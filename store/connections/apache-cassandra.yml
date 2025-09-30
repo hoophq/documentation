@@ -1,7 +1,7 @@
 resourceConfiguration:
   type: custom
   subtype: cassandra
-  command: [cqlsh, -k, $CQLSH_KEYSPACE, -u, $CQLSH_USER, -p, $CQLSH_PASSWORD, $CQLSH_HOST, $CQLSH_PORT, -e]
+  command: [cqlsh, -k, $CQLSH_KEYSPACE, -u, $CQLSH_USER, -p, $CQLSH_PASSWD, $CQLSH_HOST, $CQLSH_PORT]
   credentials:
     - name: CQLSH_KEYSPACE
       type: env-var

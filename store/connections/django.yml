@@ -41,7 +41,7 @@ setupGuide:
 resourceConfiguration:
   type: custom
   subtype: django
-  command: [python, manage.py, shell, "-c"]
+  command: [python, manage.py, shell]
 
 documentationConfig:
   path: "quickstart/development-environments/python/django-admin"

@@ -40,7 +40,7 @@ setupGuide:
 resourceConfiguration:
   type: custom
   subtype: php-artisan
-  command: [php, artisan, tinker, "-"]
+  command: [php, artisan, tinker]
 
 documentationConfig:
   path: "quickstart/development-environments/php-artisan"

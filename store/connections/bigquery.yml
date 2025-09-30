@@ -48,6 +48,7 @@ setupGuide:
 resourceConfiguration:
   type: custom
   subtype: bigquery
+  command: [bq, query, --use_legacy_sql=false, --format=prettyjson, --project_id=$CLOUDSDK_CORE_PROJECT]
   credentials:
     - name: GOOGLE_APPLICATION_CREDENTIALS
       type: filesystem

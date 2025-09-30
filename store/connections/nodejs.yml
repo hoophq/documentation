@@ -39,7 +39,7 @@ setupGuide:
 resourceConfiguration:
   type: custom
   subtype: nodejs
-  command: [node, -e]
+  command: [node]
 
 documentationConfig:
   path: "quickstart/development-environments/nodejs"

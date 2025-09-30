@@ -39,7 +39,7 @@ setupGuide:
 resourceConfiguration:
   type: custom
   subtype: elixir
-  command: [iex, -S, mix, "-"]
+  command: [iex, -S, mix]
 
 documentationConfig:
   path: "quickstart/development-environments/elixir-IEx"
