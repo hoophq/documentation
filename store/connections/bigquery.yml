@@ -1,11 +1,11 @@
 id: bigquery
 name: BigQuery
-description: Execute queries to Big Query with the [bq command line tool](https://cloud.google.com/bigquery/docs/bq-command-line-tool).
+description: A fully managed, serverless data warehouse that enables super-fast SQL queries using Google's infrastructure.
 category: databases
-icon-name: bigquery
+icon-name: google-bigquery
 tags:
+  - database
   - analytics
-  - data-warehouse
   - google-cloud
   - sql
 
@@ -36,60 +36,30 @@ requirements:
     - BigQuery Data Viewer
 
 overview:
-  description: Google BigQuery is a fully managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure.
-  features:
-    - Serverless and fully managed data warehouse
-    - Petabyte-scale analytics with standard SQL
-    - Built-in machine learning capabilities
-    - Real-time data streaming and analysis
-  useCases:
-    - Large-scale data analytics and reporting
-    - Business intelligence and data visualization
-    - Machine learning model training on big data
-    - Real-time streaming analytics
+  description: Connect to BigQuery through Hoop.dev for secure analytics access with automated data classification, query monitoring, and intelligent cost controls. Execute petabyte-scale queries while protecting sensitive datasets with zero-config data masking.
 
 setupGuide:
   accessMethods:
     webapp: true
     cli: false
     runbooks: true
-  requirements:
-    - Google Cloud Platform account
-    - BigQuery API enabled in your GCP project
-    - Service account with BigQuery permissions
-    - Google Cloud SDK (gcloud) installed
 
-advancedConfiguration:
-  connectionString: "bq command-line tool with service account"
-  featureConfiguration:
-    - IAM roles and permissions for BigQuery access
-    - Dataset and table-level security controls
-    - Query optimization and slot management
-    - Data encryption and compliance settings
-  otherRequirements:
-    - Understanding of BigQuery pricing model
-    - Data modeling for optimal query performance
-    - Monitoring with Cloud Logging and Monitoring
 
 resourceConfiguration:
-  type: database
+  type: custom
   subtype: bigquery
+  command: [bq, query, --use_legacy_sql=false, --format=prettyjson, --project_id=$CLOUDSDK_CORE_PROJECT]
   credentials:
-    google_application_credentials:
-      name: "GOOGLE_APPLICATION_CREDENTIALS"
-      type: "filesystem"
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      type: filesystem
       required: true
-      description: "The service account credentials file in JSON format"
-    cloudsdk_core_project:
-      name: "CLOUDSDK_CORE_PROJECT"
-      type: "env-var"
+      description: The service account credentials file in JSON format
+      placeholder: file content of service-account.json
+    - name: CLOUDSDK_CORE_PROJECT
+      type: env-var
       required: true
-      description: "The project id to use for request"
-    cloudsdk_python:
-      name: "CLOUDSDK_PYTHON"
-      type: "env-var"
-      required: false
-      description: "The path of python interpreter, defaults to /usr/bin/python3.9"
+      description: The project id to use for request
+      placeholder: my-project-id
 
 documentationConfig:
   path: "quickstart/databases/bigquery"

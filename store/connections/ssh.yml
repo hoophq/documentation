@@ -107,79 +107,47 @@ resourceConfiguration:
   type: application
   subtype: ssh
   credentials:
-    host:
-      name: HOST
+    - name: HOST
       type: env-var
       required: true
       description: The IP or hostname of the SSH server
-    port:
-      name: PORT
+      placeholder: localhost
+    - name: PORT
       type: env-var
       required: false
       description: The port of the SSH server, default to 22
-    user:
-      name: USER
+      placeholder: "22"
+    - name: USER
       type: env-var
       required: true
       description: The username of the Linux server
-    pass:
-      name: PASS
+      placeholder: ubuntu
+    - name: PASS
       type: env-var
       required: false
-      description: The credentials of the username if password authentication is
-        enabled in the SSH server.
-    authorized_server_keys:
-      name: AUTHORIZED_SERVER_KEYS
-      type: textarea
+      description: The credentials of the username if password authentication is enabled in the SSH server.
+      placeholder: password
+    - name: AUTHORIZED_SERVER_KEYS
+      type: env-var
       required: false
-      description: The private key of the user that corresponds to the public key at
-        $HOME/<user>/.ssh/authorized_keys
+      description: The private key of the user that corresponds to the public key at $HOME/<user>/.ssh/authorized_keys
       placeholder: Enter your private key
 id: ssh
 name: Secure Shell (SSH)
-description: Proxy an SSH Server to remote hosts in your private network.
+description: A cryptographic network protocol for operating network services securely over an unsecured network, commonly used for remote command-line login.
 category: infrastructure-access
 icon-name: ssh
 tags:
-  - remote-access
-  - secure
-  - terminal
-  - unix
+  - security
+  - interactive
+  - cli
 overview:
-  description: SSH (Secure Shell) is a cryptographic network protocol for
-    operating network services securely over an unsecured network, commonly used
-    for remote command-line login and remote command execution.
-  features:
-    - Encrypted communication for secure remote access
-    - Public key authentication for enhanced security
-    - Port forwarding and tunneling capabilities
-    - Session multiplexing and connection sharing
-  useCases:
-    - Remote server administration and maintenance
-    - Secure file transfers and backups
-    - Development environment access
-    - Network troubleshooting and diagnostics
+  description: Access your servers securely through Hoop.dev with comprehensive SSH session recording, intelligent command monitoring, and automated access controls. Connect to remote hosts with complete audit trails, data masking capabilities, and built-in security guardrails that eliminate the need for traditional VPN access.
 setupGuide:
   accessMethods:
-    webapp: true
+    webapp: false
     cli: true
-    runbooks: true
-  requirements:
-    - SSH server running on target host
-    - Valid SSH credentials (password or key-based)
-    - Network connectivity to port 22
-    - Proper firewall configuration
-advancedConfiguration:
-  connectionString: ssh://username@hostname:port
-  featureConfiguration:
-    - SSH key-based authentication setup
-    - SSH agent forwarding configuration
-    - Custom SSH configuration files
-    - Jump host and bastion configuration
-  otherRequirements:
-    - SSH key management and rotation
-    - Connection logging and audit trails
-    - Fail2ban or similar intrusion prevention
+    runbooks: false
 documentationConfig:
   path: quickstart/ssh
 features:

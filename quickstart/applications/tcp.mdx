@@ -1,22 +1,28 @@
 ---
-title: "Web Applications and APIs"
-description: "Web applications and APIs that provide HTTP/HTTPS endpoints for various services, applications, and data access interfaces."
+title: "TCP"
+description: "A fundamental network protocol that provides reliable, ordered, and error-checked delivery of data between applications."
 category: "web-applications"
 ---
 
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
 <ConnectionTemplate config={{
-  "id": "webapps-and-apis",
-  "name": "Web Applications and APIs",
-  "description": "Web applications and APIs that provide HTTP/HTTPS endpoints for various services, applications, and data access interfaces.",
+  "id": "tcp",
+  "name": "TCP",
+  "description": "A fundamental network protocol that provides reliable, ordered, and error-checked delivery of data between applications.",
   "category": "web-applications",
   "icon-name": "tcp",
   "tags": [
-    "web"
+    "tcp",
+    "network",
+    "port",
+    "connection",
+    "remote",
+    "server",
+    "client"
   ],
   "overview": {
-    "description": "Access your web applications and APIs securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls. Tunnel HTTP/HTTPS connections with built-in data masking and session recording for complete API governance."
+    "description": "Access TCP services securely through Hoop.dev with comprehensive connection monitoring, intelligent traffic analysis, and automated access controls. Establish reliable network connections with complete audit trails and built-in security guardrails for protocol-level governance."
   },
   "setupGuide": {
     "accessMethods": {
@@ -28,32 +34,32 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   "features": {
     "tlsTerminationProxy": {
       "native": true,
-      "oneOff": false
+      "oneOff": true
     },
     "audit": {
       "native": true,
-      "oneOff": false
+      "oneOff": true
     },
     "dataMaskingGoogleDLP": {
-      "native": false,
-      "oneOff": false
+      "native": true,
+      "oneOff": true
     },
     "dataMaskingMSPresidio": {
-      "native": false,
-      "oneOff": false
+      "native": true,
+      "oneOff": true
     },
     "credentialsOffload": {
       "native": true,
-      "oneOff": false
+      "oneOff": true
     },
     "interactiveAccess": {
-      "native": false,
-      "oneOff": false
+      "native": true,
+      "oneOff": true
     }
   },
   "resourceConfiguration": {
-    "type": "web-application",
-    "subtype": "webapp-api",
+    "type": "application",
+    "subtype": "tcp",
     "credentials": [
       {
         "name": "HOST",
@@ -72,7 +78,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     ]
   },
   "documentationConfig": {
-    "path": "quickstart/web-applications/webapps-and-apis"
+    "path": "quickstart/applications/tcp"
   }
 }} />
 

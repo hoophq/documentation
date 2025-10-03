@@ -179,7 +179,7 @@
                 label: 'Category',
                 name: 'category',
                 widget: 'select',
-                options: ['databases', 'container-platforms', 'developer-consoles', 'infrastructure-access', 'network-services']
+                options: ['databases', 'cloud-services', 'applications', 'developer-consoles', 'development-environments', 'infrastructure-access', 'web-applications']
               },
               {
                 label: 'Icon Name',
@@ -207,20 +207,6 @@
                     name: 'description',
                     widget: 'text',
                     hint: 'Detailed description for the overview section'
-                  },
-                  {
-                    label: 'Features',
-                    name: 'features',
-                    widget: 'list',
-                    collapsed: true,
-                    field: { label: 'Feature', name: 'feature', widget: 'string' }
-                  },
-                  {
-                    label: 'Use Cases',
-                    name: 'useCases',
-                    widget: 'list',
-                    collapsed: true,
-                    field: { label: 'Use Case', name: 'useCase', widget: 'string' }
                   }
                 ]
               },
@@ -241,50 +227,167 @@
                       { label: 'CLI', name: 'cli', widget: 'boolean', default: false },
                       { label: 'Runbooks', name: 'runbooks', widget: 'boolean', default: false }
                     ]
+                  }
+                ]
+              },
+              // Resource Configuration Section
+              {
+                label: 'Resource Configuration',
+                name: 'resourceConfiguration',
+                widget: 'object',
+                collapsed: false,
+                fields: [
+                  {
+                    label: 'Type',
+                    name: 'type',
+                    widget: 'select',
+                    options: ['database', 'custom', 'application']
                   },
                   {
-                    label: 'Requirements',
-                    name: 'requirements',
+                    label: 'Subtype',
+                    name: 'subtype',
+                    widget: 'string',
+                    hint: 'Specific technology identifier (e.g., postgres, mysql, aws-cli)'
+                  },
+                  {
+                    label: 'Command',
+                    name: 'command',
                     widget: 'list',
+                    required: false,
                     collapsed: false,
-                    field: { label: 'Requirement', name: 'requirement', widget: 'string' }
+                    field: { label: 'Command Part', name: 'part', widget: 'string' },
+                    hint: 'Array of command parts for execution'
+                  },
+                  {
+                    label: 'Credentials',
+                    name: 'credentials',
+                    widget: 'list',
+                    required: false,
+                    collapsed: false,
+                    fields: [
+                      {
+                        label: 'Name',
+                        name: 'name',
+                        widget: 'string',
+                        hint: 'Environment variable or credential name'
+                      },
+                      {
+                        label: 'Type',
+                        name: 'type',
+                        widget: 'select',
+                        options: ['env-var', 'filesystem'],
+                        default: 'env-var'
+                      },
+                      {
+                        label: 'Required',
+                        name: 'required',
+                        widget: 'boolean',
+                        default: true
+                      },
+                      {
+                        label: 'Description',
+                        name: 'description',
+                        widget: 'text',
+                        hint: 'Description of what this credential is used for'
+                      },
+                      {
+                        label: 'Placeholder',
+                        name: 'placeholder',
+                        widget: 'string',
+                        required: false,
+                        hint: 'Optional placeholder text for input fields'
+                      },
+                    ]
                   }
                 ]
               },
 
-              // Advanced Configuration Section
+              // Features Section
               {
-                label: 'Advanced Configuration',
-                name: 'advancedConfiguration',
+                label: 'Features',
+                name: 'features',
                 widget: 'object',
                 collapsed: true,
                 fields: [
                   {
-                    label: 'Connection String',
-                    name: 'connectionString',
-                    widget: 'text',
-                    hint: 'Connection string example with placeholders'
+                    label: 'TLS Termination Proxy',
+                    name: 'tlsTerminationProxy',
+                    widget: 'object',
+                    fields: [
+                      { label: 'Native', name: 'native', widget: 'boolean', default: false },
+                      { label: 'One Off', name: 'oneOff', widget: 'boolean', default: true },
+                      { label: 'Note', name: 'note', widget: 'string', required: false }
+                    ]
                   },
                   {
-                    label: 'Feature Configuration',
-                    name: 'featureConfiguration',
-                    widget: 'list',
-                    collapsed: true,
-                    field: { label: 'Configuration', name: 'config', widget: 'string' }
+                    label: 'Audit',
+                    name: 'audit',
+                    widget: 'object',
+                    fields: [
+                      { label: 'Native', name: 'native', widget: 'boolean', default: false },
+                      { label: 'One Off', name: 'oneOff', widget: 'boolean', default: true }
+                    ]
                   },
                   {
-                    label: 'Other Requirements',
-                    name: 'otherRequirements',
-                    widget: 'list',
-                    collapsed: true,
-                    field: { label: 'Requirement', name: 'requirement', widget: 'string' }
+                    label: 'Data Masking Google DLP',
+                    name: 'dataMaskingGoogleDLP',
+                    widget: 'object',
+                    fields: [
+                      { label: 'Native', name: 'native', widget: 'boolean', default: false },
+                      { label: 'One Off', name: 'oneOff', widget: 'boolean', default: true }
+                    ]
+                  },
+                  {
+                    label: 'Data Masking MS Presidio',
+                    name: 'dataMaskingMSPresidio',
+                    widget: 'object',
+                    fields: [
+                      { label: 'Native', name: 'native', widget: 'boolean', default: false },
+                      { label: 'One Off', name: 'oneOff', widget: 'boolean', default: true }
+                    ]
+                  },
+                  {
+                    label: 'Credentials Offload',
+                    name: 'credentialsOffload',
+                    widget: 'object',
+                    fields: [
+                      { label: 'Native', name: 'native', widget: 'boolean', default: false },
+                      { label: 'One Off', name: 'oneOff', widget: 'boolean', default: true }
+                    ]
+                  },
+                  {
+                    label: 'Interactive Access',
+                    name: 'interactiveAccess',
+                    widget: 'object',
+                    fields: [
+                      { label: 'Native', name: 'native', widget: 'boolean', default: false },
+                      { label: 'One Off', name: 'oneOff', widget: 'boolean', default: true }
+                    ]
                   }
                 ]
               },
+
+              // Documentation Configuration
+              {
+                label: 'Documentation Configuration',
+                name: 'documentationConfig',
+                widget: 'object',
+                collapsed: true,
+                fields: [
+                  {
+                    label: 'Path',
+                    name: 'path',
+                    widget: 'string',
+                    hint: 'Path to the documentation file (e.g., quickstart/databases/postgres)'
+                  }
+                ]
+              },
+
               {
                 label: 'Additional Information',
                 name: 'additionalInformation',
                 widget: 'markdown',
+                required: false
               }
             ]
           }

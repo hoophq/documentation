@@ -1,7 +1,7 @@
 ---
 title: "Node.js"
-description: "JavaScript runtime environment for server-side development"
-category: "developer-consoles"
+description: "A JavaScript runtime built on Chrome's V8 engine, enabling server-side JavaScript development with high performance."
+category: "development-environments"
 ---
 
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
@@ -9,13 +9,10 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "nodejs",
   "name": "Node.js",
-  "description": "JavaScript runtime environment for server-side development",
-  "category": "developer-consoles",
-  "icon-name": "nodejs",
+  "description": "A JavaScript runtime built on Chrome's V8 engine, enabling server-side JavaScript development with high performance.",
+  "category": "development-environments",
+  "icon-name": "node",
   "tags": [
-    "javascript",
-    "runtime",
-    "server-side",
     "development"
   ],
   "features": {
@@ -45,50 +42,21 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine, enabling server-side JavaScript development with high performance and scalability.",
-    "features": [
-      "Event-driven, non-blocking I/O architecture",
-      "Extensive NPM package ecosystem",
-      "Built-in REPL for interactive development",
-      "Cross-platform compatibility and deployment"
-    ],
-    "useCases": [
-      "Web API development and microservices",
-      "Real-time applications (chat, gaming)",
-      "Command-line tools and automation scripts",
-      "Full-stack JavaScript development"
-    ]
+    "description": "Access your Node.js development environments securely through Hoop.dev with comprehensive session recording, intelligent script execution monitoring, and automated secret management. Execute JavaScript code and manage npm packages with built-in safeguards and audit trails."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
-      "cli": true,
+      "cli": false,
       "runbooks": true
-    },
-    "requirements": [
-      "Node.js 16+ installed",
-      "NPM or Yarn package manager",
-      "Project dependencies installed (npm install)",
-      "Environment variables configured"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "node -i script.js",
-    "featureConfiguration": [
-      "Package management with NPM/Yarn/PNPM",
-      "Process management with PM2 or similar",
-      "Environment-specific configuration (development, production)",
-      "TypeScript integration and compilation"
-    ],
-    "otherRequirements": [
-      "Code linting and formatting (ESLint, Prettier)",
-      "Testing framework setup (Jest, Mocha, Vitest)",
-      "Performance monitoring and profiling tools"
-    ]
+    }
   },
   "resourceConfiguration": {
-    "type": "application",
-    "subtype": "nodejs"
+    "type": "custom",
+    "subtype": "nodejs",
+    "command": [
+      "node"
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/development-environments/nodejs"

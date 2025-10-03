@@ -1,11 +1,10 @@
 id: python-scripts
 name: Python Scripts
-description: Execute Python scripts and interact with the Python interpreter for development and automation tasks.
+description: A versatile, high-level programming language perfect for scripting, automation, data analysis, and application development.
 category: development-environments
 icon-name: python
 tags:
   - python
-  - scripting
   - development
   - automation
 
@@ -30,44 +29,19 @@ features:
     oneOff: true
 
 overview:
-  description: Python is a versatile, high-level programming language perfect for scripting, automation, data analysis, and application development.
-  features:
-    - Interactive Python REPL
-    - Extensive standard library
-    - Rich ecosystem of third-party packages
-    - Cross-platform compatibility
-  useCases:
-    - Data analysis and scientific computing
-    - Automation and scripting tasks
-    - Web development and APIs
-    - Machine learning and AI applications
+  description: Execute Python scripts securely through Hoop.dev with comprehensive logging, automated dependency management, and intelligent code execution controls. Run data analysis, automation tasks, and development workflows with built-in security guardrails and session recording.
 
 setupGuide:
   accessMethods:
     webapp: true
-    cli: true
+    cli: false
     runbooks: true
-  requirements:
-    - Python 3.8+ installed
-    - Virtual environment configured
-    - Required packages installed via pip
-    - Script execution permissions
 
-advancedConfiguration:
-  connectionString: "python -i"
-  featureConfiguration:
-    - Virtual environment activation
-    - Package management with pip/pipenv/poetry
-    - Environment variables configuration
-    - Custom module imports
-  otherRequirements:
-    - Dependencies listed in requirements.txt
-    - Environment-specific configuration files
-    - Proper Python path configuration
 
 resourceConfiguration:
-  type: development-environment
+  type: custom
   subtype: python
+  command: [python3, "-"]
 
 documentationConfig:
   path: "quickstart/development-environments/python/python-scripts"

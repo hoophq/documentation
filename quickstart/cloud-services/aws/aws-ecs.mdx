@@ -1,6 +1,6 @@
 ---
 title: "AWS ECS"
-description: "Interact with Elastic Container Service, executing one-off sessions into ECS tasks/containers."
+description: "Amazon Elastic Container Service (ECS) is a fully managed container orchestration service that helps you easily deploy, manage, and scale containerized applications."
 category: "cloud-services"
 ---
 
@@ -9,15 +9,23 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "aws-ecs",
   "name": "AWS ECS",
-  "description": "Interact with Elastic Container Service, executing one-off sessions into ECS tasks/containers.",
+  "description": "Amazon Elastic Container Service (ECS) is a fully managed container orchestration service that helps you easily deploy, manage, and scale containerized applications.",
   "category": "cloud-services",
   "icon-name": "aws",
   "tags": [
     "aws",
-    "containers",
-    "orchestration",
-    "ecs"
+    "containers"
   ],
+  "overview": {
+    "description": "Execute commands in your ECS containers securely through Hoop.dev with comprehensive session recording, intelligent resource monitoring, and automated access controls. Run one-off tasks and debug containerized applications with complete audit trails and built-in security guardrails."
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": true,
+      "runbooks": true
+    }
+  },
   "features": {
     "tlsTerminationProxy": {
       "native": false,
@@ -53,46 +61,58 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     ]
   },
   "resourceConfiguration": {
-    "type": "cloud-service",
+    "type": "custom",
     "subtype": "aws-ecs",
-    "credentials": {
-      "cluster_name": {
+    "command": [
+      "ecs-exec.sh",
+      "--cluster=$CLUSTER_NAME",
+      "--service-name=$SERVICE_NAME",
+      "--container=$CONTAINER"
+    ],
+    "credentials": [
+      {
         "name": "CLUSTER_NAME",
         "type": "env-var",
         "required": true,
-        "description": "The name or arn of the ECS Cluster"
+        "description": "The name or arn of the ECS Cluster",
+        "placeholder": "my-cluster"
       },
-      "service_name": {
+      {
         "name": "SERVICE_NAME",
         "type": "env-var",
         "required": true,
-        "description": "The name of the service on ECS"
+        "description": "The name of the service on ECS",
+        "placeholder": "my-service"
       },
-      "container": {
+      {
         "name": "CONTAINER",
         "type": "env-var",
         "required": true,
-        "description": "The name of the container defaults to the first one."
+        "description": "The name of the container defaults to the first one.",
+        "placeholder": "web"
       },
-      "aws_access_key_id": {
+      {
         "name": "AWS_ACCESS_KEY_ID",
         "type": "env-var",
         "required": true,
-        "description": "The access key credential"
+        "description": "The access key credential",
+        "placeholder": "AKIAIOSFODNN7EXAMPLE"
       },
-      "aws_secret_access_key": {
+      {
         "name": "AWS_SECRET_ACCESS_KEY",
         "type": "env-var",
         "required": true,
-        "description": "The secret key credential"
+        "description": "The secret key credential",
+        "placeholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
       },
-      "aws_default_region": {
+      {
         "name": "AWS_DEFAULT_REGION",
         "type": "env-var",
         "required": true,
-        "description": "The AWS region"
+        "description": "The AWS region",
+        "placeholder": "us-east-1"
       }
-    }
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/cloud-services/aws/aws-ecs"

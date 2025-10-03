@@ -1,6 +1,6 @@
 ---
 title: "DynamoDB"
-description: "DynamoDB in Hoop offers a unique experience where tables are treated as databases, with automatic environment variable configuration and an interface optimized for NoSQL."
+description: "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability."
 category: "databases"
 ---
 
@@ -9,14 +9,13 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "dynamodb",
   "name": "DynamoDB",
-  "description": "DynamoDB in Hoop offers a unique experience where tables are treated as databases, with automatic environment variable configuration and an interface optimized for NoSQL.",
+  "description": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.",
   "category": "databases",
-  "icon-name": "dynamodb",
+  "icon-name": "aws-dynamodb",
   "tags": [
+    "database",
     "nosql",
-    "aws",
-    "managed",
-    "serverless"
+    "aws"
   ],
   "features": {
     "tlsTerminationProxy": {
@@ -53,70 +52,44 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     ]
   },
   "overview": {
-    "description": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability.",
-    "features": [
-      "Fully managed serverless database",
-      "Single-digit millisecond latency",
-      "Built-in security and backup capabilities",
-      "Global tables for multi-region deployment"
-    ],
-    "useCases": [
-      "Web and mobile applications",
-      "Gaming applications with leaderboards",
-      "IoT data collection and processing",
-      "Real-time personalization engines"
-    ]
+    "description": "Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability."
   },
   "setupGuide": {
     "accessMethods": {
       "webapp": true,
       "cli": false,
       "runbooks": true
-    },
-    "requirements": [
-      "AWS Account with DynamoDB access",
-      "IAM user with appropriate DynamoDB permissions",
-      "AWS Access Key ID and Secret Access Key",
-      "Network connectivity to AWS DynamoDB endpoints"
-    ]
-  },
-  "advancedConfiguration": {
-    "connectionString": "AWS DynamoDB API via SDK",
-    "featureConfiguration": [
-      "IAM roles and policies for fine-grained access",
-      "VPC endpoints for private connectivity",
-      "DynamoDB Accelerator (DAX) for caching",
-      "Global Secondary Indexes (GSI) configuration"
-    ],
-    "otherRequirements": [
-      "Understanding of DynamoDB data modeling",
-      "Capacity planning for read/write units",
-      "Monitoring with CloudWatch metrics"
-    ]
+    }
   },
   "resourceConfiguration": {
-    "type": "database",
+    "type": "custom",
     "subtype": "dynamodb",
-    "credentials": {
-      "aws_access_key_id": {
+    "command": [
+      "bash"
+    ],
+    "credentials": [
+      {
         "name": "AWS_ACCESS_KEY_ID",
         "type": "env-var",
         "required": true,
-        "description": "The AWS access key ID for DynamoDB access"
+        "description": "The AWS access key ID for DynamoDB access",
+        "placeholder": "AKIAIOSFODNN7EXAMPLE"
       },
-      "aws_secret_access_key": {
+      {
         "name": "AWS_SECRET_ACCESS_KEY",
         "type": "env-var",
         "required": true,
-        "description": "The AWS secret access key for DynamoDB access"
+        "description": "The AWS secret access key for DynamoDB access",
+        "placeholder": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
       },
-      "aws_region": {
+      {
         "name": "AWS_REGION",
         "type": "env-var",
         "required": true,
-        "description": "The AWS region where your DynamoDB tables are located (e.g., us-east-1, eu-west-1)"
+        "description": "The AWS region where your DynamoDB tables are located (e.g., us-east-1, eu-west-1)",
+        "placeholder": "us-east-1"
       }
-    }
+    ]
   },
   "documentationConfig": {
     "path": "quickstart/databases/dynamodb"

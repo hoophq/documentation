@@ -1,77 +1,48 @@
 resourceConfiguration:
-  type: database
+  type: custom
   subtype: cassandra
+  command: [cqlsh, -k, $CQLSH_KEYSPACE, -u, $CQLSH_USER, -p, $CQLSH_PASSWD, $CQLSH_HOST, $CQLSH_PORT]
   credentials:
-    keyspace:
-      name: CQLSH_KEYSPACE
+    - name: CQLSH_KEYSPACE
       type: env-var
       required: true
       description: The keyspace target
-    host:
-      name: CQLSH_HOST
+      placeholder: my_keyspace
+    - name: CQLSH_HOST
       type: env-var
       required: true
       description: The host of the Cassandra cluster
-    port:
-      name: CQLSH_PORT
+      placeholder: localhost
+    - name: CQLSH_PORT
       type: env-var
       required: false
-      description: The Vault Token. Defaults to 9043
-    username:
-      name: CQLSH_USER
+      description: The port of the Cassandra cluster. Defaults to 9042
+      placeholder: "9042"
+    - name: CQLSH_USER
       type: env-var
       required: false
       description: The user can connect in the Cassandra cluster.
-    password:
-      name: CQLSH_PASSWD
+      placeholder: cassandra
+    - name: CQLSH_PASSWD
       type: env-var
       required: false
       description: The password to connect in the Cassandra cluster.
+      placeholder: cassandra
 id: apache-cassandra
 name: Apache Cassandra
-description: Execute queries to a Cassandra cluster with
-  [cqlsh](https://cassandra.apache.org/doc/latest/cassandra/tools/cqlsh.html).
+description: A highly scalable, distributed NoSQL database designed for handling large amounts of data across many servers.
 category: databases
 icon-name: cassandra
 tags:
+  - database
   - nosql
-  - distributed
-  - column-family
-  - high-availability
 overview:
-  description: Apache Cassandra is a highly scalable, distributed NoSQL database
-    designed to handle large amounts of data across many commodity servers.
-  features:
-    - Linear scalability and high availability
-    - Fault-tolerant with no single point of failure
-    - Tunable consistency levels
-    - Support for structured, semi-structured, and unstructured data
-  useCases:
-    - High-volume web applications
-    - Time-series data and IoT applications
-    - Content management systems
-    - Real-time analytics and reporting
+  description: Access your Cassandra clusters securely through Hoop.dev with comprehensive audit trails, AI-powered data masking for sensitive information, and granular access controls. Execute CQL queries with confidence knowing all interactions are monitored and protected.
 setupGuide:
   accessMethods:
     webapp: true
-    cli: true
+    cli: false
     runbooks: true
-  requirements:
-    - Apache Cassandra 3.0+ cluster
-    - Network connectivity to Cassandra nodes
-    - Valid authentication credentials
-    - CQL (Cassandra Query Language) knowledge
-advancedConfiguration:
-  connectionString: cqlsh host port -u username -p password
-  featureConfiguration:
-    - Keyspace and table configuration
-    - Replication strategy setup
-    - Consistency level tuning
-    - SSL/TLS encryption configuration
-  otherRequirements:
-    - Understanding of Cassandra data modeling
-    - Cluster topology and replication planning
-    - Monitoring and maintenance procedures
 documentationConfig:
   path: quickstart/databases/apache-cassandra
 features:

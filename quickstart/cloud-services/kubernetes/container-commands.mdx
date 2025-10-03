@@ -1,0 +1,104 @@
+---
+title: "Kubernetes Container Commands"
+description: "Execute one-off commands inside Kubernetes containers with comprehensive logging and audit trails."
+category: "cloud-services"
+---
+
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
+
+<ConnectionTemplate config={{
+  "id": "kubernetes-exec",
+  "name": "Kubernetes Container Commands",
+  "description": "Execute one-off commands inside Kubernetes containers with comprehensive logging and audit trails.",
+  "category": "cloud-services",
+  "icon-name": "kubernetes",
+  "tags": [
+    "containers",
+    "development"
+  ],
+  "features": {
+    "tlsTerminationProxy": {
+      "native": false,
+      "oneOff": true
+    },
+    "audit": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": true
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": true
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": true
+    }
+  },
+  "overview": {
+    "description": "Execute commands inside your Kubernetes containers securely through Hoop.dev with comprehensive session recording, intelligent command monitoring, and automated access controls. Run one-off tasks and debug containerized applications with complete audit trails."
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": false,
+      "runbooks": true
+    }
+  },
+  "resourceConfiguration": {
+    "type": "custom",
+    "subtype": "kubernetes-exec",
+    "command": [
+      "kubectl",
+      "exec",
+      "--stdin",
+      "$KUBERNETES_RESOURCE",
+      "--",
+      "bash"
+    ],
+    "credentials": [
+      {
+        "name": "KUBECONFIG",
+        "type": "filesystem",
+        "required": true,
+        "description": "A [Kubeconfig File](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) with permission to access the cluster",
+        "placeholder": "file content of ~/.kube/config"
+      },
+      {
+        "name": "KUBERNETES_RESOURCE",
+        "type": "env-var",
+        "required": true,
+        "description": "The Kubernetes resource to target for executing commands (e.g., deployment/myapp, pod/mypod, statefulset/myapp)",
+        "placeholder": "deployment/myapp"
+      }
+    ]
+  },
+  "documentationConfig": {
+    "path": "quickstart/cloud-services/kubernetes/container-commands"
+  }
+}} />
+
+
+### Connection Setup
+One-off commands can be executed inside a container using the `kubectl exec` command. The Web Console accepts inputs that are executed inside the container.
+```bash
+  hoop admin create conn k8s -a <agent> \
+	-e KUBECONFIG=file://$HOME/.kube/config \
+	-e KUBERNETES_RESOURCE=deployment/myapp \
+	-- kubectl exec --stdin $KUBERNETES_RESOURCE -- bash
+```
+The command above will allow users to execute commands inside the specified Kubernetes resource. This is useful for running scripts inside a container.
+### Command Line Usage Examples
+```bash
+  # execute 'env' inside the default container
+  hoop exec k8s --input 'env'
+  # execute 'ls -l' inside the default container
+  hoop exec k8s -i 'ls -l'
+```

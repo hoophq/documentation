@@ -1,51 +1,42 @@
 resourceConfiguration:
-  type: cloud-service
+  type: custom
   subtype: aws-cli
+  command: [bash]
   credentials:
-    aws_access_key_id:
-      name: AWS_ACCESS_KEY_ID
+    - name: AWS_ACCESS_KEY_ID
       type: env-var
       required: true
       description: The access key credential
-    aws_secret_access_key:
-      name: AWS_SECRET_ACCESS_KEY
+      placeholder: AKIAIOSFODNN7EXAMPLE
+    - name: AWS_SECRET_ACCESS_KEY
       type: env-var
       required: true
       description: The secret key credential
-    aws_region:
-      name: AWS_REGION
+      placeholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    - name: AWS_REGION
       type: env-var
       required: true
       description: The AWS region
+      placeholder: us-east-1
 name: AWS CLI
 requirements:
   description: Use an IAM credential with reduced scope to only create secrets
     and/or listing ECS services.
 id: aws-cli
-description: Hoop can be configured to use the AWS command line to manage
-  resources in multiple accounts.
+description: The AWS Command Line Interface (CLI) is a unified tool to manage your AWS services from the command line.
 category: cloud-services
 icon-name: aws
 tags:
   - aws
-  - cloud
   - cli
-  - management
+  - automation
 overview:
-  description: The AWS Command Line Interface (CLI) is a unified tool to manage
-    your AWS services from the command line.
-  features:
-    - Comprehensive AWS service management
-    - Scriptable automation capabilities
-    - Multiple output formats (JSON, table, text)
-    - Profile and credential management
+  description: Access your AWS resources securely through Hoop.dev with comprehensive command auditing, intelligent cost monitoring, and automated credential management. Execute AWS CLI commands with built-in compliance tracking and session recording for complete infrastructure governance.
 setupGuide:
   accessMethods:
     webapp: true
-    cli: true
+    cli: false
     runbooks: true
-advancedConfiguration:
-  connectionString: fafaf
 documentationConfig:
   path: quickstart/cloud-services/aws/aws-cli
 features:

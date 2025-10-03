@@ -1,0 +1,50 @@
+id: httpproxy
+name: HTTP Proxy
+description: Access HTTP/HTTPS endpoints securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls.
+category: web-applications
+icon-name: httpproxy
+tags:
+  - web
+  - security
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: false
+  audit:
+    native: true
+    oneOff: false
+  dataMaskingGoogleDLP:
+    native: true
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: false
+  credentialsOffload:
+    native: true
+    oneOff: false
+  interactiveAccess:
+    native: false
+    oneOff: false
+
+overview:
+  description: Access your HTTP/HTTPS services securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls. Proxy HTTP connections with built-in data masking, session recording, and advanced security guardrails for complete API governance.
+
+setupGuide:
+  accessMethods:
+    webapp: false
+    cli: true
+    runbooks: false
+
+resourceConfiguration:
+  type: web-application
+  subtype: http-proxy
+  credentials:
+    - name: REMOTE_URL
+      type: env-var
+      required: true
+      description: The target HTTP/HTTPS URL to proxy requests to
+      placeholder: https://example.com
+
+documentationConfig:
+  path: quickstart/web-applications/http-proxy
