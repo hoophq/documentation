@@ -231,6 +231,21 @@
           "directory": "api-reference"
         },
         "icon": "square-terminal"
+      },
+      {
+        "anchor": "Changelog",
+        "pages": [
+          "changelog",
+          {
+            "group": "Releases",
+            "pages": [
+              "changelog/1.42.0",
+              "changelog/1.41.0",
+              "changelog/1.40.1"
+            ]
+          }
+        ],
+        "icon": "notes"
       }
     ]
   },

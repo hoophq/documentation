@@ -1,0 +1,44 @@
+---
+title: "1.42.0"
+description: "This release is all about clarity and speed. Runbooks now have a proper home, connection setup feels smoother with the new Resources Catalog, and the proxy got a tune-up for better performance. It’s a solid round of polish that sets the stage for what’s next."
+---
+
+### TL;DR
+- **New:** Dedicated Runbooks page
+- **New:** Resources Catalog for connection setup
+- **Enhanced:** HTTP proxy and command palette access
+- **Fixed:** Oracle DB connections, UI scrollbars, and port defaults
+
+---
+
+### New Features
+
+**Runbooks Dedicated Page ([#1054](https://github.com/hoophq/hoop/pull/1054))**
+Runbooks finally have their own space. Navigation is cleaner, organization is simpler, and teams can find what they need faster.
+
+**Resources Catalog ([#1050](https://github.com/hoophq/hoop/pull/1050))**
+Creating and managing connections just got an upgrade.
+The new Resources Catalog keeps metadata, documentation, and UI definitions perfectly aligned through Decap CMS, so every setup stays consistent and predictable.
+
+**Presidio Pre-installed Everywhere**
+Every deployment now ships with Presidio by default, giving teams built-in data masking without extra configuration.
+
+---
+
+### Enhancements
+
+- **HTTP Proxy Improvements ([#1060](https://github.com/hoophq/hoop/pull/1060), [#1040](https://github.com/hoophq/hoop/pull/1040))** — More flexibility and control for advanced network configurations.
+- **Command Palette Shortcut ([#1057](https://github.com/hoophq/hoop/pull/1057))** — You can now open cmd + K straight from the sidebar search for faster navigation.
+
+---
+
+### Bug Fixes
+
+- **Oracle DB Connections ([#1071](https://github.com/hoophq/hoop/pull/1071))** — Fixed a library path issue that blocked connections.
+- **Video Session Scrollbars ([#1068](https://github.com/hoophq/hoop/pull/1068))** — No more ghost scrollbars during recordings.
+- **Port Configuration ([#1065](https://github.com/hoophq/hoop/pull/1065))** — Default ports are now properly standardized across environments.
+- **Filter Search State ([#1070](https://github.com/hoophq/hoop/pull/1070))** — Fixed a pesky state bug that kept old results hanging around.
+
+---
+
+Version 1.42.0 keeps the experience fast, tidy, and reliable. The new Runbooks page and Resources Catalog are small changes that make a big impact on daily workflows — and they’re just the beginning of an even smoother platform ahead.
