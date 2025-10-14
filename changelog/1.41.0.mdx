@@ -1,0 +1,54 @@
+---
+title: "1.41.0"
+description: "We're back with another patch update. We've got some new features, we killed some more bugs, and one of our engineers started doing something with cookies!"
+---
+
+**Why were the cookies at the Nvidia offsite so bad?**
+They swapped the chocolate for silicon chips!
+
+---
+
+### TL;DR
+- **New Features:** New experience for Postgres native connections; connectivity check for resources.
+- **Security Enhancement:** Removed token from URL callback and now use cookies instead.
+- **Bug Fixes:** Agent Daemon resolved an issue with locating local commands; hoop key now persists to simplify VM management.
+
+---
+
+### New Features
+**Making connections smoother and more reliable.**
+
+- **Postgres native connections got a new experience**
+  [PR #1036](https://github.com/hoophq/hoop/pull/1036) and [PR #998](https://github.com/hoophq/hoop/pull/998)
+
+- **Connectivity check for resources**
+  [PR #1020](https://github.com/hoophq/hoop/pull/1020) and [PR #1027](https://github.com/hoophq/hoop/pull/1027)
+
+---
+
+### Security
+**Now serving cookies, not tokens.**
+Removed token from URL callback and now use cookies instead.
+[PR #1034](https://github.com/hoophq/hoop/pull/1034)
+
+---
+
+### Bug Fixes
+**Hoop Agent Daemon**
+
+- Fixed an issue where the agent failed to recognize local commands on the installed machine.
+  [PR #1029](https://github.com/hoophq/hoop/pull/1029)
+
+- Added persistence to the hoop key for easier VM management.
+  [PR #1029](https://github.com/hoophq/hoop/pull/1029)
+
+---
+
+### Miscellaneous
+- Removed the need for the `API_URL` environment variable across environments.
+  [PR #1028](https://github.com/hoophq/hoop/pull/1028)
+
+---
+
+The theme for this release is **visibility, reliability, and bad jokes about cookies.**
+See you in a couple of weeks.

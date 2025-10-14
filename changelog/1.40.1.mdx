@@ -1,0 +1,58 @@
+---
+title: "1.40.1"
+description: "This is the first of our patch update blogs. This is where we'll post small (but mighty) feature updates as well as documenting the bugs that we step on."
+---
+
+### TL;DR
+- **New Features:** Opt-in Anonymous Tracking, Command Palette (Cmd/Ctrl + K), Agent Daemon Mode
+- **Bug Fixes:** MySQL Session Kill, MongoDB Schema, API Key Propagation, Jira Re-run
+
+---
+
+### New Features
+
+#### Opt-in Anonymous Tracking
+Admins are now prompted with a consent form to enable anonymous tracking within Hoop.
+This allows us to improve the product with analytics while ensuring no identifiable data (including yours) is collected.
+
+[PR #1007](https://github.com/hoophq/hoop/pull/1007) and [PR #1011](https://github.com/hoophq/hoop/pull/1011)
+
+---
+
+#### Command Palette Interface
+Search and navigate faster with the new command palette — just hit `Cmd + K` on macOS or `Ctrl + K` on Windows/Linux in the Hoop web app to open it.
+
+[PR #1008](https://github.com/hoophq/hoop/pull/1008)
+
+---
+
+#### Agent Daemon Mode
+Users can now run the Hoop Agent as a daemon for smoother, always-on operations.
+We also added support for a new agent command to manage it easily.
+
+[PR #997](https://github.com/hoophq/hoop/pull/997)
+
+---
+
+### Bug Fixes
+We smashed some bugs recently, too. Here's what died:
+
+- MySQL sessions can now be killed properly (community report)
+- Terminal page connections list now scrolls correctly
+- API Key propagation no longer drops calls
+- MongoDB schema tree browsing works without hiccups
+- “Re-run session” option removed from Jira integrations
+- MongoDB integration is now sturdier and more compatible across edge cases
+
+---
+
+### Experience Boosts
+- **Command Palette:** Less clicking and faster searching
+- **Agent Daemon Mode:** Smoother rides with fewer restarts
+- **Opt-in Tracking:** Analytics that are optionally anonymous
+- **Bug Fixes:** Fewer hiccups all around
+
+---
+
+The theme for this release is **faster, lighter, and friendlier.**
+See you in a couple of weeks with more.
