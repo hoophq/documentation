@@ -62,10 +62,6 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "$HOST",
       "-p",
       "$PORT",
-      "--user",
-      "$USER",
-      "-a",
-      "$PASSWORD",
       "-n",
       "$DB_NUMBER"
     ],
@@ -83,20 +79,6 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
         "required": true,
         "description": "The port of the Redis server",
         "placeholder": "6379"
-      },
-      {
-        "name": "USER",
-        "type": "env-var",
-        "required": true,
-        "description": "The username for Redis authentication (Redis 6.0+)",
-        "placeholder": "default"
-      },
-      {
-        "name": "PASSWORD",
-        "type": "env-var",
-        "required": true,
-        "description": "The password for Redis authentication",
-        "placeholder": "password"
       },
       {
         "name": "DB_NUMBER",
