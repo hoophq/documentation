@@ -41,7 +41,7 @@ setupGuide:
 resourceConfiguration:
   type: custom
   subtype: redis
-  command: [redis-cli, -h, $HOST, -p, $PORT, --user, $USER, -a, $PASSWORD, -n, $DB_NUMBER]
+  command: [redis-cli, -h, $HOST, -p, $PORT, -n, $DB_NUMBER]
   credentials:
     - name: HOST
       type: env-var
@@ -53,16 +53,6 @@ resourceConfiguration:
       required: true
       description: The port of the Redis server
       placeholder: "6379"
-    - name: USER
-      type: env-var
-      required: true
-      description: The username for Redis authentication (Redis 6.0+)
-      placeholder: default
-    - name: PASSWORD
-      type: env-var
-      required: true
-      description: The password for Redis authentication
-      placeholder: password
     - name: DB_NUMBER
       type: env-var
       required: true
