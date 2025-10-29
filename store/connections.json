@@ -1746,6 +1746,94 @@
       }
     },
     {
+      "id": "remote-desktop",
+      "name": "Remote Desktop",
+      "description": "Access your remote desktop securely with Hoop.dev. Enjoy lightning-fast, high-performance connections anywhere. Simplify access management with built-in security controls. Stay connected with confidence, speed, and reliability",
+      "category": "infrastructure-access",
+      "icon-name": "tcp",
+      "tags": [
+        "remote",
+        "desktop",
+        "security"
+      ],
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": false,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": false
+        }
+      },
+      "overview": {
+        "description": "Access your remote desktop securely with Hoop.dev. Enjoy lightning-fast, high-performance connections anywhere. Simplify access management with built-in security controls. Stay connected with confidence, speed, and reliability"
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": false,
+          "cli": true,
+          "runbooks": false
+        }
+      },
+      "resourceConfiguration": {
+        "type": "custom",
+        "subtype": "rdp",
+        "command": [
+          "bash"
+        ],
+        "credentials": [
+          {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The host of the remote desktop server",
+            "placeholder": "localhost"
+          },
+          {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The username of the remote desktop server",
+            "placeholder": "ubuntu"
+          },
+          {
+            "name": "PASS",
+            "type": "env-var",
+            "required": true,
+            "description": "The password of the remote desktop server",
+            "placeholder": "password"
+          },
+          {
+            "name": "PORT",
+            "type": "env-var",
+            "required": true,
+            "description": "The port of the remote desktop server",
+            "placeholder": "3389"
+          }
+        ]
+      },
+      "documentationConfig": {
+        "path": "quickstart/applications/remote-desktop"
+      }
+    },
+    {
       "id": "ruby-on-rails",
       "name": "Ruby on Rails",
       "description": "A web application framework written in Ruby that follows the MVC pattern, providing tools for rapid web development.",
