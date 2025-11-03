@@ -386,6 +386,98 @@
       }
     },
     {
+      "id": "aws-ssm-script",
+      "name": "AWS SSM",
+      "description": "AWS SSM script permits managing EC2 instances using AWS SSM via Hoop",
+      "category": "cloud-services",
+      "icon-name": "aws",
+      "tags": [
+        "aws"
+      ],
+      "overview": {
+        "description": "AWS SSM script permits executing ad-hoc commands or creating interactive sessions with any EC2 instance in your AWS account."
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": true,
+          "cli": true,
+          "runbooks": true
+        }
+      },
+      "resourceConfiguration": {
+        "credentials": [
+          {
+            "type": "env-var",
+            "required": false,
+            "name": "AWS_ACCESS_KEY_ID",
+            "description": "The AWS access key id value",
+            "placeholder": "AKIAIOSFODNN7EXAMPLE"
+          },
+          {
+            "type": "env-var",
+            "required": false,
+            "name": "AWS_SECRET_ACCESS_KEY",
+            "description": "The AWS secret access key value"
+          },
+          {
+            "type": "env-var",
+            "required": false,
+            "name": "AWS_REGION",
+            "description": "The AWS region to issue commands",
+            "placeholder": "us-east-1"
+          },
+          {
+            "type": "env-var",
+            "required": false,
+            "name": "PIPE_EXEC",
+            "description": "The runtime command to be executed when running ad-hoc commands via Web Console. It defaults to `/bin/bash`",
+            "placeholder": "/bin/bash"
+          },
+          {
+            "type": "env-var",
+            "required": false,
+            "name": "INSTANCE_ID",
+            "description": "The EC2 instance id to use when starting an interactive shell session. Add this value if you want to prevent users from specifying which instance to connect to.",
+            "placeholder": "i-0d1a333276d48ec0d"
+          }
+        ],
+        "type": "custom",
+        "subtype": "aws-ssm",
+        "command": [
+          "aws-ssm.sh"
+        ]
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": true
+        },
+        "audit": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingGoogleDLP": {
+          "native": true,
+          "oneOff": true
+        },
+        "dataMaskingMSPresidio": {
+          "native": true,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": true
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": true
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/aws/aws-ssm"
+      }
+    },
+    {
       "id": "bigquery",
       "name": "BigQuery",
       "description": "A fully managed, serverless data warehouse that enables super-fast SQL queries using Google's infrastructure.",
