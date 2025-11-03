@@ -1,0 +1,98 @@
+---
+title: "Remote Desktop"
+description: "Secure remote desktop access with high-performance connections and built-in security controls."
+category: "infrastructure-access"
+---
+
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
+
+<ConnectionTemplate config={{
+  "id": "remote-desktop",
+  "name": "Remote Desktop",
+  "description": "Secure remote desktop access with high-performance connections and built-in security controls.",
+  "category": "infrastructure-access",
+  "icon-name": "tcp",
+  "tags": [
+    "remote",
+    "desktop",
+    "security"
+  ],
+  "features": {
+    "tlsTerminationProxy": {
+      "native": true,
+      "oneOff": false
+    },
+    "audit": {
+      "native": false,
+      "oneOff": false
+    },
+    "dataMaskingGoogleDLP": {
+      "native": false,
+      "oneOff": false
+    },
+    "dataMaskingMSPresidio": {
+      "native": false,
+      "oneOff": false
+    },
+    "credentialsOffload": {
+      "native": false,
+      "oneOff": false
+    },
+    "interactiveAccess": {
+      "native": true,
+      "oneOff": false
+    }
+  },
+  "overview": {
+    "description": "Connect to your remote desktop infrastructure through Hoop.dev with secure, high-performance access from anywhere. Streamline access management with centralized security controls and audit capabilities, ensuring reliable connections while maintaining full visibility over desktop access activities."
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": false,
+      "cli": true,
+      "runbooks": false
+    }
+  },
+  "resourceConfiguration": {
+    "type": "custom",
+    "subtype": "rdp",
+    "command": [
+      "bash"
+    ],
+    "credentials": [
+      {
+        "name": "HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The host of the remote desktop server",
+        "placeholder": "localhost"
+      },
+      {
+        "name": "USER",
+        "type": "env-var",
+        "required": true,
+        "description": "The username of the remote desktop server",
+        "placeholder": "ubuntu"
+      },
+      {
+        "name": "PASS",
+        "type": "env-var",
+        "required": true,
+        "description": "The password of the remote desktop server",
+        "placeholder": "password"
+      },
+      {
+        "name": "PORT",
+        "type": "env-var",
+        "required": true,
+        "description": "The port of the remote desktop server",
+        "placeholder": "3389"
+      }
+    ]
+  },
+  "documentationConfig": {
+    "path": "quickstart/applications/remote-desktop"
+  }
+}} />
+
+
