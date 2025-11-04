@@ -10,11 +10,11 @@ description: 'Learn how the API Key feature works and how to use it'
 ## Setup
 
 - The `org-id` is a value that you obtain in the user info endpoint. Use the command line to obtain this information, e.g.: `hoop admin get userinfo -o json`
-- The `<random-string>` is a secure key string that is going to be used to authenticated your requests
+- The `<random-string>` is a secure key string that is going to be used to authenticate your requests
 
 <Warning>
     Make sure to use a tool with enough entropy to generate the `<random-string>` value.
-    We recommend using `openssl` which is present in most unix systems by default. e.g.: `openssl rand 64 | base64`
+    We recommend using `openssl`, which is present in most unix systems by default. e.g.: `openssl rand 64 | base64`
 </Warning>
 
 Use the environment variable `API_KEY=<org-id>|<random-string>` when deploying your gateway.
@@ -41,7 +41,7 @@ The API Key has admin access in the system, make sure to keep the key secure.
 ## Security Considerations
 
 <Warning>
-    This method of accessing the API uses a **static key with adminstrator privileges**.
-    The **key NEVER expires** and could only be revoked by redeploying the gateway.
-    Make sure to keep this key secure and under a safe environment.
+    This method of accessing the API uses a **static key with administrator privileges**.
+    The **key NEVER expires** and can only be revoked by redeploying the gateway.
+    Make sure to keep this key secure and in a safe environment.
 </Warning>
