@@ -47,32 +47,48 @@ npm run build
 npm run process-connections
 ```
 
+- Access the development server documentation at [http://localhost:3000/docs](http://localhost:3000/docs)
+
 ### Decap CMS (Development)
 
 To use CMS in development:
 
 ```bash
-# Initialize Decap server
-npx decap-server
+# start development server at port 3000
+npm run dev
 
-# Access admin at
-# http://localhost:3000/admin
+# Initialize the Decap server
+npx decap-server
 ```
+
+- Login to decap admin page in the development server at [http://localhost:3000/admin](http://localhost:3000/admin)
+- View the documentation page at [http://localhost:3000/docs](http://localhost:3000/docs)
 
 ## 📝 Contributing
 
 1. **CMS Editing**: Use `/admin` interface to edit content
 2. **Connection Templates**: Use `store/connections/*.yml` for connection configurations
+3. **Run processing script**: After YAML changes, run `npm run process-connections`
+4. Visit the documentation to see if the connection is available in the proper section
+5. Test it by replacing the `store/connections.json` to a Webapp dev instance. See the [Webapp Docs](https://github.com/hoophq/hoop/tree/main/webapp#decap) for more information.
+6. Create a PR and merge to the `main` branch
+7. Create a new [product release](https://github.com/hoophq/hoop/blob/main/DEV.md#how-to-create-a-new-release)
+
+The changes will be available in the next release on the Webapp
 
 ### ⚠️ Important: Quickstart Connection Guides
 
-**Quickstart MDX files related to connections should NOT be edited directly.** Instead:
+**Quickstart MDX files related to connections should NOT be edited directly.**
 
 - **Edit via Decap CMS**: Use `/admin` interface to modify connection configurations
+
+Or
+
 - **Edit YAML templates**: Modify files in `store/connections/*.yml` directly
-- **Run processing script**: After YAML changes, run `npm run process-connections`
 
 The connection quickstarts (like `quickstart/databases/postgres.mdx`) are generated from YAML templates and use the `ConnectionTemplate` component. Direct edits to these MDX files will be overwritten.
+
+> The section in the sidebar is not automated. Make sure to include the navigation in the `docs.json` file for your new connection.
 
 ## 🔧 Important Configurations
 

@@ -1,0 +1,126 @@
+id: aws-ssm-script
+name: AWS SSM
+description: AWS SSM script permits managing EC2 instances using AWS SSM via Hoop
+category: cloud-services
+icon-name: aws
+tags:
+  - aws
+overview:
+  description: AWS SSM script permits executing ad-hoc commands or creating
+    interactive sessions with any EC2 instance in your AWS account.
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+resourceConfiguration:
+  credentials:
+    - type: env-var
+      required: false
+      name: AWS_ACCESS_KEY_ID
+      description: The AWS access key id value
+      placeholder: AKIAIOSFODNN7EXAMPLE
+    - type: env-var
+      required: false
+      name: AWS_SECRET_ACCESS_KEY
+      description: The AWS secret access key value
+    - type: env-var
+      required: false
+      name: AWS_REGION
+      description: The AWS region to issue commands
+      placeholder: us-east-1
+    - type: env-var
+      required: false
+      name: PIPE_EXEC
+      description: The runtime command to be executed when running ad-hoc commands via
+        Web Console. It defaults to /bin/bash
+      placeholder: /bin/bash
+    - type: env-var
+      required: false
+      name: INSTANCE_ID
+      description: The EC2 instance id to use when starting an interactive shell
+        session. Add this value if you want to prevent users from specifying
+        which instance to connect to.
+      placeholder: i-0d1a333276d48ec0d
+  type: custom
+  subtype: aws-ssm
+  command:
+    - aws-ssm.sh
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: true
+    oneOff: true
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+documentationConfig:
+  path: quickstart/cloud-services/aws/aws-ssm
+additionalInformation: >-
+  ### Credentials Setup
+
+    This connection can use AWS credentials which could be loaded
+    from EC2 instance roles or environment variables provided directly in the connection.
+
+    Make sure to add the following IAM permissions to the user or role that will be used
+    to connect to EC2 instances via SSM:
+
+  * ssm:StartSession
+  * ssm:SendCommand
+  * ssm:ListCommandInvocations
+  * ssm:GetCommandInvocation
+  * ssm:DescribeSessions
+  * ssm:TerminateSession
+
+  ### Command Line Usage Examples
+
+
+  - **Start interactive session with a specific instance:**
+
+
+  ```bash
+    hoop connect aws-ssm -e INSTANCE_ID=i-0d1a333276d48ec0d
+  ```
+
+
+  <Tip>
+    If you don't want users to specify the instance id when starting an interactive session,
+    you can set the \`INSTANCE_ID\` environment variable in the connection credentials.
+  </Tip>
+
+
+  - **Execute ad-hoc commands on a specific instance:**
+
+
+  If `PIPE_EXEC` is set to `/bin/bash` (default), you can run:
+
+
+  ```bash
+    hoop exec aws-ssm <<EOF
+    # instance-id=i-0d1a333276d48ec0d
+    ls -l
+    EOF
+  ```
+
+
+  If `PIPE_EXEC` is set to `python`, you can run:
+
+
+  ```bash
+    hoop exec aws-ssm <<EOF
+    # instance-id=i-0d1a333276d48ec0d
+    import os
+    print('Hello From Python!')
+    EOF
+  ```

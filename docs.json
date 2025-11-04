@@ -93,7 +93,8 @@
                     "pages": [
                       "quickstart/cloud-services/aws/aws-cli",
                       "quickstart/cloud-services/aws/aws-cloudwatch",
-                      "quickstart/cloud-services/aws/aws-ecs"
+                      "quickstart/cloud-services/aws/aws-ecs",
+                      "quickstart/cloud-services/aws/aws-ssm"
                     ]
                   },
                   {
