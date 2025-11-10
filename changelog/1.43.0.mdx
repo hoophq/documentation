@@ -1,0 +1,57 @@
+---
+title: "1.43.0"
+description: "This release brings major upgrades to RDP access and TLS handling, making Hoop even more seamless and secure across your infrastructure."
+---
+
+### TL;DR
+ - New: TLS termination for Gateway, Postgres, and RDP
+ - New: RDP credential support and session expiry handling
+ - Improved: MySQL data masking, parallel redaction, and better error handling
+ - Plus: Quality-of-life updates across the UI, agent, and documentation
+
+---
+
+### New Features
+
+**RDP Everywhere**
+
+> _Beta release, not supported in our this version's Kubernetes deployement_
+
+You can now connect to RDP endpoints directly through Hoop with proper credential handling and access checks. Sessions automatically expire when credentials do, keeping things secure.
+PRs [#1101](https://github.com/hoophq/hoop/pull/1101), [#1102](https://github.com/hoophq/hoop/pull/1102)
+
+**TLS Termination**
+
+Gateway and database connections (Postgres, RDP) now fully support TLS termination — with transparent fallback and backward compatibility.
+PR [#1096](https://github.com/hoophq/hoop/pull/1096)
+
+**SSM Exec Agent Script**
+
+Run ad-hoc commands or open interactive sessions over SSM directly from your agent.
+PR [#1108](https://github.com/hoophq/hoop/pull/1108)
+
+---
+
+### Enhancements
+
+**Data Masking & MySQL Improvements**
+
+The agent got smarter with redaction:
+
+ - Propagates data masking entities to the MySQL native protocol
+ - Supports parallel redaction of text row chunks
+ - Tracks redaction statistics for visibility
+ - Simplifies MySQL authentication handling and error propagation
+
+PR [#1105](https://github.com/hoophq/hoop/pull/1105)
+
+
+**UX & Misc Enhancements**
+
+- Pagination added to connection lists ([#1076](https://github.com/hoophq/hoop/pull/1076))
+- Guardrails configuration now sent to terminals ([#1104](https://github.com/hoophq/hoop/pull/1104))
+- Runbooks now show extension info in empty state ([#1103](https://github.com/hoophq/hoop/pull/1103))
+
+
+TLS, RDP, and redaction — all playing nicely together.
+Your connections just got faster, safer, and a lot more flexible. 🛡️
