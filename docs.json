@@ -241,7 +241,11 @@
             "group": "Releases",
             "pages": [
               "changelog/1.43.0",
+              "changelog/1.42.9",
               "changelog/1.42.6",
+              "changelog/1.42.5",
+              "changelog/1.42.4",
+              "changelog/1.42.1",
               "changelog/1.42.0",
               "changelog/1.41.0",
               "changelog/1.40.1"
