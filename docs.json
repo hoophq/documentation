@@ -240,6 +240,7 @@
           {
             "group": "Releases",
             "pages": [
+              "changelog/1.43.1",
               "changelog/1.43.0",
               "changelog/1.42.9",
               "changelog/1.42.6",
