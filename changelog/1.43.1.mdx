@@ -1,0 +1,69 @@
+---
+title: "1.43.1"
+description: "New runbooks v2 API with multi-repository support, connection-based access control, and improved execution capabilities."
+---
+
+### TL;DR
+- **New Features:** Runbooks v2 API with new rules engine and execution mechanisms; PATCH endpoint for partial connection updates; agent status filtering.
+- **Improvements:** Simplified runbook connection handling and enhanced error handling across the platform.
+- **Bug Fixes:** Removed access_mode restrictions for runbooks and streamlined configuration management.
+
+---
+
+### New Features
+**Next-generation runbooks and enhanced API capabilities.**
+
+- **Runbooks v2 API with comprehensive execution capabilities**
+  New runbooks v2 API implementing multi-repository configuration with branch support, connection-level access control based on user groups and runbook rules, and normalized Git URL handling for both SSH and HTTPS repositories.
+  [PR #1107](https://github.com/hoophq/hoop/pull/1107)
+
+- **PATCH endpoint for partial connection updates**
+  Implemented new PATCH endpoint allowing partial updates to connections, providing more flexibility in connection management without requiring full resource replacement.
+  [PR #1110](https://github.com/hoophq/hoop/pull/1110)
+
+- **Enhanced agent management with status filtering**
+  Added new get agent endpoint and implemented status-based filtering in list agents endpoint, improving agent monitoring and management capabilities.
+  [PR #1109](https://github.com/hoophq/hoop/pull/1109)
+
+---
+
+### API Improvements
+**Better documentation and endpoint management.**
+
+- **Updated runbook API endpoints**
+  Refactored runbook v2 rules and endpoints with enhanced API documentation. Removed deprecated delete endpoint for better API consistency.
+  [PR #1114](https://github.com/hoophq/hoop/pull/1114)
+
+- **Improved error handling and response types**
+  Enhanced error treatment in agent management endpoints and introduced proper AgentResponse types for better API reliability.
+  [PR #1109](https://github.com/hoophq/hoop/pull/1109)
+
+---
+
+### Bug Fixes & Refactoring
+**Streamlined logic and improved reliability.**
+
+- **Fixed runbook execution conditions**
+  Removed access_mode condition requirements for running runbooks, enabling users to execute runbooks against specific connections while respecting role-based access rules.
+  [PR #1123](https://github.com/hoophq/hoop/pull/1123)
+
+- **Simplified runbook connection handling**
+  Refactored connection persistence and loading logic, removed deprecated read-string usage, and enhanced local storage management for better performance.
+  [PR #1123](https://github.com/hoophq/hoop/pull/1123)
+
+- **Enhanced configuration management**
+  Introduced ConfigInput type and streamlined configuration handling. Updated GitHookTTL from string to int type and improved cache structure validation.
+  [PR #1107](https://github.com/hoophq/hoop/pull/1107)
+
+- **Removed deprecated connection validation**
+  Cleaned up deprecated validation for connection tag keys, reducing complexity and improving maintainability.
+  [PR #1110](https://github.com/hoophq/hoop/pull/1110)
+
+---
+
+### Infrastructure
+**CI/CD optimizations and workflow improvements.**
+
+- **Streamlined release workflow**
+  Removed unused CI jobs from the release workflow, optimizing build times and reducing resource consumption.
+  [PR #1113](https://github.com/hoophq/hoop/pull/1113)
