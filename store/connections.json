@@ -92,6 +92,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -176,6 +180,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -219,6 +227,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -307,6 +319,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -464,6 +480,10 @@
           "native": true,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": true,
           "oneOff": true
@@ -503,6 +523,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -590,6 +614,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -645,6 +673,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -705,6 +737,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -796,6 +832,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -854,6 +894,10 @@
         "dataMaskingMSPresidio": {
           "native": true,
           "oneOff": false
+        },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
         },
         "credentialsOffload": {
           "native": true,
@@ -916,6 +960,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -983,6 +1031,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -1065,6 +1117,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -1140,6 +1196,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -1252,6 +1312,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": true,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -1304,6 +1368,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": true,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -1404,6 +1472,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -1458,6 +1530,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -1560,6 +1636,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -1617,6 +1697,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": true,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": true,
           "oneOff": true
         },
@@ -1719,6 +1803,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -1775,6 +1863,10 @@
           "oneOff": true
         },
         "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": true
+        },
+        "guardrails": {
           "native": false,
           "oneOff": true
         },
@@ -1952,6 +2044,10 @@
           "native": false,
           "oneOff": true
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": false,
           "oneOff": true
@@ -2066,6 +2162,10 @@
           "native": false,
           "oneOff": false
         },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
         "credentialsOffload": {
           "native": true,
           "oneOff": false
@@ -2111,6 +2211,10 @@
         "dataMaskingMSPresidio": {
           "native": false,
           "oneOff": false
+        },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
         },
         "credentialsOffload": {
           "native": true,
