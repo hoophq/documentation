@@ -4,11 +4,50 @@ description: "Create and manage custom rules to protect and guide usage within y
 ---
 
 <Frame>
-  <img src="/images/clients/webapp/guardrails-light.png" className="block dark:hidden" />
-  <img src="/images/clients/webapp/guardrails-dark.png" className="hidden dark:block" />
+  <img
+    src="/images/clients/webapp/guardrails-light.png"
+    className="block dark:hidden"
+  />
+
+  <img
+    src="/images/clients/webapp/guardrails-dark.png"
+    className="hidden dark:block"
+  />
 </Frame>
 
 Guardrails allow you to create custom rules that protect and guide how your connections are used. These rules can be applied to specific connections or serve as default policies across your organization.
+
+## Setup
+
+This service currently supports Microsoft Presidio for configuring Guardrails rules.
+
+<Steps>
+  <Step title="Install">
+    Check the Microsoft Presidio documentation to install it.
+
+    <CardGroup cols={2}>
+      <Card title="Microsoft Presidio Docker Installation" icon="microsoft" href="https://microsoft.github.io/presidio/installation/#docker-installation">
+        Visit the Microsoft Presidio documentation to install it using Docker.
+      </Card>
+      <Card title="Microsoft Presidio Kubernetes Installation" icon="microsoft" href="https://microsoft.github.io/presidio/samples/deployments/k8s/">
+        Visit the Microsoft Presidio documentation to install it using Kubernetes.
+      </Card>
+    </CardGroup>
+  </Step>
+  <Step title="Set up">
+    Set the new environment variables in hoop.dev's Gateway with the following values:
+
+    | Environment variable key    | Value                       |
+    | :-------------------------- | :-------------------------- |
+    | `DLP_PROVIDER`              | mspresidio                  |
+    | `DLP_MODE`                  | `best-effort` or `strict`   |
+    | `MSPRESIDIO_ANALYZER_URL`   | `<host-to-analyzer:port>`   |
+    | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
+  </Step>
+  <Step title="Run hoop.dev's Gateway with the new configs">
+    After setting up the environment variables, hoop.dev will use Microsoft Presidio to create a secure layer with custom rules that protect and guide how your resources are used.
+  </Step>
+</Steps>
 
 ## Creating a Guardrail
 
@@ -16,19 +55,18 @@ Guardrails allow you to create custom rules that protect and guide how your conn
   <Step title="Access Guardrails">
     Navigate to the Guardrails section from the sidebar menu
   </Step>
-  
   <Step title="Create New">
     Click the "Create a new Guardrail" button in the top-right corner
   </Step>
-  
   <Step title="Set Basic Information">
     Provide:
+
     - Name for the guardrail
     - Description (Optional) explaining its purpose
   </Step>
-
   <Step title="Configure Rules">
     Provide:
+
     - Input Rules
     - Output Rules
   </Step>
@@ -37,12 +75,14 @@ Guardrails allow you to create custom rules that protect and guide how your conn
 ## Configuring Rules
 
 ### Input Rules
+
 Rules that evaluate incoming commands or queries:
 
 - **Pattern Matching**: Define patterns to match specific commands or queries
 - **Conditions**: Set conditions that trigger the rule
 
 ### Output Rules
+
 Rules that control or modify the output of commands:
 
 - **Information Control**: Control what information can be returned
@@ -52,20 +92,21 @@ Rules that control or modify the output of commands:
 <AccordionGroup>
   <Accordion title="Pattern Rules">
     Create rules based on command or query patterns:
+
     - Regular expressions
     - Exact matches
     - Wildcard patterns
   </Accordion>
-  
   <Accordion title="Security Rules">
     Enforce security policies:
+
     - Block dangerous commands
     - Require additional approvals
     - Limit access to sensitive data
   </Accordion>
-  
   <Accordion title="Compliance Rules">
     Ensure compliance requirements:
+
     - Data access restrictions
     - Audit logging requirements
     - Regulatory compliance rules
@@ -75,17 +116,17 @@ Rules that control or modify the output of commands:
 ## Applying Guardrails
 
 ### Connection Assignment
+
 <Steps>
   <Step title="Select Connections">
     Choose which connections will use the guardrail
   </Step>
-  
   <Step title="Set Priority">
     Define the order of rule evaluation when multiple guardrails apply
   </Step>
-  
   <Step title="Configure Behavior">
     Specify how rules should be enforced:
+
     - Block non-compliant actions
     - Warn users
     - Require approval
@@ -98,15 +139,12 @@ Rules that control or modify the output of commands:
   <Card title="Start Simple" icon="list-check">
     Begin with basic rules and expand as needed
   </Card>
-  
   <Card title="Test Rules" icon="vial">
     Validate rules in a test environment first
   </Card>
-  
   <Card title="Document Purpose" icon="file-lines">
     Clearly describe what each rule does
   </Card>
-  
   <Card title="Regular Review" icon="rotate">
     Periodically review and update rules
   </Card>
@@ -134,7 +172,6 @@ Keep your guardrails effective and current:
   <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">
     Learn about access control configuration
   </Card>
-  
   <Card title="Command Reviews" icon="shield-check" href="/setup/configuration/reviews/command-reviews-configuration">
     Configure command review workflows
   </Card>

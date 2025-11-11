@@ -59,6 +59,9 @@ features:
   dataMaskingMSPresidio:
     native: true
     oneOff: true
+  guardrails:
+    native: false
+    oneOff: true
   credentialsOffload:
     native: true
     oneOff: true

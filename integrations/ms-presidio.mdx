@@ -1,0 +1,72 @@
+---
+title: "Microsoft Presidio"
+description: "Enable sensitive data detection, masking, and guardrail enforcement using Microsoft Presidio."
+---
+
+Hoop.dev’s Microsoft Presidio integration provides a powerful framework for detecting, classifying, and masking sensitive data within infrastructure sessions and workflows. It strengthens security and compliance by enforcing guardrails and protecting personally identifiable information (PII) across your organization’s resources.
+
+## Key Features
+
+### AI Data Masking
+
+- Automatically identify and mask sensitive information such as PII and secrets within session logs or command inputs
+- Ensure compliance with data protection policies while maintaining operational visibility
+- Apply consistent masking across multiple environments and data flows
+
+### Guardrails and Policy Enforcement
+
+- Create and enforce custom guardrails that restrict sensitive actions or access patterns
+- Prevent risky operations by applying rule-based controls to session activity
+- Integrate seamlessly with approval workflows and policy evaluation mechanisms
+
+### Extensible Detection
+
+- Utilize Microsoft Presidio’s analyzers and recognizers to detect sensitive entities
+- Extend detection logic with custom patterns to meet specific organizational requirements
+- Benefit from Presidio’s open-source flexibility and ongoing improvements
+
+## Benefits
+
+- **Security:** Protect sensitive data in real time through automated masking and rule enforcement
+- **Compliance:** Simplify adherence to privacy and governance standards by integrating PII protection directly into access flows
+- **Control:** Define fine-grained policies for data handling and operational boundaries
+- **Transparency:** Maintain a complete audit trail of masking and enforcement actions
+
+## Integration with Other Features
+
+Microsoft Presidio works seamlessly with other Hoop.dev capabilities:
+
+- **Sessions:** Mask sensitive data in session recordings and live streams
+- **Guardrails:** Apply Presidio-powered rules to restrict or log sensitive operations
+- **Approvals:** Automatically trigger approvals or alerts when guardrail conditions are met
+- **Logging & Monitoring:** Ensure all sensitive data is masked before being stored or transmitted
+
+## Configuration
+
+<Steps>
+  <Step title="Install">
+    Check the Microsoft Presidio documentation to install it.
+
+    <CardGroup cols={2}>
+      <Card title="Microsoft Presidio Docker Installation" icon="microsoft" href="https://microsoft.github.io/presidio/installation/#docker-installation">
+        Visit the Microsoft Presidio documentation to install it using Docker.
+      </Card>
+      <Card title="Microsoft Presidio Kubernetes Installation" icon="microsoft" href="https://microsoft.github.io/presidio/samples/deployments/k8s/">
+        Visit the Microsoft Presidio documentation to install it using Kubernetes.
+      </Card>
+    </CardGroup>
+  </Step>
+  <Step title="Set up">
+    Set the new environment variables in hoop.dev's Gateway with the following values:
+
+    | Environment variable key    | Value                       |
+    | --------------------------- | --------------------------- |
+    | `DLP_PROVIDER`              | mspresidio                  |
+    | `DLP_MODE`                  | `best-effort` or `strict`   |
+    | `MSPRESIDIO_ANALYZER_URL`   | `<host-to-analyzer:port>`   |
+    | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
+  </Step>
+  <Step title="Run hoop.dev's Gateway with the new configs">
+    After setting up the environment variables, hoop.dev will use Microsoft Presidio to mask sensitive data in real-time in the data stream of any connection you configure.
+  </Step>
+</Steps>

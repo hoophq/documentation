@@ -8,6 +8,7 @@ export const ConnectionTemplate = ({ config }) => {
       audit: { native: false, oneOff: false },
       dataMaskingGoogleDLP: { native: false, oneOff: false },
       dataMaskingMSPresidio: { native: false, oneOff: false },
+      guardrails: { native: false, oneOff: false },
       credentialsOffload: { native: false, oneOff: false },
       interactiveAccess: { native: false, oneOff: false }
     }
@@ -82,6 +83,12 @@ export const ConnectionTemplate = ({ config }) => {
             <td>{renderIcon(finalConfig.features?.dataMaskingMSPresidio?.native)}</td>
             <td>{renderIcon(finalConfig.features?.dataMaskingMSPresidio?.oneOff)}</td>
             <td>A policy can be enabled to mask sensitive fields dynamically when performing queries in the database.</td>
+          </tr>
+          <tr>
+            <td>Guardrails</td>
+            <td>{renderIcon(finalConfig.features?.guardrails?.native)}</td>
+            <td>{renderIcon(finalConfig.features?.guardrails?.oneOff)}</td>
+            <td>An intelligent layer of protection with smart access controls and monitoring mechanisms.</td>
           </tr>
           <tr>
             <td>Credentials Offload</td>

@@ -111,8 +111,7 @@
                 "group": "Web Applications",
                 "pages": [
                   "quickstart/web-applications/webapps-and-apis",
-                  "quickstart/web-applications/http-proxy",
-                  "quickstart/web-applications/jump-hosts"
+                  "quickstart/web-applications/http-proxy"
                 ]
               },
               {
@@ -210,7 +209,8 @@
               "integrations/teams",
               "integrations/jira",
               "integrations/svix",
-              "integrations/aws"
+              "integrations/aws",
+              "integrations/ms-presidio"
             ]
           }
         ]
