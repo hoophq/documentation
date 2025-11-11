@@ -1,0 +1,45 @@
+---
+title: "1.42.9"
+description: "Data masking for MongoDB, RDP improvements, and a crucial fix for connection form persistence. This one's all about reliability and security."
+---
+
+### TL;DR
+- **New:** Microsoft Presidio data masking for MongoDB
+- **Enhanced:** RDP connection architecture
+- **Fixed:** Stale data persisting when switching between connections
+- **Improved:** Connection metadata download error handling
+
+---
+
+### New Features
+
+**MongoDB Data Masking with MS Presidio**
+
+Microsoft Presidio is now integrated for MongoDB connections, bringing enterprise-grade data masking to your MongoDB workflows. We also refactored the MongoDB DLP implementation to align with the current masking architecture across all databases.
+
+---
+
+### Enhancements
+
+**RDP Connection Architecture ([#1084](https://github.com/hoophq/hoop/pull/1084))**
+
+RDP connections are now configured as custom type with `rdp` subtype, providing more flexibility and consistency with other connection types.
+
+**Connection Metadata Script ([#1099](https://github.com/hoophq/hoop/pull/1099))**
+
+Improved the connection metadata download script with better HTTP status handling and JSON validation. Added clear error messages for common issues (403, 404, 429) to make troubleshooting easier.
+
+---
+
+### Bug Fixes
+
+**Connection Form State Persistence ([#1100](https://github.com/hoophq/hoop/pull/1100))**
+
+Fixed a synchronization issue where editing a connection in the terminal and then switching to configure a different connection would retain data from the first one. Connection details now load synchronously, ensuring clean state when switching between connections.
+
+If you noticed old data appearing in connection forms, this fixes it.
+
+---
+
+Security meets stability — MongoDB gets smarter masking, and connection management gets cleaner.
+
