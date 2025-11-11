@@ -1,0 +1,36 @@
+---
+title: "1.42.5"
+description: "Terminal fixes and a solid foundation for what's coming next. We squashed navigation bugs and built out the resources infrastructure to power better connection management."
+---
+
+### TL;DR
+- **New:** Resources model for enhanced connection management
+- **Fixed:** Terminal "database not found" error from connection list
+- **Fixed:** Keyboard shortcuts in custom/command-line connections
+
+---
+
+### New Features
+
+**Resources Model ([#1083](https://github.com/hoophq/hoop/pull/1083))**
+
+Added a new resources model that lays the groundwork for improved connection management. This infrastructure enhancement includes routes, agent association, and role-based defaults — setting the stage for more flexible resource handling.
+
+---
+
+### Bug Fixes
+
+**Terminal Navigation & Editor Shortcuts ([#1090](https://github.com/hoophq/hoop/pull/1090))**
+
+Fixed two issues that were disrupting the Web Terminal experience:
+
+- **Database navigation error** — Opening a database connection from the connection list no longer triggers a "database not found" error. The schema cache now clears properly on connection selection.
+
+- **Editor shortcuts** — Keyboard shortcuts (like Ctrl+Enter) now work reliably in custom and command-line connection types. We removed faulty caching logic in CodeMirror extensions initialization.
+
+If you were frustrated by either of these, they're gone now.
+
+---
+
+Smoother terminals and stronger foundations.
+
