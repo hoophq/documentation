@@ -1,0 +1,27 @@
+---
+title: "1.42.4"
+description: "Redis connection setup just got lighter. We removed mandatory authentication parameters to make local and development environments easier to configure."
+---
+
+### TL;DR
+- **Improvement:** Simplified Redis connection setup by removing mandatory authentication fields
+
+---
+
+### Improvement
+
+**Simplified Redis Connection Setup ([#60](https://github.com/hoophq/documentation/pull/60))**
+
+Redis connections no longer require username and password fields during setup. The authentication parameters (`--user` and `-a`) have been removed from the default configuration, making it faster to connect to Redis instances that don't use authentication.
+
+**What changed:**
+- Removed mandatory `USER` and `PASSWORD` fields from Redis connection form
+- Simplified `redis-cli` command to only require host, port, and database number
+- Faster setup for development and local Redis instances
+
+This change makes Redis connections more flexible — perfect for dev environments and instances without authentication enabled.
+
+---
+
+Less friction, faster connections.
+
