@@ -26,10 +26,10 @@ This service currently supports Microsoft Presidio for configuring Guardrails ru
     Check the Microsoft Presidio documentation to install it.
 
     <CardGroup cols={2}>
-      <Card title="Microsoft Presidio Docker Installation" icon="microsoft" href="https://microsoft.github.io/presidio/installation/#docker-installation">
+      <Card title="Microsoft Presidio Docker Installation" icon="docker" href="https://microsoft.github.io/presidio/installation/#docker-installation">
         Visit the Microsoft Presidio documentation to install it using Docker.
       </Card>
-      <Card title="Microsoft Presidio Kubernetes Installation" icon="microsoft" href="https://microsoft.github.io/presidio/samples/deployments/k8s/">
+      <Card title="Microsoft Presidio Kubernetes Installation" icon="dharmachakra" href="https://microsoft.github.io/presidio/samples/deployments/k8s/">
         Visit the Microsoft Presidio documentation to install it using Kubernetes.
       </Card>
     </CardGroup>
@@ -38,14 +38,14 @@ This service currently supports Microsoft Presidio for configuring Guardrails ru
     Set the new environment variables in hoop.dev's Gateway with the following values:
 
     | Environment variable key    | Value                       |
-    | :-------------------------- | :-------------------------- |
+    | --------------------------- | --------------------------- |
     | `DLP_PROVIDER`              | mspresidio                  |
     | `DLP_MODE`                  | `best-effort` or `strict`   |
     | `MSPRESIDIO_ANALYZER_URL`   | `<host-to-analyzer:port>`   |
     | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
   </Step>
   <Step title="Run hoop.dev's Gateway with the new configs">
-    After setting up the environment variables, hoop.dev will use Microsoft Presidio to create a secure layer with custom rules that protect and guide how your resources are used.
+    After setting up the environment variables, hoop.dev will use Microsoft Presidio to mask sensitive data in real-time in the data stream of any connection you configure.
   </Step>
 </Steps>
 
