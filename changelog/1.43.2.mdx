@@ -1,0 +1,55 @@
+---
+title: "1.43.2"
+description: "User interface improvements with enhanced scrolling, metadata-driven connection support, and infrastructure updates for better deployment flexibility."
+---
+
+### TL;DR
+- **User Experience:** Enhanced scrolling in runbook forms and lists.
+- **New Features:** Metadata-driven connection handling with comprehensive edit mode support.
+- **Infrastructure:** Updated Helm charts with configurable RDP and SSH ports for better deployment flexibility.
+- **Improvements:** Enhanced runbook configuration with updated API documentation and response types.
+
+---
+
+### User Experience Improvements
+**Smoother interfaces and better accessibility.**
+
+- **Enhanced scrolling in runbook interfaces**
+  Improved scroll functionality in runbook form layouts and implemented ScrollArea components from Radix for consistent scrolling behavior across runbooks list and sidebar.
+  [PR #1127](https://github.com/hoophq/hoop/pull/1127)
+
+---
+
+### New Features
+**Enhanced connection management capabilities.**
+
+- **Metadata-driven connections in edit mode**
+  Added comprehensive support for metadata-driven connections in the connection update form, including new subscriptions for environment variables and configuration files with improved credential processing.
+  [PR #1124](https://github.com/hoophq/hoop/pull/1124)
+
+- **Enhanced form submission logic**
+  Improved connection update processing to handle metadata-driven credentials appropriately, with refactored credentials step to differentiate between metadata-driven and traditional connections.
+  [PR #1124](https://github.com/hoophq/hoop/pull/1124)
+
+---
+
+### Infrastructure Updates
+**Better deployment flexibility and configuration.**
+
+- **Updated Helm charts with configurable ports**
+  Enhanced Helm charts to support configurable RDP and SSH ports, with default RDP port updated from 3389 to 13389 for improved security and deployment flexibility.
+  [PR #1115](https://github.com/hoophq/hoop/pull/1115)
+
+---
+
+### API Improvements
+**Enhanced documentation and response handling.**
+
+- **Improved runbook configuration management**
+  Enhanced runbook configuration with proper response types and updated OpenAPI documentation for better API consistency and developer experience.
+  [PR #1126](https://github.com/hoophq/hoop/pull/1126)
+
+---
+
+The theme for this release is **refinement, flexibility, and enhanced user experience.**
+See you in the next update!
