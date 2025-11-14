@@ -1,4 +1,4 @@
-id: oracle
+id: oracledb
 name: Oracle
 description: A multi-model database management system designed for enterprise grid computing and high-performance applications.
 category: databases
@@ -42,7 +42,7 @@ setupGuide:
 
 resourceConfiguration:
   type: database
-  subtype: oracle
+  subtype: oracledb
   credentials:
     - name: HOST
       type: env-var
