@@ -1572,7 +1572,7 @@
             "type": "env-var",
             "required": true,
             "description": "The user to connect in the Oracle server",
-            "placeholder": "hr"
+            "placeholder": "user"
           },
           {
             "name": "PASS",
@@ -1587,14 +1587,6 @@
             "required": true,
             "description": "The port of the Oracle server",
             "placeholder": "1521"
-          },
-          {
-            "name": "LD_LIBRARY_PATH",
-            "type": "env-var",
-            "required": true,
-            "description": "Oracle client library path",
-            "hidden": true,
-            "placeholder": "/opt/oracle/instantclient"
           },
           {
             "name": "SID",
