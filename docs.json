@@ -169,6 +169,7 @@
                   "setup/configuration/guardrails-configuration",
                   "setup/configuration/runbooks-configuration",
                   "setup/configuration/secrets-manager-configuration",
+                  "setup/configuration/rds-iam-auth",
                   "setup/configuration/env-vars",
                   "setup/configuration/reverse-proxy",
                   {
