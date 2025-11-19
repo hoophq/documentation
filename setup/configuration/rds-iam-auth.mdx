@@ -5,12 +5,18 @@ description: "It enables integration with AWS IAM Auth for RDS instances."
 
 ## AWS RDS IAM Authentication
 
-You can authenticate to your DB cluster using AWS Identity and Access Management (IAM) database authentication. IAM database authentication works with PostgreSQL.
+You can authenticate to your DB cluster using AWS Identity and Access Management (IAM) database authentication. IAM database authentication works with PostgreSQL, MySQL.
 With this authentication method, you don't need to use a password when you connect to a DB. Instead, you use an authentication token.
 
+## Feature Overview
+<p>
+| Database   | Native | One off | Description |
+|--------|-----|------------|------------|
+| PostgreSQL   | ✔️  |  ✔️ | Supports IAM authentication for PostgreSQL RDS instances using Native connections and Webapp |
+| MySQL  | ✖️  |   ✔️  | Supports IAM authentication for MySQL RDS instances using Webapp only |
+</p>
 
 ## Configuration
-
 
 <Steps>
   <Step title="Configure AWS RDS IAM Authentication in your AWS">
@@ -51,6 +57,67 @@ GRANT rds_iam TO db_user;
      </Info>
 
     
+  </Step>
+  <Step title="Configure the Role on your agent">
+      <p> 
+        Make sure your agent has the AWS credentials configured or can assume an AWS role that can use the policy created previously 
+        to be able to generate the auth token.
+      </p>
+      <p >
+
+        If you deploy your agent on Kubernetes, you need to assume the role. For example:
+        The code example may need to be adjusted to fit your specific setup.
+        ```yaml
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: hoop-rds-sa
+          namespace: default
+          annotations:
+          eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT-ID>:role/HoopRdsIamRole
+        ```
+        `HoopRdsIamRole` is the role that has the policy to create tokens for connecting to RDS using IAM authentication.
+
+
+      </p>
+      <p> 
+        If the agent runs in Kubernetes on EKS, then the best practice is to use IRSA (IAM Roles for Service Accounts).
+        The trust policy for the EKS cluster OIDC provider is shown below.
+        The code example may need to be adjusted to fit your specific setup.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<ACCOUNT-ID>:oidc-provider/oidc.eks.<region>.amazonaws.com/id/<OIDC-ID>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.eks.<region>.amazonaws.com/id/<OIDC-ID>:sub": "system:serviceaccount:<NAMESPACE>:<SERVICEACCOUNT-NAME>"
+        }
+      }
+    }
+  ]
+}
+```
+      </p>
+      <p>
+      If the agent runs on an EC2 instance, you can attach the role to the instance profile.
+      </p>
+
+      <p>
+      Alternatively, you can add the AWS credentials as environment variables in your agent:
+      ```bash
+      export AWS_ACCESS_KEY_ID=your_access_key_id
+      export AWS_SECRET_ACCESS_KEY=your_secret_access_key
+      export AWS_DEFAULT_REGION=your_aws_region
+      ```
+      </p>
+
   </Step>
   <Step title="Configure the AWS Auth on Hoop">
       <p >
