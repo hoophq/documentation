@@ -56,6 +56,10 @@ GRANT rds_iam TO db_user;
      For example, `GRANT SELECT ON ALL TABLES IN SCHEMA public TO db_user;` - this will be the permission you will have when connecting via Hoop.
      </Info>
 
+     <Note>
+     For AWS MySQL RDS you can follow the steps in the [AWS Documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.MySQL).
+     </Note>
+
     
   </Step>
   <Step title="Configure the Role on your agent">
