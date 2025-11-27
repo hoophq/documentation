@@ -101,33 +101,7 @@ If you want to set up a custom Identity Provider or run it in a remote machine, 
           ```
       </Tab>
       <Tab title="Custom Identity Provider">
-        Setting up your Identity Provider is a bit more complex, but it's a one-time setup. If you don't have admin access to your Identity Provider, you can use the default one provided by Hoop, which will make your life much easier to get to know hoop.dev.
-
-        Below you can see an example of how to set up the .env file with the Identity Provider values. See our [Identity Providers section](/setup/configuration/idp) for more information on how to obtain these values.
-
-        ```sh
-        cat - > .env <<EOF
-        IDP_ISSUER=
-        IDP_CLIENT_ID=
-        IDP_CLIENT_SECRET=
-        IDP_AUDIENCE=
-        EOF
-        ```
-        Then, access the `.env` file and add the following configuration lines for your host configuration
-        ```sh .env
-        # these values will be here already from the previous command
-        IDP_ISSUER=<your-issuer>
-        IDP_CLIENT_ID=<your-client-id>
-        IDP_CLIENT_SECRET=<your-client-secret>
-        IDP_AUDIENCE=<your-audience>
-
-        # the API_URL and GRPC_URL are the host where
-        # the Hoop API and GRPC services are running
-        API_URL=http://<your-vm-ip-or-host>:8009
-        GRPC_URL=http://<your-vm-ip-or-host>:8010
-        ```
-
-        <Note>Make sure to allow your Identity Provider to redirect to the Hoop API URL</Note>
+        Using a custom identity is now handled directly in the Webapp in the **Integrations** > **Authentication** page.
       </Tab>
     </Tabs>
 
