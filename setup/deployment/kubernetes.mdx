@@ -6,43 +6,244 @@ This page provides instructions on how to configure the Helm chart to install Ho
 
 ## Quick Start
 
-<Steps>
-  <Step title="Deploy the Gateway">
+<Tabs>
+  <Tab title="Standard Installation">
+        This is the standard installation to evaluate Hoop. We recommend it for Proof of Concepts or testing environments.
 
-    ```sh
-    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
-    helm upgrade hoop --install oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
-      --namespace hoopdev --create-namespace \
-      --set postgres.enabled=true \
-      --set defaultAgent.enabled=true \
-      --set dataMasking.enabled=true \
-      --set config.POSTGRES_DB_URI=postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable \
-      --set config.API_URL=http://localhost:8009
-    ```
-  </Step>
+        <Warning>
+          On this installation, clients establishes connections without TLS, which is subject to interception.
+          Make sure to deploy it over a secure network and use it only with non production resources.
+        </Warning>
 
-  <Step title="Access it">
+        <Steps>
+          <Step title="Deploy the Gateway">
+            ```sh
+            VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+            helm upgrade hoop --install oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+              --namespace hoopdev --create-namespace \
+              --set postgres.enabled=true \
+              --set defaultAgent.enabled=true \
+              --set dataMasking.enabled=true \
+              --set config.POSTGRES_DB_URI=postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable \
+              --set config.API_URL=http://localhost:8009
+            ```
+          </Step>
 
-    1. Forward the hoopgateway service ports to your local machine to access the WebApp
+          <Step title="Access it">
 
-    ```sh
-    kubectl port-forward service/hoopgateway 8009:8009 8010:8010 -n hoopdev
-    ```
+            1. Forward the hoopgateway service ports to your local machine to access the WebApp
 
-    2. [Visit the Webapp at http://127.0.0.1:8009/login](http://127.0.0.1:8009/login)
+            ```sh
+            kubectl port-forward service/hoopgateway 8009:8009 8010:8010 -n hoopdev
+            ```
+
+            2. [Visit the Webapp at http://127.0.0.1:8009/login](http://127.0.0.1:8009/login)
+
+            <Note>
+              The default installation method install a Postgres database with Host mounted storage.
+              In case the node is decommissioned, all data will be lost.
+
+              For more durable setups, use a Persistent Volume by providing the option below:
+              - `--set postgres.storageClassName=<your-storage-class>`
+            </Note>
+
+          </Step>
+        </Steps>
+
+      </Tab>
+  <Tab title="Secure Installation (TLS)">
+    This is production is recommended for production, it terminate the TLS directly on the gateway for all existent protocols.
 
     <Note>
-      The default installation method install a Postgres database with Host mounted storage.
-      In case the node is decommissioned, all data will be lost.
+      For the purpose of this quick start, we're going to generate certificate signed by a CA unstruted party with `openssl`. However,
+      the process of installing and configuring should be the same when issuing certificates from trusted party organizations.
 
-      For more durable setups, use a Persistent Volume by providing the option below:
-      - `--set postgres.storageClassName=<your-storage-class>`
+      Ensure you have all required certificate files from Step 1 if you've already issued them through your PKI provider.
     </Note>
 
-  </Step>
-</Steps>
+    <Steps>
+      <Step title="Obtain a certificate for your domain">
 
-## Installing
+        1. Expose the domain name of the Hoop Gateway instance
+
+        ```sh
+        export DOMAIN_HOSTNAME=<your-hoop-gateway-domain-name-goes-here>
+        ```
+
+        2. Generate and sign your certificates with `openssl`
+
+        ```sh
+        mkdir ./tls && cd ./tls
+        openssl genrsa -out ca.key 4096
+        openssl req -x509 -new -nodes -key ca.key -sha256 -days 1826 -out ca.crt -subj '/CN=MyOrg CA/C=AT/ST=Vienna/L=Vienna/O=MyOrg'
+        openssl req -new -nodes -out server.csr -newkey rsa:4096 -keyout server.key -subj '/CN=Gateway/C=AT/ST=Vienna/L=Vienna/O=MyOrg'
+        # create a v3 ext file for SAN properties
+        cat > server.v3.ext <<EOF
+        authorityKeyIdentifier=keyid,issuer
+        basicConstraints=CA:FALSE
+        keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+        subjectAltName = @alt_names
+        [alt_names]
+        DNS.1 = $DOMAIN_HOSTNAME
+        IP.1 = 127.0.0.1
+        EOF
+        
+        openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 730 -sha256 -extfile server.v3.ext
+        ```
+
+        2. Join the Root Certificate Authority with your certificate
+
+        ```sh
+        cat server.crt ca.crt > server-full.crt
+        ```
+
+        <Note>
+          When issuing certificates from a trusted party, make sure to include the Root and Intermediate certificates if they are provided.
+        </Note>
+
+        3. (optional) Add the Root CA to your system keychain
+
+        This process is needed only when creating certificates from an unstrusted third party (openssl).
+        It will make your system to trust the certificated issued by the Root Certificate Authority.
+
+        **Make sure to have the following files in your local filesystem before proceeding to the next step:**
+
+        - `server.crt` - File containing the server certificate
+        - `ca.crt` - File containing the Root with Intermediate CA's if it's available
+        - `server.key` - File containing the private key of your certificate
+
+      </Step>
+
+      <Step title="Generate the values.yaml file">
+        After having the certificates in your working directory, encode the following files in base64 to generate the `values.yaml` file.
+        The certificates will be used to serve the ports exposed in the gateway securely with TLS
+
+        <Note>
+          Make sure that the DNS name of your domain match with the certificate.
+          In this example we'll be exposing all ports with a load balancer from AWS.
+          Make sure to adapt this recipe to deploy a network load balancer in your own infra-structure with the proper annontations.
+        </Note>
+
+        1. Export the domain hostname and the certificate files
+
+        ```sh
+        export DOMAIN_HOSTNAME=<your-hoop-gateway-domain-name-goes-here>
+        export TLS_KEY_ENC=$(cat server.key | base64)
+        export TLS_CERT_ENC=$(cat server-full.crt | base64)
+        ```
+
+       2. Generate the `values.yaml` file
+
+        ```sh
+        cat - > values.yaml <<EOF
+        # gateway base configuration
+        config:
+          POSTGRES_DB_URI: 'postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable'
+          API_URL: "https://$DOMAIN_HOSTNAME"
+          TLS_KEY: "base64://$TLS_KEY_ENC"
+          TLS_CERT: "base64://$TLS_CERT_ENC"
+
+        # uses a local Postgres database with Host mounted stored
+        # use a distinct storage class name for more durable setups 
+        postgres:
+          enabled: true
+          storageClassName: null
+
+        # enable data masking
+        dataMasking:
+          enabled: true
+          mode: best-effort
+
+        # an agent will be deployed along with the gateway
+        defaultAgent:
+          enabled: true
+          grpcScheme: grpcs
+          grpcHost: 127.0.0.1:8010
+          grpcSkipVerify: true
+          imageTag: latest
+
+        # exposes a network load balancer for all services
+        proxyService:
+          enabled: true
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: nlb
+            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+          ports:
+          - name: api
+            port: 443
+            targetPort: 8009
+          - name: grpcs
+            port: 8443
+            targetPort: 8010
+          - name: pgproxy
+            port: 15432
+            targetPort: 15432
+          - name: sshproxy
+            port: 12222
+            targetPort: 12222
+          - name: rdpproxy
+            port: 13389
+            targetPort: 13389
+        EOF
+        ```
+
+      </Step>
+
+      <Step title="Deploy it">
+
+        ```sh
+        VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+        helm upgrade hoop \
+          --install oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+          --namespace hoopdev \
+          --create-namespace \
+          --values values.yaml
+        ```
+
+      </Step>
+
+      <Step title="Access it">
+
+        <Tabs>
+          <Tab title="Via Public URL">
+            1. Obtain the address of your load balancer by issuing the command below
+
+            ```sh
+            kubectl get svc -n hoopdev hoopgateway-proxy \
+              -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+            ```
+
+            2. Create a CNAME record for your `$DOMAIN_HOSTNAME` in your DNS pointing to this address.
+            3. Visit the Webapp at `https://$DOMAIN_NAME/login`
+          </Tab>
+          <Tab title="Via Port Forward">
+            If you want to validate the installation without exposing the gateway to the public internet,
+            use the `kubectl` to port forward the ports into your local machine.
+
+            ```sh
+            kubectl port-forward service/hoopgateway 8009:8009 8010:8010 -n hoopdev
+            ```
+
+            Then [Visit the Webapp at http://127.0.0.1:8009/login](http://127.0.0.1:8009/login)
+
+            <Note>
+              To test the native protocols directly on the gateway, make sure to export the ports below:
+              - `ssh/12222`
+              - `postgres/15432`
+              - `rdp/13389`
+            </Note>
+
+          </Tab>
+        </Tabs>
+
+      </Step>
+    </Steps>
+
+  </Tab>
+</Tabs>
+
+
+## Helm Install
 
 To install the latest version in a new namespace (example: `hoopdev`). Issue the command below:
 
@@ -57,13 +258,14 @@ helm upgrade --install hoop \
 ### Overwriting or passing new attributes
 
 It is possible to add new attributes or overwrite an attribute from a base `values.yaml` file.
-In the example below a default agent is deployed as a sidecar container.
+In the example below a default agent is deployed as a sidecar container and with a using a specific version of the gateway.
 
 ```bash
 helm upgrade --install hoop \
   oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
   -f values.yaml \
-  --set defaultAgent.enabled=true
+  --set defaultAgent.enabled=true \
+  --set image.gw.tag=1.45.0
 ```
 
 ## Database Configuration
@@ -247,49 +449,66 @@ helm template hoopagent \
 
 ## Gateway Chart Configuration
 
-Check the [environment variables section](/setup/configuration/env-vars) for more information about each configuration.
+Check the [environment variables section](/setup/configuration/env-vars) for more information about the configuration of the section `config`.
+Example:
 
-<AccordionGroup>
-  <Accordion title="values.yaml (full base configuration)">
+```yaml
+config:
+  POSTGRES_DB_URI: 'postgres://user:pwd@host:port/db'
+  (...)
+```
+
+### TLS Configuration
+
+Starting with version **1.45+**,we are transitioning to expose native protocols directly on the Gateway, eliminating the need to forward ports locally through the Hoop Command Line.
+
+This new approach requires the Gateway to terminate TLS connections, ensuring secure protocol negotiation and protecting data in transit.
+
+- To deploy the gateway with a valid certificate, make to define the environment variables `TLS_KEY` and `TLS_CERT`.
+
+<Note>
+  The certificate file may contain the **Root** and **Intermediate CA's** as well.
+  Make sure to include them in the proper order, the example below show how the certificates must be generated:
+
+  ```
+  <SERVER-CERT>
+  <INTERMEDIATE-CA>
+  <ROOT_CA>
+  ```
+
+</Note>
+
+<Tabs>
+  <Tab title="Base64 Encoded Configuration">
 
     ```yaml
     config:
-      POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
-      API_URL: ''
-      GRPC_URL: ''
-      DEFAULT_AGENT_GRPC_HOST: ''
-      API_KEY: ''
-      TLS_CA: ''
-      TLS_KEY: ''
-      TLS_CERT: ''
-      AUTH_METHOD: 'local|oidc|saml'
-      IDP_CLIENT_ID: ''
-      IDP_CLIENT_SECRET: ''
-      IDP_ISSUER: ''
-      IDP_AUDIENCE: ''
-      IDP_GROUPS_CLAIM: ''
-      IDP_CUSTOM_SCOPES: ''
-      ASK_AI_CREDENTIALS: ''
-      DLP_PROVIDER: 'gcp|mspresidio'
-      DLP_MODE: 'best-effort|strict'
-      GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account",...}'
-      MSPRESIDIO_ANALYZER_URL: ''
-      MSPRESIDIO_ANONYMIZER_URL: ''
-      WEBAPP_USERS_MANAGEMENT: 'on'
-      WEBHOOK_APPKEY: ''
-      MIGRATION_PATH_FILES: '/app/migrations'
-      STATIC_UI_PATH: '/app/ui/public'
-      PLUGIN_AUDIT_PATH: '/opt/hoop/sessions'
-      ADMIN_USERNAME: 'admin'
-      GODEBUG: 'http2debug=0'
-      LOG_GRPC: '0'
-      LOG_LEVEL: 'info'
-      LOG_ENCODING: 'json'
+      TLS_KEY: 'base64://<pem-encoded-private-key>'
+      TLS_CERT: 'base64://<pem-encoded-full-certificate>'
     ```
 
-  </Accordion>
-</AccordionGroup>
+    Example of how to encode the files:
 
+    <Note>
+      Use the output of each value to configure the attributes above.
+    </Note>
+
+    ```sh
+    echo "base64://$(cat /tmp/tls/server.key |base64)
+    echo "base64://$(cat /tmp/tls/server.crt |base64)
+    ```
+
+  </Tab>
+  <Tab title="Path Based Configuration">
+
+    ```yaml
+    config:
+      TLS_KEY: 'file:///path/to/server.key'
+      TLS_CERT: 'file:///path/to/server.crt'
+    ```
+
+  </Tab>
+</Tabs>
 
 ### Authentication
 
@@ -318,6 +537,11 @@ Check the [environment variables section](/setup/configuration/env-vars) for mor
       IDP_CUSTOM_SCOPES: ''
       IDP_GROUPS_CLAIM: ''
     ```
+
+    <Warning>
+      The authentication configuration is now handled via Webapp or defined via API directly,
+      the environment variable with the prefix `IDP_` are deprecated and will be removed in upcoming releases.
+    </Warning>
   </Tab>
 </Tabs>
 
@@ -442,6 +666,7 @@ The ingress configuration establishes these two differing configurations based o
         ingressGrpc:
           enabled: true
           host: "hoop-grpc.yourdomain.tld"
+          ingressClassName: 'nginx'
           annotations:
             nginx.ingress.kubernetes.io/backend-protocol: GRPC
             nginx.ingress.kubernetes.io/proxy-body-size: '0'

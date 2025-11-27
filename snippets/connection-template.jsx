@@ -46,8 +46,8 @@ export const ConnectionTemplate = ({ config }) => {
       <p>The table below outlines the features available for this type of connection.</p>
       
       <ul>
-        <li><strong>Native</strong> - This refers to when a database client connects through a specific protocol, such as an IDE or client libraries through <code>hoop connect &lt;connection-name&gt;</code>.</li>
-        <li><strong>One Off</strong> - This term refers to accessing this connection from hoop web panel.</li>
+        <li><strong>Native</strong> - Indicates the connectivity happens through the Hoop command line  (<code>hoop connect &lt;connection-name&gt;</code>) or acessing the protocol port directly on the gateway.</li>
+        <li><strong>One Off</strong> - This term refers to accessing the resource from Hoop Web Console.</li>
       </ul>
 
       <table>
@@ -105,7 +105,7 @@ export const ConnectionTemplate = ({ config }) => {
         </tbody>
       </table>
 
-      {finalConfig.resourceConfiguration.credentials && 
+      {finalConfig.resourceConfiguration?.credentials && 
       <>
       <h2>Configuration</h2>
       <table>

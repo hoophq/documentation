@@ -57,23 +57,11 @@ This configuration will ensure to sync the groups when a user authenticates on H
   It's possible to inspect the name of the claim that's being propagated by viewing the logs of the gateway when a user sign in.
 </Tip>
 
-<Steps>
-  <Step title="Configure the Groups Claim on Hoop">
-    Configure the groups claim environment variable in your gateway
+<Note>
+  By default the gateway uses the claim name `groups`.
+  To change it, go to **Integrations** > **Authentication** and include a distinct group.
+</Note>
 
-    - `IDP_GROUPS_CLAIM=groups`
-
-    *Restart the gateway after applying these changes*.
-  </Step>
-  <Step title="Configure the Groups Claim on Azure">
-    In the Azure Portal
-
-    - Go to Microsoft Entra ID > App Registration > `{AppName}` > Token Configuration
-    - Click on Add groups claim
-    - Client in edit on Attributes & Claims > Add groups claim
-    - Select Groups assigned to the application
-  </Step>
-</Steps>
 
 By default, groups are propagate with their object ids. It may be cumbersome to manage groups as UUIDs on Hoop.
 See the section below to propagate them with their display name instead.

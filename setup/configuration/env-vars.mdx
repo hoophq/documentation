@@ -25,12 +25,17 @@ description: 'Describe how to configure the Hoop Gateway via environment variabl
 
     | Environment       | Description   |
     | ----------------- | ------------- |
-    | IDP_ISSUER        | Identity Provider Issuer URL (Oauth2). Passing `_userinfo=1` as query string, it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo).  |
-    | IDP_CLIENT_ID     | Oauth2 Client ID. |
-    | IDP_CLIENT_SECRET | Oauth2 Client Secret. |
-    | IDP_CUSTOM_SCOPES | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
-    | IDP_AUDIENCE      | Identity Provider Audience (Oauth2) |
-    | IDP_GROUPS_CLAIM  | Specifies the claim identifier used to configure group propagation. If not explicitly set, the system defaults to `https://app.hoop.dev/groups` |
+    | IDP_ISSUER (DEPRECATED)        | Identity Provider Issuer URL (Oauth2). Passing `_userinfo=1` as query string, it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo).  |
+    | IDP_CLIENT_ID (DEPRECATED)    | Oauth2 Client ID. |
+    | IDP_CLIENT_SECRET (DEPRECATED) | Oauth2 Client Secret. |
+    | IDP_CUSTOM_SCOPES (DEPRECATED) | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
+    | IDP_AUDIENCE (DEPRECATED)     | Identity Provider Audience (Oauth2) |
+    | IDP_GROUPS_CLAIM (DEPRECATED) | Specifies the claim identifier used to configure group propagation. If not explicitly set, the system defaults to `https://app.hoop.dev/groups` |
+
+    <Warning>
+      The authentication configuration is now handled via Webapp or defined via API directly,
+      the environment variable with the prefix `IDP_` are deprecated and will be removed in upcoming releases.
+    </Warning>
 
   </Tab>
 </Tabs>
@@ -47,7 +52,10 @@ All fields below are not required but can give you some extra configuration opti
 | ANALYTICS_TRACKING                  | enabled                 | Disable the analytics tracking by setting it to `disabled` |
 | DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
 | DLP_MODE                            | `best-effort`           | The redact mode policy: `best-effort` or `strict`. The former makes a best effort to redact the content and the later will return an error in case of any redaction issue.  |
-| DEFAULT_AGENT_GRPC_HOST             |                         | A custom gRPC host to use for the default agent. It's usually used when the gateway has end to end TLS enabled. |
+| DEFAULT_AGENT_GRPC_SCHEME           |                         | Override the gRPC scheme for the default agent. `grpc` or `grpcs`. |
+| DEFAULT_AGENT_GRPC_HOST             |                         | Override the default host for the default agent. |
+| DEFAULT_AGENT_GRPC_SKIP_VERIFY      |                         | Override the skip verify configuration when the default agent is connecting with the gateway. |
+| DEFAULT_AGENT_GRPC_TLS_CA           |                         | The Certificate Authority file to use when connecting with default agent, e.g.: `file://` or `base64://` |
 | DISABLE_SESSIONS_DOWNLOAD           | false                   | Control if the download session is disabled or not |
 | GIN_MODE                            | release                 | Turn on (debug) logging of routes |
 | GOOGLE_APPLICATION_CREDENTIALS_JSON |                         | GCP DLP credentials |
@@ -62,7 +70,6 @@ All fields below are not required but can give you some extra configuration opti
 | ORG_MULTI_TENANT                    |                         | Enable organization multi-tenancy |
 | PLUGIN_AUDIT_PATH                   | `/opt/hoop/sessions`    | The path where the temporary sessions are stored |
 | STATIC_UI_PATH                      | `/app/ui/public`        | The path where the UI assets resides |
-| TLS_CA                              |                         | The path or value to the certificate authority (pem), e.g.: `file://` or `base64://` |
 | TLS_CERT                            |                         | The path or value to the certificate server (pem) e.g.: `file://` or `base64://` |
 | TLS_KEY                             |                         | The path or value to the RSA private key e.g.: `file://` or `base64://` |
 | WEBAPP_USERS_MANAGEMENT             | `on`                    | Enable the users management in the Webapp. It allows to create, edit and delete users. |
