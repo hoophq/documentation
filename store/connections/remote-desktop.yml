@@ -1,47 +1,25 @@
 id: remote-desktop
-name: Remote Desktop
-description: Secure remote desktop access with high-performance connections and built-in security controls.
+name: Remote Desktop (RDP)
+description: Remote Desktop Protocol (RDP) allows accessing securely remote
+  Windows instances via RDP protocol.
 category: infrastructure-access
 icon-name: tcp
 tags:
   - remote
   - desktop
   - security
-
-features:
-  tlsTerminationProxy:
-    native: true
-    oneOff: false
-  audit:
-    native: false
-    oneOff: false
-  dataMaskingGoogleDLP:
-    native: false
-    oneOff: false
-  dataMaskingMSPresidio:
-    native: false
-    oneOff: false
-  credentialsOffload:
-    native: false
-    oneOff: false
-  interactiveAccess:
-    native: true
-    oneOff: false
-
 overview:
-  description: Connect to your remote desktop infrastructure through Hoop.dev with secure, high-performance access from anywhere. Streamline access management with centralized security controls and audit capabilities, ensuring reliable connections while maintaining full visibility over desktop access activities.
-
+  description: Remote Desktop Protocol (RDP) allows accessing securely remote
+    Windows instances via RDP protocol.
 setupGuide:
   accessMethods:
-    webapp: false
-    cli: true
+    webapp: true
+    cli: false
     runbooks: false
-
-
 resourceConfiguration:
   type: custom
   subtype: rdp
-  command: [bash]
+  command: []
   credentials:
     - name: HOST
       type: env-var
@@ -63,6 +41,82 @@ resourceConfiguration:
       required: true
       description: The port of the remote desktop server
       placeholder: "3389"
-
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: false
+  audit:
+    native: false
+    oneOff: false
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: false
+  credentialsOffload:
+    native: true
+    oneOff: false
+  interactiveAccess:
+    native: true
+    oneOff: false
 documentationConfig:
-  path: "quickstart/applications/remote-desktop"
+  path: quickstart/applications/remote-desktop
+additionalInformation: >-
+  ## Supported Clients
+
+
+  | Client | Windows | Mac OS | Linux |
+
+  |--------|---------|--------| ------|
+
+  | Remote Desktop Manager (Devolutions) | ❌ | ✅ | ❌ |
+
+  | FreeRDP | ✅ | ✅ | ✅ |
+
+
+  ## How to Use It
+
+
+  <Note>
+    This feature is still experimental, and we're working on expanding support to other RDP clients soon.
+  </Note>
+
+
+  <Steps>
+    <Step title="Download and Install the RDP Manager Client">
+      [Remote Desktop Manager Client](https://devolutions.net/remote-desktop-manager/download/)
+    </Step>
+    <Step title="Add new Entry">
+      Add a new Entry and select `RDP (Session)`
+
+    <Frame>
+      <img src="/images/quickstarts/rdp-connection-1.png" alt="Create RDP Session" />
+    </Frame>
+    </Step>
+    <Step title="Generate a new credential on Hoop">
+      1. Go to your Hoop instance > Resources > My Roles
+      2. Select the dropdown "Connect" button and click in **Open in Native Client**
+      3. Select the amount of time and copy the credentials information
+
+      <Frame>
+        <img src="/images/quickstarts/rdp-connection-2.jpg" alt="Open Native Client" />
+      </Frame>
+    </Step>
+    <Step title="Add the credentials to the RDP client">
+      1. Add the username
+      2. Add the public address of the Hoop Gateway
+      3. Save it
+      <Note>
+        Make sure to check the option "Always ask for password"
+      </Note>
+
+      <Frame>
+        <img src="/images/quickstarts/rdp-connection-3.png" alt="Host Information" />
+      </Frame>
+    </Step>
+    <Step title="Connect">
+      1. Click on "Open Session"
+      2. Paste the password and it should connect remotely with your Windows instance.
+    </Step>
+  </Steps>

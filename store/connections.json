@@ -1923,8 +1923,8 @@
     },
     {
       "id": "remote-desktop",
-      "name": "Remote Desktop",
-      "description": "Secure remote desktop access with high-performance connections and built-in security controls.",
+      "name": "Remote Desktop (RDP)",
+      "description": "Remote Desktop Protocol (RDP) allows accessing securely remote Windows instances via RDP protocol.",
       "category": "infrastructure-access",
       "icon-name": "tcp",
       "tags": [
@@ -1932,48 +1932,20 @@
         "desktop",
         "security"
       ],
-      "features": {
-        "tlsTerminationProxy": {
-          "native": true,
-          "oneOff": false
-        },
-        "audit": {
-          "native": false,
-          "oneOff": false
-        },
-        "dataMaskingGoogleDLP": {
-          "native": false,
-          "oneOff": false
-        },
-        "dataMaskingMSPresidio": {
-          "native": false,
-          "oneOff": false
-        },
-        "credentialsOffload": {
-          "native": false,
-          "oneOff": false
-        },
-        "interactiveAccess": {
-          "native": true,
-          "oneOff": false
-        }
-      },
       "overview": {
-        "description": "Connect to your remote desktop infrastructure through Hoop.dev with secure, high-performance access from anywhere. Streamline access management with centralized security controls and audit capabilities, ensuring reliable connections while maintaining full visibility over desktop access activities."
+        "description": "Remote Desktop Protocol (RDP) allows accessing securely remote Windows instances via RDP protocol."
       },
       "setupGuide": {
         "accessMethods": {
-          "webapp": false,
-          "cli": true,
+          "webapp": true,
+          "cli": false,
           "runbooks": false
         }
       },
       "resourceConfiguration": {
         "type": "custom",
         "subtype": "rdp",
-        "command": [
-          "bash"
-        ],
+        "command": [],
         "credentials": [
           {
             "name": "HOST",
@@ -2004,6 +1976,32 @@
             "placeholder": "3389"
           }
         ]
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": false
+        }
       },
       "documentationConfig": {
         "path": "quickstart/applications/remote-desktop"
