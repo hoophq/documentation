@@ -131,7 +131,8 @@
                   "quickstart/development-environments/nodejs"
                 ]
               },
-              "quickstart/ssh"
+              "quickstart/ssh",
+              "quickstart/applications/remote-desktop"
             ]
           },
           {
