@@ -8,7 +8,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
 <ConnectionTemplate config={{
   "id": "remote-desktop",
-  "name": "Remote Desktop Protocol",
+  "name": "Remote Desktop (RDP)",
   "description": "Remote Desktop Protocol (RDP) allows accessing securely remote Windows instances via RDP protocol.",
   "category": "infrastructure-access",
   "icon-name": "tcp",
@@ -17,6 +17,51 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     "desktop",
     "security"
   ],
+  "overview": {
+    "description": "Remote Desktop Protocol (RDP) allows accessing securely remote Windows instances via RDP protocol."
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": true,
+      "cli": false,
+      "runbooks": false
+    }
+  },
+  "resourceConfiguration": {
+    "type": "custom",
+    "subtype": "rdp",
+    "command": [],
+    "credentials": [
+      {
+        "name": "HOST",
+        "type": "env-var",
+        "required": true,
+        "description": "The host of the remote desktop server",
+        "placeholder": "localhost"
+      },
+      {
+        "name": "USER",
+        "type": "env-var",
+        "required": true,
+        "description": "The username of the remote desktop server",
+        "placeholder": "ubuntu"
+      },
+      {
+        "name": "PASS",
+        "type": "env-var",
+        "required": true,
+        "description": "The password of the remote desktop server",
+        "placeholder": "password"
+      },
+      {
+        "name": "PORT",
+        "type": "env-var",
+        "required": true,
+        "description": "The port of the remote desktop server",
+        "placeholder": "3389"
+      }
+    ]
+  },
   "features": {
     "tlsTerminationProxy": {
       "native": true,
@@ -35,7 +80,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": false
     },
     "credentialsOffload": {
-      "native": false,
+      "native": true,
       "oneOff": false
     },
     "interactiveAccess": {
@@ -43,57 +88,11 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": false
     }
   },
-  "overview": {
-    "description": "Connect to your remote desktop infrastructure through Hoop.dev with secure, high-performance access from anywhere. Streamline access management with centralized security controls and audit capabilities, ensuring reliable connections while maintaining full visibility over desktop access activities."
-  },
-  "setupGuide": {
-    "accessMethods": {
-      "webapp": false,
-      "cli": true,
-      "runbooks": false
-    }
-  },
-  "resourceConfiguration": {
-    "type": "custom",
-    "subtype": "rdp",
-    "command": [
-      "bash"
-    ],
-    "credentials": [
-      {
-        "name": "HOST",
-        "type": "env-var",
-        "required": true,
-        "description": "The host of the remote desktop server",
-        "placeholder": "myremoteserver-host.org"
-      },
-      {
-        "name": "USER",
-        "type": "env-var",
-        "required": true,
-        "description": "The username of the remote desktop server",
-        "placeholder": "rdpuser"
-      },
-      {
-        "name": "PASS",
-        "type": "env-var",
-        "required": true,
-        "description": "The password of the remote desktop server",
-        "placeholder": "password"
-      },
-      {
-        "name": "PORT",
-        "type": "env-var",
-        "required": true,
-        "description": "The port of the remote desktop server",
-        "placeholder": "3389"
-      }
-    ]
-  },
   "documentationConfig": {
     "path": "quickstart/applications/remote-desktop"
   }
 }} />
+
 
 ## Supported Clients
 
@@ -129,7 +128,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     </Frame>
   </Step>
   <Step title="Add the credentials to the RDP client">
-    1. Add the username 
+    1. Add the username
     2. Add the public address of the Hoop Gateway
     3. Save it
     <Note>
@@ -145,4 +144,3 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     2. Paste the password and it should connect remotely with your Windows instance.
   </Step>
 </Steps>
-
