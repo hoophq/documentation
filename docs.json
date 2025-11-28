@@ -71,6 +71,7 @@
           {
             "group": "Quickstart",
             "pages": [
+              "quickstart/overview",
               {
                 "group": "Databases",
                 "pages": [
