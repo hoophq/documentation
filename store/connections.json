@@ -2216,8 +2216,8 @@
         }
       },
       "resourceConfiguration": {
-        "type": "web-application",
-        "subtype": "webapp-api",
+        "type": "custom",
+        "subtype": "web-application",
         "credentials": [
           {
             "name": "HOST",
