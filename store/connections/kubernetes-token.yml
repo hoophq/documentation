@@ -1,0 +1,64 @@
+id: kubernetes-token
+name: Kubernetes with Bearer Token
+description: Administer your Kubernetes cluster through kubectl commands using a Bearer Token from a service account with comprehensive audit trails and session recording.
+category: cloud-services
+icon-name: kubernetes
+tags:
+  - containers
+  - cli
+  - automation
+
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: false
+  audit:
+    native: true
+    oneOff: false
+  dataMaskingGoogleDLP:
+    native: true
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: false
+  guardrails:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: false
+  interactiveAccess:
+    native: false
+    oneOff: false
+
+overview:
+  description: Manage your Kubernetes clusters securely through kubectl, leveraging Hoop.dev's robust auditing, data masking, and security guardrails. Execute administrative tasks with full visibility and control, ensuring compliance and operational integrity.
+
+setupGuide:
+  accessMethods:
+    webapp: false
+    cli: true
+    runbooks: false
+
+resourceConfiguration:
+  type: custom
+  subtype: kubernetes-token
+  credentials:
+    - name: REMOTE_URL
+      type: env-var
+      required: true
+      description: The target Kubernetes cluster API server URL
+      placeholder: https://example.com
+    - name: HEADER_AUTHORIZATION
+      type: env-var
+      required: true
+      description: Authorization Bearer Token of the service account, etc
+      placeholder: Bearer jwt.token.example
+    - name: INSECURE
+      type: env-var
+      required: false
+      description: Set to "true" to skip TLS verification (not recommended for production)
+      placeholder: "false"
+
+documentationConfig:
+  path: quickstart/cloud-services/kubernetes/token
