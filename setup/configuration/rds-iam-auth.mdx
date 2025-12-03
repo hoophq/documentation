@@ -13,7 +13,7 @@ With this authentication method, you don't need to use a password when you conne
 | Database   | Native | One off | Description |
 |--------|-----|------------|------------|
 | PostgreSQL   | ✔️  |  ✔️ | Supports IAM authentication for PostgreSQL RDS instances using Native connections and Webapp |
-| MySQL  | ✖️  |   ✔️  | Supports IAM authentication for MySQL RDS instances using Webapp only |
+| MySQL  |  ✔️ |   ✔️  | Supports IAM authentication for MySQL RDS instances using Webapp only |
 </p>
 
 ## Configuration
@@ -45,10 +45,15 @@ With this authentication method, you don't need to use a password when you conne
      If you want more users, you need to add a Resource for each user in the policy. `arn:aws:rds-db:us-east-2:111122223333:dbuser:cluster-ABCDEFGHIJKL01234/db_user2`
      </Info>
 
-     - [Creating a database account using IAM authentication](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.PostgreSQL).
+     - [Creating a database account using IAM authentication for PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.PostgreSQL).
      ```sql
 CREATE USER db_user; 
 GRANT rds_iam TO db_user;
+     ```
+     - [If ou are using MySQL need create the user](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.PostgreSQL).
+     ```sql
+CREATE USER 'db_user' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; 
+ALTER USER 'db_user'@'%' REQUIRE SSL;     
      ```
      <Info>
      You need to grant the role `rds_iam` to the user to be able to connect using IAM authentication.
