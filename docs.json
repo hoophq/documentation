@@ -103,7 +103,7 @@
                       "quickstart/cloud-services/kubernetes/container-commands",
                       "quickstart/cloud-services/kubernetes/cluster-administration",
                       "quickstart/cloud-services/kubernetes/interactive-access",
-                      "quickstart/cloud-services/kubernetes/service-account"
+                      "quickstart/cloud-services/kubernetes/token"
                     ]
                   }
                 ]
