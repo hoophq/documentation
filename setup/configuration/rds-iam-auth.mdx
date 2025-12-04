@@ -50,7 +50,7 @@ With this authentication method, you don't need to use a password when you conne
 CREATE USER db_user; 
 GRANT rds_iam TO db_user;
      ```
-     - [If ou are using MySQL need create the user](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.PostgreSQL).
+     - [If you are using MySQL need create the user](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.PostgreSQL).
      ```sql
 CREATE USER 'db_user' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; 
 ALTER USER 'db_user'@'%' REQUIRE SSL;     
