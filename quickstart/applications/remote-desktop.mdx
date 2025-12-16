@@ -96,10 +96,10 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
 ## Supported Clients
 
-| Client | Windows | Mac OS | Linux |
-|--------|---------|--------| ------|
-| Remote Desktop Manager (Devolutions) | ❌ | ✅ | ❌ |
-| FreeRDP | ✅ | ✅ | ✅ |
+| Client                               | Windows | Mac OS | Linux |
+| ------------------------------------ | ------- | ------ | ----- |
+| Remote Desktop Manager (Devolutions) | ❌       | ✅      | ❌     |
+| FreeRDP                              | ✅       | ✅      | ✅     |
 
 ## How to Use It
 
@@ -107,12 +107,19 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   This feature is still experimental, and we're working on expanding support to other RDP clients soon.
 </Note>
 
+<Note>
+
+Ensure that the Hoop Agent you are connecting to has the HOOP_GATEWAY_URL environment variable set to wss://hostname:port.
+
+</Note>
+
 <Steps>
   <Step title="Download and Install the RDP Manager Client">
-    [Remote Desktop Manager Client](https://devolutions.net/remote-desktop-manager/download/)
+    \\[Remote Desktop Manager Client](https://devolutions.net/remote-desktop-manager/download/)
   </Step>
+
   <Step title="Add new Entry">
-    Add a new Entry and select `RDP (Session)`
+    Add a new Entry and select \\`RDP (Session)\\`
 
   <Frame>
     <img src="/images/quickstarts/rdp-connection-1.png" alt="Create RDP Session" />
@@ -120,12 +127,15 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   </Step>
   <Step title="Generate a new credential on Hoop">
     1. Go to your Hoop instance > Resources > My Roles
-    2. Select the dropdown "Connect" button and click in **Open in Native Client**
+    2. Select the dropdown "Connect" button and click in \\*\\*Open in Native Client\\*\\*
     3. Select the amount of time and copy the credentials information
 
-    <Frame>
-      <img src="/images/quickstarts/rdp-connection-2.jpg" alt="Open Native Client" />
-    </Frame>
+```
+<Frame>
+  <img src="/images/quickstarts/rdp-connection-2.jpg" alt="Open Native Client" />
+</Frame>
+```
+
   </Step>
   <Step title="Add the credentials to the RDP client">
     1. Add the username
@@ -135,9 +145,12 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       Make sure to check the option "Always ask for password"
     </Note>
 
-    <Frame>
-      <img src="/images/quickstarts/rdp-connection-3.png" alt="Host Information" />
-    </Frame>
+```
+<Frame>
+  <img src="/images/quickstarts/rdp-connection-3.png" alt="Host Information" />
+</Frame>
+```
+
   </Step>
   <Step title="Connect">
     1. Click on "Open Session"
