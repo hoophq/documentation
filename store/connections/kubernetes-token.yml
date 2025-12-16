@@ -1,45 +1,24 @@
 id: kubernetes-token
 name: Kubernetes with Bearer Token
-description: Administer your Kubernetes cluster through kubectl commands using a Bearer Token from a service account with comprehensive audit trails and session recording.
+description: Administer your Kubernetes cluster through kubectl commands using a
+  Bearer Token from a service account with comprehensive audit trails and
+  session recording.
 category: cloud-services
 icon-name: kubernetes
 tags:
   - containers
   - cli
   - automation
-
-features:
-  tlsTerminationProxy:
-    native: true
-    oneOff: false
-  audit:
-    native: true
-    oneOff: false
-  dataMaskingGoogleDLP:
-    native: true
-    oneOff: false
-  dataMaskingMSPresidio:
-    native: true
-    oneOff: false
-  guardrails:
-    native: false
-    oneOff: true
-  credentialsOffload:
-    native: true
-    oneOff: false
-  interactiveAccess:
-    native: false
-    oneOff: false
-
 overview:
-  description: Manage your Kubernetes clusters securely through kubectl, leveraging Hoop.dev's robust auditing, data masking, and security guardrails. Execute administrative tasks with full visibility and control, ensuring compliance and operational integrity.
-
+  description: Manage your Kubernetes clusters securely through kubectl,
+    leveraging Hoop.dev's robust auditing, data masking, and security
+    guardrails. Execute administrative tasks with full visibility and control,
+    ensuring compliance and operational integrity.
 setupGuide:
   accessMethods:
-    webapp: false
+    webapp: true
     cli: true
-    runbooks: false
-
+    runbooks: true
 resourceConfiguration:
   type: custom
   subtype: kubernetes-token
@@ -48,17 +27,89 @@ resourceConfiguration:
       type: env-var
       required: true
       description: The target Kubernetes cluster API server URL
-      placeholder: https://example.com
+      placeholder: https://kubernetes.default.svc.cluster.local
     - name: HEADER_AUTHORIZATION
       type: env-var
       required: true
       description: Authorization Bearer Token of the service account, etc
-      placeholder: Bearer jwt.token.example
+      placeholder: jwt.token.example
     - name: INSECURE
       type: env-var
       required: false
       description: Set to "true" to skip TLS verification (not recommended for production)
       placeholder: "false"
-
+  command:
+    - bash
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: false
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: true
+  guardrails:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: false
+    oneOff: false
 documentationConfig:
   path: quickstart/cloud-services/kubernetes/token
+additionalInformation: |-
+  ## Service Account Setup
+
+  1. Generate an service account
+
+  ```sh
+  kubectl create serviceaccount mysa -n hoopdev
+  ```
+
+  2. Create a new token
+
+  ```sh
+  kubectl create token mysa -n hoopdev
+  ```
+
+  3. Assign RBAC permissions
+
+  ```sh
+  kubectl apply -f - <<EOF
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    name: mysa-role
+    namespace: hoopdev
+  rules:
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["get", "list", "watch"]
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: mysa-binding
+    namespace: hoopdev
+  subjects:
+    - kind: ServiceAccount
+      name: mysa
+      namespace: hoopdev
+  roleRef:
+    kind: Role
+    name: mysa-role
+    apiGroup: rbac.authorization.k8s.io
+  EOF
+  ```
+
+  Now the Hoop resource will have access to:
+  - List Pods
+  - Get Pods
+  - Watch Pods
