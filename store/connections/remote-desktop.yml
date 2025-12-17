@@ -83,6 +83,13 @@ additionalInformation: >-
   </Note>
 
 
+  <Note>
+
+  Ensure that the Hoop Agent you are connecting to has the HOOP_GATEWAY_URL environment variable set to wss://hostname:port.
+
+  </Note>
+
+
   <Steps>
     <Step title="Download and Install the RDP Manager Client">
       [Remote Desktop Manager Client](https://devolutions.net/remote-desktop-manager/download/)
