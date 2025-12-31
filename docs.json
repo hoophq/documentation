@@ -60,7 +60,7 @@
                 "group": "Web App",
                 "pages": [
                   "clients/webapp/overview",
-                  "clients/webapp/creating-connections",
+                  "clients/webapp/creating-resource-roles",
                   "clients/webapp/managing-access",
                   "clients/webapp/monitoring-sessions"
                 ]
@@ -203,7 +203,7 @@
             "group": "Concepts",
             "pages": [
               "concepts/agents",
-              "concepts/connections"
+              "concepts/resource-roles"
             ]
           },
           {
