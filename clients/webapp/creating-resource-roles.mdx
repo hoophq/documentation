@@ -1,0 +1,118 @@
+---
+title: "Creating Resource Roles"
+description: "Learn how to set up secure connections to your resources through the Hoop.dev web interface"
+---
+
+<Frame>
+  <img src="/images/clients/webapp/connection-types.png" alt="Resource Types Selection" />
+</Frame>
+
+Hoop.dev provides an intuitive web interface to create and manage secure connections to your resources. The resource role setup process is divided into three simple steps:
+
+1. Resource Type Selection
+2. Agent Configuration
+3. Resource Role Credentials
+
+## Resource Type Selection
+
+When setting up a new resource, you'll first choose one of the multiple types of resources available. If you're not sure what type of resource you need, you can choose the Demo Postgres resource to get started.
+
+## Agent Configuration
+After selecting your resource type, you'll need to configure the agent that will be used to connect to the resource. You can choose to use the default agent or you can create a new agent.
+
+The agent is the component that will be used to connect to the resource. It is responsible for:
+- Authenticating to the resource
+- Connecting to the resource
+- Transmitting data to and from the resource
+
+<Note>You can learn more about agents in the [Agents](/learn/concepts/agents) section.</Note>
+
+## Resource Role Credentials
+
+After selecting your resource type, you'll need to provide the necessary credentials and connection details. The required fields vary by resource type.
+
+<AccordionGroup>
+  <Accordion title="Databases">
+    - Host address (e.g. localhost)
+    - Port number (e.g. 3306)
+    - Username
+    - Password
+    - Database name
+    - SSL mode (Optional)
+  </Accordion>
+
+  <Accordion title="Linux VM, Container or Console">
+    ### Linux VM or Container
+    - Access and manage with terminal commands
+    
+    ### Secure Shell Protocol (SSH)
+    - Private Key (paste your file content)
+    - SSH URI (ssh://[uri])
+    
+    ### Console
+    - Ruby on Rails
+    - Python
+    - Node.js
+    - Clojure
+
+    Additional settings:
+    - Operating system (MacOS/Linux)
+    - Environment variables (Key-Value pairs)
+    - Configuration files
+      - Name (e.g. kub_config)
+      - Content
+    - Additional command (optional)
+  </Accordion>
+
+  <Accordion title="Network Service Access (ZTNA)">
+    - TCP
+    - HTTP (Coming Soon)
+
+    Then provide:
+    - Host address (e.g. localhost)
+    - Port number
+    - Agent selection
+  </Accordion>
+</AccordionGroup>
+
+## Additional Configuration
+
+After configuring the agent and the resource role credentials, you will be able to configure additional settings for your resource role on the configuration section.
+
+- Add optional tags for organization
+- Configure additional security features
+    - Reviews - Require approval prior to resource role execution
+    - AI Data Masking - Automatically mask sensitive data in query results
+    - and more...
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Meaningful Names" icon="tag">
+    Use descriptive names that indicate the purpose and environment of the configured resource role.
+  </Card>
+  
+  <Card title="Tag Organization" icon="tags">
+    Utilize tags to categorize and manage resource roles effectively.
+  </Card>
+  
+  <Card title="Enable Reviews" icon="shield-check">
+    Set up reviews for sensitive resources to maintain security.
+  </Card>
+  
+  <Card title="Data Protection" icon="mask">
+    Enable AI Data Masking when handling sensitive information.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">
+    Learn how to control who can access your resources and resource roles
+  </Card>
+  
+  <Card title="Monitoring Sessions" icon="video" href="/clients/webapp/monitoring-sessions">
+    Track and audit resources usage
+  </Card>
+</CardGroup>

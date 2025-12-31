@@ -1,7 +1,6 @@
 ---
-title: "Connections"
+title: "Resource Roles"
 description: "The bridge between users and resources"
-hello: "friend"
 ---
 
 <img
@@ -16,34 +15,34 @@ hello: "friend"
   className="hidden dark:block"
 />
 
-# Connections
+# Resource Roles
 
-Connections are a central concept in Hoop.dev that serve as secure bridges between users and your organization's resources. They enable controlled access to internal services, databases, and other resources while maintaining security and compliance.
+Resource Roles are a central concept in Hoop.dev that serve as secure bridges between users and your organization's resources. They enable controlled access to internal services, databases, and other resources while maintaining security and compliance. Resource Roles are defined by the administrator and can be assigned to users and groups.
 
-## What is a Connection?
+## What is a Resource Role?
 
-A connection is a configurable resource that exposes internal services from your infrastructure to authorized users in a secure and controlled manner. It acts as an intermediary layer that:
+A Resource Role is a configurable connection that exposes internal services from your infrastructure to authorized users in a secure and controlled manner. It acts as an intermediary layer that:
 
 - Provides secure access to internal resources
 - Enforces access control policies
 - Enables monitoring and auditing of resource usage
 - Supports various types of services and protocols
 
-## Types of Connections
+## Types of Resources 
 
 Hoop.dev supports several types of connections:
 
-**Database Connections**
+**Databases**
 
 - PostgreSQL, MySQL and many other database systems
 
-**Application Connections**
+**Applications**
 
 - TCP forwarding, custom CLI tools, and web services
 
-**Custom Connections**
+**Custom Resources**
 
-- Ability to create specialized connections
+- Ability to connect to specialized resources
 - Support for complex configurations
 - Integration with custom tools and services
 
@@ -69,9 +68,9 @@ Hoop.dev supports several types of connections:
 - Compliance reporting
 - Integration with SIEM systems
 
-## Connection Components
+## Resource Components
 
-A connection in Hoop.dev consists of several components:
+Resources and Resource Roles in Hoop.dev consist of several components:
 
 <AccordionGroup>
   <Accordion title="Configuration">
@@ -156,8 +155,8 @@ A connection in Hoop.dev consists of several components:
   </Card>
   <Card title="Organization" icon="folder">
     - Use clear naming conventions
-    - Group related connections
-    - Document connection purposes
+    - Group related resource roles
+    - Document resource role purposes
     - Maintain access control lists
   </Card>
   <Card title="Monitoring" icon="eye">
@@ -174,9 +173,9 @@ A connection in Hoop.dev consists of several components:
   </Card>
 </CardGroup>
 
-## Managing Connections
+## Managing Resources 
 
-Connections can be managed through:
+Resources and Resource Roles can be managed through:
 
 1. **Web Interface**
    - User-friendly management console
@@ -196,9 +195,9 @@ Connections can be managed through:
 
 ## Next Steps
 
-To start working with connections:
+To get started with your Resources and Resource Roles:
 
-1. [Set up your first connection](/clients/webapp/creating-connections)
+1. [Set up your first resource](/clients/webapp/creating-resource-roles)
 2. [Learn about access management](/clients/webapp/managing-access)
 3. [Explore integration options](/integrations)
 4. [Understand the architecture](/setup/architecture)
