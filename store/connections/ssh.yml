@@ -147,6 +147,7 @@ setupGuide:
   accessMethods:
     webapp: false
     cli: true
+    native: true
     runbooks: false
 documentationConfig:
   path: quickstart/ssh

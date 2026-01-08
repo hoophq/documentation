@@ -38,6 +38,7 @@ setupGuide:
   accessMethods:
     webapp: true
     cli: true
+    native: true
     runbooks: true
 
 resourceConfiguration:
