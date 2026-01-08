@@ -915,6 +915,7 @@
         "accessMethods": {
           "webapp": false,
           "cli": true,
+          "native": true,
           "runbooks": false
         }
       },
@@ -1797,6 +1798,7 @@
         "accessMethods": {
           "webapp": true,
           "cli": true,
+          "native": true,
           "runbooks": true
         }
       },
@@ -2023,6 +2025,7 @@
       "setupGuide": {
         "accessMethods": {
           "webapp": true,
+          "native": true,
           "cli": false,
           "runbooks": false
         }
@@ -2214,6 +2217,7 @@
         "accessMethods": {
           "webapp": false,
           "cli": true,
+          "native": true,
           "runbooks": false
         }
       },
