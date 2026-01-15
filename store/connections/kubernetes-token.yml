@@ -3,7 +3,7 @@ name: Kubernetes with Bearer Token
 description: Administer your Kubernetes cluster through kubectl commands using a
   Bearer Token from a service account with comprehensive audit trails and
   session recording.
-category: cloud-services
+category: web-applications
 icon-name: kubernetes
 tags:
   - containers
