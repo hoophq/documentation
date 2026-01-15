@@ -1316,7 +1316,7 @@
       "id": "kubernetes-token",
       "name": "Kubernetes with Bearer Token",
       "description": "Administer your Kubernetes cluster through kubectl commands using a Bearer Token from a service account with comprehensive audit trails and session recording.",
-      "category": "web-applications",
+      "category": "cloud-services",
       "icon-name": "kubernetes",
       "tags": [
         "containers",
