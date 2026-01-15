@@ -1091,10 +1091,9 @@
       },
       "setupGuide": {
         "accessMethods": {
-          "webapp": false,
+          "webapp": true,
           "cli": true,
-          "native": true,
-          "runbooks": false
+          "runbooks": true
         }
       },
       "resourceConfiguration": {
