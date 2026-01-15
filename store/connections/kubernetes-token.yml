@@ -16,10 +16,9 @@ overview:
     ensuring compliance and operational integrity.
 setupGuide:
   accessMethods:
-    webapp: false
+    webapp: true
     cli: true
-    native: true
-    runbooks: false
+    runbooks: true
 resourceConfiguration:
   type: custom
   subtype: kubernetes-token
