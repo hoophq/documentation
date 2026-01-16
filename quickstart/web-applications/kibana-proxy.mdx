@@ -1,0 +1,80 @@
+---
+title: "Kibana"
+description: "Access your Kibana analytics and visualization platform securely through Hoop.dev with comprehensive audit trails, session recording, and intelligent traffic monitoring."
+category: "web-applications"
+---
+
+import { ConnectionTemplate } from '/snippets/connection-template.jsx';
+
+<ConnectionTemplate config={{
+  "id": "kibana",
+  "name": "Kibana",
+  "description": "Access your Kibana analytics and visualization platform securely through Hoop.dev with comprehensive audit trails, session recording, and intelligent traffic monitoring.",
+  "category": "web-applications",
+  "icon-name": "kibana",
+  "tags": [
+    "monitoring",
+    "visualization",
+    "web",
+    "elasticsearch"
+  ],
+  "overview": {
+    "description": "Access your Kibana dashboards and analytics interfaces securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls. Proxy Kibana connections with built-in data masking, session recording, and advanced security guardrails for complete API governance."
+  },
+  "setupGuide": {
+    "accessMethods": {
+      "webapp": false,
+      "cli": true,
+      "native": true,
+      "runbooks": false
+    }
+  },
+  "resourceConfiguration": {
+    "type": "application",
+    "subtype": "kibana",
+    "credentials": [
+      {
+        "name": "REMOTE_URL",
+        "type": "env-var",
+        "required": true,
+        "description": "The target Kibana instance URL",
+        "placeholder": "https://kibana.example.com"
+      }
+    ]
+  },
+  "features": {
+    "tlsTerminationProxy": {
+      "native": true,
+      "oneOff": false
+    },
+    "audit": {
+      "native": true,
+      "oneOff": false
+    },
+    "dataMaskingGoogleDLP": {
+      "native": true,
+      "oneOff": false
+    },
+    "dataMaskingMSPresidio": {
+      "native": true,
+      "oneOff": false
+    },
+    "guardrails": {
+      "native": false,
+      "oneOff": true
+    },
+    "credentialsOffload": {
+      "native": true,
+      "oneOff": false
+    },
+    "interactiveAccess": {
+      "native": false,
+      "oneOff": false
+    }
+  },
+  "documentationConfig": {
+    "path": "quickstart/web-applications/kibana-proxy"
+  }
+}} />
+
+
