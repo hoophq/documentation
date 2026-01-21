@@ -1,0 +1,120 @@
+id: kubernetes-token
+name: Kubernetes
+description: Manage Kubernetes resources through kubectl commands or native API
+  access. This integration supports both CLI-based workflows and direct
+  interaction with the Kubernetes API for full cluster control.
+category: cloud-services
+icon-name: kubernetes
+tags:
+  - containers
+  - cli
+overview:
+  description: Manage Kubernetes resources through kubectl commands or native API
+    access. This integration supports both CLI-based workflows and direct
+    interaction with the Kubernetes API for full cluster control.
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+resourceConfiguration:
+  credentials:
+    - type: env-var
+      required: false
+      name: KUBERNETES_CLUSTER_URL
+      description: |- 
+        The Kubernetes API Server URL. Defaults to in cluster value
+        https://kubernetes.default.svc.cluster.local
+      placeholder: "https://kubernetes.default.svc.cluster.local"
+    - type: env-var
+      required: false
+      name: KUBERNETES_INSECURE_SKIP_VERIFY
+      description: Controls whether a client verifies the server's certificate chain
+        and host name. If is true, it accepts any certificate presented by the
+        server and any host name in that certificate. Defaults to false if no
+        value is provided.
+      placeholder: "true"
+    - type: env-var
+      required: false
+      name: KUBERNETES_BEARER_TOKEN
+      description: The bearer token to authenticate with Kubernetes. It defaults
+        reading the token from the service account when running inside the
+        Kubernetes cluster.
+      placeholder: "Bearer <k8s-bearer-token>"
+  type: custom
+  subtype: kubernetes
+  command:
+    - bash
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: true
+  guardrails:
+    native: true
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+documentationConfig:
+  path: quickstart/cloud-services/kubernetes/kubernetes
+additionalInformation: |-
+  ## Service Account Setup
+
+  1. Generate an service account
+
+  ```sh
+  kubectl create serviceaccount mysa -n hoopdev
+  ```
+
+  2. Create a new token
+
+  ```sh
+  kubectl create token mysa -n hoopdev
+  ```
+
+  3. Assign RBAC permissions
+
+  ```sh
+  kubectl apply -f - <<EOF
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    name: mysa-role
+    namespace: hoopdev
+  rules:
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["get", "list", "watch"]
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: mysa-binding
+    namespace: hoopdev
+  subjects:
+    - kind: ServiceAccount
+      name: mysa
+      namespace: hoopdev
+  roleRef:
+    kind: Role
+    name: mysa-role
+    apiGroup: rbac.authorization.k8s.io
+  EOF
+  ```
+
+  Now the Hoop resource will have access to:
+  - List Pods
+  - Get Pods
+  - Watch Pods

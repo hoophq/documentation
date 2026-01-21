@@ -1,0 +1,91 @@
+id: kubernetes-eks
+name: Kubernetes EKS
+description: Manage Kubernetes resources through kubectl commands or native API
+  access. This integration supports both CLI-based workflows and direct
+  interaction with the Kubernetes API for full cluster control.
+category: cloud-services
+icon-name: kubernetes
+tags:
+  - containers
+  - cli
+  - aws
+overview:
+  description: Manage Kubernetes resources through kubectl commands or native API
+    access. This integration supports both CLI-based workflows and direct
+    interaction with the Kubernetes API for full cluster control.
+setupGuide:
+  accessMethods:
+    webapp: true
+    cli: true
+    runbooks: true
+resourceConfiguration:
+  credentials:
+    - type: env-var
+      required: false
+      name: KUBERNETES_CLUSTER_URL
+      description: |-
+        The Kubernetes API Server URL. Defaults to in cluster value
+        https://kubernetes.default.svc.cluster.local
+      placeholder: "e.g.: https://kubernetes.default.svc.cluster.local"
+    - type: env-var
+      required: false
+      name: KUBERNETES_INSECURE_SKIP_VERIFY
+      description: |-
+        Controls whether a client verifies the server's certificate chain
+        and host name. If is true, it accepts any certificate presented by the
+        server and any host name in that certificate. Defaults to false.
+      placeholder: "false"
+    - type: env-var
+      required: true
+      name: EKS_CLUSTER
+      description: The name of the EKS cluster
+      placeholder: my-eks-cluster
+    - type: env-var
+      required: false
+      name: EKS_AWS_REGION
+      description: |-
+        The AWS Region associated with the cluster. If none is provided, 
+        read the env AWS_REGION from the agent.
+      placeholder: us-east-1
+    - type: env-var
+      required: required
+      name: EKS_ROLE_ARN
+      description: |-
+        The ARN of the role to assume when connecting to the EKS cluster. If
+        none is provided, the agent's IAM role will be used.
+      placeholder: arn:aws:iam::123456789012:role/MyEKSRole
+    - type: env-var
+      required: false
+      name: EKS_BINDING_USER_ROLE
+      description: The name assigned to the session when assuming a role. Use this
+        field to dynamically map Kubernetes role bindings by specifying it as a
+        subject in RoleBinding or ClusterRoleBinding resources.
+      placeholder: developer-group or 
+  type: custom
+  subtype: kubernetes-eks
+  command:
+    - bash
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: true
+  audit:
+    native: true
+    oneOff: true
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: true
+  guardrails:
+    native: true
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: true
+  interactiveAccess:
+    native: true
+    oneOff: true
+documentationConfig:
+  path: quickstart/cloud-services/kubernetes/kubernetes-eks
