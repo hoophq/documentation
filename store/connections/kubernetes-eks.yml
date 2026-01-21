@@ -155,7 +155,7 @@ additionalInformation: |-
   apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRoleBinding
   metadata:
-    name: hoopdev-eks-cluster-admin
+    name: eks-access-role-cluster-admin
   subjects:
   - kind: User
     name: eks-access-role:developers
@@ -165,6 +165,14 @@ additionalInformation: |-
     apiGroup: rbac.authorization.k8s.io
   EOF
   ```
+
+  `roleRef` points to the Kubernetes role that will be granted. You can replace
+  `cluster-admin` with a least-privilege `ClusterRole` or use a namespace-scoped
+  `Role` and `RoleBinding` if you do not need cluster-wide access.
+
+  You can create multiple bindings for different groups or users. For example,
+  bind `eks-access-role:developers` to a read-only role and
+  `eks-access-role:admins` to an admin role.
 
   The `developers` suffix is the session name value. It can represent a user,
   group, or role binding name as long as it matches your RBAC subject.
