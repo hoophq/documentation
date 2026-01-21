@@ -114,3 +114,92 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 }} />
 
 
+## EKS Access Setup
+
+This guide explains how to enable access to an EKS cluster using AWS IAM roles
+and Kubernetes RBAC.
+
+### Role X and Role Y
+
+- Role X: the Hoop agent's runtime identity (EC2, IRSA, or injected credentials)
+- Role Y: the IAM role used only to authenticate to EKS
+
+The Hoop agent uses Role X to assume Role Y and generate the EKS token.
+
+### Step 1 — Create IAM Role Y
+
+Create a role that represents the Kubernetes identity (Role Y). Use a clear
+name like `arn:aws:iam::<AWS_ACCOUNT_ID>:role/eks-access-role`.
+
+Example trust policy (allow Role X to assume Role Y):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<role-x>"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+### Step 2 — Allow AssumeRole (Role X -> Role Y)
+
+Attach a policy to Role X:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "sts:AssumeRole",
+  "Resource": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/eks-access-role"
+}
+```
+
+### Step 3 — Create the EKS Access Entry
+
+```sh
+aws eks create-access-entry \
+  --cluster-name <cluster-name> \
+  --principal-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/eks-access-role \
+  --type STANDARD \
+  --username "eks-access-role:{{SessionNameRaw}}"
+```
+
+The username template becomes the Kubernetes username that RBAC evaluates.
+
+### Step 4 — Create the Kubernetes ClusterRoleBinding
+
+```sh
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hoopdev-eks-cluster-admin
+subjects:
+- kind: User
+  name: eks-access-role:developers
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+The `developers` suffix is the session name value. It can represent a user,
+group, or role binding name as long as it matches your RBAC subject.
+
+### Configure the Hoop agent to assume Role Y
+
+<img src="/images/quickstarts/kubeeks.png" alt="Kubernetes EKS credentials configuration" />
+
+In the Hoop UI, select the `Kubernetes EKS` connection and set:
+- `EKS_ROLE_ARN` to `arn:aws:iam::<AWS_ACCOUNT_ID>:role/eks-access-role`
+- `EKS_BINDING_USER_ROLE` to your binding name (for example `developers`)
+
+Save the configuration and reload the connection so the agent picks up the
+new values.
