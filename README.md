@@ -45,6 +45,9 @@ npm run build
 
 # Process connection templates
 npm run process-connections
+
+# Run local server
+mint dev
 ```
 
 - Access the development server documentation at [http://localhost:3000/docs](http://localhost:3000/docs)
