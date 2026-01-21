@@ -50,7 +50,8 @@
               "learn/features/guardrails",
               "learn/features/runbooks",
               "learn/features/secrets-manager",
-              "learn/features/session-recording"
+              "learn/features/session-recording",
+              "learn/features/parallel-mode"
             ]
           },
           {

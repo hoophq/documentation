@@ -146,7 +146,7 @@ overview:
 setupGuide:
   accessMethods:
     webapp: false
-    cli: true
+    cli: false
     native: true
     runbooks: false
 documentationConfig:
