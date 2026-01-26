@@ -102,10 +102,8 @@
                   {
                     "group": "Kubernetes",
                     "pages": [
-                      "quickstart/cloud-services/kubernetes/container-commands",
-                      "quickstart/cloud-services/kubernetes/cluster-administration",
-                      "quickstart/cloud-services/kubernetes/interactive-access",
-                      "quickstart/cloud-services/kubernetes/token"
+                      "quickstart/cloud-services/kubernetes/kubernetes",
+                      "quickstart/cloud-services/kubernetes/kubernetes-eks"
                     ]
                   }
                 ]

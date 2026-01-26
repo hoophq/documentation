@@ -1,6 +1,6 @@
 ---
-title: "Kubernetes with Bearer Token"
-description: "Administer your Kubernetes cluster through kubectl commands using a Bearer Token from a service account with comprehensive audit trails and session recording."
+title: "Kubernetes"
+description: "Manage Kubernetes resources through kubectl commands or native API access. This integration supports both CLI-based workflows and direct interaction with the Kubernetes API for full cluster control."
 category: "cloud-services"
 ---
 
@@ -8,17 +8,16 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
 <ConnectionTemplate config={{
   "id": "kubernetes-token",
-  "name": "Kubernetes with Bearer Token",
-  "description": "Administer your Kubernetes cluster through kubectl commands using a Bearer Token from a service account with comprehensive audit trails and session recording.",
+  "name": "Kubernetes",
+  "description": "Manage Kubernetes resources through kubectl commands or native API access. This integration supports both CLI-based workflows and direct interaction with the Kubernetes API for full cluster control.",
   "category": "cloud-services",
   "icon-name": "kubernetes",
   "tags": [
     "containers",
-    "cli",
-    "automation"
+    "cli"
   ],
   "overview": {
-    "description": "Manage your Kubernetes clusters securely through kubectl, leveraging Hoop.dev's robust auditing, data masking, and security guardrails. Execute administrative tasks with full visibility and control, ensuring compliance and operational integrity."
+    "description": "Manage Kubernetes resources through kubectl commands or native API access. This integration supports both CLI-based workflows and direct interaction with the Kubernetes API for full cluster control."
   },
   "setupGuide": {
     "accessMethods": {
@@ -28,31 +27,31 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "resourceConfiguration": {
-    "type": "custom",
-    "subtype": "kubernetes-token",
     "credentials": [
       {
-        "name": "REMOTE_URL",
         "type": "env-var",
-        "required": true,
-        "description": "The target Kubernetes cluster API server URL",
+        "required": false,
+        "name": "KUBERNETES_CLUSTER_URL",
+        "description": "The Kubernetes API Server URL. Defaults to in cluster value\nhttps://kubernetes.default.svc.cluster.local",
         "placeholder": "https://kubernetes.default.svc.cluster.local"
       },
       {
-        "name": "HEADER_AUTHORIZATION",
-        "type": "env-var",
-        "required": true,
-        "description": "Authorization Bearer Token of the service account, etc",
-        "placeholder": "jwt.token.example"
-      },
-      {
-        "name": "INSECURE",
         "type": "env-var",
         "required": false,
-        "description": "Set to \"true\" to skip TLS verification (not recommended for production)",
-        "placeholder": "false"
+        "name": "KUBERNETES_INSECURE_SKIP_VERIFY",
+        "description": "Controls whether a client verifies the server's certificate chain and host name. If is true, it accepts any certificate presented by the server and any host name in that certificate. Defaults to false if no value is provided.",
+        "placeholder": "true"
+      },
+      {
+        "type": "env-var",
+        "required": false,
+        "name": "KUBERNETES_BEARER_TOKEN",
+        "description": "The bearer token to authenticate with Kubernetes. It defaults reading the token from the service account when running inside the Kubernetes cluster.",
+        "placeholder": "Bearer <k8s-bearer-token>"
       }
     ],
+    "type": "custom",
+    "subtype": "kubernetes",
     "command": [
       "bash"
     ]
@@ -60,7 +59,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   "features": {
     "tlsTerminationProxy": {
       "native": true,
-      "oneOff": false
+      "oneOff": true
     },
     "audit": {
       "native": true,
@@ -75,7 +74,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": true
     },
     "guardrails": {
-      "native": false,
+      "native": true,
       "oneOff": true
     },
     "credentialsOffload": {
@@ -83,12 +82,12 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
       "oneOff": true
     },
     "interactiveAccess": {
-      "native": false,
-      "oneOff": false
+      "native": true,
+      "oneOff": true
     }
   },
   "documentationConfig": {
-    "path": "quickstart/cloud-services/kubernetes/token"
+    "path": "quickstart/cloud-services/kubernetes/kubernetes"
   }
 }} />
 
