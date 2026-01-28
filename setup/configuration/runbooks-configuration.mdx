@@ -5,8 +5,7 @@ title: "Runbooks"
 This page explains the available options to configure Runbooks with your git server.
 
 <Note>
-This guide provides step-by-step instructions for configuring Runbooks using the command line.
-Currently, the Webapp supports configuration exclusively with SSH private keys with limited options.
+  This guide provides step-by-step instructions for configuring Runbooks using the command line. Currently, the Webapp supports configuration exclusively with SSH private keys with limited options.
 </Note>
 
 To start, make sure to install the hoop command line and login to your gateway instance:
@@ -46,7 +45,7 @@ hoop admin create plugin runbooks --overwrite \
 - `GIT_PASSWORD` (required) - the password or token that has read access to the repository
 
 <Tip>
-GitHub users could use [personal tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+  GitHub users could use [personal tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 </Tip>
 
 ## SSH Private Keys
@@ -60,7 +59,7 @@ hoop admin create plugin runbooks --overwrite \
 ```
 
 <Tip>
-GitHub users could follow the [Setup Deploy Keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#set-up-deploy-keys) guide to generate a key.
+  GitHub users could follow the [Setup Deploy Keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#set-up-deploy-keys) guide to generate a key.
 </Tip>
 
 **Required Configuration:**
@@ -72,8 +71,7 @@ GitHub users could follow the [Setup Deploy Keys](https://docs.github.com/en/aut
 - `GIT_SSH_KNOWN_HOSTS` (optional) - the path to the known hosts file to use
 
 <Info>
-    We recommend using the option `GIT_SSH_KNOWN_HOSTS` to prevent [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) when cloning repositories.
-    It will try to obtain the known hosts issuing the command `ssh-keyscan` in case this configuration is not set.
+  We recommend using the option `GIT_SSH_KNOWN_HOSTS` to prevent [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) when cloning repositories. It will try to obtain the known hosts issuing the command `ssh-keyscan` in case this configuration is not set.
 </Info>
 
 ## Testing
@@ -91,23 +89,20 @@ hoop admin get runbooks -o json
   This feature is available in version 1.36.11+.
 </Note>
 
-This functionality enables easier integration with any internal workflow by leveraging Hoop as a hook system for your process.
-It requires specific files in the repository that will start the execution of a runbook when a specific event occurs.
+This functionality enables easier integration with any internal workflow by leveraging Hoop as a hook system for your process. It requires specific files in the repository that will start the execution of a runbook when a specific event occurs.
 
-| File Path                                     | Event Trigger | Environment Variables       |  Description   |
-| --------------------------------------------- | ------------- |---------------------------- |  ------------- |
-| `hoop-hooks/session-open.runbook.py`          | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being opened. It may be triggered more than once in case the connection has the review enabled. |
-| `hoop-hooks/session-close.runbook.py`         | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being closed. |
+| File Path                             | Event Trigger | Environment Variables       | Description                                                                                                                   |
+| ------------------------------------- | ------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `hoop-hooks/session-open.runbook.py`  | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` | It triggers when a session is being opened. It may be triggered more than once in case the connection has the review enabled. |
+| `hoop-hooks/session-close.runbook.py` | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` | It triggers when a session is being closed.                                                                                   |
 
 The environment variables are available when the runbook script is called, it contains the payload of the event that triggered the runbook.
 
 ### Configuring
 
-This feature is currently available only through the command line when a specific plugin configuration is enabled.
-Web application support will be added in an upcoming release.
+This feature is currently available only through the command line when a specific plugin configuration is enabled. Web application support will be added in an upcoming release.
 
-To enable this feature, configure the cache time expiration using the `GIT_HOOK_CONFIG_TTL` parameter.
-This parameter serves two purposes: it activates the runbook hooks functionality and sets the time-to-live (in seconds) for the configuration cache.
+To enable this feature, configure the cache time expiration using the `GIT_HOOK_CONFIG_TTL` parameter. This parameter serves two purposes: it activates the runbook hooks functionality and sets the time-to-live (in seconds) for the configuration cache.
 
 ```sh
 hoop admin create plugin runbooks --overwrite \
@@ -117,7 +112,7 @@ hoop admin create plugin runbooks --overwrite \
 ```
 
 <Tip>
-    Use a high value in case you don't change the runbooks often, this will reduce the number of requests to the git server.
+  Use a high value in case you don't change the runbooks often, this will reduce the number of requests to the git server.
 </Tip>
 
 ### JSON Payload
@@ -168,7 +163,6 @@ ev = req['event_session_open'] or {}
 print('connection_name: {}'.format(ev['connection_name']))
 ```
 
-
 ## How the template engine works
 
 Runbooks use the [GO text/template](https://pkg.go.dev/text/template) as the template engine. A runbook is a template to be run against a connection, the placeholders are rendered by inputs provided by an HTTP client.
@@ -187,7 +181,7 @@ SELECT name FROM customers WHERE id = '{{ .customer_id }}'
 
 Generates the following specification:
 
-* `GET /api/plugins/runbooks/connections/:dbconn/templates `
+- `GET /api/plugins/runbooks/connections/:dbconn/templates `
 
 ```json
 {
@@ -213,21 +207,19 @@ Generates the following specification:
 
 The specifications supports the following fields:
 
-* description - the description of the input
-
-* type - the type of the input
-    * text
-    * number
-    * tel
-    * time
-    * date
-    * url
-    * email
-    * select
-
-* required - if the this field is required
-
-* default - specifies a default value for an input if it’s empty
+- description - the description of the input
+- type - the type of the input
+  - text
+  - number
+  - tel
+  - time
+  - date
+  - url
+  - email
+  - select
+  - file
+- required - if the this field is required
+- default - specifies a default value for an input if it’s empty
 
 The fields indicates how a client could create inputs to a runbook, the fields are defined as function templates in an placeholder using the pipe character `|`. Example:
 
@@ -242,40 +234,28 @@ The fields indicates how a client could create inputs to a runbook, the fields a
 
 The template engine has auxiliary functions which helps to build better and secure templates:
 
-* `required "<message>"` - it will return the error if the input is empty
-    * `<message>` - the message to return when the condition doesn’t match
-
-* `default "<value>"` - add a default value to the input if it’s empty
-    * `<value>` - the default value to set
-
-* `pattern "<regexp>"` - a regexp pattern to validate the input
-    * `<regexp>` - the go regular expression to validate the input
-
-* `description "<message>"` - used as attribute specification to client input validation
-    * `<message>` - the description of the input
-
-* `type "<type>"` - used as attribute specification to client input validation
-    * `<type>` - the type of the input (see supported fields for a list of types)
-
-* `placeholder "<message>"` - used as attribute specification to client input validation
-    * `<message>` - the description of the placeholder
-
-* `options "<option>" "..."` - used as attribute specification to client input validation
-    * `"<option>" "..."` - a list of strings describing each option
-
-* `squote` - wraps the input with single quotes: `'`
-
-* `dquote` - wraps the input with double quotes: `"`
-
-* `quotechar "<char>"` - wraps the input with `<char>`
-    * `<char>` - the character to wrap the input
-
-* `encodeb64` - encode the input as base64
-
-* `decodeb64` - decode a base64 input
-
-* `asenv "<environment>"` - add the input as a environment variable
-    * `<environment>` - the name of the environment variable
+- `required "<message>"` - it will return the error if the input is empty
+  - `<message>` - the message to return when the condition doesn’t match
+- `default "<value>"` - add a default value to the input if it’s empty
+  - `<value>` - the default value to set
+- `pattern "<regexp>"` - a regexp pattern to validate the input
+  - `<regexp>` - the go regular expression to validate the input
+- `description "<message>"` - used as attribute specification to client input validation
+  - `<message>` - the description of the input
+- `type "<type>"` - used as attribute specification to client input validation
+  - `<type>` - the type of the input (see supported fields for a list of types)
+- `placeholder "<message>"` - used as attribute specification to client input validation
+  - `<message>` - the description of the placeholder
+- `options "<option>" "..."` - used as attribute specification to client input validation
+  - `"<option>" "..."` - a list of strings describing each option
+- `squote` - wraps the input with single quotes: `'`
+- `dquote` - wraps the input with double quotes: `"`
+- `quotechar "<char>"` - wraps the input with `<char>`
+  - `<char>` - the character to wrap the input
+- `encodeb64` - encode the input as base64
+- `decodeb64` - decode a base64 input
+- `asenv "<environment>"` - add the input as a environment variable
+  - `<environment>` - the name of the environment variable
 
 > The functions description and type always returns the value of the last command.
 
@@ -287,14 +267,14 @@ The output of a command will be either one value or two values, the second of wh
 
 Examples:
 
-* Encode the `myinput` as base64
+- Encode the `myinput` as base64
 
 ```
 myvar = {{ .myinput
             | encodeb64 }}
 ```
 
-* Wrap the `myinput` into single quote and encode the input as base64
+- Wrap the `myinput` into single quote and encode the input as base64
 
 ```
 myvar = {{ .myinput
@@ -302,7 +282,7 @@ myvar = {{ .myinput
             | encodeb64 }}
 ```
 
-* Gives a description to `myinput`, encode the value as base64 and then wrap it using the character `%`
+- Gives a description to `myinput`, encode the value as base64 and then wrap it using the character `%`
 
 ```
 myvar = {{ .myinput
@@ -310,7 +290,7 @@ myvar = {{ .myinput
             | quotechar "%" }}
 ```
 
-* Specify the `color` as input type select with options red, white and black
+- Specify the `color` as input type select with options red, white and black
 
 ```
 myvar = {{ .color
@@ -324,7 +304,7 @@ The `asenv` function allows defining inputs and mapping then as environment vari
 
 The inputs could be just defined in a comment in the template, examples:
 
-* Python Connection Runtime
+- Python Connection Runtime
 
 ```python
 # {{ .customer_id | asenv "CUSTOMER_ID" }}
@@ -334,7 +314,7 @@ print os.environ['CUSTOMER_ID']
 print os.environ['COUNTRY_CODE']
 ```
 
-* Bash Connection Runtime
+- Bash Connection Runtime
 
 ```shell
 # {{ .deployment | asenv "DEPLOYMENT_NAME" }}
@@ -344,8 +324,7 @@ kubectl rollout restart deploy/$DEPLOYMENT_NAME -n $NAMESPACE
 
 ### Linter
 
-The command line provides a linter to validate the runbook templates before executing them.
-It will check if the inputs are valid and if the template is well formed.
+The command line provides a linter to validate the runbook templates before executing them. It will check if the inputs are valid and if the template is well formed.
 
 - **Validating a file**
 
@@ -412,7 +391,7 @@ failed parsing runbook template, reason=(...) function "require" not defined
 
 Templates are subject to [code injection](https://en.wikipedia.org/wiki/Code_injection) depending on the runtime that you’re using. To mitigate this issue, follows these tips:
 
-* Use the pattern function to define the format of the input, specially in sql templates.
+- Use the pattern function to define the format of the input, specially in sql templates.
 
 ```sql
 SELECT name FROM customers WHERE id = '{{ .customer_id | pattern "^[0-9]+$" }}'
@@ -420,16 +399,15 @@ SELECT name FROM customers WHERE id = '{{ .customer_id | pattern "^[0-9]+$" }}'
 
 This pattern guarantees that the input will be only a number, this prevents any user to inject any sql instruction
 
-* Use the asenv function to expose inputs as environment variables if your runtime supports it
-
-* This will map the `customer_id` input as an environment variable avoiding bash injections with shell control operators
+- Use the asenv function to expose inputs as environment variables if your runtime supports it
+- This will map the `customer_id` input as an environment variable avoiding bash injections with shell control operators
 
 ```shell
 # {{ .customer_id | asenv "CUSTOMER_ID" }}
 /path/to/my/script.sh "$CUSTOMER_ID"
 ```
 
-* The same applies to language runtimes.
+- The same applies to language runtimes.
 
 ```python
 # {{ .customer_id | asenv "CUSTOMER_ID" }}
