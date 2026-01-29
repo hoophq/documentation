@@ -872,14 +872,13 @@
       "id": "git",
       "name": "Git",
       "description": "Access git servers securely through Hoop using SSH. This integration enables secure git operations, repository management, and git server resource access through the Hoop proxy with complete audit trails and access controls. Works with GitHub, GitLab, Gitea, Forgejo, and any SSH-based git server.",
-      "category": "development-environments",
-      "icon-name": "git",
+      "category": "infrastructure-access",
+      "icon-name": "github",
       "tags": [
         "git",
         "scm",
         "security",
-        "cli",
-        "development"
+        "cli"
       ],
       "overview": {
         "description": "Access git servers securely through Hoop using SSH. This integration enables secure git operations, repository management, and git server resource access through the Hoop proxy with complete audit trails and access controls. Works with GitHub, GitLab, Gitea, Forgejo, and any SSH-based git server."
@@ -957,15 +956,14 @@
       "id": "github",
       "name": "GitHub",
       "description": "Access GitHub resources securely through Hoop using SSH. This integration enables secure git operations, repository management, and GitHub resource access through the Hoop proxy with complete audit trails and access controls.",
-      "category": "development-environments",
+      "category": "infrastructure-access",
       "icon-name": "github",
       "tags": [
         "git",
         "github",
         "scm",
         "security",
-        "cli",
-        "development"
+        "cli"
       ],
       "overview": {
         "description": "Access GitHub resources securely through Hoop using SSH. This integration enables secure git operations, repository management, and GitHub resource access through the Hoop proxy with complete audit trails and access controls."
