@@ -230,6 +230,39 @@ The fields indicates how a client could create inputs to a runbook, the fields a
   | type "number" }}
 ```
 
+### **Ordering Fields **
+
+In some runbooks, you may want input fields to appear in a specific order for example:
+
+- showing required fields first
+- grouping related parameters together
+- improving the overall user experience when launching a runbook
+
+To define the order in which fields appear in the Web App, you can add the `order` attribute as shown in the example below.
+
+```
+{{ .client_id
+| description "Client ID"
+  | required "client_id is required"
+  | order 1
+}}
+{{ .client_secret
+| description "Client Secret"
+  | required "Client secret is required"
+  | order 2
+}}
+```
+
+#### **Expected behavior**
+
+• Lower values appear first (e.g., order 1 comes before order 2).
+
+• Fields without an order value will fall back to the default UI ordering.
+
+• If you don’t set an order for a field, it will automatically be placed lower in the list.
+
+> **Coming soon:** Field reordering will be available directly in the Hoop Web App UI as a built-in feature.
+
 ### Template Functions
 
 The template engine has auxiliary functions which helps to build better and secure templates:
