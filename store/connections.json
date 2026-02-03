@@ -1060,7 +1060,7 @@
         }
       },
       "resourceConfiguration": {
-        "type": "application",
+        "type": "http-proxy",
         "subtype": "grafana",
         "credentials": [
           {
@@ -1158,8 +1158,8 @@
         }
       },
       "resourceConfiguration": {
-        "type": "web-application",
-        "subtype": "http-proxy",
+        "type": "httpproxy",
+        "subtype": "web-application",
         "credentials": [
           {
             "name": "REMOTE_URL",
@@ -1198,7 +1198,7 @@
         }
       },
       "resourceConfiguration": {
-        "type": "application",
+        "type": "http-proxy",
         "subtype": "kibana",
         "credentials": [
           {
