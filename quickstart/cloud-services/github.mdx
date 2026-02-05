@@ -107,7 +107,7 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_key -N ""
 
 - Go to GitHub Settings → SSH and GPG keys → New SSH key
 - Paste your public key (`cat ~/.ssh/github_key.pub`)
-- Give it a name (e.g., "Hoop GitHub Access")
+- Give it a name (e.g., "GitHub Access")
 - Click "Add SSH key"
 
 ### Display Your Public Key
@@ -115,61 +115,4 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_key -N ""
 ```sh
 cat ~/.ssh/github_key.pub
 ```
-
-### Create Connection with Hoop
-
-```sh
-hoop admin create conn github -a <agent> --overwrite \
-    --type application/github \
-    -e HOST=github.com \
-    -e USER=git \
-    -e AUTHORIZED_SERVER_KEYS=file://~/.ssh/github_key
-```
-
-## How to Use it
-
-Once configured, you can use git operations with GitHub through Hoop:
-
-```bash
-hoop connect github
-```
-
-This opens an SSH proxy on a local port that routes all GitHub traffic through Hoop, allowing you to:
-
-- Clone repositories: `git clone <repo-url>`
-- Push/pull changes: `git push`, `git pull`
-- Perform any SSH-based git operation with GitHub
-
-## Advanced Usage
-
-### Port Forwarding
-
-To use a specific port:
-
-```bash
-hoop connect github --port 2222
-```
-
-Then use git with the custom host and port:
-
-```bash
-# Using explicit port configuration
-GIT_SSH_COMMAND="ssh -p 2222" git clone git@localhost:org/repo.git
-```
-
-### Git Configuration
-
-For seamless git operations with GitHub through Hoop, you can configure your local git client:
-
-```bash
-# Clone with port forwarding
-hoop connect github --port 2222 &
-GIT_SSH_COMMAND="ssh -p 2222" git clone git@localhost:my-org/my-repo.git
-```
-
-<Tip>
-  Enable the `--debug` flag when running `hoop connect` to troubleshoot SSH connection issues. This provides detailed information about the connection process and any authentication problems.
-</Tip>
-
-For more details, refer to the [environment variables documentation](/setup/configuration/env-vars).
 

@@ -107,7 +107,7 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/git_key -N ""
 **GitHub:**
 - Go to GitHub Settings → SSH and GPG keys → New SSH key
 - Paste your public key
-- Give it a name (e.g., "Hoop Git Access")
+- Give it a name (e.g., "Git Access")
 - Click "Add SSH key"
 
 **GitLab:**
@@ -126,76 +126,4 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/git_key -N ""
 ```sh
 cat ~/.ssh/git_key.pub
 ```
-
-### Create Connection with Hoop
-
-```sh
-# For GitHub
-hoop admin create conn github -a <agent> --overwrite \
-    --type application/git \
-    -e HOST=github.com \
-    -e USER=git \
-    -e AUTHORIZED_SERVER_KEYS=file://~/.ssh/git_key
-
-# For GitLab
-hoop admin create conn gitlab -a <agent> --overwrite \
-    --type application/git \
-    -e HOST=gitlab.com \
-    -e USER=git \
-    -e AUTHORIZED_SERVER_KEYS=file://~/.ssh/git_key
-
-# For self-hosted Gitea/Forgejo
-hoop admin create conn gitea -a <agent> --overwrite \
-    --type application/git \
-    -e HOST=git.example.com \
-    -e USER=git \
-    -e AUTHORIZED_SERVER_KEYS=file://~/.ssh/git_key
-```
-
-## How to Use it
-
-Once configured, you can use git operations through Hoop:
-
-```bash
-hoop connect github
-```
-
-This opens an SSH proxy on a local port that routes all traffic through Hoop, allowing you to:
-
-- Clone repositories: `git clone <repo-url>`
-- Push/pull changes: `git push`, `git pull`
-- Perform any SSH-based git operation
-
-## Advanced Usage
-
-### Port Forwarding
-
-To use a specific port:
-
-```bash
-hoop connect github --port 2222
-```
-
-Then use git with the custom host and port:
-
-```bash
-# Using explicit port configuration
-GIT_SSH_COMMAND="ssh -p 2222" git clone git@localhost:org/repo.git
-```
-
-### Git Configuration
-
-For seamless git operations with Hoop, you can configure your local git client:
-
-```bash
-# Clone with port forwarding
-hoop connect github --port 2222 &
-GIT_SSH_COMMAND="ssh -p 2222" git clone git@localhost:my-org/my-repo.git
-```
-
-<Tip>
-  Enable the `--debug` flag when running `hoop connect` to troubleshoot SSH connection issues. This provides detailed information about the connection process and any authentication problems.
-</Tip>
-
-For more details, refer to the [environment variables documentation](/setup/configuration/env-vars).
 
