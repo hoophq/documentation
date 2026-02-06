@@ -22,7 +22,7 @@ setupGuide:
     native: true
     runbooks: false
 resourceConfiguration:
-  type: application
+  type: httpproxy
   subtype: grafana
   credentials:
     - name: REMOTE_URL
