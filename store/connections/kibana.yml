@@ -23,7 +23,7 @@ setupGuide:
     native: true
     runbooks: false
 resourceConfiguration:
-  type: http-proxy
+  type: httpproxy
   subtype: kibana
   credentials:
     - name: REMOTE_URL

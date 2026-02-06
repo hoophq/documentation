@@ -1060,7 +1060,7 @@
         }
       },
       "resourceConfiguration": {
-        "type": "http-proxy",
+        "type": "httpproxy",
         "subtype": "grafana",
         "credentials": [
           {
@@ -1198,7 +1198,7 @@
         }
       },
       "resourceConfiguration": {
-        "type": "http-proxy",
+        "type": "httpproxy",
         "subtype": "kibana",
         "credentials": [
           {
