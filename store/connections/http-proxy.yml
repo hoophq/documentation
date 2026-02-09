@@ -41,8 +41,8 @@ setupGuide:
     runbooks: false
 
 resourceConfiguration:
-  type: web-application
-  subtype: http-proxy
+  type: httpproxy
+  subtype: web-application
   credentials:
     - name: REMOTE_URL
       type: env-var
