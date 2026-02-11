@@ -15,14 +15,14 @@ features:
     native: true
     oneOff: false
   dataMaskingGoogleDLP:
-    native: true
+    native: false
     oneOff: false
   dataMaskingMSPresidio:
     native: true
     oneOff: false
   guardrails:
     native: false
-    oneOff: true
+    oneOff: false
   credentialsOffload:
     native: true
     oneOff: false
