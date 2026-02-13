@@ -1,0 +1,67 @@
+---
+title: "1.44.0"
+description: "The biggest update yet. Resources and Roles transform how you organize and manage your infrastructure. Setup is streamlined, workflows are cleaner, and everything just makes more sense."
+---
+
+### TL;DR
+- **New:** Resources and Roles system for organized infrastructure management
+- **New:** Multi-step resource setup with agent configuration
+- **Enhanced:** Complete UI overhaul with improved onboarding experience
+
+---
+
+### New Features
+
+**Resources and Roles System ([#1120](https://github.com/hoophq/hoop/pull/1120))**
+
+This release introduces a fundamental shift in how Hoop manages connections. The new Resources and Roles architecture brings structure, clarity, and fine-grained access control to your infrastructure.
+
+**What's a Resource?**
+Resources are now first-class objects that represent your infrastructure components (databases, servers, APIs). Each resource can have multiple roles with different access levels and configurations.
+
+**What's changed:**
+- **Multi-step Setup Wizard** — Four-step guided flow: configure your resource, select an agent, define roles with specific permissions (web terminal, native access, data masking), and confirm creation
+- **Resource Management Panel** — New dedicated UI to view, filter, and manage all your resources in one place with type-based organization
+- **Role Configuration System** — Each resource can have multiple roles with different configurations — think dev vs prod access, or read-only vs full permissions
+- **Integrated Agent Selection** — Pick and configure agents during setup instead of managing them separately
+- **Unified Terminology** — "Connections" are now "Resource Roles" throughout the platform, making the relationship between resources and access patterns crystal clear
+
+**Key benefits:**
+- Create one resource, configure multiple roles for different teams or use cases
+- Eliminate scattered connection configs — everything lives under its parent resource
+- Guided setup prevents configuration mistakes and missing required fields
+- See your entire infrastructure at a glance with the new resource catalog
+- Transaction-based creation ensures resources and roles are created atomically
+
+---
+
+### Enhancements
+
+**Command Palette Updates**
+
+The command palette now supports resource role selection with enhanced filtering controls, making navigation even faster.
+
+**Infinite Scroll & Pagination**
+
+Connection listings now use infinite scroll with smart loading states, handling large infrastructures smoothly.
+
+**Improved Search & Filtering**
+
+Search functionality expanded to include resource names, status filters, and debounced queries for better performance.
+
+---
+
+### Technical Improvements
+
+- Resource name validation ensures unique identifiers
+- Transaction support for atomic resource and connection creation
+- Updated data models with resource subtypes
+- Enhanced credential handling for metadata-driven and custom configs
+- Insecure SSL toggle for HTTP proxy connections
+
+---
+
+Version 1.44.0 redefines how Hoop manages infrastructure. Resources and Roles bring the organization and access control that growing teams need, wrapped in a setup experience that actually feels good to use.
+
+This is the foundation for everything coming next.
+
