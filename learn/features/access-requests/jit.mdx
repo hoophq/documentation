@@ -1,0 +1,340 @@
+---
+title: "Just-in-Time Access Requests"
+description: "Grant temporary, time-limited access to resources with automatic expiration and approval workflows"
+---
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/learn/review_light.png"
+    alt="JIT Access Requests workflow"
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/learn/review_dark.png"
+    alt="JIT Access Requests workflow"
+  />
+</Frame>
+
+## What You'll Accomplish
+
+Just-in-Time (JIT) Access Requests let you grant temporary access to production resources with automatic expiration. Instead of giving permanent access, you can:
+
+- Grant a developer 2 hours of database access for debugging
+- Allow on-call engineers 8 hours of access during their shift
+- Enable break-glass access for emergencies with full audit trail
+- Reduce standing privileges by requiring approval for every access request
+
+**The key difference from One-Time Access Requests:** JIT grants time-based access to a connection. Once approved, the user can run any command within that time window. One-Time Access Requests require approval for each individual command.
+
+---
+
+## How JIT Access Requests Work
+
+<Steps>
+  <Step title="User Requests Access">
+    User runs `hoop connect <connection> --duration 2h` to request time-limited access
+  </Step>
+  <Step title="Request Created">
+    An access request is created with status **PENDING** and approvers are notified via Slack/Teams
+  </Step>
+  <Step title="Approver Decides">
+    Approver approves or rejects the request
+  </Step>
+  <Step title="Access Granted">
+    If approved, user gets access for the requested duration. Access automatically expires when time runs out.
+  </Step>
+</Steps>
+
+### Request Statuses
+
+| Status | Description |
+|--------|-------------|
+| **PENDING** | Waiting for approval from designated groups |
+| **APPROVED** | Access granted, user can connect |
+| **REJECTED** | Access denied by an approver |
+| **REVOKED** | Access withdrawn after initial approval |
+| **EXECUTED** | Access period completed (expired) |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- A connection configured with an agent
+- At least one user group for approvers (e.g., `admin`, `dba-team`)
+- (Optional) [Slack integration](/integrations/slack) for notifications
+
+### Step 1: Enable JIT Access Requests on a Connection
+
+<Steps>
+  <Step title="Navigate to Access Requests">
+    Go to **Manage > Access Requests** in the Web App
+  </Step>
+  <Step title="Select Your Connection">
+    Find the connection you want to protect (e.g., `prod-postgres`) and click **Configure**
+
+    <Frame>
+      <img src="/images/learn/jit-reviews-1.png" alt="Access Requests configuration page" />
+    </Frame>
+  </Step>
+  <Step title="Configure Approval Groups">
+    Select the groups that can approve access requests
+
+    <Frame>
+      <img src="/images/learn/jit-reviews-2.png" alt="Configure approval groups" />
+    </Frame>
+
+    <Warning>
+      Selecting multiple groups requires **all groups** to approve before access is granted.
+    </Warning>
+  </Step>
+  <Step title="Save Configuration">
+    Click **Save** to enable JIT access requests for this connection
+  </Step>
+</Steps>
+
+### Step 2: Request JIT Access (as a user)
+
+Use the `--duration` flag to request time-limited access:
+
+```bash
+hoop connect prod-postgres --duration 2h
+```
+
+You'll see:
+
+```
+⣷ waiting for access request to be approved at https://use.hoop.dev/access-requests/abc123...
+```
+
+**Duration formats:**
+- `30m` - 30 minutes
+- `2h` - 2 hours
+- `8h` - 8 hours (full workday)
+- `24h` - 24 hours
+
+### Step 3: Approve the Request (as an approver)
+
+Approvers receive a notification via Slack, Teams, or email (depending on your configuration):
+
+**Option A: Approve via Slack**
+
+Click the **Approve** button directly in the Slack notification.
+
+**Option B: Approve via Web App**
+
+1. Go to **Access Requests** in the sidebar
+2. Find the pending request
+3. Review the details (who, what connection, how long)
+4. Click **Approve** or **Reject**
+
+### Step 4: Access Granted
+
+Once approved, the user's terminal shows:
+
+```
+Connection ready. Session ID: sess_abc123
+Access expires in 2 hours.
+```
+
+The user can now run commands freely until the time expires:
+
+```bash
+# All commands work within the approved time window
+psql -c "SELECT * FROM orders WHERE status = 'pending'"
+psql -c "UPDATE orders SET status = 'processed' WHERE id = 123"
+```
+
+### Step 5: Automatic Expiration
+
+When the duration ends:
+- The session status changes to **EXECUTED**
+- New connection attempts require a new approval
+- All activity is logged in the session audit trail
+
+---
+
+## Configuration Options
+
+### Access Duration Limits
+
+Control how long users can request access for. Configure this in **Manage > Connections > [connection] > Settings**:
+
+| Setting | Description |
+|---------|-------------|
+| **Maximum Duration** | Longest access period users can request (e.g., 8h) |
+| **Default Duration** | Duration used if user doesn't specify `--duration` |
+
+### Multiple Approval Groups
+
+Require approval from multiple teams for sensitive resources:
+
+| Configuration | Behavior |
+|---------------|----------|
+| **Single group** (`dba-team`) | Any member of `dba-team` can approve |
+| **Multiple groups** (`dba-team`, `security`) | One member from **each** group must approve |
+
+**Use case:** Production database access requires both DBA approval and Security sign-off.
+
+### Approval Group Requirements
+
+| Setting | Description |
+|---------|-------------|
+| **Minimum Approvals** | Number of approvals needed per group (default: 1) |
+| **Auto-approve for admins** | Admin users bypass approval requirements |
+
+<Note>
+Admin users can approve their own requests. To test the full workflow, use a non-admin account.
+</Note>
+
+---
+
+## Common Use Cases
+
+### 1. Production Database Debugging
+
+A developer needs to investigate a production issue:
+
+```bash
+# Request 1 hour of access
+hoop connect prod-db --duration 1h
+```
+
+DBA approves via Slack. Developer runs diagnostic queries. Access expires automatically.
+
+### 2. On-Call Access
+
+On-call engineers get temporary elevated access during their shift:
+
+```bash
+# Request access for 8-hour shift
+hoop connect all-prod-systems --duration 8h
+```
+
+### 3. Break-Glass Emergency Access
+
+For urgent incidents, request immediate access with documentation:
+
+```bash
+# Emergency access with explicit duration
+hoop connect critical-system --duration 30m
+```
+
+**Best practice:** Set up a dedicated `emergency-approvers` group with 24/7 availability.
+
+### 4. Contractor Time-Limited Access
+
+Grant temporary access for external contractors:
+
+```bash
+# Contractor requests access for their engagement period
+hoop connect client-db --duration 4h
+```
+
+---
+
+## Integrations
+
+JIT Access Requests work with your existing communication tools:
+
+<CardGroup cols={2}>
+  <Card title="Slack" icon="slack" href="/integrations/slack">
+    Receive access requests and approve directly in Slack
+  </Card>
+  <Card title="Microsoft Teams" icon="microsoft" href="/integrations/teams">
+    Get notifications and manage access requests in Teams
+  </Card>
+</CardGroup>
+
+### Setting Up Slack Notifications
+
+1. [Install the Slack integration](/integrations/slack)
+2. Configure channels for access request notifications
+3. Users run `/hoop subscribe` in Slack to receive notifications
+
+---
+
+## Troubleshooting
+
+### "My request is stuck in PENDING"
+
+**Possible causes:**
+
+1. **No active approvers** - Check that the approval groups have members online
+2. **Multiple groups required** - All configured groups must approve
+3. **Slack notifications not working** - Verify the [Slack integration](/integrations/slack) is configured
+
+**How to check:**
+- View the request in **Access Requests** > find your request > check which groups have approved
+
+### "Admin users bypass the approval"
+
+This is expected behavior. Admin users auto-approve their own requests.
+
+**To test the full workflow:**
+- Create a non-admin test user
+- Add them to a group without admin privileges
+- Request access as that user
+
+### "Access still works after time limit"
+
+**Possible causes:**
+
+1. **Active session** - If a session is actively in use, it may not terminate immediately
+2. **Request not expired** - Check the request status in **Access Requests** > click on the session
+
+**How to force expire:**
+- An admin can **Revoke** the access from the Access Requests page
+- This immediately changes the status to REVOKED and terminates access
+
+### "I can't see the approval notification in Slack"
+
+**Check:**
+1. The Slack app is installed correctly ([setup guide](/integrations/slack))
+2. The connection has the `slack` plugin enabled
+3. The approver has subscribed with `/hoop subscribe`
+4. The notification channel is configured in Slack plugin settings
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Set Reasonable Durations" icon="clock">
+    Match access duration to task requirements. 2 hours for debugging, 8 hours for on-call shifts.
+  </Card>
+  <Card title="Use Multiple Groups for Sensitive Systems" icon="users">
+    Require both technical and security approval for production databases.
+  </Card>
+  <Card title="Configure Slack/Teams" icon="bell">
+    Real-time notifications ensure fast approval turnaround.
+  </Card>
+  <Card title="Audit Regularly" icon="clipboard-list">
+    Review access patterns in Sessions to identify unusual activity.
+  </Card>
+</CardGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="One-Time Access Requests" icon="square-terminal" href="/learn/features/access-requests/one-time">
+    Approve individual commands instead of time-based access
+  </Card>
+  <Card title="Slack Integration" icon="slack" href="/integrations/slack">
+    Set up Slack for access request notifications
+  </Card>
+  <Card title="Session Recording" icon="video" href="/learn/features/session-recording">
+    Audit what happened during approved sessions
+  </Card>
+  <Card title="Access Control" icon="lock" href="/learn/features/access-control">
+    Configure who can access which connections
+  </Card>
+</CardGroup>

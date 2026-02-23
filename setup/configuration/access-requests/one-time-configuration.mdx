@@ -1,96 +1,96 @@
 ---
-title: "Command Reviews Configuration"
-description: "Configure real-time command review workflows for your connections"
+title: "One-Time Access Requests Configuration"
+description: "Configure real-time command approval workflows for your connections"
 ---
 
-Command Reviews provide real-time oversight of commands and queries before execution. This guide will help you set up and configure command reviews for your connections.
+One-Time Access Requests provide real-time oversight of commands and queries before execution. This guide will help you set up and configure command approvals for your connections.
 
-## Enabling Command Reviews
+## Enabling One-Time Access Requests
 
 <Steps>
   <Step title="Access Connection Settings">
     Navigate to the connection you want to configure and select the "Additional Configuration" tab
   </Step>
-  
-  <Step title="Enable Reviews">
-    Toggle on the Reviews switch to enable the review workflow
+
+  <Step title="Enable Access Requests">
+    Toggle on the Access Requests switch to enable the approval workflow
   </Step>
-  
-  <Step title="Select Review Groups">
+
+  <Step title="Select Approval Groups">
     Choose which groups:
-    - Need their commands reviewed
-    - Can review and approve commands
-    - Are exempt from reviews
+    - Need their commands approved
+    - Can approve commands
+    - Are exempt from approvals
   </Step>
 </Steps>
 
-## Review Policy Configuration
+## Access Request Policy Configuration
 
 ### Access Levels
 <AccordionGroup>
-  <Accordion title="Reviewer Groups">
+  <Accordion title="Approver Groups">
     - Assign groups that can approve commands
-    - Multiple reviewers can be required
-    - Set backup reviewers for coverage
+    - Multiple approvers can be required
+    - Set backup approvers for coverage
   </Accordion>
-  
+
   <Accordion title="User Groups">
-    - Specify which groups need reviews
+    - Specify which groups need approvals
     - Set exceptions for trusted users/groups
     - Configure different policies for different teams
   </Accordion>
 </AccordionGroup>
 
-### Review Settings
+### Approval Settings
 <CardGroup cols={2}>
-  <Card title="Review Timeouts" icon="clock">
-    Set how long before review requests expire
+  <Card title="Request Timeouts" icon="clock">
+    Set how long before access requests expire
   </Card>
-  
+
   <Card title="Approval Requirements" icon="users">
     Configure number of required approvers
   </Card>
-  
+
   <Card title="Command Patterns" icon="code">
-    Define which commands trigger reviews
+    Define which commands trigger approvals
   </Card>
-  
+
   <Card title="Notification Settings" icon="bell">
-    Configure where review notifications are sent
+    Configure where access request notifications are sent
   </Card>
 </CardGroup>
 
 ## Integration Setup
 
 ### Notification Channels
-Configure where review requests are sent:
+Configure where access requests are sent:
 
 <CardGroup cols={3}>
   <Card title="Slack" icon="slack">
     Real-time notifications in Slack channels
   </Card>
-  
+
   <Card title="MS Teams" icon="microsoft">
     Notifications in Teams channels
   </Card>
-  
+
   <Card title="Webhooks" icon="webhook">
     Custom integration endpoints
   </Card>
 </CardGroup>
 
-### Review Interface Options
+### Approval Interface Options
 <Steps>
   <Step title="Web Interface">
-    Reviews can be managed through the Hoop.dev web interface
+    Access requests can be managed through the Hoop.dev web interface
   </Step>
-  
+
   <Step title="Chat Commands">
-    Reviewers can approve/deny directly from Slack or Teams
+    Approvers can approve/deny directly from Slack or Teams
   </Step>
-  
+
   <Step title="API Integration">
-    Programmatic review management through the API
+    Programmatic access request management through the API
   </Step>
 </Steps>
 
@@ -100,15 +100,15 @@ Configure where review requests are sent:
   <Card title="Policy Granularity" icon="sitemap">
     Create specific policies for different environments and teams
   </Card>
-  
-  <Card title="Review Coverage" icon="users">
-    Ensure sufficient reviewer availability across time zones
+
+  <Card title="Approver Coverage" icon="users">
+    Ensure sufficient approver availability across time zones
   </Card>
-  
+
   <Card title="Command Patterns" icon="filter">
-    Focus reviews on high-risk or sensitive operations
+    Focus approvals on high-risk or sensitive operations
   </Card>
-  
+
   <Card title="Response Time" icon="stopwatch">
     Set appropriate timeouts based on operational needs
   </Card>
@@ -116,27 +116,27 @@ Configure where review requests are sent:
 
 ## Monitoring and Maintenance
 
-### Review Analytics
-Monitor the effectiveness of your review policies:
-- Review response times
+### Access Request Analytics
+Monitor the effectiveness of your approval policies:
+- Approval response times
 - Approval/denial rates
-- Common review triggers
-- Reviewer workload distribution
+- Common approval triggers
+- Approver workload distribution
 
 ### Policy Updates
-Regularly assess and update your review policies:
+Regularly assess and update your approval policies:
 - Adjust based on team feedback
 - Update for new security requirements
-- Optimize review workflows
+- Optimize approval workflows
 - Add new command patterns as needed
 
 ## Learn More
 
 <CardGroup cols={2}>
-  <Card title="Command Reviews Overview" icon="book" href="/learn/features/reviews/command-reviews">
-    Learn more about command review feature
+  <Card title="One-Time Access Requests Overview" icon="book" href="/learn/features/access-requests/one-time">
+    Learn more about one-time access request feature
   </Card>
-  
+
   <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">
     Configure user and group permissions
   </Card>

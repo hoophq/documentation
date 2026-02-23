@@ -1,0 +1,79 @@
+---
+title: "One-Time Access Requests"
+description: "Real-time command approval workflow for enhanced security"
+---
+
+<Frame>
+  <img src="/images/learn/features/review-3.png" alt="One-Time Access Requests" />
+</Frame>
+
+One-Time Access Requests in Hoop.dev provide a powerful layer of security by enabling real-time approval of commands before they are executed. This feature ensures that potentially risky operations are properly vetted before being run on your infrastructure.
+
+## Key Features
+
+### Real-Time Approval Process
+- Instant notification of commands requiring approval
+- Detailed context for informed decision making
+- Quick approve/deny workflow
+- Command modification capabilities before approval
+
+### Integration Options
+- Slack integration for instant notifications
+- Microsoft Teams support
+- Custom webhook support
+
+## How It Works
+
+<Steps>
+  <Step title="Command Submission">
+    User sends a command to Hoop.dev
+  </Step>
+  <Step title="Policy Check">
+    System checks if command requires approval
+  </Step>
+  <Step title="Approver Notification">
+    Designated approvers are notified
+  </Step>
+  <Step title="Approval Process">
+    <ul>
+      <li>Multiple approvers can be required</li>
+      <li>Approver examines command and context</li>
+      <li>Can approve or deny command</li>
+    </ul>
+  </Step>
+  <Step title="Execution">
+    Command runs only after approval
+  </Step>
+  <Step title="Audit Trail">
+    Full approval process is logged
+  </Step>
+</Steps>
+
+## Benefits
+
+- **Enhanced Security**: Additional verification layer for sensitive operations
+- **Risk Reduction**: Prevent accidental or malicious commands
+- **Compliance**: Meet regulatory requirements for change control
+- **Knowledge Sharing**: Junior team members learn from approvals
+- **Audit Trail**: Complete record of approval decisions
+
+## Best Practices
+
+1. **Define Clear Policies**
+   - Identify high-risk commands
+   - Set appropriate approver groups
+   - Document approval criteria
+
+2. **Optimize Approval Flow**
+   - Don't require approvals for routine operations
+   - Set reasonable timeouts for approvals
+   - Have backup approvers available
+
+3. **Monitor and Adjust**
+   - Track approval patterns
+   - Adjust policies based on feedback
+   - Regular policy updates
+
+## Configuration
+
+For detailed configuration instructions and setup guides, see [One-Time Access Requests Configuration](/setup/configuration/access-requests/one-time-configuration) guide.

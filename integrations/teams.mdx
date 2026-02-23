@@ -62,10 +62,10 @@ Now, you can define which connections will send this event based on the plugin c
 ```bash
 hoop admin create conn bash -a <agent-name> --overwrite \
   --plugin webhooks \
-  --plugin review:admin -- bash
+  --reviewers admin -- bash
 ```
 
-Interacting with the connection via the webapp or the CLI will trigger an alert indicating that the connection needs to be reviewed. A message will be sent to the Microsoft Teams channel.
+Interacting with the connection via the webapp or the CLI will trigger an alert indicating that an access request has been created. A message will be sent to the Microsoft Teams channel.
 
 ```bash
 hoop exec bash -i 'ls -l'
@@ -73,4 +73,4 @@ hoop exec bash -i 'ls -l'
 
 ## Supported Events
 
-- `microsoftteams.review.create`
+- `microsoftteams.review.create` - Triggered when an access request is created

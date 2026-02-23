@@ -1,6 +1,6 @@
 ---
 title: "Slack"
-description: "Review sessions directly from your Slack workspace."
+description: "Manage access requests directly from your Slack workspace."
 ---
 
 <Frame>
@@ -121,7 +121,7 @@ hoop admin create plugin slack \
 
 We need to go to the Slack plugin page and access the menu → Manage plugins → Slack.
 
-Then, click on settings and add all the channels (separated by commas) you would like to receive the review from that connection.
+Then, click on settings and add all the channels (separated by commas) you would like to receive access request notifications from that connection.
 
 <Frame>
   <img src="/images/integrations/slack-3.gif" />
@@ -129,11 +129,11 @@ Then, click on settings and add all the channels (separated by commas) you would
 
 ## Subscribe to Notifications
 
-To subscribe and sign up to receive notifications from the Hoop Bot, type `/hoop subscribe` and access the generated link. After signing in, the user will start to receive notification when there’s a review approved and ready to be executed.
+To subscribe and sign up to receive notifications from the Hoop Bot, type `/hoop subscribe` and access the generated link. After signing in, the user will start to receive notifications when there's an access request approved and ready to be executed.
 
 ### Subscribing Manually (Optional)
 
-To add approvers who are allowed to review sessions, fetch the user's Slack ID and update it using the command line.
+To add approvers who are allowed to approve access requests, fetch the user's Slack ID and update it using the command line.
 
 ```bash
 hoop admin create user <approver@domain.tld> --overwrite \
@@ -157,9 +157,9 @@ You can copy the ID of other members too on Slack.
 
 ## Usage
 
-To be able to use it, the review plugins must be enabled for a connection. When trying to interacting with it, it will send a message to the configured slack channel.
+To use this integration, access requests must be enabled for a connection. When interacting with it, a message will be sent to the configured Slack channel.
 
-**Associate the connection with the `review` and `slack` plugins**
+**Associate the connection with the `slack` plugin and configure reviewers**
 
 ```bash
 hoop admin create conn bash \

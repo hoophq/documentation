@@ -39,11 +39,11 @@
             "pages": [
               "learn/features/ai-data-masking",
               {
-                "group": "Reviews",
+                "group": "Access Requests",
                 "pages": [
-                  "learn/features/reviews/overview",
-                  "learn/features/reviews/command-reviews",
-                  "learn/features/reviews/jit-reviews"
+                  "learn/features/access-requests/overview",
+                  "learn/features/access-requests/one-time",
+                  "learn/features/access-requests/jit"
                 ]
               },
               "learn/features/access-control",
@@ -160,10 +160,10 @@
                     ]
                   },
                   {
-                    "group": "Reviews",
+                    "group": "Access Requests",
                     "pages": [
-                      "setup/configuration/reviews/command-reviews-configuration",
-                      "setup/configuration/reviews/jit-reviews-configuration"
+                      "setup/configuration/access-requests/one-time-configuration",
+                      "setup/configuration/access-requests/jit-configuration"
                     ]
                   },
                   "setup/configuration/access-control-configuration",
