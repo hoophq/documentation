@@ -1,34 +1,295 @@
 ---
 title: "AI Data Masking"
-description: "Zero-config DLP policies that automatically mask sensitive data in real-time at the protocol layer"
+description: "Automatically detect and mask sensitive data in query results without writing rules"
 ---
 
 <Frame>
   <img src="/images/learn/features/ai-data-masking.png" alt="AI Data Masking" />
 </Frame>
 
-Hoop.dev's AI Data Masking operates at the protocol layer, providing a Data Loss Prevention (DLP) policy that masks sensitive data in real-time. This feature ensures that Personally Identifiable Information (PII), credentials, and other sensitive information are protected without the need for complex rule setups.
+## What You'll Accomplish
 
-### Key Features
+AI Data Masking automatically detects and redacts sensitive data in your query results. Unlike traditional DLP solutions that require complex rule configuration, Hoop's AI-powered masking works out of the box:
 
-- **Zero-Config Setup**: Unlike traditional DLP solutions, Hoop.dev's AI Data Masking does not require you to set up rules or policies. It automatically masks sensitive data in the data stream of any connection where AI Data Masking is enabled.
-- **Real-Time Protection**: Sensitive data is masked in real-time, ensuring that no unprotected data is exposed during access sessions.
-- **Customizable Fields**: After the initial setup, Hoop.dev provides a package of the most commonly used default fields. You can easily add or remove fields to tailor the masking to your specific needs.
+- Automatically detect PII (names, emails, phone numbers, SSNs)
+- Mask credit card numbers and financial data
+- Redact passwords, API keys, and secrets
+- Protect health information (HIPAA compliance)
+- No regex patterns to write or maintain
 
-<Frame>
-  <video
-    controls
-    className="w-full aspect-video"
-    src="https://cdn.hoop.dev/videos/ai-data-masking.mp4"
-  ></video>
-</Frame>
+---
 
-## Configuration
+## How It Works
 
-To begin using AI Data Masking, simply enable the feature for your desired connections and Hoop.dev will handle the rest, providing seamless and automatic data protection with most commonly used fields by default. 
+<Steps>
+  <Step title="Query Executed">
+    User runs a query through Hoop
+  </Step>
+  <Step title="Results Analyzed">
+    AI scans the query results for sensitive data patterns
+  </Step>
+  <Step title="Data Masked">
+    Sensitive values are replaced with redacted placeholders
+  </Step>
+  <Step title="Results Returned">
+    User sees masked results; original data never exposed
+  </Step>
+</Steps>
 
-For a more customizable experience, you can add or remove fields to tailor the masking to your specific needs. Please refer to [Supported Fields](/setup/configuration/ai-data-masking/fields) page for more detailed information. 
+### Before and After
 
+**Original query result:**
+```
+| name         | email              | ssn         | phone        |
+|--------------|--------------------| ------------|--------------|
+| John Smith   | john@example.com   | 123-45-6789 | 555-123-4567 |
+| Jane Doe     | jane@company.org   | 987-65-4321 | 555-987-6543 |
+```
 
+**With AI Data Masking enabled:**
+```
+| name         | email              | ssn         | phone        |
+|--------------|--------------------| ------------|--------------|
+| [REDACTED]   | [REDACTED]         | [REDACTED]  | [REDACTED]   |
+| [REDACTED]   | [REDACTED]         | [REDACTED]  | [REDACTED]   |
+```
 
-{/* <div style="position: relative; padding-bottom: 56.25%; height: 0;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.tella.tv/video/cm7jhty8o004u0ajv510i4a1q/embed?b=0&title=0&a=1&loop=0&t=0&muted=0&wt=0" allowfullscreen allowtransparency></iframe></div> */}
+---
+
+## Quick Start
+
+### Prerequisites
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- A DLP provider configured (Microsoft Presidio or GCP DLP)
+
+### Step 1: Set Up a DLP Provider
+
+Choose and deploy one of the supported providers:
+
+<CardGroup cols={2}>
+  <Card title="Microsoft Presidio" icon="microsoft" href="https://microsoft.github.io/presidio/">
+    Open-source, self-hosted PII detection
+  </Card>
+  <Card title="Google Cloud DLP" icon="google" href="https://cloud.google.com/dlp">
+    Managed service with advanced detection
+  </Card>
+</CardGroup>
+
+See [AI Data Masking Configuration](/setup/configuration/ai-data-masking/get-started) for detailed setup instructions.
+
+### Step 2: Configure the Gateway
+
+Set the required environment variables:
+
+**For Microsoft Presidio:**
+```bash
+DLP_PROVIDER=mspresidio
+DLP_MODE=best-effort
+MSPRESIDIO_ANALYZER_URL=http://presidio-analyzer:5001
+MSPRESIDIO_ANONYMIZER_URL=http://presidio-anonymizer:5002
+```
+
+**For Google Cloud DLP:**
+```bash
+DLP_PROVIDER=gcp
+DLP_MODE=best-effort
+GCP_PROJECT_ID=your-project-id
+```
+
+### Step 3: Enable on a Connection
+
+1. Go to **Connections** in the Web App
+2. Select a connection and click **Configure**
+3. Enable **AI Data Masking**
+4. Click **Save**
+
+### Step 4: Test It
+
+Run a query that returns sensitive data:
+
+```sql
+SELECT name, email, phone FROM customers LIMIT 5;
+```
+
+You should see masked values in the results.
+
+---
+
+## Supported Data Types
+
+AI Data Masking detects these sensitive data types by default:
+
+### Personal Information
+| Type | Example | Masked As |
+|------|---------|-----------|
+| Person Name | John Smith | [PERSON] |
+| Email Address | john@example.com | [EMAIL] |
+| Phone Number | 555-123-4567 | [PHONE] |
+| Physical Address | 123 Main St | [ADDRESS] |
+
+### Government IDs
+| Type | Example | Masked As |
+|------|---------|-----------|
+| SSN (US) | 123-45-6789 | [SSN] |
+| Passport Number | AB1234567 | [PASSPORT] |
+| Driver's License | D1234567 | [LICENSE] |
+
+### Financial Data
+| Type | Example | Masked As |
+|------|---------|-----------|
+| Credit Card | 4111-1111-1111-1111 | [CREDIT_CARD] |
+| Bank Account | 123456789012 | [BANK_ACCOUNT] |
+| IBAN | GB82WEST12345698765432 | [IBAN] |
+
+### Credentials
+| Type | Example | Masked As |
+|------|---------|-----------|
+| API Key | sk_live_abc123... | [API_KEY] |
+| Password | password123 | [PASSWORD] |
+| AWS Key | AKIA... | [AWS_KEY] |
+
+### Health Information
+| Type | Example | Masked As |
+|------|---------|-----------|
+| Medical Record | MRN-12345 | [MEDICAL_RECORD] |
+| Health Plan ID | HPL-98765 | [HEALTH_ID] |
+
+---
+
+## Configuration Options
+
+### DLP Mode
+
+| Mode | Behavior |
+|------|----------|
+| `best-effort` | Mask detected fields, continue if some fail |
+| `strict` | Block the entire result if any masking fails |
+
+**Recommendation:** Start with `best-effort` to avoid blocking legitimate queries.
+
+### Custom Fields
+
+Add or remove fields from detection. See [Supported Fields](/setup/configuration/ai-data-masking/fields) for the complete list.
+
+### Per-Connection Settings
+
+Enable or disable masking on individual connections:
+- Enable on production databases with real customer data
+- Disable on development databases with synthetic data
+
+---
+
+## Use Cases
+
+### 1. Developer Access to Production
+
+Developers need to debug production issues but shouldn't see customer PII:
+
+- Enable AI Data Masking on production connections
+- Developers can run diagnostic queries
+- Customer data is automatically protected
+
+### 2. Analytics Without Exposure
+
+Data analysts need aggregate insights but not individual records:
+
+- Masking protects individual-level PII
+- Aggregations (COUNT, SUM, AVG) work normally
+- Compliance requirements are met
+
+### 3. Support Team Access
+
+Support teams need to look up customer records:
+
+- Enable masking on support-facing connections
+- They can verify account status without seeing SSNs
+- Audit trail shows who accessed what
+
+### 4. Third-Party Contractor Access
+
+External contractors need database access:
+
+- Create a connection with masking enabled
+- Grant access to contractors
+- Sensitive data is never exposed
+
+---
+
+## Troubleshooting
+
+### Data Not Being Masked
+
+**Check:**
+1. AI Data Masking is enabled on the connection
+2. DLP provider is running and accessible
+3. Gateway environment variables are set correctly
+4. The data type is in the [supported fields list](/setup/configuration/ai-data-masking/fields)
+
+**Test the DLP provider directly:**
+```bash
+curl -X POST http://presidio-analyzer:5001/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "John Smith, SSN 123-45-6789", "language": "en"}'
+```
+
+### Too Much Data Being Masked
+
+If legitimate data is being masked incorrectly:
+
+1. Check which field type is triggering
+2. Disable that specific field type in configuration
+3. Or use [Guardrails](/learn/features/guardrails) for more precise control
+
+### Performance Impact
+
+AI Data Masking adds latency to query results:
+
+| Result Size | Typical Latency |
+|-------------|-----------------|
+| < 100 rows | 50-100ms |
+| 100-1000 rows | 100-500ms |
+| > 1000 rows | 500ms+ |
+
+**To reduce latency:**
+- Use `LIMIT` clauses in queries
+- Select only needed columns (avoid `SELECT *`)
+- Consider disabling masking for high-volume analytics
+
+---
+
+## Compliance
+
+AI Data Masking helps meet requirements for:
+
+- **GDPR** - Protect EU citizen personal data
+- **HIPAA** - Mask protected health information
+- **PCI DSS** - Redact credit card numbers
+- **SOC 2** - Demonstrate data protection controls
+- **CCPA** - Protect California consumer data
+
+<Note>
+AI Data Masking is one layer of a defense-in-depth strategy. Combine with [Access Control](/learn/features/access-control) and [Guardrails](/learn/features/guardrails) for comprehensive protection.
+</Note>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/ai-data-masking/get-started">
+    Set up Microsoft Presidio or GCP DLP
+  </Card>
+  <Card title="Supported Fields" icon="list" href="/setup/configuration/ai-data-masking/fields">
+    See all detectable data types
+  </Card>
+  <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
+    Block queries before they execute
+  </Card>
+  <Card title="Access Control" icon="lock" href="/learn/features/access-control">
+    Control who can access connections
+  </Card>
+</CardGroup>

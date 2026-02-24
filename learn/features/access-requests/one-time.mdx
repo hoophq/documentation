@@ -1,79 +1,352 @@
 ---
 title: "One-Time Access Requests"
-description: "Real-time command approval workflow for enhanced security"
+description: "Require approval for individual commands before they execute"
 ---
 
 <Frame>
   <img src="/images/learn/features/review-3.png" alt="One-Time Access Requests" />
 </Frame>
 
-One-Time Access Requests in Hoop.dev provide a powerful layer of security by enabling real-time approval of commands before they are executed. This feature ensures that potentially risky operations are properly vetted before being run on your infrastructure.
+## What You'll Accomplish
 
-## Key Features
+One-Time Access Requests require approval for each command before it executes. Unlike JIT Access Requests (which grant time-based access), One-Time requests give you command-level control:
 
-### Real-Time Approval Process
-- Instant notification of commands requiring approval
-- Detailed context for informed decision making
-- Quick approve/deny workflow
-- Command modification capabilities before approval
+- Review the exact query before it runs
+- Approve or modify commands in real-time
+- Block dangerous operations even from authorized users
+- Create an audit trail of every approved action
 
-### Integration Options
-- Slack integration for instant notifications
-- Microsoft Teams support
-- Custom webhook support
+**The key difference from JIT Access Requests:** One-Time requires approval for each command. JIT grants a time window where all commands are allowed.
+
+---
 
 ## How It Works
 
 <Steps>
-  <Step title="Command Submission">
-    User sends a command to Hoop.dev
+  <Step title="User Submits Command">
+    User runs a command through Hoop (CLI, Web App, or API)
   </Step>
-  <Step title="Policy Check">
-    System checks if command requires approval
+  <Step title="Command Held">
+    Hoop holds the command and creates an access request with status PENDING
   </Step>
-  <Step title="Approver Notification">
-    Designated approvers are notified
+  <Step title="Approvers Notified">
+    Designated approvers receive a notification (Slack, Teams, or Web App)
   </Step>
-  <Step title="Approval Process">
-    <ul>
-      <li>Multiple approvers can be required</li>
-      <li>Approver examines command and context</li>
-      <li>Can approve or deny command</li>
-    </ul>
+  <Step title="Approver Reviews">
+    Approver sees the exact command and can:
+    - **Approve** - Execute the command as-is
+    - **Reject** - Block the command
   </Step>
-  <Step title="Execution">
-    Command runs only after approval
-  </Step>
-  <Step title="Audit Trail">
-    Full approval process is logged
+  <Step title="Command Executes">
+    If approved, the command runs and results are returned to the user
   </Step>
 </Steps>
 
-## Benefits
+### What the User Sees
 
-- **Enhanced Security**: Additional verification layer for sensitive operations
-- **Risk Reduction**: Prevent accidental or malicious commands
-- **Compliance**: Meet regulatory requirements for change control
-- **Knowledge Sharing**: Junior team members learn from approvals
-- **Audit Trail**: Complete record of approval decisions
+```bash
+$ hoop exec prod-db -i "UPDATE users SET status = 'inactive' WHERE id = 123"
+⣷ Waiting for approval...
+```
+
+The command waits until an approver takes action.
+
+### What the Approver Sees
+
+In Slack (or Teams):
+
+```
+🔔 Access Request from alice@company.com
+
+Connection: prod-db
+Command: UPDATE users SET status = 'inactive' WHERE id = 123
+
+[Approve] [Reject]
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- A connection configured with an agent
+- At least one user group for approvers
+- (Optional) [Slack](/integrations/slack) or [Teams](/integrations/teams) integration
+
+### Step 1: Enable One-Time Access Requests
+
+<Steps>
+  <Step title="Navigate to Connection Settings">
+    Go to **Connections** and select your connection
+  </Step>
+  <Step title="Open Additional Configuration">
+    Click the **Additional Configuration** tab
+  </Step>
+  <Step title="Enable Access Requests">
+    Toggle on **Access Requests**
+  </Step>
+  <Step title="Select Approval Groups">
+    Choose which groups can approve commands
+  </Step>
+  <Step title="Save">
+    Click **Save** to apply changes
+  </Step>
+</Steps>
+
+### Step 2: Test the Workflow
+
+As a non-admin user, run a command:
+
+```bash
+hoop exec prod-db -i "SELECT COUNT(*) FROM users"
+```
+
+You should see:
+```
+⣷ Waiting for approval at https://use.hoop.dev/access-requests/abc123...
+```
+
+### Step 3: Approve the Command
+
+As an approver:
+
+**Option A: Via Slack**
+1. Find the notification in your Slack channel
+2. Review the command
+3. Click **Approve**
+
+**Option B: Via Web App**
+1. Go to **Access Requests** in the sidebar
+2. Find the pending request
+3. Review the command details
+4. Click **Approve** or **Reject**
+
+### Step 4: Command Executes
+
+Once approved, the user's terminal shows the results:
+
+```
+count
+-------
+ 12345
+(1 row)
+```
+
+---
+
+## Configuration Options
+
+### Approval Groups
+
+Configure which groups can approve commands:
+
+| Configuration | Behavior |
+|---------------|----------|
+| Single group (`dba-team`) | Any member of `dba-team` can approve |
+| Multiple groups (`dba-team`, `security`) | One member from **each** group must approve |
+
+### Groups Requiring Approval
+
+Configure which groups need their commands approved:
+
+| Setting | Behavior |
+|---------|----------|
+| All users | Every command requires approval |
+| Specific groups | Only commands from those groups need approval |
+| Exempt groups | Some groups (like `admin`) bypass approval |
+
+### Request Timeout
+
+Set how long to wait for approval before the request expires:
+
+| Setting | Use Case |
+|---------|----------|
+| 5 minutes | Quick ad-hoc queries |
+| 30 minutes | Standard operations |
+| 1 hour | Complex procedures |
+
+---
+
+## Use Cases
+
+### 1. Production Database Changes
+
+All write operations on production require approval:
+
+```bash
+# This will wait for approval
+hoop exec prod-db -i "UPDATE orders SET status = 'shipped' WHERE id = 123"
+```
+
+The DBA reviews the exact UPDATE statement before it runs.
+
+### 2. Dangerous Commands
+
+Block risky operations unless approved:
+
+```bash
+# This will definitely need approval
+hoop exec prod-db -i "DELETE FROM logs WHERE created_at < '2024-01-01'"
+```
+
+Security team can verify the WHERE clause is correct.
+
+### 3. Junior Developer Oversight
+
+Junior team members get their commands reviewed:
+
+- Configure juniors' group to require approval
+- Senior team members' group can approve
+- Learning opportunity for juniors to see corrections
+
+### 4. Compliance Requirements
+
+Some regulations require dual approval for data access:
+
+- Configure multiple approval groups
+- Both groups must approve before execution
+- Full audit trail for compliance reporting
+
+---
+
+## Integration Options
+
+### Slack
+
+Receive and approve commands directly in Slack:
+
+1. [Set up Slack integration](/integrations/slack)
+2. Configure notification channel
+3. Approvers click buttons to approve/reject
+
+### Microsoft Teams
+
+Same workflow in Teams:
+
+1. [Set up Teams integration](/integrations/teams)
+2. Configure webhook URL
+3. Notifications appear in your channel
+
+### Webhooks
+
+For custom integrations:
+
+1. Configure a webhook endpoint
+2. Receive POST requests for new access requests
+3. Call the API to approve/reject
+
+---
+
+## Comparison: One-Time vs JIT
+
+| Aspect | One-Time | JIT |
+|--------|----------|-----|
+| **Approval scope** | Each command | Time window |
+| **User experience** | Wait for each command | Request once, run freely |
+| **Security level** | Highest | High |
+| **Use case** | Write operations, sensitive queries | Read access, debugging sessions |
+| **Approver load** | Higher (more requests) | Lower (one per session) |
+
+### When to Use One-Time
+
+- Production write operations (UPDATE, DELETE, INSERT)
+- Sensitive data access
+- Compliance-required dual approval
+- Training/oversight scenarios
+
+### When to Use JIT
+
+- Debugging sessions (many queries)
+- Read-only access
+- On-call access
+- Time-limited elevated access
+
+---
+
+## Troubleshooting
+
+### Command Times Out
+
+If the command expires before approval:
+
+**Check:**
+1. Approvers received the notification
+2. Slack/Teams integration is working
+3. Request timeout is long enough
+
+**Solutions:**
+- Increase timeout in connection settings
+- Verify notification channel configuration
+- Add more approvers for faster response
+
+### Approver Can't See Request
+
+**Check:**
+1. Approver is in an approval group
+2. Approver has subscribed to notifications (`/hoop subscribe` in Slack)
+3. Notification channel is configured
+
+### Admin Users Bypass Approval
+
+This is expected—admin users auto-approve their own requests.
+
+**To test the full workflow:**
+- Use a non-admin test account
+- Or temporarily remove yourself from admin group
+
+### Request Shows "Rejected" But Shouldn't
+
+**Check the rejection reason:**
+1. Go to **Access Requests** in Web App
+2. Find the rejected request
+3. Click to see who rejected and why
+
+---
 
 ## Best Practices
 
-1. **Define Clear Policies**
-   - Identify high-risk commands
-   - Set appropriate approver groups
-   - Document approval criteria
+<CardGroup cols={2}>
+  <Card title="Clear Policies" icon="file-lines">
+    Document which commands need approval and why
+  </Card>
+  <Card title="Fast Approvers" icon="bolt">
+    Have approvers available during work hours
+  </Card>
+  <Card title="Backup Approvers" icon="users">
+    Configure multiple approvers for coverage
+  </Card>
+  <Card title="Reasonable Timeouts" icon="clock">
+    Set timeouts based on operational needs
+  </Card>
+</CardGroup>
 
-2. **Optimize Approval Flow**
-   - Don't require approvals for routine operations
-   - Set reasonable timeouts for approvals
-   - Have backup approvers available
+### For Approvers
 
-3. **Monitor and Adjust**
-   - Track approval patterns
-   - Adjust policies based on feedback
-   - Regular policy updates
+1. **Review carefully** - Check the exact command being run
+2. **Verify context** - Who is running it and why
+3. **Respond quickly** - Don't leave requesters waiting
+4. **Document rejections** - Explain why if you reject
 
-## Configuration
+---
 
-For detailed configuration instructions and setup guides, see [One-Time Access Requests Configuration](/setup/configuration/access-requests/one-time-configuration) guide.
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="JIT Access Requests" icon="clock" href="/learn/features/access-requests/jit">
+    Time-based access for debugging sessions
+  </Card>
+  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/access-requests/one-time-configuration">
+    Detailed configuration options
+  </Card>
+  <Card title="Slack Integration" icon="slack" href="/integrations/slack">
+    Set up Slack notifications
+  </Card>
+  <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
+    Block dangerous commands automatically
+  </Card>
+</CardGroup>
