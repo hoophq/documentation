@@ -1,44 +1,413 @@
 ---
 title: "Guardrails"
-description: "Protect your infrastructure with intelligent access controls"
+description: "Block dangerous queries before they execute with pattern-based rules"
 ---
 
 <Frame>
   <img src="/images/learn/features/guardrails.png" alt="Guardrails" />
 </Frame>
 
-Hoop.dev's Guardrails provide an intelligent layer of protection for your infrastructure by implementing smart access controls and monitoring mechanisms. These guardrails ensure that your teams can work efficiently while maintaining security best practices.
+## What You'll Accomplish
 
-## Key Features
+Guardrails let you block dangerous queries before they execute. You can:
 
-### Automated Policy Enforcement
-- Real-time monitoring and enforcement of access policies
-- Automatic detection and prevention of risky operations
-- Customizable rules based on your organization's security requirements
+- Prevent accidental `UPDATE` or `DELETE` without a `WHERE` clause
+- Block `DROP TABLE` and other destructive DDL commands
+- Enforce read-only access for specific user groups
+- Require `LIMIT` clauses on large tables
+- Block queries that access sensitive columns
 
-### Smart Command Filtering
-- Block potentially dangerous commands before execution
-- Prevent accidental data modifications or deletions
-- Custom allowlists and blocklists for commands and queries
+---
 
-### Context-Aware Access
-- Evaluate access requests based on user context
-- Consider factors like time, location, and previous activity
-- Adaptive security measures based on risk assessment
+## The Problem Guardrails Solve
 
-## Benefits
+Without guardrails, one typo can destroy production data:
 
-- **Reduced Risk**: Prevent accidental or malicious actions that could harm your infrastructure
-- **Compliance**: Maintain regulatory compliance with built-in security controls
-- **Productivity**: Allow teams to work confidently within safe boundaries
-- **Visibility**: Get clear insights into attempted policy violations and security events
+```sql
+-- Intended: Update one user's email
+UPDATE users SET email = 'new@email.com' WHERE id = 123;
 
-## Integration with Other Features
+-- Accidental: Update ALL users (forgot WHERE clause)
+UPDATE users SET email = 'new@email.com';
+-- 500,000 rows affected 💥
+```
 
-Guardrails work seamlessly with other Hoop.dev features:
-- **AI Data Masking**: Combined protection for sensitive data
-- **Session Recording**: Complete audit trail of policy enforcement
-- **Access Control**: Enhanced security through layered protection
+Guardrails catch these mistakes before they execute, showing an error instead of running the dangerous query.
 
-## Configuration
-For detailed configuration instructions see [Guardrails Configuration](/setup/configuration/guardrails-configuration) page.
+---
+
+## How Guardrails Work
+
+<Steps>
+  <Step title="Query Submitted">
+    User runs a query through Hoop (CLI, Web App, or API)
+  </Step>
+  <Step title="Rules Evaluated">
+    Each guardrail rule is checked against the query using pattern matching
+  </Step>
+  <Step title="Decision Made">
+    If a rule matches: block, warn, or require approval based on configuration
+  </Step>
+  <Step title="Result Returned">
+    User sees either the query result or an error explaining which rule was violated
+  </Step>
+</Steps>
+
+### Rule Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| **Input Rules** | Evaluate the query before execution | Block dangerous commands |
+| **Output Rules** | Evaluate results after execution | Redact sensitive data in output |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- At least one database connection configured
+- Admin access to create guardrails
+
+### Step 1: Create a Guardrail
+
+<Steps>
+  <Step title="Navigate to Guardrails">
+    Go to **Manage > Guardrails** in the Web App
+  </Step>
+  <Step title="Create New Guardrail">
+    Click **Create New Guardrail** in the top-right corner
+  </Step>
+  <Step title="Set Basic Information">
+    - **Name:** `block-unsafe-updates`
+    - **Description:** `Blocks UPDATE/DELETE without WHERE clause`
+  </Step>
+</Steps>
+
+### Step 2: Add an Input Rule
+
+In the **Input Rules** section:
+
+1. Click **Add Rule**
+2. Select **Pattern Match (Regex)**
+3. Enter the pattern:
+
+```regex
+(?i)(UPDATE|DELETE)\s+\w+\s+(SET|FROM)(?!.*WHERE)
+```
+
+4. Set **Action** to **Block**
+5. Enter the error message: `Blocked: UPDATE/DELETE requires a WHERE clause`
+
+<Note>
+The `(?i)` makes the pattern case-insensitive, so it catches `update`, `UPDATE`, and `Update`.
+</Note>
+
+### Step 3: Assign to Connections
+
+1. In the **Connections** section, select which connections this guardrail applies to
+2. Choose your production database connections
+3. Click **Save**
+
+### Step 4: Test the Guardrail
+
+Try running an unsafe query:
+
+```bash
+hoop exec prod-db -i "UPDATE users SET status = 'inactive'"
+```
+
+Expected output:
+
+```
+Error: Guardrail violation
+Rule: block-unsafe-updates
+Message: Blocked: UPDATE/DELETE requires a WHERE clause
+```
+
+Now try with a WHERE clause:
+
+```bash
+hoop exec prod-db -i "UPDATE users SET status = 'inactive' WHERE id = 123"
+```
+
+This query executes normally because it includes a WHERE clause.
+
+---
+
+## Common Guardrail Recipes
+
+### Recipe 1: Block Destructive DDL
+
+Prevent accidental schema changes in production.
+
+**Pattern:**
+```regex
+(?i)^\s*(DROP|TRUNCATE|ALTER)\s+(TABLE|DATABASE|INDEX|SCHEMA)
+```
+
+**Action:** Block
+
+**Message:** `DDL commands are blocked. Use a migration tool or request elevated access.`
+
+**What it catches:**
+- `DROP TABLE users`
+- `TRUNCATE TABLE orders`
+- `ALTER TABLE customers DROP COLUMN email`
+
+### Recipe 2: Read-Only Access
+
+Block all write operations for analyst or read-only user groups.
+
+**Patterns (create separate rules for each):**
+
+| Pattern | Blocks |
+|---------|--------|
+| `(?i)^\s*INSERT\s+INTO` | INSERT statements |
+| `(?i)^\s*UPDATE\s+` | UPDATE statements |
+| `(?i)^\s*DELETE\s+FROM` | DELETE statements |
+| `(?i)^\s*(CREATE\|DROP\|ALTER)\s+` | DDL commands |
+
+**Action:** Block
+
+**Message:** `This connection is read-only. Write operations are not permitted.`
+
+<Tip>
+Apply this guardrail only to connections used by read-only groups, not to admin connections.
+</Tip>
+
+### Recipe 3: Block SELECT * on Large Tables
+
+Prevent queries that could return millions of rows.
+
+**Pattern:**
+```regex
+(?i)SELECT\s+\*\s+FROM\s+(orders|logs|events|transactions)(?!.*LIMIT)
+```
+
+**Action:** Block
+
+**Message:** `SELECT * without LIMIT is blocked on large tables. Add a LIMIT clause or select specific columns.`
+
+**What it catches:**
+- `SELECT * FROM orders` (blocked)
+- `SELECT * FROM orders LIMIT 100` (allowed)
+- `SELECT id, status FROM orders` (allowed)
+
+### Recipe 4: Prevent Credential Access
+
+Block queries that might expose passwords or secrets.
+
+**Pattern:**
+```regex
+(?i)SELECT\s+.*\bFROM\s+\w*users\w*.*\b(password|secret|token|api_key)\b
+```
+
+**Action:** Block
+
+**Message:** `Queries selecting credential columns are blocked. Use the appropriate service to manage credentials.`
+
+### Recipe 5: Require LIMIT on All Queries
+
+Warn users when they forget to add LIMIT.
+
+**Pattern:**
+```regex
+(?i)^\s*SELECT\s+(?!.*\bLIMIT\b).*FROM
+```
+
+**Action:** Warn
+
+**Message:** `Consider adding a LIMIT clause to prevent large result sets.`
+
+<Note>
+Use **Warn** instead of **Block** when you want to educate users without stopping their work.
+</Note>
+
+### Recipe 6: Block Specific Table Access
+
+Restrict access to sensitive tables like `salaries` or `api_keys`.
+
+**Pattern:**
+```regex
+(?i)\b(FROM|JOIN|INTO|UPDATE)\s+(salaries|api_keys|credentials|secrets)\b
+```
+
+**Action:** Block
+
+**Message:** `Access to this table is restricted. Contact your administrator for access.`
+
+---
+
+## Testing Guardrails Safely
+
+<Warning>
+Always test guardrails before applying them to production connections.
+</Warning>
+
+### Testing Process
+
+<Steps>
+  <Step title="Create a Test Connection">
+    Create a separate connection to the same database (e.g., `prod-db-test`)
+  </Step>
+  <Step title="Apply the Guardrail">
+    Assign the guardrail only to the test connection
+  </Step>
+  <Step title="Run Test Queries">
+    Test both queries that should be blocked and queries that should pass
+  </Step>
+  <Step title="Verify Results">
+    Confirm the guardrail blocks what it should and allows what it should
+  </Step>
+  <Step title="Apply to Production">
+    Once verified, add production connections to the guardrail
+  </Step>
+</Steps>
+
+### Test Cases to Run
+
+For each guardrail, test:
+
+1. **Should block:** A query that matches the pattern exactly
+2. **Should allow:** A similar query that doesn't match
+3. **Edge cases:** Queries with different casing, extra whitespace, or variations
+
+---
+
+## Viewing Blocked Queries
+
+When a guardrail blocks a query, it's logged in Sessions.
+
+<Steps>
+  <Step title="Go to Sessions">
+    Navigate to **Sessions** in the sidebar
+  </Step>
+  <Step title="Filter by Status">
+    Use the filter to show only **Blocked** sessions
+  </Step>
+  <Step title="View Details">
+    Click any session to see:
+    - The query that was blocked
+    - Which guardrail rule triggered
+    - The error message shown to the user
+    - Timestamp and user information
+  </Step>
+</Steps>
+
+---
+
+## Emergency Bypass
+
+If a legitimate query is blocked and needs to run immediately:
+
+### Option 1: Temporarily Disable the Guardrail
+
+1. Go to **Manage > Guardrails**
+2. Find the blocking guardrail
+3. Toggle it to **Disabled**
+4. Run your query
+5. Re-enable the guardrail immediately after
+
+<Warning>
+Document any emergency bypass in your incident log. Re-enable the guardrail as soon as possible.
+</Warning>
+
+### Option 2: Refine the Pattern
+
+If the guardrail is catching legitimate queries, update the pattern:
+
+1. Go to **Manage > Guardrails > [guardrail name]**
+2. Edit the rule that's causing issues
+3. Refine the regex to be more specific
+4. Save and test
+
+### Option 3: Add an Exception
+
+For specific users or groups that need to bypass certain rules:
+
+1. Create a new connection without the guardrail
+2. Restrict access to that connection to specific groups
+3. Use this "elevated" connection for exceptional cases
+
+---
+
+## Troubleshooting
+
+### Guardrail Not Blocking Expected Queries
+
+**Check:**
+
+1. **Guardrail is enabled** - Verify the toggle is on in Manage > Guardrails
+2. **Connection is assigned** - Check that the connection is in the guardrail's connection list
+3. **Pattern syntax is valid** - Test your regex at [regex101.com](https://regex101.com)
+4. **Case sensitivity** - Add `(?i)` at the start for case-insensitive matching
+
+**Common pattern mistakes:**
+
+| Problem | Bad Pattern | Fixed Pattern |
+|---------|-------------|---------------|
+| Missing case-insensitive | `DROP TABLE` | `(?i)DROP TABLE` |
+| Missing word boundaries | `DELETE` | `\bDELETE\b` |
+| Anchoring too strict | `^DROP` | `^\s*DROP` (allows leading whitespace) |
+
+### False Positives (Legitimate Queries Blocked)
+
+**Problem:** Pattern is too broad
+
+**Example:**
+- Pattern: `DROP`
+- Blocks: `SELECT * FROM drop_shipped_orders` (has "DROP" in table name)
+
+**Fix:** Use word boundaries and be specific:
+```regex
+(?i)^\s*DROP\s+(TABLE|DATABASE|INDEX)
+```
+
+### Performance Impact
+
+Guardrails add minimal latency (typically 1-5ms per query). If you notice slowdowns:
+
+1. **Reduce rule count** - Combine similar rules where possible
+2. **Simplify patterns** - Complex regex with backtracking is slower
+3. **Use Input Rules** - Input rules are faster than Output rules
+
+---
+
+## Guardrails vs Other Features
+
+| Feature | Purpose | When to Use |
+|---------|---------|-------------|
+| **Guardrails** | Block queries based on patterns | Prevent dangerous operations |
+| **AI Data Masking** | Redact sensitive data in output | Protect PII in query results |
+| **Access Requests** | Require approval for access | Time-limited or command-level approval |
+| **Access Control** | Control who can access connections | Restrict connection visibility |
+
+These features work together. For example:
+- Guardrails block `DROP TABLE` commands
+- AI Data Masking redacts SSN in `SELECT` results
+- Access Requests require approval before connecting
+- Access Control limits who sees the connection
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Guardrails Configuration" icon="gear" href="/setup/configuration/guardrails-configuration">
+    Detailed configuration options and rule syntax
+  </Card>
+  <Card title="AI Data Masking" icon="mask" href="/learn/features/ai-data-masking">
+    Automatically redact sensitive data in query results
+  </Card>
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/overview">
+    Require approval for access to sensitive connections
+  </Card>
+  <Card title="Session Recording" icon="video" href="/learn/features/session-recording">
+    Audit all query executions including blocked queries
+  </Card>
+</CardGroup>
