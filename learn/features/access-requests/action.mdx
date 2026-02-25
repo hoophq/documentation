@@ -1,22 +1,22 @@
 ---
-title: "One-Time Access Requests"
+title: "Action Access Requests"
 description: "Require approval for individual commands before they execute"
 ---
 
 <Frame>
-  <img src="/images/learn/features/review-3.png" alt="One-Time Access Requests" />
+  <img src="/images/learn/features/review-3.png" alt="Action Access Requests" />
 </Frame>
 
 ## What You'll Accomplish
 
-One-Time Access Requests require approval for each command before it executes. Unlike JIT Access Requests (which grant time-based access), One-Time requests give you command-level control:
+Action Access Requests require approval for each command before it executes. Unlike JIT Access Requests (which grant time-based access), Action requests give you command-level control:
 
 - Review the exact query before it runs
 - Approve or modify commands in real-time
 - Block dangerous operations even from authorized users
 - Create an audit trail of every approved action
 
-**The key difference from JIT Access Requests:** One-Time requires approval for each command. JIT grants a time window where all commands are allowed.
+**The key difference from JIT Access Requests:** Action requires approval for each command. JIT grants a time window where all commands are allowed.
 
 ---
 
@@ -68,8 +68,6 @@ Command: UPDATE users SET status = 'inactive' WHERE id = 123
 
 ## Quick Start
 
-### Prerequisites
-
 import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
 <Prerequisites />
@@ -78,7 +76,7 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 - At least one user group for approvers
 - (Optional) [Slack](/integrations/slack) or [Teams](/integrations/teams) integration
 
-### Step 1: Enable One-Time Access Requests
+### Step 1: Enable Action Access Requests
 
 <Steps>
   <Step title="Navigate to Connection Settings">
@@ -242,9 +240,9 @@ For custom integrations:
 
 ---
 
-## Comparison: One-Time vs JIT
+## Comparison: Action vs JIT
 
-| Aspect | One-Time | JIT |
+| Aspect | Action | JIT |
 |--------|----------|-----|
 | **Approval scope** | Each command | Time window |
 | **User experience** | Wait for each command | Request once, run freely |
@@ -252,7 +250,7 @@ For custom integrations:
 | **Use case** | Write operations, sensitive queries | Read access, debugging sessions |
 | **Approver load** | Higher (more requests) | Lower (one per session) |
 
-### When to Use One-Time
+### When to Use Action
 
 - Production write operations (UPDATE, DELETE, INSERT)
 - Sensitive data access
@@ -340,7 +338,7 @@ This is expected—admin users auto-approve their own requests.
   <Card title="JIT Access Requests" icon="clock" href="/learn/features/access-requests/jit">
     Time-based access for debugging sessions
   </Card>
-  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/access-requests/one-time-configuration">
+  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/access-requests/action-configuration">
     Detailed configuration options
   </Card>
   <Card title="Slack Integration" icon="slack" href="/integrations/slack">

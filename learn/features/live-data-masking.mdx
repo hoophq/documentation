@@ -1,15 +1,15 @@
 ---
-title: "AI Data Masking"
+title: "Live Data Masking"
 description: "Automatically detect and mask sensitive data in query results without writing rules"
 ---
 
 <Frame>
-  <img src="/images/learn/features/ai-data-masking.png" alt="AI Data Masking" />
+  <img src="/images/learn/features/ai-data-masking.png" alt="Live Data Masking" />
 </Frame>
 
 ## What You'll Accomplish
 
-AI Data Masking automatically detects and redacts sensitive data in your query results. Unlike traditional DLP solutions that require complex rule configuration, Hoop's AI-powered masking works out of the box:
+Live Data Masking automatically detects and redacts sensitive data in your query results. Unlike traditional DLP solutions that require complex rule configuration, Hoop's data masking works out of the box:
 
 - Automatically detect PII (names, emails, phone numbers, SSNs)
 - Mask credit card numbers and financial data
@@ -46,7 +46,7 @@ AI Data Masking automatically detects and redacts sensitive data in your query r
 | Jane Doe     | jane@company.org   | 987-65-4321 | 555-987-6543 |
 ```
 
-**With AI Data Masking enabled:**
+**With Live Data Masking enabled:**
 ```
 | name         | email              | ssn         | phone        |
 |--------------|--------------------| ------------|--------------|
@@ -57,8 +57,6 @@ AI Data Masking automatically detects and redacts sensitive data in your query r
 ---
 
 ## Quick Start
-
-### Prerequisites
 
 import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
@@ -79,7 +77,7 @@ Choose and deploy one of the supported providers:
   </Card>
 </CardGroup>
 
-See [AI Data Masking Configuration](/setup/configuration/ai-data-masking/get-started) for detailed setup instructions.
+See [Live Data Masking Configuration](/setup/configuration/live-data-masking/get-started) for detailed setup instructions.
 
 ### Step 2: Configure the Gateway
 
@@ -104,7 +102,7 @@ GCP_PROJECT_ID=your-project-id
 
 1. Go to **Connections** in the Web App
 2. Select a connection and click **Configure**
-3. Enable **AI Data Masking**
+3. Enable **Live Data Masking**
 4. Click **Save**
 
 ### Step 4: Test It
@@ -121,7 +119,7 @@ You should see masked values in the results.
 
 ## Supported Data Types
 
-AI Data Masking detects these sensitive data types by default:
+Live Data Masking detects these sensitive data types by default:
 
 ### Personal Information
 | Type | Example | Masked As |
@@ -173,7 +171,7 @@ AI Data Masking detects these sensitive data types by default:
 
 ### Custom Fields
 
-Add or remove fields from detection. See [Supported Fields](/setup/configuration/ai-data-masking/fields) for the complete list.
+Add or remove fields from detection. See [Supported Fields](/setup/configuration/live-data-masking/fields) for the complete list.
 
 ### Per-Connection Settings
 
@@ -189,7 +187,7 @@ Enable or disable masking on individual connections:
 
 Developers need to debug production issues but shouldn't see customer PII:
 
-- Enable AI Data Masking on production connections
+- Enable Live Data Masking on production connections
 - Developers can run diagnostic queries
 - Customer data is automatically protected
 
@@ -224,10 +222,10 @@ External contractors need database access:
 ### Data Not Being Masked
 
 **Check:**
-1. AI Data Masking is enabled on the connection
+1. Live Data Masking is enabled on the connection
 2. DLP provider is running and accessible
 3. Gateway environment variables are set correctly
-4. The data type is in the [supported fields list](/setup/configuration/ai-data-masking/fields)
+4. The data type is in the [supported fields list](/setup/configuration/live-data-masking/fields)
 
 **Test the DLP provider directly:**
 ```bash
@@ -246,7 +244,7 @@ If legitimate data is being masked incorrectly:
 
 ### Performance Impact
 
-AI Data Masking adds latency to query results:
+Live Data Masking adds latency to query results:
 
 | Result Size | Typical Latency |
 |-------------|-----------------|
@@ -263,7 +261,7 @@ AI Data Masking adds latency to query results:
 
 ## Compliance
 
-AI Data Masking helps meet requirements for:
+Live Data Masking helps meet requirements for:
 
 - **GDPR** - Protect EU citizen personal data
 - **HIPAA** - Mask protected health information
@@ -272,7 +270,7 @@ AI Data Masking helps meet requirements for:
 - **CCPA** - Protect California consumer data
 
 <Note>
-AI Data Masking is one layer of a defense-in-depth strategy. Combine with [Access Control](/learn/features/access-control) and [Guardrails](/learn/features/guardrails) for comprehensive protection.
+Live Data Masking is one layer of a defense-in-depth strategy. Combine with [Access Control](/learn/features/access-control) and [Guardrails](/learn/features/guardrails) for comprehensive protection.
 </Note>
 
 ---
@@ -280,10 +278,10 @@ AI Data Masking is one layer of a defense-in-depth strategy. Combine with [Acces
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/ai-data-masking/get-started">
+  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/live-data-masking/get-started">
     Set up Microsoft Presidio or GCP DLP
   </Card>
-  <Card title="Supported Fields" icon="list" href="/setup/configuration/ai-data-masking/fields">
+  <Card title="Supported Fields" icon="list" href="/setup/configuration/live-data-masking/fields">
     See all detectable data types
   </Card>
   <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">

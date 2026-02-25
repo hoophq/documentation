@@ -64,8 +64,6 @@ Guardrails catch these mistakes before they execute, showing an error instead of
 
 ## Quick Start
 
-### Prerequisites
-
 import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
 <Prerequisites />
@@ -383,13 +381,13 @@ Guardrails add minimal latency (typically 1-5ms per query). If you notice slowdo
 | Feature | Purpose | When to Use |
 |---------|---------|-------------|
 | **Guardrails** | Block queries based on patterns | Prevent dangerous operations |
-| **AI Data Masking** | Redact sensitive data in output | Protect PII in query results |
+| **Live Data Masking** | Redact sensitive data in output | Protect PII in query results |
 | **Access Requests** | Require approval for access | Time-limited or command-level approval |
 | **Access Control** | Control who can access connections | Restrict connection visibility |
 
 These features work together. For example:
 - Guardrails block `DROP TABLE` commands
-- AI Data Masking redacts SSN in `SELECT` results
+- Live Data Masking redacts SSN in `SELECT` results
 - Access Requests require approval before connecting
 - Access Control limits who sees the connection
 
@@ -401,10 +399,10 @@ These features work together. For example:
   <Card title="Guardrails Configuration" icon="gear" href="/setup/configuration/guardrails-configuration">
     Detailed configuration options and rule syntax
   </Card>
-  <Card title="AI Data Masking" icon="mask" href="/learn/features/ai-data-masking">
+  <Card title="Live Data Masking" icon="mask" href="/learn/features/live-data-masking">
     Automatically redact sensitive data in query results
   </Card>
-  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/overview">
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
     Require approval for access to sensitive connections
   </Card>
   <Card title="Session Recording" icon="video" href="/learn/features/session-recording">

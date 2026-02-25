@@ -141,7 +141,7 @@ Access Control and Access Requests work together:
 |----------------|-----------------|--------|
 | Allowed | Not enabled | Direct access |
 | Allowed | JIT enabled | Must request time-based access |
-| Allowed | One-Time enabled | Each command needs approval |
+| Allowed | Action enabled | Each command needs approval |
 | Not allowed | Any | Connection not visible |
 
 ---
@@ -199,7 +199,7 @@ Limited access for external contractors:
 ```
 Connection: contractor-db
   Allowed Groups: contractors
-  (Limited database, AI Data Masking enabled)
+  (Limited database, Live Data Masking enabled)
 ```
 
 ---
@@ -314,7 +314,7 @@ hoop admin get connection <name>
 
 This is likely NOT an Access Control issue. Check:
 
-1. **Access Requests:** Is JIT or One-Time approval required?
+1. **Access Requests:** Is JIT or Action approval required?
 2. **Guardrails:** Are there blocking rules?
 3. **Connection status:** Is the agent online?
 
@@ -378,7 +378,7 @@ This is likely NOT an Access Control issue. Check:
   <Card title="Identity Providers" icon="id-card" href="/setup/configuration/idp/get-started">
     Configure SSO and group sync
   </Card>
-  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/overview">
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
     Add approval workflows
   </Card>
   <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">

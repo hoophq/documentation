@@ -1,17 +1,17 @@
 ---
-title: "One-Time Access Requests Configuration"
+title: "Action Access Requests Configuration"
 description: "Configure command-level approval workflows for your connections"
 ---
 
-One-Time Access Requests require approval for each command before it executes. This page covers detailed configuration options.
+Action Access Requests require approval for each command before it executes. This page covers detailed configuration options.
 
 <Note>
-For an introduction to One-Time Access Requests, see [One-Time Access Requests Overview](/learn/features/access-requests/one-time).
+For an introduction to Action Access Requests, see [Action Access Requests Overview](/learn/features/access-requests/action).
 </Note>
 
 ---
 
-## Enabling One-Time Access Requests
+## Enabling Action Access Requests
 
 ### Via Web App
 
@@ -38,7 +38,7 @@ For an introduction to One-Time Access Requests, see [One-Time Access Requests O
 
 ### Via CLI
 
-Enable One-Time Access Requests when creating a connection:
+Enable Action Access Requests when creating a connection:
 
 ```bash
 hoop admin create connection prod-db \
@@ -209,16 +209,16 @@ hoop admin create connection pii-database \
 
 ## Combining with Other Features
 
-### One-Time + Guardrails
+### Action + Guardrails
 
 Use both for defense in depth:
 
 - **Guardrails:** Automatically block obviously dangerous commands
-- **One-Time:** Require approval for everything else
+- **Action:** Require approval for everything else
 
 Example: Guardrails block `DROP TABLE`, but `DELETE` still requires approval.
 
-### One-Time + AI Data Masking
+### Action + Live Data Masking
 
 Even approved queries show masked results:
 
@@ -226,11 +226,11 @@ Even approved queries show masked results:
 - User sees masked results after execution
 - PII is protected even from approved queries
 
-### One-Time + Access Control
+### Action + Access Control
 
-Access Control determines visibility; One-Time adds approval:
+Access Control determines visibility; Action adds approval:
 
-| Access Control | One-Time | Result |
+| Access Control | Action | Result |
 |----------------|----------|--------|
 | Not allowed | Any | Connection not visible |
 | Allowed | Disabled | Direct execution |
@@ -328,7 +328,7 @@ Restart the gateway after changing.
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="One-Time Access Requests" icon="terminal" href="/learn/features/access-requests/one-time">
+  <Card title="Action Access Requests" icon="terminal" href="/learn/features/access-requests/action">
     Feature overview and use cases
   </Card>
   <Card title="JIT Access Requests" icon="clock" href="/setup/configuration/access-requests/jit-configuration">

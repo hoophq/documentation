@@ -46,8 +46,6 @@ Runbooks let you create reusable templates for common operations. Instead of typ
 
 ## Quick Start
 
-### Prerequisites
-
 import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
 <Prerequisites />
@@ -302,7 +300,7 @@ Files must end with `.runbook.<extension>`:
 |---------|---------------------------|
 | **Access Requests** | Runbook execution can require approval |
 | **Guardrails** | Rules apply to runbook-generated queries |
-| **AI Data Masking** | Results are masked automatically |
+| **Live Data Masking** | Results are masked automatically |
 | **Session Recording** | All executions are recorded |
 | **Parallel Mode** | Run runbooks across multiple connections |
 
@@ -367,7 +365,7 @@ If a parameter fails validation:
   <Card title="Parallel Mode" icon="layer-group" href="/learn/features/parallel-mode">
     Run runbooks across multiple connections
   </Card>
-  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/overview">
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
     Require approval for runbook execution
   </Card>
   <Card title="Session Recording" icon="video" href="/learn/features/session-recording">

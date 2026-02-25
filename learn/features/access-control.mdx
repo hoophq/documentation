@@ -50,8 +50,6 @@ Access Control uses **groups** to manage permissions. Users belong to groups, an
 
 ## Quick Start
 
-### Prerequisites
-
 import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
 <Prerequisites />
@@ -201,7 +199,7 @@ Access Control works with other Hoop security features:
 |---------|-------------------|
 | **Access Requests** | Users in allowed groups can request access; others can't |
 | **Guardrails** | Allowed users still subject to query restrictions |
-| **AI Data Masking** | Allowed users see masked data |
+| **Live Data Masking** | Allowed users see masked data |
 | **Session Recording** | All access is audited regardless of permissions |
 
 ### Example: Layered Security
@@ -211,7 +209,7 @@ For a production database:
 1. **Access Control:** Only `senior-engineers` can see the connection
 2. **Access Requests:** Require JIT approval before connecting
 3. **Guardrails:** Block `DROP TABLE` and `DELETE` without WHERE
-4. **AI Data Masking:** Redact PII in query results
+4. **Live Data Masking:** Redact PII in query results
 5. **Session Recording:** Log all queries for audit
 
 ---
@@ -234,7 +232,7 @@ For a production database:
 ### User Sees Connection But Can't Connect
 
 This is likely an Access Request or Guardrail issue, not Access Control. Check:
-1. Is JIT or One-Time Access Request enabled?
+1. Is JIT or Action Access Request enabled?
 2. Are there Guardrails blocking the connection?
 
 ### Groups Not Syncing from IdP
@@ -283,7 +281,7 @@ Quarterly, review:
   <Card title="Identity Providers" icon="id-card" href="/setup/configuration/idp/get-started">
     Set up SSO and group sync
   </Card>
-  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/overview">
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
     Add approval workflows
   </Card>
   <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
