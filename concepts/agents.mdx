@@ -3,18 +3,17 @@ title: "Agents"
 description: "The agent links your private infrastructure to Hoop, acting as a proxy between your network and the central gateway."
 ---
 
-The agent connects to a central gateway and exposes services within its network scope. It can be installed on any Unix system and requires an authentication key (`HOOP_KEY`). It operates in two modes: as a standalone process (standard) or alongside a running application (embedded).
+The agent connects to a central gateway and exposes services within its network scope. It can be installed on any Unix system and requires an authentication key (`HOOP_KEY`).
 
 ## Deploying the Agent
 
-Each deployment method below requires a `HOOP_KEY`. Generate one with:
+Each deployment method below requires a `HOOP_KEY`. Generate one in the web app under **Agents**, or via the [API](/api-reference). It looks like:
 
-```bash
-hoop admin create agent <name>
-# grpcs://<name>:xagt-<key>@<your-gateway>:8443?mode=standard
+```
+grpcs://<name>:xagt-<key>@<your-gateway>:8443?mode=standard
 ```
 
-Supply the resulting value as the `HOOP_KEY` in your chosen method below.
+Supply this value as the `HOOP_KEY` in your chosen method below.
 
 ### Docker Compose
 
@@ -109,53 +108,4 @@ hoop agent remove
 - If you rotate credentials, run `hoop agent stop` then `hoop agent start` to reload them.
 </Note>
 
-## Authentication Keys
-
-Each agent authenticates using a key in DSN format. Keys can be revoked at any time, disconnecting all resources associated with them.
-
-```
-<scheme>://<name>:<auth-key>@<host>:<port>?mode=<agent-mode>
-```
-
-| Field | Description |
-|---|---|
-| `scheme` | Protocol: `grpc` or `grpcs` (TLS) |
-| `name` | Name of the authentication key |
-| `auth-key` | The authentication secret |
-| `host` | Hostname or IP of the gateway |
-| `port` | Port to connect to |
-| `mode` | Execution mode: `standard` or `embedded` |
-
-```
-grpcs://prod:xagt-<key>@your-gateway.hoop.dev:8443?mode=standard
-```
-
-> We recommend naming keys after the environment or network context — for example: `aws-prod`, `aws-us-east-1`, `production`.
-
----
-
-## Key Management
-
-### Agent Keys
-
-Agent keys are managed via the hoop CLI and are only used with the `hoop agent start` command.
-
-```bash
-# Create
-hoop admin create agent homolog
-
-# List
-hoop admin get agents
-
-# Revoke
-hoop admin delete agent homolog
-```
-
-`hoop admin get agents` output:
-
-```
-UID            NAME      MODE       VERSION   HOSTNAME       PLATFORM      STATUS
-22ab1d2f-...   default   standard   unknown   5601881aa15e   linux/arm64   ONLINE
-7850eb2d-...   homolog   standard   -         -              -             -
-```
 
