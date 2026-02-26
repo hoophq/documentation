@@ -1,0 +1,97 @@
+id: git
+name: Git
+description: Access git servers securely through Hoop using SSH. This integration enables secure git operations, repository management, and git server resource access through the Hoop proxy with complete audit trails and access controls. Works with GitHub, GitLab, Gitea, Forgejo, and any SSH-based git server.
+category: infrastructure-access
+icon-name: git
+tags:
+  - git
+  - scm
+  - security
+  - cli
+overview:
+  description: Access git servers securely through Hoop using SSH. This integration enables secure git operations, repository management, and git server resource access through the Hoop proxy with complete audit trails and access controls. Works with GitHub, GitLab, Gitea, Forgejo, and any SSH-based git server.
+setupGuide:
+  accessMethods:
+    webapp: false
+    cli: true
+    native: true
+    runbooks: false
+resourceConfiguration:
+  type: application
+  subtype: git
+  credentials:
+    - name: HOST
+      type: env-var
+      required: true
+      description: The git server SSH host address (e.g., github.com, gitlab.com, gitea.example.com)
+      placeholder: github.com
+    - name: USER
+      type: env-var
+      required: true
+      description: The git server SSH user (typically 'git' for most servers)
+      placeholder: git
+    - name: AUTHORIZED_SERVER_KEYS
+      type: env-var
+      required: true
+      description: The private SSH key for authenticating with the git server. Must be registered with your git server account.
+      placeholder: Enter your git server SSH private key
+documentationConfig:
+  path: quickstart/cloud-services/git
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: false
+  audit:
+    native: true
+    oneOff: false
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: false
+    oneOff: false
+  guardrails:
+    native: false
+    oneOff: true
+  credentialsOffload:
+    native: true
+    oneOff: false
+  interactiveAccess:
+    native: true
+    oneOff: false
+additionalInformation: |
+  ## SSH Key Setup
+
+  To access git servers through Hoop, you need an SSH key registered with your git server account. This works with GitHub, GitLab, Gitea, Forgejo, and any SSH-based git server.
+
+  ### Generate SSH Key (if you don't have one)
+
+  ```sh
+  ssh-keygen -t rsa -b 4096 -f ~/.ssh/git_key -N ""
+  ```
+
+  ### Register Key with Your Git Server
+
+  **GitHub:**
+  - Go to GitHub Settings → SSH and GPG keys → New SSH key
+  - Paste your public key
+  - Give it a name (e.g., "Git Access")
+  - Click "Add SSH key"
+
+  **GitLab:**
+  - Go to GitLab Settings → SSH Keys
+  - Paste your public key
+  - Set expiration date if needed
+  - Click "Add key"
+
+  **Gitea/Forgejo:**
+  - Go to Settings → SSH/GPG Keys
+  - Click "Add Key"
+  - Paste your public key
+
+  ### Display Your Public Key
+
+  ```sh
+  cat ~/.ssh/git_key.pub
+  ```
+

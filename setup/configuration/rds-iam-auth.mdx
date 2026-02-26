@@ -23,10 +23,10 @@ With this authentication method, you don't need to use a password when you conne
      - Follow the steps in the [AWS Documentation](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html) to enable IAM authentication for your RDS instance.
      - Make sure your AWS has the policy for [IAM database access](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.IAMPolicy.html)
      For example, the policy below allows the user db-user to connect to the database cluster-ABCDEFGHIJKL01234 using IAM authentication.
-     
+
 ```json
 {
-    "Version":"2012-10-17",		 	 	 
+    "Version":"2012-10-17",
     "Statement": [
         {
             "Effect": "Allow",
@@ -47,13 +47,13 @@ With this authentication method, you don't need to use a password when you conne
 
      - [Creating a database account using IAM authentication for PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.PostgreSQL).
      ```sql
-CREATE USER db_user; 
+CREATE USER db_user;
 GRANT rds_iam TO db_user;
      ```
      - [If you are using MySQL need create the user](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.PostgreSQL).
      ```sql
-CREATE USER 'db_user' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; 
-ALTER USER 'db_user'@'%' REQUIRE SSL;     
+CREATE USER 'db_user' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';
+ALTER USER 'db_user'@'%' REQUIRE SSL;
      ```
      <Info>
      You need to grant the role `rds_iam` to the user to be able to connect using IAM authentication.
@@ -65,11 +65,11 @@ ALTER USER 'db_user'@'%' REQUIRE SSL;
      For AWS MySQL RDS you can follow the steps in the [AWS Documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html#UsingWithRDS.IAMDBAuth.DBAccounts.MySQL).
      </Note>
 
-    
+
   </Step>
   <Step title="Configure the Role on your agent">
-      <p> 
-        Make sure your agent has the AWS credentials configured or can assume an AWS role that can use the policy created previously 
+      <p>
+        Make sure your agent has the AWS credentials configured or can assume an AWS role that can use the policy created previously
         to be able to generate the auth token.
       </p>
       <p >
@@ -89,7 +89,7 @@ ALTER USER 'db_user'@'%' REQUIRE SSL;
 
 
       </p>
-      <p> 
+      <p>
         If the agent runs in Kubernetes on EKS, then the best practice is to use IRSA (IAM Roles for Service Accounts).
         The trust policy for the EKS cluster OIDC provider is shown below.
         The code example may need to be adjusted to fit your specific setup.
@@ -151,7 +151,6 @@ ALTER USER 'db_user'@'%' REQUIRE SSL;
   <Step title="Testing">
   <p>
     - You can run the query on webapp.
-    - You can run `hoop connect <rolename>` and use your preferred SQL client to connect to the database.
     - You can create a native connection on the webapp.
   </p>
 
@@ -159,7 +158,7 @@ ALTER USER 'db_user'@'%' REQUIRE SSL;
 </Steps>
 
 <Note>
- Make sure your agent has the AWS credentials configured or can assume an AWS role that can use the policy created previously 
+ Make sure your agent has the AWS credentials configured or can assume an AWS role that can use the policy created previously
  to be able to generate the auth token.
 
 </Note>

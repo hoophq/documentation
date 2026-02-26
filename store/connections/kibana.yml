@@ -23,7 +23,7 @@ setupGuide:
     native: true
     runbooks: false
 resourceConfiguration:
-  type: application
+  type: httpproxy
   subtype: kibana
   credentials:
     - name: REMOTE_URL
@@ -39,14 +39,14 @@ features:
     native: true
     oneOff: false
   dataMaskingGoogleDLP:
-    native: true
+    native: false
     oneOff: false
   dataMaskingMSPresidio:
     native: true
     oneOff: false
   guardrails:
     native: false
-    oneOff: true
+    oneOff: false
   credentialsOffload:
     native: true
     oneOff: false

@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Hoop.dev - the only access gateway with data masking",
+  "name": "Hoop.dev - Automated Access and Data Protection",
   "colors": {
     "primary": "#111928",
     "light": "#E5E7EB",

@@ -588,6 +588,67 @@
       }
     },
     {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "description": "Proxy Claude Code to ensure sensitive data won’t leak.",
+      "category": "ai-and-llms",
+      "icon-name": "claude",
+      "tags": [
+        "ai",
+        "llm",
+        "security",
+        "proxy"
+      ],
+      "overview": {
+        "description": "Claude Code has never been safer. Use all Hoop features in front of Claude Code and gain the safety of ensuring sensitive data won’t be leaked to LLMs. Create Guardrails and Data Masking rules on top of a centralized API Key and distribute it to everyone in your organization through Hoop."
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": false,
+          "cli": false,
+          "native": true,
+          "runbooks": false
+        }
+      },
+      "resourceConfiguration": {
+        "type": "httpproxy",
+        "subtype": "claude-code"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": true,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": true,
+          "oneOff": false
+        },
+        "guardrails": {
+          "native": false,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/ai-and-llms/claude-code"
+      }
+    },
+    {
       "id": "clojure",
       "name": "Clojure",
       "description": "A dynamic, general-purpose programming language that combines interactive development with efficient infrastructure for multithreaded programming.",
@@ -869,6 +930,175 @@
       }
     },
     {
+      "id": "git",
+      "name": "Git",
+      "description": "Access git servers securely through Hoop using SSH. This integration enables secure git operations, repository management, and git server resource access through the Hoop proxy with complete audit trails and access controls. Works with GitHub, GitLab, Gitea, Forgejo, and any SSH-based git server.",
+      "category": "infrastructure-access",
+      "icon-name": "git",
+      "tags": [
+        "git",
+        "scm",
+        "security",
+        "cli"
+      ],
+      "overview": {
+        "description": "Access git servers securely through Hoop using SSH. This integration enables secure git operations, repository management, and git server resource access through the Hoop proxy with complete audit trails and access controls. Works with GitHub, GitLab, Gitea, Forgejo, and any SSH-based git server."
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": false,
+          "cli": true,
+          "native": true,
+          "runbooks": false
+        }
+      },
+      "resourceConfiguration": {
+        "type": "application",
+        "subtype": "git",
+        "credentials": [
+          {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The git server SSH host address (e.g., github.com, gitlab.com, gitea.example.com)",
+            "placeholder": "github.com"
+          },
+          {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The git server SSH user (typically 'git' for most servers)",
+            "placeholder": "git"
+          },
+          {
+            "name": "AUTHORIZED_SERVER_KEYS",
+            "type": "env-var",
+            "required": true,
+            "description": "The private SSH key for authenticating with the git server. Must be registered with your git server account.",
+            "placeholder": "Enter your git server SSH private key"
+          }
+        ]
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/git"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": true,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": false
+        }
+      }
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "description": "Access GitHub resources securely through Hoop using SSH. This integration enables secure git operations, repository management, and GitHub resource access through the Hoop proxy with complete audit trails and access controls.",
+      "category": "infrastructure-access",
+      "icon-name": "github",
+      "tags": [
+        "git",
+        "github",
+        "scm",
+        "security",
+        "cli"
+      ],
+      "overview": {
+        "description": "Access GitHub resources securely through Hoop using SSH. This integration enables secure git operations, repository management, and GitHub resource access through the Hoop proxy with complete audit trails and access controls."
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": false,
+          "cli": true,
+          "native": true,
+          "runbooks": false
+        }
+      },
+      "resourceConfiguration": {
+        "type": "application",
+        "subtype": "github",
+        "credentials": [
+          {
+            "name": "HOST",
+            "type": "env-var",
+            "required": true,
+            "description": "The GitHub SSH host address",
+            "placeholder": "github.com"
+          },
+          {
+            "name": "USER",
+            "type": "env-var",
+            "required": true,
+            "description": "The GitHub SSH user (typically 'git')",
+            "placeholder": "git"
+          },
+          {
+            "name": "AUTHORIZED_SERVER_KEYS",
+            "type": "env-var",
+            "required": true,
+            "description": "The private SSH key for authenticating with GitHub. Must be registered with your GitHub account.",
+            "placeholder": "Enter your GitHub SSH private key"
+          }
+        ]
+      },
+      "documentationConfig": {
+        "path": "quickstart/cloud-services/github"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": true,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": false,
+          "oneOff": false
+        },
+        "guardrails": {
+          "native": false,
+          "oneOff": true
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": true,
+          "oneOff": false
+        }
+      }
+    },
+    {
       "id": "grafana",
       "name": "Grafana",
       "description": "Access your Grafana monitoring and visualization platform securely through Hoop.dev with comprehensive audit trails, session recording, and intelligent traffic monitoring.",
@@ -891,7 +1121,7 @@
         }
       },
       "resourceConfiguration": {
-        "type": "application",
+        "type": "httpproxy",
         "subtype": "grafana",
         "credentials": [
           {
@@ -913,7 +1143,7 @@
           "oneOff": false
         },
         "dataMaskingGoogleDLP": {
-          "native": true,
+          "native": false,
           "oneOff": false
         },
         "dataMaskingMSPresidio": {
@@ -922,7 +1152,7 @@
         },
         "guardrails": {
           "native": false,
-          "oneOff": true
+          "oneOff": false
         },
         "credentialsOffload": {
           "native": true,
@@ -957,7 +1187,7 @@
           "oneOff": false
         },
         "dataMaskingGoogleDLP": {
-          "native": true,
+          "native": false,
           "oneOff": false
         },
         "dataMaskingMSPresidio": {
@@ -966,7 +1196,7 @@
         },
         "guardrails": {
           "native": false,
-          "oneOff": true
+          "oneOff": false
         },
         "credentialsOffload": {
           "native": true,
@@ -989,8 +1219,8 @@
         }
       },
       "resourceConfiguration": {
-        "type": "web-application",
-        "subtype": "http-proxy",
+        "type": "httpproxy",
+        "subtype": "web-application",
         "credentials": [
           {
             "name": "REMOTE_URL",
@@ -1029,7 +1259,7 @@
         }
       },
       "resourceConfiguration": {
-        "type": "application",
+        "type": "httpproxy",
         "subtype": "kibana",
         "credentials": [
           {
@@ -1051,7 +1281,7 @@
           "oneOff": false
         },
         "dataMaskingGoogleDLP": {
-          "native": true,
+          "native": false,
           "oneOff": false
         },
         "dataMaskingMSPresidio": {
@@ -1060,7 +1290,7 @@
         },
         "guardrails": {
           "native": false,
-          "oneOff": true
+          "oneOff": false
         },
         "credentialsOffload": {
           "native": true,

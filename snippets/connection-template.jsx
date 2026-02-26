@@ -31,7 +31,7 @@ export const ConnectionTemplate = ({ config }) => {
         <li>You must be your account administrator to perform the following commands</li>
       </ul>
 
-      {finalConfig.requirements && 
+      {finalConfig.requirements &&
         <>
           <h2>Requirements</h2>
           <p>{finalConfig.requirements.description}</p>
@@ -44,9 +44,9 @@ export const ConnectionTemplate = ({ config }) => {
 
       <h2>Features</h2>
       <p>The table below outlines the features available for this type of connection.</p>
-      
+
       <ul>
-        <li><strong>Native</strong> - Indicates the connectivity happens through the Hoop command line  (<code>hoop connect &lt;connection-name&gt;</code>) or acessing the protocol port directly on the gateway.</li>
+        <li><strong>Native</strong> - Accessible via a native connection using hoop as proxy protocol to the resource.
         <li><strong>One Off</strong> - This term refers to accessing the resource from Hoop Web Console.</li>
       </ul>
 
@@ -105,7 +105,7 @@ export const ConnectionTemplate = ({ config }) => {
         </tbody>
       </table>
 
-      {finalConfig.resourceConfiguration?.credentials && 
+      {finalConfig.resourceConfiguration?.credentials &&
       <>
       <h2>Configuration</h2>
       <table>
@@ -121,7 +121,7 @@ export const ConnectionTemplate = ({ config }) => {
           {Object.entries(finalConfig.resourceConfiguration.credentials).map(([key, credential]) => {
             // Skip non-credential fields like 'config'
             if (typeof credential === 'string' || credential.hidden) return null;
-            
+
             return (
               <tr key={key}>
                 <td>{credential.name}</td>
