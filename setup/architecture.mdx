@@ -72,7 +72,7 @@ When a user connects to a resource, the following happens:
 
 1. **Authentication** — the user authenticates via your identity provider (OIDC, SAML, or local auth). The gateway verifies the token and loads the user's identity and group membership.
 
-2. **Authorization** — the gateway checks whether the user has access to the requested connection, based on access control rules and the connection's configured access mode (`exec`, `connect`, or `runbooks`).
+2. **Authorization** — the gateway checks whether the user has access to the requested connection, based on access control rules and the connection's configured access mode
 
 3. **Policy evaluation** — before the session begins, the gateway runs the request through an ordered plugin chain:
    - **Reviews** — if JIT approval is required, the session is held until approved

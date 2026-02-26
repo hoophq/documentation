@@ -92,16 +92,6 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 ## Setup
 
 <Tabs>
-  <Tab title="CLI">
-    Create the connection, pointing it at your internal service:
-
-    ```bash
-    hoop admin create connection my-api \
-      -a default \
-      -t application/httpproxy \
-      -e REMOTE_URL=https://internal-api.example.com
-    ```
-  </Tab>
   <Tab title="Web App">
     1. In the web app, navigate to **Connections** and click **New Connection**
     2. Select **HTTP Proxy** as the connection type
@@ -157,26 +147,30 @@ The session expires automatically when the time limit is reached, and the token 
 
 Use `HEADER_*` environment variables to inject headers into every proxied request. This is useful for credential offloading — the client never holds the API key directly.
 
-```bash
-hoop admin create connection my-api \
-  -a default \
-  -t application/httpproxy \
-  -e REMOTE_URL=https://internal-api.example.com \
-  -e HEADER_AUTHORIZATION="Bearer <token>" \
-  -e HEADER_X_API_KEY="<api-key>"
+Add them to the connection's `secret` object using the same `"envvar:KEY": "<base64-value>"` pattern as `REMOTE_URL`:
+
+```json
+"secret": {
+  "envvar:REMOTE_URL": "<base64-encoded-url>",
+  "envvar:HEADER_AUTHORIZATION": "<base64-encoded-bearer-token>",
+  "envvar:HEADER_X_API_KEY": "<base64-encoded-api-key>"
+}
 ```
+
+You can add as many `HEADER_*` variables as needed. Each becomes a header on every proxied request.
 
 ## Self-Signed Certificates
 
-For services with self-signed or internal CA certificates, set `INSECURE=true` to skip TLS verification:
+For services with self-signed or internal CA certificates, set `INSECURE=true` to skip TLS verification. Add it to the connection's `secret` object alongside `REMOTE_URL`:
 
-```bash
-hoop admin create connection my-api \
-  -a default \
-  -t application/httpproxy \
-  -e REMOTE_URL=https://internal-api.example.com \
-  -e INSECURE=true
+```json
+"secret": {
+  "envvar:REMOTE_URL": "<base64-encoded-url>",
+  "envvar:INSECURE": "dHJ1ZQ=="
+}
 ```
+
+(`dHJ1ZQ==` is the base64 encoding of `true`.)
 
 ## WebSocket Support
 

@@ -109,36 +109,6 @@ hoop agent remove
 - If you rotate credentials, run `hoop agent stop` then `hoop agent start` to reload them.
 </Note>
 
-<Warning>
-Creating an agent through `hoop admin` doesn't generate a usable token for `hoop run`. Obtain that token by creating a new connection in the web app instead.
-</Warning>
-
-## Embedded Mode
-
-Embedded mode runs the agent alongside a running application, sharing its runtime context. Use this mode when you want to:
-
-- Execute ad-hoc tasks (rake tasks, django-admin, elixir mix tasks)
-- Interactive console access
-- Access REPL language environments (rails console, elixir, clojure, etc)
-- Connect a single resource like a database
-
-Obtain the key from the web app when creating a connection, then run:
-
-```bash
-hoop run -- YOUR_COMMAND --YOUR_FLAGS
-```
-
-To run the agent alongside your main application, use `--command` to specify the resource and pass your main process after the `--` delimiter:
-
-```bash
-hoop run --command 'rails console' -- \
-  bundle exec rails s -p 3000 -b '0.0.0.0'
-```
-
-<Note>
-stdout and stderr are linked to your main application and the agent.
-</Note>
-
 ## Authentication Keys
 
 Each agent authenticates using a key in DSN format. Keys can be revoked at any time, disconnecting all resources associated with them.
@@ -189,25 +159,3 @@ UID            NAME      MODE       VERSION   HOSTNAME       PLATFORM      STATU
 7850eb2d-...   homolog   standard   -         -              -             -
 ```
 
-<Note>
-To obtain a valid token for `hoop run`, navigate to the web application and create a connection. This will display the correct key.
-</Note>
-
-### Organization Keys
-
-An organization key connects multiple agents using a single key. It only works with `hoop run`, and one key is available per organization (self-provisioned by default).
-
-```bash
-# Get
-hoop admin get orgkeys
-
-# Create
-hoop admin create orgkeys
-
-# Revoke
-hoop admin delete orgkeys
-```
-
-<Warning>
-Revoking the organization key will disconnect all agents using it.
-</Warning>

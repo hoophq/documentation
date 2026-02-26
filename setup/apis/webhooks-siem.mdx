@@ -22,14 +22,7 @@ Place hook scripts in a `hoop-hooks/` directory in your runbooks repository. Hoo
 
 ### Enabling Hooks
 
-Add `GIT_HOOK_CONFIG_TTL` when configuring the runbooks plugin. This activates hook support and sets how long (in seconds) the configuration is cached between git fetches.
-
-```sh
-hoop admin create plugin runbooks --overwrite \
-  -c GIT_URL=git@github.com:your-org/your-repo.git \
-  -c GIT_SSH_KEY=file://$HOME/.ssh/your_key \
-  -c GIT_HOOK_CONFIG_TTL=120
-```
+Set `GIT_HOOK_CONFIG_TTL` in your runbooks plugin configuration. This activates hook support and controls how long (in seconds) the configuration is cached between git fetches. See the [Runbooks configuration guide](/setup/configuration/runbooks-configuration) for full setup instructions.
 
 <Tip>
   Use a higher TTL if your hook scripts change infrequently — this reduces the number of requests to your git server.
@@ -136,7 +129,7 @@ hoop admin webhooks-dashboard
   The dashboard is only available with Svix SaaS and can only be opened by administrators.
 </Info>
 
-To view activity, interact with any connection. The **Message Logs** link shows `hoop connect` events.
+To view activity, interact with any connection. The **Message Logs** link shows all connection events.
 
 <Frame>
   <img src="/images/learn/webhooks-1.png" />
