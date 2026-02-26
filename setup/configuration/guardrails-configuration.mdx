@@ -1,6 +1,6 @@
 ---
 title: "Guardrails Configuration"
-description: "Create and manage custom rules to protect and guide usage within your connections"
+description: "Create and manage pattern-based rules to block dangerous queries"
 ---
 
 <Frame>
@@ -15,164 +15,301 @@ description: "Create and manage custom rules to protect and guide usage within y
   />
 </Frame>
 
-Guardrails allow you to create custom rules that protect and guide how your connections are used. These rules can be applied to specific connections or serve as default policies across your organization.
+Guardrails use pattern matching to evaluate queries and block dangerous operations before they execute. This page covers configuration options and rule syntax.
 
-## Setup
+<Note>
+For an introduction to what Guardrails do and common use cases, see [Guardrails Overview](/learn/features/guardrails).
+</Note>
 
-This service currently supports Microsoft Presidio for configuring Guardrails rules.
-
-<Steps>
-  <Step title="Install">
-    Check the Microsoft Presidio documentation to install it.
-
-    <CardGroup cols={2}>
-      <Card title="Microsoft Presidio Docker Installation" icon="docker" href="https://microsoft.github.io/presidio/installation/#docker-installation">
-        Visit the Microsoft Presidio documentation to install it using Docker.
-      </Card>
-      <Card title="Microsoft Presidio Kubernetes Installation" icon="dharmachakra" href="https://microsoft.github.io/presidio/samples/deployments/k8s/">
-        Visit the Microsoft Presidio documentation to install it using Kubernetes.
-      </Card>
-    </CardGroup>
-  </Step>
-  <Step title="Set up">
-    Set the new environment variables in hoop.dev's Gateway with the following values:
-
-    | Environment variable key    | Value                       |
-    | --------------------------- | --------------------------- |
-    | `DLP_PROVIDER`              | mspresidio                  |
-    | `DLP_MODE`                  | `best-effort` or `strict`   |
-    | `MSPRESIDIO_ANALYZER_URL`   | `<host-to-analyzer:port>`   |
-    | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
-  </Step>
-  <Step title="Run hoop.dev's Gateway with the new configs">
-    After setting up the environment variables, hoop.dev will use Microsoft Presidio to mask sensitive data in real-time in the data stream of any connection you configure.
-  </Step>
-</Steps>
+---
 
 ## Creating a Guardrail
 
 <Steps>
-  <Step title="Access Guardrails">
-    Navigate to the Guardrails section from the sidebar menu
+  <Step title="Navigate to Guardrails">
+    Go to **Manage > Guardrails** in the sidebar
   </Step>
-  <Step title="Create New">
-    Click the "Create a new Guardrail" button in the top-right corner
+  <Step title="Create New Guardrail">
+    Click **Create New Guardrail** in the top-right corner
   </Step>
   <Step title="Set Basic Information">
-    Provide:
-
-    - Name for the guardrail
-    - Description (Optional) explaining its purpose
+    - **Name:** A short identifier (e.g., `block-ddl`, `read-only-mode`)
+    - **Description:** Explain what this guardrail protects against
   </Step>
-  <Step title="Configure Rules">
-    Provide:
-
-    - Input Rules
-    - Output Rules
+  <Step title="Add Rules">
+    Configure Input Rules and/or Output Rules (see below)
+  </Step>
+  <Step title="Assign Connections">
+    Select which connections this guardrail applies to
+  </Step>
+  <Step title="Save">
+    Click **Save** to activate the guardrail
   </Step>
 </Steps>
 
-## Configuring Rules
+---
+
+## Rule Configuration
 
 ### Input Rules
 
-Rules that evaluate incoming commands or queries:
+Input rules evaluate queries **before** they execute. Use these to block dangerous commands.
 
-- **Pattern Matching**: Define patterns to match specific commands or queries
-- **Conditions**: Set conditions that trigger the rule
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Pattern** | Regex pattern to match | `(?i)DROP\s+TABLE` |
+| **Action** | What to do when pattern matches | Block, Warn, Require Approval |
+| **Message** | Error message shown to user | `DDL commands are blocked` |
 
 ### Output Rules
 
-Rules that control or modify the output of commands:
+Output rules evaluate query results **after** execution. Use these to filter or redact output.
 
-- **Information Control**: Control what information can be returned
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Pattern** | Regex pattern to match in output | `\b\d{3}-\d{2}-\d{4}\b` (SSN) |
+| **Action** | What to do when pattern matches | Redact, Block, Warn |
+| **Replacement** | Text to replace matches with | `[REDACTED]` |
 
-## Rule Types
+<Note>
+For data masking that automatically detects PII, see [Live Data Masking](/learn/features/live-data-masking) instead.
+</Note>
 
-<AccordionGroup>
-  <Accordion title="Pattern Rules">
-    Create rules based on command or query patterns:
+---
 
-    - Regular expressions
-    - Exact matches
-    - Wildcard patterns
-  </Accordion>
-  <Accordion title="Security Rules">
-    Enforce security policies:
+## Pattern Syntax
 
-    - Block dangerous commands
-    - Require additional approvals
-    - Limit access to sensitive data
-  </Accordion>
-  <Accordion title="Compliance Rules">
-    Ensure compliance requirements:
+Guardrails use **regular expressions** (regex) for pattern matching. Here are the most useful patterns:
 
-    - Data access restrictions
-    - Audit logging requirements
-    - Regulatory compliance rules
-  </Accordion>
-</AccordionGroup>
+### Basic Syntax
 
-## Applying Guardrails
+| Syntax | Meaning | Example |
+|--------|---------|---------|
+| `(?i)` | Case-insensitive | `(?i)drop` matches `DROP`, `Drop`, `drop` |
+| `\s+` | One or more whitespace | `DROP\s+TABLE` matches `DROP TABLE` |
+| `\s*` | Zero or more whitespace | `DROP\s*TABLE` matches `DROPTABLE` too |
+| `\b` | Word boundary | `\bDROP\b` won't match `BACKDROP` |
+| `^` | Start of string | `^SELECT` only matches SELECT at start |
+| `$` | End of string | `;\s*$` matches trailing semicolon |
+| `.*` | Any characters | `SELECT.*FROM` matches anything between |
+| `(?!...)` | Negative lookahead | `(?!.*WHERE)` means "not followed by WHERE" |
 
-### Connection Assignment
+### Common Patterns
 
-<Steps>
-  <Step title="Select Connections">
-    Choose which connections will use the guardrail
-  </Step>
-  <Step title="Set Priority">
-    Define the order of rule evaluation when multiple guardrails apply
-  </Step>
-  <Step title="Configure Behavior">
-    Specify how rules should be enforced:
+**Block UPDATE without WHERE:**
+```regex
+(?i)^\s*UPDATE\s+\w+\s+SET\s+(?!.*WHERE)
+```
 
-    - Block non-compliant actions
-    - Warn users
-    - Require approval
-  </Step>
-</Steps>
+**Block DELETE without WHERE:**
+```regex
+(?i)^\s*DELETE\s+FROM\s+\w+(?!.*WHERE)
+```
+
+**Block all DDL:**
+```regex
+(?i)^\s*(DROP|CREATE|ALTER|TRUNCATE)\s+(TABLE|DATABASE|INDEX|SCHEMA|VIEW)
+```
+
+**Block SELECT * on specific tables:**
+```regex
+(?i)SELECT\s+\*\s+FROM\s+(users|orders|transactions)
+```
+
+**Require LIMIT clause:**
+```regex
+(?i)SELECT\s+(?!.*\bLIMIT\b).*FROM
+```
+
+### Testing Patterns
+
+Before deploying a pattern, test it at [regex101.com](https://regex101.com):
+
+1. Select **Flavor: ECMAScript** (JavaScript)
+2. Paste your pattern in the **Regular Expression** field
+3. Enter test queries in the **Test String** field
+4. Verify matches highlight correctly
+
+---
+
+## Actions
+
+### Block
+
+Prevents the query from executing and returns an error.
+
+**Use when:** The operation should never be allowed (e.g., `DROP TABLE` in production)
+
+**User sees:**
+```
+Error: Guardrail violation
+Rule: block-ddl
+Message: DDL commands are blocked in production
+```
+
+### Warn
+
+Allows the query but shows a warning message.
+
+**Use when:** You want to educate users without blocking work (e.g., missing LIMIT)
+
+**User sees:**
+```
+Warning: Consider adding a LIMIT clause to prevent large result sets
+Query executed successfully.
+```
+
+### Require Approval
+
+Blocks the query until an approver approves it.
+
+**Use when:** Some queries need human review before execution (e.g., bulk updates)
+
+**User sees:**
+```
+This query requires approval.
+Waiting for approval at https://use.hoop.dev/access-requests/abc123...
+```
+
+<Note>
+Require Approval uses the same workflow as [Action Access Requests](/learn/features/access-requests/action).
+</Note>
+
+---
+
+## Connection Assignment
+
+Each guardrail can be assigned to multiple connections. You can also have multiple guardrails on a single connection.
+
+### Assignment Options
+
+| Option | Description |
+|--------|-------------|
+| **Specific connections** | Select individual connections from the list |
+| **All connections** | Apply to every connection in your organization |
+| **Connection tags** | Apply to connections matching specific tags |
+
+### Evaluation Order
+
+When multiple guardrails apply to a connection, they are evaluated in order of priority:
+
+1. **Priority 1** (highest) evaluated first
+2. First matching rule determines the action
+3. If no rules match, query is allowed
+
+To set priority:
+1. Go to **Manage > Guardrails**
+2. Drag guardrails to reorder them
+3. Higher position = higher priority
+
+---
+
+## Environment Variables
+
+These environment variables affect guardrails behavior on the gateway:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GUARDRAILS_ENABLED` | Enable/disable guardrails globally | `true` |
+| `GUARDRAILS_LOG_LEVEL` | Logging verbosity (`debug`, `info`, `warn`) | `info` |
+
+---
+
+## Monitoring Guardrails
+
+### Viewing Blocked Queries
+
+1. Go to **Sessions** in the sidebar
+2. Filter by **Status: Blocked**
+3. Click a session to see details
+
+Each blocked session shows:
+- The query that was blocked
+- Which guardrail and rule triggered
+- The error message
+- User and timestamp
+
+### Audit Log
+
+All guardrail evaluations are logged:
+
+- **Blocked queries** - Logged with full query text
+- **Warnings** - Logged with warning message
+- **Approval requests** - Logged with request status
+
+Access audit logs in **Sessions** or export via the API.
+
+---
 
 ## Best Practices
 
 <CardGroup cols={2}>
-  <Card title="Start Simple" icon="list-check">
-    Begin with basic rules and expand as needed
+  <Card title="Start with Warn" icon="triangle-exclamation">
+    Use Warn mode first to understand impact before blocking
   </Card>
-  <Card title="Test Rules" icon="vial">
-    Validate rules in a test environment first
+  <Card title="Test in Dev First" icon="flask">
+    Apply guardrails to test connections before production
   </Card>
-  <Card title="Document Purpose" icon="file-lines">
-    Clearly describe what each rule does
+  <Card title="Be Specific" icon="crosshairs">
+    Use precise patterns to avoid false positives
   </Card>
-  <Card title="Regular Review" icon="rotate">
-    Periodically review and update rules
+  <Card title="Document Rules" icon="file-lines">
+    Write clear descriptions explaining why each rule exists
   </Card>
 </CardGroup>
 
-{/* ## Monitoring and Management
+### Pattern Guidelines
 
-### Rule Analytics
-Monitor the effectiveness of your guardrails:
-- Rule trigger frequency
-- Blocked actions
-- User impact
-- Performance metrics
+1. **Always use `(?i)`** for case-insensitive matching
+2. **Use `\b` for word boundaries** to avoid partial matches
+3. **Use `^\s*`** to allow leading whitespace
+4. **Test edge cases** like multi-line queries and comments
+5. **Keep patterns simple** - complex regex is hard to maintain
 
-### Maintenance
-Keep your guardrails effective and current:
-- Review and update rules regularly
-- Remove outdated rules
-- Adjust based on security needs
-- Monitor for false positives */}
+---
 
-## Learn More
+## Troubleshooting
+
+### Pattern Not Matching
+
+**Check:**
+1. Test the pattern at [regex101.com](https://regex101.com) with the exact query
+2. Verify case sensitivity (add `(?i)` if needed)
+3. Check for leading/trailing whitespace in the query
+
+### Too Many False Positives
+
+**Fix:**
+1. Make the pattern more specific
+2. Add word boundaries (`\b`)
+3. Use negative lookahead for exceptions
+
+**Example:** Pattern `DROP` blocks `DROP_SHIPPED_ITEMS` table name
+
+**Fix:** `(?i)^\s*DROP\s+(TABLE|DATABASE)` only matches DDL commands
+
+### Performance Issues
+
+If queries are slow:
+1. Reduce the number of rules per connection
+2. Simplify complex regex patterns
+3. Avoid patterns with excessive backtracking (e.g., `.*.*.*`)
+
+---
+
+## Related
 
 <CardGroup cols={2}>
-  <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">
-    Learn about access control configuration
+  <Card title="Guardrails Overview" icon="shield" href="/learn/features/guardrails">
+    Learn what guardrails do and see common recipes
   </Card>
-  <Card title="Command Reviews" icon="shield-check" href="/setup/configuration/reviews/command-reviews-configuration">
-    Configure command review workflows
+  <Card title="Live Data Masking" icon="mask" href="/setup/configuration/live-data-masking/get-started">
+    Configure automatic PII detection and masking
+  </Card>
+  <Card title="Action Access Requests" icon="clock" href="/setup/configuration/access-requests/action-configuration">
+    Configure the "Require Approval" action
+  </Card>
+  <Card title="Access Control" icon="lock" href="/setup/configuration/access-control-configuration">
+    Control who can access which connections
   </Card>
 </CardGroup>

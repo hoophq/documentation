@@ -1,72 +1,374 @@
 ---
 title: "Runbooks"
-description: "Automate operational tasks with reusable, auditable templates"
+description: "Create reusable, parameterized templates for common operations"
 ---
 
 <Frame>
   <img src="/images/learn/features/runbooks.png" alt="Runbooks" />
 </Frame>
 
-Hoop.dev's Runbooks enable your organization to automate operational tasks using reusable, version-controlled templates. By leveraging templates sourced from your own git repositories, teams can execute complex workflows with consistency, auditability, and minimal manual intervention.
+## What You'll Accomplish
 
-## Key Features
+Runbooks let you create reusable templates for common operations. Instead of typing the same queries or commands repeatedly, you can:
 
-### Template-Driven Automation
-- Create and manage runbook templates in your own git repositories
-- Standardize operational tasks across teams and environments
-- Version control for all automation logic
+- Create parameterized templates stored in Git
+- Share approved procedures across your team
+- Enforce input validation and safe defaults
+- Maintain an audit trail of every execution
 
-### Dynamic Input Handling
-- Define required and optional parameters for each runbook
-- Input validation and descriptions for guided execution
-- Support for default values and type enforcement
+---
 
-### Secure, Auditable Execution
-- Runbooks execute against secure connection runtimes
-- Full audit trail of every runbook execution
-- Integrates with access controls and session recording for compliance
+## How It Works
 
-## Benefits
+<Steps>
+  <Step title="Create Template">
+    Write a runbook template with placeholders for parameters
+  </Step>
+  <Step title="Store in Git">
+    Commit the template to your Git repository
+  </Step>
+  <Step title="Configure Hoop">
+    Point Hoop to your repository
+  </Step>
+  <Step title="Execute">
+    Users select the runbook, fill in parameters, and run
+  </Step>
+</Steps>
 
-- **Reduced Manual Effort**: Automate repetitive or complex tasks, freeing up valuable engineering time
-- **Consistency**: Ensure tasks are performed the same way every time, reducing human error
-- **Compliance**: Maintain a clear record of what was run, by whom, and with what parameters
-- **Visibility**: Gain insights into runbook usage and execution history
+### Example Workflow
+
+1. **DBA creates** a runbook for looking up customer data
+2. **Template stored** in `runbooks/customer-lookup.runbook.sql`
+3. **Support team** selects the runbook, enters customer ID
+4. **Query executes** with proper validation and audit logging
+
+---
+
+## Quick Start
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- A Git repository for storing runbooks
+- Git access credentials (SSH key or token)
+
+### Step 1: Create a Runbook File
+
+Create a file in your repository with the `.runbook.<ext>` extension:
+
+**`runbooks/customer-lookup.runbook.sql`**
+```sql
+SELECT customer_id, name, email, created_at
+FROM customers
+WHERE customer_id = {{ .customer_id
+    | description "Customer ID to look up"
+    | required "Customer ID is required"
+    | type "number" }}
+```
+
+### Step 2: Configure Git Integration
+
+In the Web App:
+1. Go to **Manage > Runbooks**
+2. Click **Configure Repository**
+3. Enter your repository URL and credentials
+
+Or via CLI:
+```bash
+hoop admin create plugin runbooks \
+  -c GIT_URL=git@github.com:your-org/runbooks.git \
+  -c GIT_SSH_KEY=file://$HOME/.ssh/deploy_key
+```
+
+### Step 3: Run the Runbook
+
+1. Go to **Runbooks** in the sidebar
+2. Select `customer-lookup`
+3. Enter the customer ID
+4. Click **Execute**
+
+---
+
+## Template Syntax
+
+Runbooks use Go's `text/template` syntax. Parameters are defined with `{{ .parameter_name }}`.
+
+### Basic Parameter
+
+```sql
+SELECT * FROM orders WHERE id = {{ .order_id }}
+```
+
+### Parameter with Validation
+
+```sql
+SELECT * FROM users
+WHERE email = {{ .email
+    | description "User email address"
+    | required "Email is required"
+    | pattern "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$" }}
+```
+
+### Parameter Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `description` | Help text for the input | `description "Customer ID"` |
+| `required` | Error message if empty | `required "This field is required"` |
+| `default` | Default value if not provided | `default "US"` |
+| `type` | Input type for UI | `type "number"` |
+| `pattern` | Regex validation | `pattern "^[0-9]+$"` |
+| `options` | Dropdown options | `options "active" "inactive"` |
+| `squote` | Wrap value in single quotes | `squote` |
+| `dquote` | Wrap value in double quotes | `dquote` |
+
+### Input Types
+
+| Type | UI Behavior |
+|------|-------------|
+| `text` | Standard text input |
+| `number` | Numeric input |
+| `email` | Email validation |
+| `date` | Date picker |
+| `time` | Time picker |
+| `select` | Dropdown (use with `options`) |
+
+---
+
+## Example Runbooks
+
+### SQL: Customer Lookup
+
+```sql
+-- runbooks/sql/customer-lookup.runbook.sql
+SELECT
+    customer_id,
+    name,
+    email,
+    status,
+    created_at
+FROM customers
+WHERE customer_id = {{ .customer_id
+    | description "Customer ID"
+    | required "Customer ID is required"
+    | type "number"
+    | squote }}
+```
+
+### SQL: Update Order Status
+
+```sql
+-- runbooks/sql/update-order-status.runbook.sql
+UPDATE orders
+SET
+    status = {{ .new_status
+        | description "New order status"
+        | type "select"
+        | options "pending" "processing" "shipped" "delivered"
+        | required "Status is required"
+        | squote }},
+    updated_at = NOW()
+WHERE order_id = {{ .order_id
+    | description "Order ID to update"
+    | required "Order ID is required"
+    | type "number" }}
+```
+
+### Bash: Service Restart
+
+```bash
+# runbooks/ops/restart-service.runbook.sh
+#!/bin/bash
+SERVICE_NAME={{ .service
+    | description "Service to restart"
+    | type "select"
+    | options "nginx" "postgres" "redis" "myapp"
+    | required "Service name is required" }}
+
+echo "Restarting $SERVICE_NAME..."
+sudo systemctl restart $SERVICE_NAME
+sudo systemctl status $SERVICE_NAME
+```
+
+### Python: Data Export
+
+```python
+# runbooks/data/export-report.runbook.py
+# {{ .start_date | description "Start date (YYYY-MM-DD)" | required "Start date required" | asenv "START_DATE" }}
+# {{ .end_date | description "End date (YYYY-MM-DD)" | required "End date required" | asenv "END_DATE" }}
+# {{ .format | description "Export format" | type "select" | options "csv" "json" | default "csv" | asenv "FORMAT" }}
+
+import os
+import pandas as pd
+
+start = os.environ['START_DATE']
+end = os.environ['END_DATE']
+fmt = os.environ['FORMAT']
+
+# Your export logic here
+print(f"Exporting data from {start} to {end} as {fmt}")
+```
+
+### Kubernetes: Scale Deployment
+
+```bash
+# runbooks/k8s/scale-deployment.runbook.sh
+# {{ .namespace | description "Kubernetes namespace" | default "default" | asenv "NAMESPACE" }}
+# {{ .deployment | description "Deployment name" | required "Deployment required" | asenv "DEPLOYMENT" }}
+# {{ .replicas | description "Number of replicas" | type "number" | required "Replicas required" | asenv "REPLICAS" }}
+
+kubectl scale deployment/$DEPLOYMENT \
+    --replicas=$REPLICAS \
+    --namespace=$NAMESPACE
+
+kubectl rollout status deployment/$DEPLOYMENT --namespace=$NAMESPACE
+```
+
+---
+
+## Security Features
+
+### Input Validation
+
+Use `pattern` to prevent injection attacks:
+
+```sql
+-- Safe: Only allows numeric IDs
+WHERE id = {{ .id | pattern "^[0-9]+$" }}
+
+-- Unsafe: Allows any input (SQL injection risk)
+WHERE id = {{ .id }}
+```
+
+### Environment Variables
+
+Use `asenv` to pass values as environment variables instead of inline:
+
+```bash
+# {{ .password | asenv "DB_PASSWORD" }}
+psql -h localhost -U admin -c "SELECT 1"
+# Password passed via PGPASSWORD, not visible in command
+```
+
+### Quoting
+
+Use `squote` or `dquote` to properly quote string values:
+
+```sql
+WHERE name = {{ .name | squote }}
+-- Produces: WHERE name = 'John'
+```
+
+---
+
+## File Organization
+
+Recommended repository structure:
+
+```
+runbooks/
+├── sql/
+│   ├── customer-lookup.runbook.sql
+│   ├── order-update.runbook.sql
+│   └── report-generation.runbook.sql
+├── ops/
+│   ├── restart-service.runbook.sh
+│   ├── check-logs.runbook.sh
+│   └── deploy.runbook.sh
+├── k8s/
+│   ├── scale-deployment.runbook.sh
+│   └── rollback.runbook.sh
+└── data/
+    ├── export-report.runbook.py
+    └── cleanup-old-data.runbook.sql
+```
+
+### Naming Convention
+
+Files must end with `.runbook.<extension>`:
+- `.runbook.sql` - SQL queries
+- `.runbook.sh` - Bash scripts
+- `.runbook.py` - Python scripts
+- `.runbook.rb` - Ruby scripts
+
+---
 
 ## Integration with Other Features
 
-Runbooks work seamlessly with other Hoop.dev features:
-- **Session Recording**: Every runbook execution can be recorded for full auditability
-- **Access Control**: Restrict who can run or modify runbooks based on roles and permissions
-- **Guardrails**: Enforce policies and prevent risky operations within runbook executions
+| Feature | How It Works with Runbooks |
+|---------|---------------------------|
+| **Access Requests** | Runbook execution can require approval |
+| **Guardrails** | Rules apply to runbook-generated queries |
+| **Live Data Masking** | Results are masked automatically |
+| **Session Recording** | All executions are recorded |
+| **Parallel Mode** | Run runbooks across multiple connections |
 
-## Example
+---
 
-```sql
-SELECT customerid, firstname, lastname, gender, country, phone, email, income
-FROM customers
-WHERE customerid = {{ .customer_id
-                    | description "the id of the customer"
-                    | required "customer_id is required"
-                    | type "number"
-                    | squote }}
-AND country = {{ .country
-                | type "text"
-                | description "the country code US; BR, etc"
-                | default "US"
-                | squote }}
+## Troubleshooting
+
+### Runbook Not Appearing
+
+**Check:**
+1. File ends with `.runbook.<ext>`
+2. Git repository is configured correctly
+3. Hoop can access the repository (check credentials)
+4. Run `hoop admin get runbooks` to verify sync
+
+### Template Parsing Error
+
+**Check:**
+1. All `{{ }}` brackets are balanced
+2. Function names are spelled correctly
+3. Pipes `|` are used correctly
+
+**Test locally:**
+```bash
+hoop runbooks lint path/to/your.runbook.sql
 ```
 
-The runbook above generates two inputs:
-- customer_id
-    - input-type: number
-    - required: true
-    - description: the id of the customer
-- country
-    - input-type: text
-    - required: false
-    - default-value: US
-    - description: the country code US; BR, etc
+### Parameter Validation Failing
 
-## Configuration
-For detailed configuration instructions see [Runbooks Configuration](/setup/configuration/runbooks-configuration) page.
+If a parameter fails validation:
+1. Check the `pattern` regex is correct
+2. Test the regex at [regex101.com](https://regex101.com)
+3. Ensure `required` values are provided
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Inputs" icon="shield-check">
+    Always use `pattern` for user inputs to prevent injection
+  </Card>
+  <Card title="Add Descriptions" icon="comment">
+    Every parameter should have a clear description
+  </Card>
+  <Card title="Set Defaults" icon="sliders">
+    Provide sensible defaults where appropriate
+  </Card>
+  <Card title="Version Control" icon="code-branch">
+    Store runbooks in Git for history and review
+  </Card>
+</CardGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/runbooks-configuration">
+    Detailed Git setup and template syntax
+  </Card>
+  <Card title="Parallel Mode" icon="layer-group" href="/learn/features/parallel-mode">
+    Run runbooks across multiple connections
+  </Card>
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
+    Require approval for runbook execution
+  </Card>
+  <Card title="Session Recording" icon="video" href="/learn/features/session-recording">
+    Audit runbook executions
+  </Card>
+</CardGroup>

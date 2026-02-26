@@ -1,0 +1,343 @@
+---
+title: "Action Access Requests Configuration"
+description: "Configure command-level approval workflows for your connections"
+---
+
+Action Access Requests require approval for each command before it executes. This page covers detailed configuration options.
+
+<Note>
+For an introduction to Action Access Requests, see [Action Access Requests Overview](/learn/features/access-requests/action).
+</Note>
+
+---
+
+## Enabling Action Access Requests
+
+### Via Web App
+
+<Steps>
+  <Step title="Navigate to Connection">
+    Go to **Connections** and select the connection you want to configure
+  </Step>
+  <Step title="Open Configuration">
+    Click the **Additional Configuration** tab
+  </Step>
+  <Step title="Enable Access Requests">
+    Toggle on **Access Requests**
+  </Step>
+  <Step title="Configure Approvers">
+    Select which groups can approve commands:
+    - Click **Add Group**
+    - Select one or more groups
+    - Groups members will receive approval notifications
+  </Step>
+  <Step title="Save">
+    Click **Save** to apply the configuration
+  </Step>
+</Steps>
+
+### Via CLI
+
+Enable Action Access Requests when creating a connection:
+
+```bash
+hoop admin create connection prod-db \
+  --agent default \
+  --reviewers 'dba-team,security' \
+  -- psql -h localhost -U postgres mydb
+```
+
+The `--reviewers` flag specifies which groups can approve commands.
+
+**Add reviewers to an existing connection:**
+
+```bash
+hoop admin create connection prod-db \
+  --overwrite \
+  --reviewers 'dba-team,security'
+```
+
+---
+
+## Approval Group Configuration
+
+### Single Approver Group
+
+When one group is configured, any member of that group can approve:
+
+```bash
+--reviewers 'dba-team'
+```
+
+**Behavior:** Any member of `dba-team` can approve or reject.
+
+### Multiple Approver Groups
+
+When multiple groups are configured, **all groups must approve**:
+
+```bash
+--reviewers 'dba-team,security-team'
+```
+
+**Behavior:**
+- Request requires 1 approval from `dba-team` AND 1 approval from `security-team`
+- Either group can reject the request
+- Request stays pending until all groups approve
+
+### Exempt Groups
+
+Admin users automatically approve their own requests. To test the full workflow, use a non-admin account.
+
+---
+
+## Timeout Configuration
+
+Set how long to wait for approval before the request expires.
+
+### Gateway Environment Variable
+
+```bash
+REVIEW_TIMEOUT_SEC=3600  # 1 hour (default)
+```
+
+Common values:
+
+| Value | Duration | Use Case |
+|-------|----------|----------|
+| `300` | 5 minutes | Quick ad-hoc queries |
+| `1800` | 30 minutes | Standard operations |
+| `3600` | 1 hour | Complex procedures |
+| `7200` | 2 hours | Long approval chains |
+
+### What Happens on Timeout
+
+When a request times out:
+- Status changes to **EXPIRED**
+- User sees a timeout error
+- Command is not executed
+- User must resubmit the command
+
+---
+
+## Notification Configuration
+
+### Slack Integration
+
+To receive and approve requests in Slack:
+
+1. [Configure the Slack integration](/integrations/slack)
+2. Enable the `slack` plugin on your connection:
+
+```bash
+hoop admin create connection prod-db \
+  --agent default \
+  --reviewers 'dba-team' \
+  --plugin slack \
+  -- psql -h localhost -U postgres
+```
+
+3. Approvers subscribe with `/hoop subscribe` in Slack
+4. Access requests appear as interactive messages with Approve/Reject buttons
+
+### Microsoft Teams Integration
+
+To receive notifications in Teams:
+
+1. [Configure the Teams integration](/integrations/teams)
+2. Enable the `webhooks` plugin
+3. Notifications are sent to the configured Teams channel
+
+### Custom Webhooks
+
+For custom integrations:
+
+1. Configure webhook endpoint in **Integrations > Webhooks**
+2. Receive POST requests for new access requests
+3. Call the API to approve/reject:
+
+```bash
+# Approve
+curl -X PUT https://use.hoop.dev/api/reviews/{id}/approve \
+  -H "Authorization: Bearer $HOOP_API_KEY"
+
+# Reject
+curl -X PUT https://use.hoop.dev/api/reviews/{id}/reject \
+  -H "Authorization: Bearer $HOOP_API_KEY"
+```
+
+---
+
+## Common Configurations
+
+### Production Database - DBA Approval
+
+Only DBAs can approve production database commands:
+
+```bash
+hoop admin create connection prod-db \
+  --agent default \
+  --reviewers 'dba-team' \
+  --plugin slack \
+  -- psql -h prod-db.internal -U app_user proddb
+```
+
+### Sensitive Operations - Dual Approval
+
+Require both DBA and Security approval:
+
+```bash
+hoop admin create connection sensitive-system \
+  --agent default \
+  --reviewers 'dba-team,security-team' \
+  --plugin slack \
+  -- psql -h sensitive.internal -U admin
+```
+
+### Read-Only with Approval
+
+Approval for read access to sensitive data:
+
+```bash
+hoop admin create connection pii-database \
+  --agent default \
+  --reviewers 'privacy-team' \
+  --plugin slack \
+  -- psql -h pii-db.internal -U readonly_user piidb
+```
+
+---
+
+## Combining with Other Features
+
+### Action + Guardrails
+
+Use both for defense in depth:
+
+- **Guardrails:** Automatically block obviously dangerous commands
+- **Action:** Require approval for everything else
+
+Example: Guardrails block `DROP TABLE`, but `DELETE` still requires approval.
+
+### Action + Live Data Masking
+
+Even approved queries show masked results:
+
+- Approver sees the command being run
+- User sees masked results after execution
+- PII is protected even from approved queries
+
+### Action + Access Control
+
+Access Control determines visibility; Action adds approval:
+
+| Access Control | Action | Result |
+|----------------|----------|--------|
+| Not allowed | Any | Connection not visible |
+| Allowed | Disabled | Direct execution |
+| Allowed | Enabled | Each command needs approval |
+
+---
+
+## Monitoring Access Requests
+
+### Viewing Pending Requests
+
+**Web App:**
+1. Go to **Access Requests** in the sidebar
+2. Filter by **Status: Pending**
+3. Click any request to see details
+
+**CLI:**
+```bash
+hoop admin get reviews --status pending
+```
+
+### Access Request Analytics
+
+Track approval patterns:
+
+| Metric | How to Find |
+|--------|-------------|
+| Average approval time | **Access Requests** > Export > Calculate |
+| Approval rate | Count approved vs rejected |
+| Top requesters | Group by user |
+| Common commands | Group by command pattern |
+
+### Audit Trail
+
+Every access request is logged with:
+- Who requested
+- What command
+- Who approved/rejected
+- When each action occurred
+- Full command output (if approved)
+
+---
+
+## Troubleshooting
+
+### Notifications Not Arriving
+
+**Check Slack:**
+1. Slack app is installed correctly
+2. Connection has `slack` plugin enabled
+3. Approver has run `/hoop subscribe`
+4. Notification channel is configured
+
+**Check Teams:**
+1. Webhook URL is valid
+2. `webhooks` plugin is enabled
+3. Teams channel allows incoming webhooks
+
+### Requests Auto-Approved
+
+Admin users auto-approve their own requests. This is expected behavior.
+
+**To test the full workflow:**
+- Use a non-admin test account
+- Or create a connection where the admin is NOT in the approvers group
+
+### Request Times Out Too Quickly
+
+Increase the timeout:
+
+```bash
+# On the gateway
+REVIEW_TIMEOUT_SEC=7200  # 2 hours
+```
+
+Restart the gateway after changing.
+
+### Can't Find Pending Request
+
+**Check:**
+1. Request hasn't already expired
+2. You're looking at the correct connection
+3. Filter is set to show **Pending** status
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REVIEW_TIMEOUT_SEC` | Seconds before request expires | `3600` |
+
+---
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Action Access Requests" icon="terminal" href="/learn/features/access-requests/action">
+    Feature overview and use cases
+  </Card>
+  <Card title="JIT Access Requests" icon="clock" href="/setup/configuration/access-requests/jit-configuration">
+    Configure time-based access
+  </Card>
+  <Card title="Slack Integration" icon="slack" href="/integrations/slack">
+    Set up Slack notifications
+  </Card>
+  <Card title="Teams Integration" icon="microsoft" href="/integrations/teams">
+    Set up Teams notifications
+  </Card>
+</CardGroup>

@@ -1,26 +1,257 @@
 ---
 title: "AI Query Builder"
-description: "Get to know how to configure AI Query Builder in your organization"
+description: "Get AI-powered help writing queries and scripts with context-aware suggestions"
 ---
 
-AI Query Builder is a companion tool that allows you to ask for contextualized help to build queries and scripts. By activating it, a Copilot tool and a "Ask AI" box will be shown in your the hoop.dev's Web Client.
-
 <Frame>
-  <img src="/images/ai-query-builder.png"/>
+  <img src="/images/ai-query-builder.png" alt="AI Query Builder" />
 </Frame>
 
-## How to get started
+## What You'll Accomplish
 
-<Info>
-  You must be on an enterprise plan for hoop.dev and on version 1.12.28+ of our gateway.
-</Info>
+AI Query Builder is a built-in AI assistant that helps you write queries and scripts. It understands your database schema and provides contextual suggestions, so you can:
 
-We use OpenAI ChatGPT-4o to provide contextualized help. You can either add your own key or ask hoop.dev team for one. Once you have they, you should configure hoop.dev's Gateway with a new environment variable called `ASK_AI_CREDENTIALS` with OpenAI's API key.
+- Get help writing complex SQL queries
+- Generate scripts based on natural language descriptions
+- Learn query syntax for unfamiliar databases
+- Debug and optimize existing queries
 
-## Using the AI Query Builder
+---
 
-After activating it, you will see a Copilot tool and a "Ask AI" box in the bottom right corner of your screen. You can ask for help with queries and scripts, and the AI will provide you with suggestions and examples.
+## How It Works
 
-## How it works
+When you enable AI Query Builder, Hoop sends your database schema (table names, column names, data types) to OpenAI's GPT-4o model. The AI uses this context to provide relevant suggestions.
 
-AI Query Builder uses OpenAI ChatGPT-4o. It's a powerful tool that can understand the context of your question and provide you with the best possible answer. By activating it, hoop.dev will send a non-identifiable schema of your database, its type and the query you are writing to the ChatGPT. We don't let the AI see your data, only the schema and the query you are writing and we don't associate it with your identity or your company information in any way.
+<Note>
+**Privacy:** Only schema metadata is sent to OpenAI—never your actual data. Queries are not associated with your identity or organization.
+</Note>
+
+### What Gets Sent to OpenAI
+
+| Sent | Not Sent |
+|------|----------|
+| Table names | Actual row data |
+| Column names | Query results |
+| Data types | User identity |
+| Your question/query | Company information |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Enterprise plan
+- Gateway version 1.12.28 or higher
+- OpenAI API key
+
+### Step 1: Configure the Gateway
+
+Set the `ASK_AI_CREDENTIALS` environment variable on your Hoop gateway:
+
+```bash
+ASK_AI_CREDENTIALS=sk-your-openai-api-key
+```
+
+For Kubernetes deployments, add to your gateway configuration:
+
+```yaml
+env:
+  - name: ASK_AI_CREDENTIALS
+    valueFrom:
+      secretKeyRef:
+        name: hoop-secrets
+        key: openai-api-key
+```
+
+### Step 2: Restart the Gateway
+
+After setting the environment variable, restart your gateway to apply the changes.
+
+### Step 3: Use the AI Assistant
+
+1. Open the Web App and connect to a database
+2. Look for the **Ask AI** button in the bottom-right corner
+3. Click it to open the AI assistant panel
+
+---
+
+## Using AI Query Builder
+
+### Asking Questions
+
+Type natural language questions and the AI will generate queries:
+
+**You ask:**
+> "Show me the top 10 customers by total order value"
+
+**AI suggests:**
+```sql
+SELECT
+  c.customer_id,
+  c.name,
+  SUM(o.total) as total_order_value
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+GROUP BY c.customer_id, c.name
+ORDER BY total_order_value DESC
+LIMIT 10;
+```
+
+### Getting Help with Syntax
+
+Ask about specific SQL features:
+
+**You ask:**
+> "How do I use a window function to get a running total?"
+
+**AI explains:**
+```sql
+SELECT
+  order_date,
+  amount,
+  SUM(amount) OVER (ORDER BY order_date) as running_total
+FROM orders;
+```
+
+### Debugging Queries
+
+Paste a query that isn't working:
+
+**You ask:**
+> "Why is this query slow?"
+> ```sql
+> SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers)
+> ```
+
+**AI suggests:**
+> This query may be slow because of the subquery. Consider using a JOIN instead:
+> ```sql
+> SELECT o.* FROM orders o
+> JOIN customers c ON o.customer_id = c.id
+> ```
+
+---
+
+## Example Use Cases
+
+### 1. Exploring Unfamiliar Databases
+
+When you connect to a database you haven't used before:
+
+> "What tables are related to user authentication?"
+
+The AI will identify relevant tables based on your schema.
+
+### 2. Writing Complex Joins
+
+> "Join the orders, customers, and products tables to show order details with customer names and product names"
+
+### 3. Aggregation Queries
+
+> "Show monthly revenue for the past year, broken down by product category"
+
+### 4. Data Cleanup Scripts
+
+> "Find duplicate email addresses in the users table"
+
+### 5. Performance Analysis
+
+> "Which indexes would help speed up queries on the orders table?"
+
+---
+
+## Supported Databases
+
+AI Query Builder works with any database connection in Hoop:
+
+- PostgreSQL
+- MySQL
+- MongoDB
+- SQL Server
+- Oracle
+- And more...
+
+The AI adapts its suggestions to the specific SQL dialect of your database.
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="crosshairs">
+    Include table names and what you're trying to accomplish
+  </Card>
+  <Card title="Verify Suggestions" icon="check">
+    Always review AI-generated queries before running them
+  </Card>
+  <Card title="Iterate" icon="rotate">
+    Refine your question if the first suggestion isn't quite right
+  </Card>
+  <Card title="Learn from It" icon="graduation-cap">
+    Use AI suggestions to learn new SQL patterns
+  </Card>
+</CardGroup>
+
+---
+
+## Troubleshooting
+
+### "Ask AI" Button Not Visible
+
+**Check:**
+1. Your organization is on an Enterprise plan
+2. Gateway version is 1.12.28 or higher
+3. `ASK_AI_CREDENTIALS` environment variable is set
+4. Gateway was restarted after configuration
+
+### AI Doesn't Understand My Schema
+
+**Try:**
+1. Be more specific about table names
+2. Mention column names in your question
+3. Describe the relationships between tables
+
+### Slow Responses
+
+OpenAI API response times vary. If responses are consistently slow:
+1. Check your OpenAI API quota
+2. Verify network connectivity from the gateway
+3. Try simpler questions first
+
+---
+
+## Security Considerations
+
+### Data Privacy
+
+- **Schema only:** Only table/column metadata is sent to OpenAI
+- **No data:** Actual row data is never transmitted
+- **No identity:** Queries aren't linked to users or organizations
+- **No storage:** OpenAI doesn't store your queries (per their API terms)
+
+### API Key Security
+
+- Store your OpenAI API key securely (use secrets manager)
+- Use a dedicated API key for Hoop
+- Monitor API usage for unexpected activity
+- Rotate keys periodically
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Live Data Masking" icon="mask" href="/learn/features/live-data-masking">
+    Automatically protect sensitive data in query results
+  </Card>
+  <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
+    Block dangerous queries before they execute
+  </Card>
+  <Card title="Runbooks" icon="book" href="/learn/features/runbooks">
+    Create reusable query templates
+  </Card>
+  <Card title="Session Recording" icon="video" href="/learn/features/session-recording">
+    Audit all query activity
+  </Card>
+</CardGroup>

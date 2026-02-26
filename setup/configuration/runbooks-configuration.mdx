@@ -91,10 +91,10 @@ hoop admin get runbooks -o json
 
 This functionality enables easier integration with any internal workflow by leveraging Hoop as a hook system for your process. It requires specific files in the repository that will start the execution of a runbook when a specific event occurs.
 
-| File Path                             | Event Trigger | Environment Variables       | Description                                                                                                                   |
-| ------------------------------------- | ------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `hoop-hooks/session-open.runbook.py`  | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` | It triggers when a session is being opened. It may be triggered more than once in case the connection has the review enabled. |
-| `hoop-hooks/session-close.runbook.py` | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` | It triggers when a session is being closed.                                                                                   |
+| File Path                                     | Event Trigger | Environment Variables       |  Description   |
+| --------------------------------------------- | ------------- |---------------------------- |  ------------- |
+| `hoop-hooks/session-open.runbook.py`          | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being opened. It may be triggered more than once in case the connection has access requests enabled. |
+| `hoop-hooks/session-close.runbook.py`         | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being closed. |
 
 The environment variables are available when the runbook script is called, it contains the payload of the event that triggered the runbook.
 

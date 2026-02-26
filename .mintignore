@@ -1,0 +1,8 @@
+# Ignore application codebase
+hoop/
+
+# Ignore archive
+_archive/
+
+# Ignore planning documents
+DOCUMENTATION_IMPROVEMENT_PLAN.md

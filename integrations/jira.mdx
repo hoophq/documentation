@@ -41,7 +41,7 @@ Hoop.dev's Jira integration transforms infrastructure access requests into autom
 Jira integration works seamlessly with other Hoop.dev features:
 - **Guardrails:** Enforce policy and track exceptions via Jira
 - **Session Recording:** Link session logs to Jira tickets for full traceability
-- **Access Control:** Automate approvals and reviews through Jira workflows
+- **Access Control:** Automate approvals and access requests through Jira workflows
 
 ## Configuration
 
@@ -86,7 +86,7 @@ For a step-by-step setup and advanced options, see [Advanced Configuration](#adv
       <img src="/images/integrations/jira-4.png" />
     </Frame>
     While creating or configuring a connection, navigate to <code>Advanced Settings</code> and select a Jira Template.
-    <Info>To keep your default workflow, Review option must be enabled for this connection. Connections without Review enabled will mark Jira tickets as done after executing a command.</Info>
+    <Info>To keep your default workflow, Access Requests must be enabled for this connection. Connections without Access Requests enabled will mark Jira tickets as done after executing a command.</Info>
   </Step>
   <Step title="Executing session">
     When a command is executed in a connection with a Jira Template, all configured information is checked (and requested, if needed) and appended to the session while a Jira ticket is created to the workflow.

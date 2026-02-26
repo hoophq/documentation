@@ -1,6 +1,6 @@
 ---
 title: "Get Started"
-description: "Set up and know better about hoop.dev's AI Data Masking"
+description: "Set up and know better about hoop.dev's Live Data Masking"
 ---
 
 <Frame>
@@ -15,7 +15,7 @@ description: "Set up and know better about hoop.dev's AI Data Masking"
 - Have admin access to your hoop.dev instance
 
 <Note>
-  This page is dedicated to the setup of AI Data Masking in self-hosted instances. If you are looking for the Learn Guides of AI Data Masking, [click here](/learn/ai-data-masking).
+  This page is dedicated to the setup of Live Data Masking in self-hosted instances. If you are looking for the Learn Guides of Live Data Masking, [click here](/learn/features/live-data-masking).
 </Note>
 
 ## Setup
@@ -25,7 +25,7 @@ This service currently supports Microsoft Presidio for data classification and P
 Google Cloud Data Loss Prevention (DLP) is still available for existing customers but is deprecated for new installations.
 
 <Info>
-  You must be on an enterprise plan to have access to the AI Data Masking feature.
+  You must be on an enterprise plan to have access to the Live Data Masking feature.
 </Info>
 
 ### Microsoft Presidio
@@ -86,7 +86,7 @@ This mode will return an error in case it find any redaction issue
 
 ## Activate to your connections
 
-Navigate to your Web App instance \> Open the Manage toggle \> click at AI Data Masking \> Activate by connection and to configure which fields you want to set, hit the "Configure" button.
+Navigate to your Web App instance \> Open the Manage toggle \> click at Live Data Masking \> Activate by connection and to configure which fields you want to set, hit the "Configure" button.
 
 <Frame>
   ![](/images/configure/ai-data-masking-activate-connection.png)
@@ -96,4 +96,4 @@ Navigate to your Web App instance \> Open the Manage toggle \> click at AI Data 
 
 At the protocol layer when communicating with a database or server, hoop.dev will open the package and communicate with DLP provider to mask sensitive data in it. This happens in memory and in real-time, so the data is never stored in the database or server in its original form.
 
-After the setup, we automatically give you a bunch of default and most used fields, so you don't need to worry much about that part either. You can remove or add fields as much as you like. To see all fields available, check our [documentation page for all fields supported](/setup/configuration/ai-data-masking/fields).
+After the setup, we automatically give you a bunch of default and most used fields, so you don't need to worry much about that part either. You can remove or add fields as much as you like. To see all fields available, check our [documentation page for all fields supported](/setup/configuration/live-data-masking/fields).

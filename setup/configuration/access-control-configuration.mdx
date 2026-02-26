@@ -1,106 +1,387 @@
 ---
 title: "Access Control Configuration"
-description: "Configure and manage access control policies for your organization's resources"
+description: "Configure group-based access policies for your connections"
 ---
 
-{/* <Frame>
-  <img src="/images/learn/features/access-control.png" alt="Access Control Configuration" />
-</Frame> */}
+<Frame>
+  <img src="/images/learn/features/access-control-app.png" alt="Access Control Configuration" />
+</Frame>
 
-Access Control configuration allows you to define and manage who has access to what resources within your organization. This system helps maintain security while ensuring teams can efficiently access the tools they need.
+Access Control lets you restrict which users can see and access specific connections based on their group memberships. This page covers detailed configuration options.
 
-## Getting Started
+<Note>
+For an introduction to Access Control concepts, see [Access Control Overview](/learn/features/access-control).
+</Note>
+
+---
+
+## Enabling Access Control
+
+<Warning>
+Enabling Access Control will immediately hide connections from users who don't have explicit access. Plan your group assignments before enabling.
+</Warning>
+
+### Step 1: Activate Access Control
 
 <Steps>
-  <Step title="Navigate to Access Control settings">
-    Find the access control section in the left sidebar and click on it.
-    <Frame>
-      <img src="/images/learn/features/access-control-app.png" alt="Access Control Navigation"/>
-    </Frame>
-  </Step>
-  
-  <Step title="Click Activate">
-    Make sure you are aware of the implications of activating access control to your organization, it will require manual configuration of each connection. After this is activated, users might stop seeing their connections if they don't have the right permissions.
-    <Frame>
-      <img src="/images/learn/features/access-control-confirm.png" alt="Access Control Activation"/>
-    </Frame>
-  </Step>
-  
-  <Step title="Choose the connections">
-    In this step you will need to manually select and toggle the connections you want to apply access control to. If you don't toggle a connection, it won't apply the role groups and users might stop seeing them.
-    <Frame>
-      <img src="/images/learn/features/access-control-activated.png" alt="Connection Selection"/>
-    </Frame>
-  </Step>
+  <Step title="Navigate to Access Control">
+    Go to **Manage > Access Control** in the sidebar
 
-  <Step title="Finally, select the groups">
-    Find the groups you want to give access to each connection
     <Frame>
-      <img src="/images/learn/features/access-control-add-groups.png" alt="Group Selection"/>
+      <img src="/images/learn/features/access-control-app.png" alt="Access Control menu" />
     </Frame>
+  </Step>
+  <Step title="Review the Warning">
+    Read the activation warning carefully. Understand that:
+    - Users without group assignments will lose access
+    - You'll need to configure each connection individually
+    - Changes take effect immediately
+
+    <Frame>
+      <img src="/images/learn/features/access-control-confirm.png" alt="Activation warning" />
+    </Frame>
+  </Step>
+  <Step title="Click Activate">
+    Click **Activate** to enable Access Control for your organization
   </Step>
 </Steps>
+
+### Step 2: Configure Connections
+
+After activation, configure access for each connection:
+
+<Steps>
+  <Step title="Select a Connection">
+    Find the connection in the list and click to configure
+
+    <Frame>
+      <img src="/images/learn/features/access-control-activated.png" alt="Connection list" />
+    </Frame>
+  </Step>
+  <Step title="Enable Access Control">
+    Toggle the Access Control switch for this connection
+  </Step>
+  <Step title="Add Allowed Groups">
+    Select which groups can access this connection
+
+    <Frame>
+      <img src="/images/learn/features/access-control-add-groups.png" alt="Add groups" />
+    </Frame>
+  </Step>
+  <Step title="Save">
+    Click **Save** to apply the configuration
+  </Step>
+</Steps>
+
+---
+
+## Group Management
+
+### Creating Groups
+
+Groups can be created in two ways:
+
+**Option A: Manual Creation (in Hoop)**
+
+1. Go to **Manage > Users & Groups**
+2. Click the **Groups** tab
+3. Click **Create Group**
+4. Enter a group name (e.g., `prod-access`, `analytics-team`)
+5. Add users to the group
+
+**Option B: Sync from Identity Provider**
+
+Groups can be automatically synced when users log in:
+
+1. Configure your IdP to include `groups` claim in the ID token
+2. Users' groups are synced on each login
+3. See [Identity Provider Configuration](/setup/configuration/idp/get-started)
+
+### Built-in Groups
+
+| Group | Description | Permissions |
+|-------|-------------|-------------|
+| `admin` | Administrators | Full access to all connections and settings |
+| `auditor` | Audit access | Read-only access to sessions and logs |
+
+<Note>
+Admin users bypass Access Control and can access all connections regardless of group configuration.
+</Note>
+
+### Group Naming Conventions
+
+Recommended naming patterns:
+
+| Pattern | Example | Use Case |
+|---------|---------|----------|
+| Environment | `prod-access`, `staging-access` | Environment-based access |
+| Team | `engineering`, `analytics`, `support` | Team-based access |
+| Role | `dba`, `developer`, `viewer` | Role-based access |
+| Combined | `prod-dba`, `staging-dev` | Specific combinations |
+
+---
 
 ## Permission Types
 
-### Connection Permissions
-Rules that control access to specific connections:
+### Connection Visibility
 
-- **View**: Can see and list connections
-- **Use**: Can connect and execute queries
-- **Manage**: Can modify connection settings
+When Access Control is enabled on a connection:
 
-### Administrative Permissions
-Rules that control system-level access:
+| User's Groups | Connection Visibility |
+|---------------|----------------------|
+| In allowed groups | Connection is visible and accessible |
+| Not in allowed groups | Connection is hidden completely |
+| Admin group | Always visible (bypasses Access Control) |
 
-- **User Management**: Control over user accounts
-- **Group Management**: Ability to create and modify groups
-- **System Configuration**: Access to system settings
+### Combining with Access Requests
 
+Access Control and Access Requests work together:
 
-### Group Management
-<Steps>
-  <Step title="Create Groups">
-    Organize users into logical groups based on roles or teams
-  </Step>
-  
-  <Step title="Assign Permissions">
-    Set appropriate access levels for each group
-  </Step>
-  
-  <Step title="Review Members">
-    Regularly audit group memberships and permissions
-  </Step>
-</Steps>
+| Access Control | Access Requests | Result |
+|----------------|-----------------|--------|
+| Allowed | Not enabled | Direct access |
+| Allowed | JIT enabled | Must request time-based access |
+| Allowed | Action enabled | Each command needs approval |
+| Not allowed | Any | Connection not visible |
+
+---
+
+## Configuration Patterns
+
+### Pattern 1: Environment-Based
+
+Separate access by environment:
+
+```
+Connection: prod-database
+  Allowed Groups: senior-engineers, dba
+
+Connection: staging-database
+  Allowed Groups: engineering, qa
+
+Connection: dev-database
+  Allowed Groups: engineering, contractors
+```
+
+### Pattern 2: Team-Based
+
+Each team accesses their own resources:
+
+```
+Connection: payments-db
+  Allowed Groups: payments-team
+
+Connection: inventory-db
+  Allowed Groups: inventory-team
+
+Connection: analytics-warehouse
+  Allowed Groups: analytics-team, data-science
+```
+
+### Pattern 3: Read/Write Separation
+
+Create separate connections with different access levels:
+
+```
+Connection: prod-db-readonly
+  Allowed Groups: engineering, analytics, support
+  (Configured with read-only database user)
+
+Connection: prod-db-readwrite
+  Allowed Groups: dba, senior-engineers
+  (Configured with read-write database user)
+```
+
+### Pattern 4: Contractor Access
+
+Limited access for external contractors:
+
+```
+Connection: contractor-db
+  Allowed Groups: contractors
+  (Limited database, Live Data Masking enabled)
+```
+
+---
+
+## Identity Provider Integration
+
+### Syncing Groups from IdP
+
+To automatically sync groups from your identity provider:
+
+1. **Configure IdP to include groups claim:**
+
+   In your IdP (Okta, Auth0, Azure AD, etc.), configure the OIDC application to include a `groups` claim in the ID token.
+
+2. **Set environment variables on gateway:**
+
+   ```bash
+   IDP_GROUPS_CLAIM=groups
+   ```
+
+   Or for custom claim names:
+   ```bash
+   IDP_GROUPS_CLAIM=https://mycompany.com/groups
+   ```
+
+3. **Groups sync on login:**
+
+   When users log in, their groups are automatically synced from the IdP.
+
+### Provider-Specific Guides
+
+<CardGroup cols={2}>
+  <Card title="Okta" href="/setup/configuration/idp/okta">
+    Configure Okta group sync
+  </Card>
+  <Card title="Auth0" href="/setup/configuration/idp/auth0">
+    Configure Auth0 group sync
+  </Card>
+  <Card title="Azure AD" href="/setup/configuration/idp/azure">
+    Configure Azure AD group sync
+  </Card>
+  <Card title="Google" href="/setup/configuration/idp/google">
+    Configure Google Workspace groups
+  </Card>
+</CardGroup>
+
+---
+
+## Auditing Access
+
+### Viewing User Permissions
+
+To see what a user can access:
+
+1. Go to **Manage > Users**
+2. Click on a user
+3. View their group memberships
+4. Cross-reference with connection configurations
+
+### Access Logs
+
+All access attempts are logged:
+
+1. Go to **Sessions**
+2. Filter by user or connection
+3. See successful connections and denied attempts
+
+### Exporting Access Report
+
+Generate a report of who can access what:
+
+```bash
+hoop admin get connections -o json | \
+  jq '.[] | {name, allowed_groups}'
+```
+
+---
+
+## Troubleshooting
+
+### User Can't See a Connection
+
+**Checklist:**
+
+1. **Is Access Control enabled on the connection?**
+   - Go to connection settings
+   - Check if Access Control toggle is on
+
+2. **Is the user in an allowed group?**
+   - Go to **Manage > Users**
+   - Check user's group memberships
+   - Verify groups match connection's allowed groups
+
+3. **Has the user logged out and back in?**
+   - Groups sync on login
+   - Have user log out and log in again
+
+4. **Is the IdP sending groups correctly?**
+   - Check IdP configuration
+   - Verify `groups` claim in ID token
+
+**Debug steps:**
+```bash
+# Check user's groups
+hoop admin get user <email>
+
+# Check connection's allowed groups
+hoop admin get connection <name>
+```
+
+### User Sees Connection But Can't Connect
+
+This is likely NOT an Access Control issue. Check:
+
+1. **Access Requests:** Is JIT or Action approval required?
+2. **Guardrails:** Are there blocking rules?
+3. **Connection status:** Is the agent online?
+
+### Groups Not Syncing from IdP
+
+**Check:**
+
+1. IdP is configured to include `groups` claim
+2. `IDP_GROUPS_CLAIM` environment variable is set correctly
+3. User has groups assigned in the IdP
+4. Gateway was restarted after configuration
+
+**Debug:**
+- Decode the ID token to verify `groups` claim is present
+- Check gateway logs for group sync errors
+
+---
 
 ## Best Practices
 
 <CardGroup cols={2}>
-  <Card title="Least Privilege" icon="shield-check">
-    Grant minimum necessary access
+  <Card title="Start Restrictive" icon="lock">
+    Begin with minimal access and expand as needed
   </Card>
-  
-  <Card title="Regular Audits" icon="clipboard-check">
-    Review access permissions periodically
+  <Card title="Use Groups, Not Users" icon="users">
+    Always assign access to groups, never individuals
   </Card>
-  
-  <Card title="Group-First" icon="users">
-    Prefer group-based over individual permissions
-  </Card>
-  
   <Card title="Document Policies" icon="file-lines">
-    Maintain clear access policy documentation
+    Maintain a document of who should access what
+  </Card>
+  <Card title="Regular Reviews" icon="calendar-check">
+    Audit access quarterly
   </Card>
 </CardGroup>
 
-## Learn More
+### Before Enabling Access Control
+
+1. [ ] Inventory all connections
+2. [ ] Identify who needs access to each
+3. [ ] Create groups in IdP or Hoop
+4. [ ] Assign users to groups
+5. [ ] Document the access policy
+6. [ ] Test with a non-production connection first
+
+### Quarterly Access Review
+
+1. [ ] Export current access configuration
+2. [ ] Review with team leads
+3. [ ] Remove departed employees
+4. [ ] Verify contractor access is time-limited
+5. [ ] Update documentation
+
+---
+
+## Related
 
 <CardGroup cols={2}>
-  <Card title="Guardrails" icon="shield" href="/setup/configuration/guardrails-configuration">
-    Learn about security policy configuration
+  <Card title="Access Control Overview" icon="lock" href="/learn/features/access-control">
+    Learn Access Control concepts
   </Card>
-  
   <Card title="Identity Providers" icon="id-card" href="/setup/configuration/idp/get-started">
-    Configure SSO and identity management
+    Configure SSO and group sync
   </Card>
-</CardGroup> 
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
+    Add approval workflows
+  </Card>
+  <Card title="Managing Access" icon="users" href="/clients/webapp/managing-access">
+    User and group management in Web App
+  </Card>
+</CardGroup>
