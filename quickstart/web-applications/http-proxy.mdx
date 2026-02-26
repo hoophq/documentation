@@ -1,6 +1,6 @@
 ---
 title: "HTTP Proxy"
-description: "Access HTTP/HTTPS endpoints securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls."
+description: "Proxy any HTTP/HTTPS service through Hoop with audit logging, credential offloading, and data masking — without exposing it to the public internet."
 category: "web-applications"
 ---
 
@@ -9,7 +9,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 <ConnectionTemplate config={{
   "id": "httpproxy",
   "name": "HTTP Proxy",
-  "description": "Access HTTP/HTTPS endpoints securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls.",
+  "description": "Proxy any HTTP/HTTPS service through Hoop with audit logging, credential offloading, and data masking — without exposing it to the public internet.",
   "category": "web-applications",
   "icon-name": "httpproxy",
   "tags": [
@@ -47,7 +47,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
     }
   },
   "overview": {
-    "description": "Access your HTTP/HTTPS services securely through Hoop.dev with intelligent traffic monitoring, automated request/response logging, and comprehensive access controls. Proxy HTTP connections with built-in data masking, session recording, and advanced security guardrails for complete API governance."
+    "description": "Use the HTTP Proxy connection type to expose any internal HTTP/HTTPS service through Hoop without opening it to the internet. All traffic is routed through the agent, giving you a full audit trail of requests and responses, credential offloading so clients never hold API keys directly, and optional data masking for sensitive payloads. Supports standard HTTP, HTTPS, and WebSocket connections."
   },
   "setupGuide": {
     "accessMethods": {
@@ -66,7 +66,21 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
         "type": "env-var",
         "required": true,
         "description": "The target HTTP/HTTPS URL to proxy requests to",
-        "placeholder": "https://example.com"
+        "placeholder": "https://internal-api.example.com"
+      },
+      {
+        "name": "HEADER_*",
+        "type": "env-var",
+        "required": false,
+        "description": "Custom headers injected into every proxied request. Use the HEADER_ prefix followed by the header name, e.g. HEADER_AUTHORIZATION=Bearer <token>",
+        "placeholder": "HEADER_AUTHORIZATION=Bearer <token>"
+      },
+      {
+        "name": "INSECURE",
+        "type": "env-var",
+        "required": false,
+        "description": "Set to 'true' to skip TLS certificate verification. Useful for services with self-signed certificates.",
+        "placeholder": "false"
       }
     ]
   },
@@ -75,4 +89,95 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
   }
 }} />
 
+## Setup
 
+<Tabs>
+  <Tab title="CLI">
+    Create the connection, pointing it at your internal service:
+
+    ```bash
+    hoop admin create connection my-api \
+      -a default \
+      -t application/httpproxy \
+      -e REMOTE_URL=https://internal-api.example.com
+    ```
+  </Tab>
+  <Tab title="Web App">
+    1. In the web app, navigate to **Connections** and click **New Connection**
+    2. Select **HTTP Proxy** as the connection type
+    3. Choose your agent and give the connection a name
+    4. Set `REMOTE_URL` to the target service URL
+    5. Click **Save**
+  </Tab>
+  <Tab title="API">
+    Secret values must be base64-encoded. Then POST to `/api/connections`:
+
+    ```bash
+    curl -X POST https://<gateway>/api/connections \
+      -H 'Api-Key: <your-api-key>' \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "name": "my-api",
+        "type": "application",
+        "subtype": "httpproxy",
+        "agent_id": "<agent-id>",
+        "secret": {
+          "envvar:REMOTE_URL": "<base64-encoded-url>"
+        },
+        "access_mode_runbooks": "disabled",
+        "access_mode_exec": "disabled",
+        "access_mode_connect": "enabled",
+        "access_schema": "disabled"
+      }'
+    ```
+
+    Additional environment variables (custom headers, `INSECURE`, etc.) follow the same `"envvar:KEY": "<base64-value>"` pattern in the `secret` object.
+  </Tab>
+</Tabs>
+
+## Accessing the Connection
+
+When you open a connection via **Connect > Open in Native Client** in the web app, Hoop issues a time-limited session token and provides two ways to use it:
+
+**Authorization header** — for API clients, curl, or any tool that supports custom headers:
+
+```bash
+curl -H 'Authorization: httpproxy-<token>' https://<host>:<port>/
+```
+
+**Token in URL path** — for browsers or tools that can't set headers:
+
+```
+https://<host>:<port>/httpproxy-<token>
+```
+
+The session expires automatically when the time limit is reached, and the token is revoked.
+
+## Custom Headers
+
+Use `HEADER_*` environment variables to inject headers into every proxied request. This is useful for credential offloading — the client never holds the API key directly.
+
+```bash
+hoop admin create connection my-api \
+  -a default \
+  -t application/httpproxy \
+  -e REMOTE_URL=https://internal-api.example.com \
+  -e HEADER_AUTHORIZATION="Bearer <token>" \
+  -e HEADER_X_API_KEY="<api-key>"
+```
+
+## Self-Signed Certificates
+
+For services with self-signed or internal CA certificates, set `INSECURE=true` to skip TLS verification:
+
+```bash
+hoop admin create connection my-api \
+  -a default \
+  -t application/httpproxy \
+  -e REMOTE_URL=https://internal-api.example.com \
+  -e INSECURE=true
+```
+
+## WebSocket Support
+
+WebSocket connections are supported automatically. When the proxied service returns an HTTP 101 Switching Protocols response, Hoop upgrades the connection transparently — no additional configuration required.

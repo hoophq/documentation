@@ -1,7 +1,95 @@
 ---
-title: "Webhooks/SIEM"
-description: "Activate and use webhooks and SIEM integrations."
+title: "Webhooks / SIEM"
+description: "Forward session events to external systems using runbook hooks."
 ---
+
+## Runbook Hooks
+
+The recommended way to integrate Hoop with external systems — SIEMs, alerting pipelines, audit platforms — is through **runbook hooks**. Hook scripts live in your runbooks git repository and execute automatically when session events occur, with the full event payload available as an environment variable.
+
+<Note>
+  Runbook hooks require version 1.36.11+ and the [Runbooks plugin](/setup/configuration/runbooks-configuration) configured with a git repository.
+</Note>
+
+### How It Works
+
+Place hook scripts in a `hoop-hooks/` directory in your runbooks repository. Hoop executes the matching script automatically when the corresponding event fires, injecting the event payload as `HOOP_RUNBOOK_HOOK_PAYLOAD`.
+
+| File | Event | Description |
+|---|---|---|
+| `hoop-hooks/session-open.runbook.py` | Session open | Fires when a session starts. May fire more than once if the connection has reviews enabled. |
+| `hoop-hooks/session-close.runbook.py` | Session close | Fires when a session ends. |
+
+### Enabling Hooks
+
+Add `GIT_HOOK_CONFIG_TTL` when configuring the runbooks plugin. This activates hook support and sets how long (in seconds) the configuration is cached between git fetches.
+
+```sh
+hoop admin create plugin runbooks --overwrite \
+  -c GIT_URL=git@github.com:your-org/your-repo.git \
+  -c GIT_SSH_KEY=file://$HOME/.ssh/your_key \
+  -c GIT_HOOK_CONFIG_TTL=120
+```
+
+<Tip>
+  Use a higher TTL if your hook scripts change infrequently — this reduces the number of requests to your git server.
+</Tip>
+
+### Event Payload
+
+The `HOOP_RUNBOOK_HOOK_PAYLOAD` environment variable contains a JSON object with session context. The `event_session_open` or `event_session_close` attribute is populated depending on which event fired.
+
+```json
+{
+  "id": "7b769f42-a8a2-45cb-b0a1-e2d039385365",
+  "sid": "8c59a347-62bd-4db2-a456-2b25963dfebf",
+  "command": ["python3"],
+  "event_session_open": {
+    "verb": "connect",
+    "connection_name": "pg-readonly",
+    "connection_type": "database",
+    "connection_subtype": "postgres",
+    "user_email": "user@domain.tld",
+    "connection_reviewers": [],
+    "input": "SELECT * FROM customers WHERE id = 1"
+  },
+  "event_session_close": {
+    "exit_code": 0,
+    "output": ""
+  }
+}
+```
+
+### Forwarding Events to a SIEM
+
+The example below shows a session-close hook that forwards the event payload to an external endpoint — a SIEM, a logging pipeline, or any HTTP receiver.
+
+```python
+# hoop-hooks/session-close.runbook.py
+import json, os, subprocess
+
+payload = os.getenv('HOOP_RUNBOOK_HOOK_PAYLOAD')
+event   = json.loads(payload)
+
+subprocess.run([
+    'curl', '-s', '-X', 'POST', 'https://your-siem.example.com/events',
+    '-H', 'Content-Type: application/json',
+    '-H', 'Authorization: Bearer <your-token>',
+    '-d', payload
+], check=True)
+
+print('Forwarded session {} to SIEM'.format(event['sid']))
+```
+
+For more on writing and configuring runbooks, see the [Runbooks configuration guide](/setup/configuration/runbooks-configuration).
+
+---
+
+## Svix Integration
+
+<Warning>
+  The Svix webhook integration is deprecated. Use [Runbook Hooks](#runbook-hooks) instead.
+</Warning>
 
 <Frame>
   <img
@@ -14,57 +102,52 @@ description: "Activate and use webhooks and SIEM integrations."
   />
 </Frame>
 
-## Prerequisites
+### Prerequisites
 
-- Finish [integration with Svix](/integrations/svix);
-- [Hoop.dev's CLI](/clients/cli) installed in your local machine;
-- Be an admin at your Hoop.dev instance
-- Be in an Enterprise Plan
+- Finish [integration with Svix](/integrations/svix)
+- [Hoop CLI](/clients/cli) installed
+- Admin access to your Hoop instance
+- Enterprise Plan
 
-## Configuring
+### Configuring
 
-To configure Hoop to send events to your SIEM, log in with the client and create the `webhooks` plugin.
+Log in and create the `webhooks` plugin:
 
 ```bash
 hoop login
-```
-
-```bash
 hoop admin create plugin webhooks
 ```
 
-After enabling it, you need to select which connections you want to emit webhook events. Let's override the plugin and enable it for an existing connection.
+Then enable it for a specific connection:
 
 ```bash
 hoop admin create plugin webhooks --overwrite --connection bash-default
 ```
 
-## Dashboard
+### Dashboard
 
-Now, you can log in to your dashboard and start configuring endpoints while selecting the messages you want to subscribe to.
+Open the Svix dashboard to configure endpoints and subscriptions:
 
 ```bash
 hoop admin webhooks-dashboard
 ```
 
 <Info>
-  Dashboard is only available when using Svix SaaS and could be only opened by administrators.
+  The dashboard is only available with Svix SaaS and can only be opened by administrators.
 </Info>
 
-To view any activity, interact with any connection.
-
-Accessing the **Message Logs** link in the dashboard will display the `hoop connect` event.
+To view activity, interact with any connection. The **Message Logs** link shows `hoop connect` events.
 
 <Frame>
   <img src="/images/learn/webhooks-1.png" />
 </Frame>
 
-### Adding Endpoints
+#### Adding Endpoints
 
-To route these messages to your SIEM, add your public endpoint that will receive these messages. Click on the **Endpoints** link.
+Click **Endpoints** to route messages to your SIEM.
 
 <Info>
-Adding endpoints to a self-hosted Svix instance is only available via [svix command line](https://docs.svix.com/tutorials/cli) or api.
+  Adding endpoints to a self-hosted Svix instance requires the [Svix CLI](https://docs.svix.com/tutorials/cli) or API.
 </Info>
 
 <Frame>
@@ -72,79 +155,62 @@ Adding endpoints to a self-hosted Svix instance is only available via [svix comm
 </Frame>
 
 <Note>
-You can use [Svix Play](https://play.svix.com/) to test it first.
+  Use [Svix Play](https://play.svix.com/) to test endpoints before wiring up production systems.
 </Note>
-
-Accessing the endpoint will contain the messages that have been sent to it.
 
 <Frame>
   <img src="/images/learn/webhooks-3.png" />
 </Frame>
 
-### Event Types
+#### Event Types
 
-Hoop provides the definition of each event that is sent. To access these definitions, refer to the **Event Catalog** link.
+Refer to the **Event Catalog** link in the dashboard for event definitions.
 
 <Frame>
   <img src="/images/learn/webhooks-4.png" />
 </Frame>
 
-## Consuming Webhooks
+### Consuming Webhooks
 
-As Svix serves as our webhook service provider, it's recommended to refer to their [documentation](https://docs.svix.com/receiving/introduction) for guidelines and best practices for the secure verification and consumption of webhooks.
+Refer to the [Svix documentation](https://docs.svix.com/receiving/introduction) for guidelines on secure verification and consumption of webhooks.
 
-## Svix Self Hosted
+### Svix Self-Hosted
 
-For self-hosted installations, you must interact directly with Svix using either the Svix CLI or the API.
-For your convenience, we offer experimental endpoints that allow you to manage Svix's main resources.
+For self-hosted installations, manage Svix resources directly via the Svix CLI or the Hoop CLI wrappers.
 
-The Hoop command line tool integrates with these resources to provide proper Svix management capabilities.
+#### Event Types
 
-### Event Types
+| Event Name | Description |
+|---|---|
+| `dbroles.job.finished` | Fires when a database user role is provisioned |
+| `microsoftteams.review.create` | Fires when a review is created |
+| `session.open` | Fires when a session or review is opened |
+| `session.close` | Fires when a session ends |
 
-Hoop may send the following events depending how users are interacting with the system
-
-| Event Name                   | Description |
-| ---------------------------- | ----------- |
-| dbroles.job.finished         | Run when the provisioning of a database user role finishes (aws connect feature) |
-| microsoftteams.review.create | Run when an access request is created |
-| session.open                 | Run when a session is open and/or access request is created |
-| session.close                | Run when a session finishes |
-
-Event types can be configured to route specific events to designated endpoints.
-To manage event types in a self-hosted installation, use the following command line syntax to create them:
+Create event types with:
 
 ```sh
-hoop admin create svixeventtype session.open --description 'Is sent when a session or access request is created'
-hoop admin create svixeventtype session.close --description 'Is sent when a session finishes'
-hoop admin create svixeventtype dbroles.job.finished  --description 'Is when the provisioning of a database user role finishes'
+hoop admin create svixeventtype session.open --description 'Sent when a session or access request is created'
+hoop admin create svixeventtype session.close --description 'Sent when a session finishes'
+hoop admin create svixeventtype dbroles.job.finished --description 'Sent when a database role is provisioned'
 ```
 
-### Endpoints
-
-Endpoints allow to configure how to receive webhook messages.
+#### Endpoints
 
 ```sh
-hoop admin create svixendpoint --description 'My main endpoint' --url https://play.svix.com/in/e_f1q1l3Dk8HzjA2bcWA7E6CeyMuL/
-```
+# Create an endpoint
+hoop admin create svixendpoint \
+  --description 'My main endpoint' \
+  --url https://play.svix.com/in/e_f1q1l3Dk8HzjA2bcWA7E6CeyMuL/
 
-The example below will only send messages `session.open` and `session.close` event types.
-
-<Tip>
-  The `--overwrite` will update an endpoint
-</Tip>
-
-```sh
+# Update an endpoint with event filters
 hoop admin create svixendpoint ep_<endpoint_id> \
   --overwrite \
   --filters session.open,session.close \
   --description 'My main endpoint' \
   --url https://play.svix.com/in/e_f1q1l3Dk8HzjA2bcWA7E6CeyMuL/
-```
 
-To list the endpoints and usage statistics about each endpoint:
-
-```sh
+# List endpoints
 hoop admin get svixendpoint
 ```
 
@@ -153,23 +219,18 @@ ID           DESCRIPTION         DISABLED   VERSION   FAIL   PENDING   SENDING  
 ep_2vY7...   My main endpoint    false      1         0      0         0         3         session.open   46m ago
 ```
 
-### Messages
-
-To list message delivery attempts and troubleshoot webhook transmission issues, use the command below:
+#### Messages
 
 ```sh
+# List delivery attempts
 hoop admin get svixmsg
+
+# Filter by endpoint
+hoop admin get svixmsg -q endpoint_id=ep_2vY... -q limit=100
 ```
 
 ```
 ID           ATTEMPTID       TRIGGER     STATUS    STATUSCODE   AGE
 msg_2vY...   atmpt_2vY7...   scheduled   success   204          45m ago
 msg_2vY...   atmpt_2vY7...   scheduled   success   204          46m ago
-msg_2vY...   atmpt_2vY7...   scheduled   success   204          46m ago
-```
-
-In case of multiple endpoints the `endpoint_id` query string is required
-
-```sh
-hoop admin get svixmsg -q endpoint_id=ep_2vY... -q limit=100
 ```
