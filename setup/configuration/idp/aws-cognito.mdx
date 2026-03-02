@@ -46,6 +46,36 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
     <img src="/images/idp/aws-cognito-4.png" />
   </Step>
   <Step title="Collect Issuer Information">
-  The URL is composed by the id of the user pool: `https://cognito-idp.<aws-region>.amazonaws.com/<user-pool-id>`
+    The Issuer URL is composed from the user pool region and ID: `https://cognito-idp.{aws-region}.amazonaws.com/{user-pool-id}`
   </Step>
 </Steps>
+
+## Configure Hoop Gateway
+
+<Tabs>
+  <Tab title="Web App">
+    Go to **Integrations** > **Authentication** and fill in:
+    - **Auth Method**: OIDC
+    - **Issuer URL**: `https://cognito-idp.{aws-region}.amazonaws.com/{user-pool-id}`
+    - **Client ID**: the Client ID from above
+    - **Client Secret**: the Client Secret from above
+  </Tab>
+  <Tab title="API">
+    ```sh
+    curl -X PUT {API_URL}/api/serverconfig/auth \
+      -H "Api-Key: {API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "auth_method": "oidc",
+        "provider_name": "aws-cognito",
+        "oidc_config": {
+          "issuer_url": "https://cognito-idp.{AWS_REGION}.amazonaws.com/{USER_POOL_ID}",
+          "client_id": "{CLIENT_ID}",
+          "client_secret": "{CLIENT_SECRET}",
+          "groups_claim": "groups"
+        },
+        "webapp_users_management_status": "active"
+      }'
+    ```
+  </Tab>
+</Tabs>

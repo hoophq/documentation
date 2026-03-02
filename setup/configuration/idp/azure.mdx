@@ -34,17 +34,47 @@ Contact the administrator of the hoop gateway instance to retrieve the API_URL a
 	- Copy the Secret Value. This is the Client Secret
   </Step>
   <Step title="Collect Issuer and Custom Scopes Information">
-  The Issuer URL
-  - Go to App registration > `{AppName}` > Overview
-  - Copy the tenant ID and use as the value below
-  - https://login.microsoftonline.com/{tenant_id}/v2.0
+    The Issuer URL:
+    - Go to **App registration** > `{AppName}` > **Overview**
+    - Copy the **Directory (tenant) ID** and compose the URL: `https://login.microsoftonline.com/{tenant_id}/v2.0`
 
-  The Custom Scopes
-  - Use the Client ID to compose the Custom Scopes value
-  - `{CLIENT_ID}/.default`
-
+    The Custom Scopes value:
+    - Use the Client ID to compose it: `{CLIENT_ID}/.default`
   </Step>
 </Steps>
+
+## Configure Hoop Gateway
+
+<Tabs>
+  <Tab title="Web App">
+    Go to **Integrations** > **Authentication** and fill in:
+    - **Auth Method**: OIDC
+    - **Issuer URL**: `https://login.microsoftonline.com/{tenant_id}/v2.0`
+    - **Client ID**: the Application (client) ID from above
+    - **Client Secret**: the Secret Value from above
+    - **Scopes**: `{CLIENT_ID}/.default`
+    - **Groups Claim**: `groups`
+  </Tab>
+  <Tab title="API">
+    ```sh
+    curl -X PUT {API_URL}/api/serverconfig/auth \
+      -H "Api-Key: {API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "auth_method": "oidc",
+        "provider_name": "azure",
+        "oidc_config": {
+          "issuer_url": "https://login.microsoftonline.com/{TENANT_ID}/v2.0",
+          "client_id": "{CLIENT_ID}",
+          "client_secret": "{CLIENT_SECRET}",
+          "scopes": ["{CLIENT_ID}/.default"],
+          "groups_claim": "groups"
+        },
+        "webapp_users_management_status": "active"
+      }'
+    ```
+  </Tab>
+</Tabs>
 
 ## Configuring Groups Claims
 
@@ -67,9 +97,7 @@ By default, groups are propagate with their object ids. It may be cumbersome to 
 See the section below to propagate them with their display name instead.
 
 <Warning>
-  When you configure groups to sync, you'll lose the admin access on the next sign in.
-  To prevent this issue, set the configuration `ADMIN_USERNAME` on your gateway to change the role of the admin user with a group associated with your application.
-  The name of the admin group depends on whether you propagate the groups as object IDs or as group names (see below).
+  When you configure groups to sync, you'll lose admin access on the next sign-in unless your Azure group maps to the configured admin role name. Update the **Admin Role Name** in **Integrations** > **Authentication** to match the Azure group name or object ID you want as admin before signing in again. The group identifier depends on whether you propagate groups as object IDs or display names (see below).
 </Warning>
 
 ### Propagating Groups as Names
@@ -145,46 +173,51 @@ It is possible to access hoop by issuing access tokens using the Oauth2 Client C
 
 ### Creating a Service Account
 
-```sh
-hoop admin create serviceaccount <azure-app-object-id> \
-  --name "My Service Account" \
-  --groups admin
-```
-
 <Info>
-  To obtain the Object ID of the application navigate to: Azure Portal > Microsoft Entra ID > Enterprise Applications
+  To obtain the Object ID of the application navigate to: **Azure Portal** > **Microsoft Entra ID** > **Enterprise Applications**.
 </Info>
+
+```sh
+curl -X POST {API_URL}/api/serviceaccounts \
+  -H "Api-Key: {API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "<azure-app-object-id>",
+    "name": "My Service Account",
+    "status": "active",
+    "groups": ["admin"]
+  }'
+```
 
 ### Creating an Access Token
 
-1. Go to App Registrations > Certificate & Secrets > New Client Secret
+1. Go to **App Registrations** > **Certificate & Secrets** > **New Client Secret** and copy the secret value.
 
-Copy the secret value and use in the command below as the attribute for `<APP_CLIENT_SECRET>`
-
-2. Generate an access token
+2. Generate an access token from Azure:
 
 ```sh
-curl -XPOST -H "Content-Type: application/x-www-form-urlencoded" \
-	-d client_id=<APP_CLIENT_ID> \
-	-d scope=<APP_CLIENT_ID>/.default \
-	-d client_secret=<APP_CLIENT_SECRET> \
-	-d grant_type=client_credentials \
-	https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0/token
+curl -X POST \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=<APP_CLIENT_ID>" \
+  -d "scope=<APP_CLIENT_ID>/.default" \
+  -d "client_secret=<APP_CLIENT_SECRET>" \
+  -d "grant_type=client_credentials" \
+  https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0/token
 ```
 
-- APP_CLIENT_ID: the client id of the application
-- APP_CLIENT_SECRET: the client secret generated in the step 1
-- TENANT_ID: the tenant id of you app instance
+- `APP_CLIENT_ID`: the client ID of the application
+- `APP_CLIENT_SECRET`: the client secret from step 1
+- `TENANT_ID`: the tenant ID of your Azure instance
 
 For more information, [see this guide](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow#get-a-token).
 
-Access the API
+3. Verify access with the Hoop API:
 
 ```sh
-export HOOP_TOKEN=eyJ0eXAiOiJKV1QiLCJhb...5Z3Be-kkXkAnAA-zIweYuqEUDA
-hoop admin get userinfo
+curl {API_URL}/api/userinfo \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 <Info>
-  In case of receiving access denied (401), make sure that the subject of the access token matches the subject provided when creating the service account (usually matches the object id of the application)
+  If you receive a 401, ensure the `subject` of the access token (the application's Object ID) matches the `subject` used when creating the service account.
 </Info>
