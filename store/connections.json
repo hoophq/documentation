@@ -634,7 +634,7 @@
           "oneOff": false
         },
         "guardrails": {
-          "native": false,
+          "native": true,
           "oneOff": false
         },
         "credentialsOffload": {
