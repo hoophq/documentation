@@ -28,7 +28,7 @@ export const ConnectionTemplate = ({ config }) => {
       {finalConfig.coverImage &&
         <Frame>
           <img
-            src={finalConfig.coverImage}
+            src={`/docs${finalConfig.coverImage}`}
             alt={finalConfig.coverImageAlt}
           />
         </Frame>
