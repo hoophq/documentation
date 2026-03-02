@@ -82,6 +82,12 @@
                 ]
               },
               {
+                "group": "AI and LLMs",
+                "pages": [
+                  "quickstart/ai-and-llms/claude-code"
+                ]
+              },
+              {
                 "group": "Cloud Services",
                 "pages": [
                   {

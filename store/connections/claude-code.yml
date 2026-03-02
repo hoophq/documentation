@@ -3,6 +3,8 @@ name: Claude Code
 description: Proxy Claude Code to ensure sensitive data won’t leak.
 category: ai-and-llms
 icon-name: claude
+coverImage: /images/quickstarts/claude-code.png
+coverImageAlt: Claude Code Resource type at hoop.dev
 tags:
   - ai
   - llm
@@ -43,3 +45,4 @@ features:
     oneOff: false
 documentationConfig:
   path: quickstart/ai-and-llms/claude-code
+additionalInformation: |-

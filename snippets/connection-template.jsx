@@ -3,6 +3,7 @@ export const ConnectionTemplate = ({ config }) => {
   const defaultConfig = {
     name: "Connection",
     description: "Connection description",
+    coverImage: "",
     features: {
       tlsTerminationProxy: { native: false, oneOff: false },
       audit: { native: false, oneOff: false },
@@ -24,6 +25,14 @@ export const ConnectionTemplate = ({ config }) => {
 
   return (
     <div>
+      {finalConfig.coverImage &&
+        <Frame>
+          <img
+            src={finalConfig.coverImage}
+            alt={finalConfig.coverImageAlt}
+          />
+        </Frame>
+      }
       <h2>Before you start</h2>
       <p>To get the most out of this guide, you will need to:</p>
       <ul>
@@ -46,7 +55,7 @@ export const ConnectionTemplate = ({ config }) => {
       <p>The table below outlines the features available for this type of connection.</p>
 
       <ul>
-        <li><strong>Native</strong> - Accessible via a native connection using hoop as proxy protocol to the resource.
+        <li><strong>Native</strong> - Accessible via a native connection using hoop as proxy protocol to the resource.</li>
         <li><strong>One Off</strong> - This term refers to accessing the resource from Hoop Web Console.</li>
       </ul>
 
