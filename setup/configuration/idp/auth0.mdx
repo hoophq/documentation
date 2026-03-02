@@ -28,8 +28,43 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
     - In the **Application Home** > **Settings**, copy the **Domain**.
     - The issuer url is in the format `https://{YOUR_DOMAIN}`
   </Step>
-  <Step title="Collect the Auth0 Management API Audience">
-    - Go to **Applications** > **API**
-    - Copy the **API Audience** value
+  <Step title="Collect the Auth0 API Audience (optional)">
+    Auth0 returns an opaque access token by default. To receive a JWT access token that Hoop can validate, provide an API audience.
+
+    - Go to **Applications** > **APIs**
+    - Copy the **API Audience** value (e.g., `https://your-tenant.auth0.com/api/v2/`)
   </Step>
 </Steps>
+
+## Configure Hoop Gateway
+
+<Tabs>
+  <Tab title="Web App">
+    Go to **Integrations** > **Authentication** and fill in:
+    - **Auth Method**: OIDC
+    - **Issuer URL**: `https://{YOUR_DOMAIN}`
+    - **Client ID**: the Client ID from above
+    - **Client Secret**: the Client Secret from above
+    - **Audience** (optional): the API Audience from above
+    - **Groups Claim**: `groups` (or the custom claim name you configured)
+  </Tab>
+  <Tab title="API">
+    ```sh
+    curl -X PUT {API_URL}/api/serverconfig/auth \
+      -H "Api-Key: {API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "auth_method": "oidc",
+        "provider_name": "auth0",
+        "oidc_config": {
+          "issuer_url": "https://{YOUR_DOMAIN}",
+          "client_id": "{CLIENT_ID}",
+          "client_secret": "{CLIENT_SECRET}",
+          "audience": "{API_AUDIENCE}",
+          "groups_claim": "groups"
+        },
+        "webapp_users_management_status": "active"
+      }'
+    ```
+  </Tab>
+</Tabs>

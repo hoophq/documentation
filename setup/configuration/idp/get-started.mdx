@@ -3,7 +3,7 @@ title: "Overview"
 description: "Integrate with your own Identity Provider"
 ---
 
-We support a variety of Identity Providers to authenticate users in hoop.dev. In this guide you will find the IDPs we had success integrating with but as due to how we integrate with them using OIDC standards, you can try to integrate with any OIDC compliant IDP.
+We support a variety of Identity Providers to authenticate users in hoop.dev. Integration uses the **OIDC (OpenID Connect)** or **SAML 2.0** protocols. Any OIDC-compliant identity provider should work; the guides below cover providers that have been validated.
 
 <CardGroup cols={3}>
   <Card title="Auth0" href="/setup/configuration/idp/auth0"/>
@@ -16,68 +16,156 @@ We support a variety of Identity Providers to authenticate users in hoop.dev. In
 
 ## Users
 
-Users are active and assigned to the default organization when they signup. A user could be set to an inactive state preventing it from accessing the platform, however it’s recommended to manage the state of users in the identity provider.
+Users are active and assigned to the default organization when they sign up. A user can be set to an inactive state to prevent access, however it is recommended to manage user state in the identity provider rather than in hoop.dev.
 
 - The `sub` claim is used as the main identifier of the user in the platform.
-- The profile of the user is derived from the id_token claims `email` and `name`.
+- The user's profile is derived from the `email` and `name` claims in the ID token.
 
-When a user authenticates for the first time, it performs an automatic signup that persist the profile claims along with it’s unique identifier.
+When a user authenticates for the first time, hoop.dev performs an automatic signup that persists the profile claims along with their unique identifier.
 
 ## Groups
 
-Groups allows defining who may access or interact with certain resources.
+Groups control who may access or interact with certain resources.
 
-- For **connection** resources it’s possible to define which groups has access to a specific connection, this is enforced when the **Access Control feature** is enabled.
-- For **access requests**, it's possible to define which groups are allowed to approve an execution, this is enforced when the **Access Requests feature** is enabled.
+- For **connection** resources, groups define which users have access to a connection. This is enforced when the **Access Control** feature is enabled.
+- For **access requests**, groups define which users are allowed to approve an execution. This is enforced when the **Access Requests** feature is enabled.
 
 <Tip>
-This resource could be managed manually via Webapp or propagated by the identity provider via ID Token. In this mode, groups are sync when a user performs a login.
+  Groups can be managed manually via the Webapp, or propagated automatically by the identity provider via the ID token. When propagated by the IdP, groups are synced each time a user signs in.
 </Tip>
 
 ## Roles
 
-- The **admin** group is a special role that grants full access to all resources
+- The **admin** group grants full access to all resources. Assign this to users responsible for managing the Gateway.
+- The **auditor** group grants read-only access to session resources.
+- All other users are **regular** users who can access their own resources and interact with connections.
 
-This role should be granted to users that are responsible for managing the Gateway. All other users are regular, meaning that they can access their own resources and interacting with connections.
-
-- The **auditor** group grants the auditor role that gives read only access to session resources
-
-## Configuration Page
-
-<Note>
-  This feature is available beginning with version `1.38.12`
-</Note>
-
-Users are now able to configure the identity provider directly from the Webapp.
-
-<Frame>
-<img src="/images/idp/auth-page-configuration.png" />
-</Frame>
+The default role names (`admin` and `auditor`) can be changed to match the group names in your identity provider via **Integrations** > **Authentication** in the Webapp, or via the `admin_role_name` / `auditor_role_name` fields in the API.
 
 <Warning>
-  After the configuration is saved, the identity provider will be automatically reloaded with the new settings.
-  The environment variables will not be considered as part of the configuration.
+  Role name changes take effect on the next sign-in. If you change the admin role name and no user belonging to the new group has signed in yet, you may lose admin access. Update the role name before removing yourself from the previous admin group.
 </Warning>
+
+## Configuration
+
+<Note>
+  Configuring the identity provider via the Webapp or API is available beginning with version `1.38.12`.
+</Note>
+
+<Tabs>
+  <Tab title="Web App">
+    Go to **Integrations** > **Authentication** to configure the identity provider.
+
+    <Frame>
+      <img src="/images/idp/auth-page-configuration.png" />
+    </Frame>
+
+    <Warning>
+      After saving, the identity provider reloads automatically with the new settings. Any `IDP_*` environment variables will be ignored once a configuration is saved here.
+    </Warning>
+  </Tab>
+  <Tab title="API">
+    Use `PUT {API_URL}/api/serverconfig/auth` authenticated with an admin `Api-Key` header.
+
+    ### OIDC / OAuth 2.0
+
+    | Field | Required | Description |
+    |-------|----------|-------------|
+    | `auth_method` | yes | Set to `"oidc"` |
+    | `oidc_config.issuer_url` | yes | The provider's OIDC discovery base URL |
+    | `oidc_config.client_id` | yes | OAuth2 client ID |
+    | `oidc_config.client_secret` | yes | OAuth2 client secret |
+    | `oidc_config.scopes` | no | Additional scopes to request. Defaults are `openid`, `profile`, and `email` |
+    | `oidc_config.audience` | no | OAuth2 audience. Required for providers that return opaque access tokens by default (e.g. Auth0) |
+    | `oidc_config.groups_claim` | no | ID token claim used to read group membership. Default: `groups` |
+    | `admin_role_name` | no | Group name mapped to the admin role. Default: `admin` |
+    | `auditor_role_name` | no | Group name mapped to the auditor role. Default: `auditor` |
+    | `webapp_users_management_status` | yes | `"active"` enables user management in the Webapp; `"inactive"` disables it |
+
+    ```sh
+    curl -X PUT {API_URL}/api/serverconfig/auth \
+      -H "Api-Key: {API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "auth_method": "oidc",
+        "oidc_config": {
+          "issuer_url": "https://your-idp.example.com",
+          "client_id": "your-client-id",
+          "client_secret": "your-client-secret",
+          "groups_claim": "groups"
+        },
+        "webapp_users_management_status": "active",
+        "admin_role_name": "admin",
+        "auditor_role_name": "auditor"
+      }'
+    ```
+
+    ### SAML 2.0
+
+    | Field | Required | Description |
+    |-------|----------|-------------|
+    | `auth_method` | yes | Set to `"saml"` |
+    | `saml_config.idp_metadata_url` | yes | URL to the IdP's SAML metadata XML |
+    | `saml_config.groups_claim` | no | SAML assertion attribute used to read group membership. Default: `groups` |
+    | `webapp_users_management_status` | yes | `"active"` or `"inactive"` |
+
+    ```sh
+    curl -X PUT {API_URL}/api/serverconfig/auth \
+      -H "Api-Key: {API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "auth_method": "saml",
+        "saml_config": {
+          "idp_metadata_url": "https://your-idp.example.com/saml/metadata",
+          "groups_claim": "groups"
+        },
+        "webapp_users_management_status": "active"
+      }'
+    ```
+
+    Configure your identity provider with these service provider (SP) endpoints:
+
+    | Endpoint | Value |
+    |----------|-------|
+    | ACS URL / Callback | `{API_URL}/api/saml/callback` |
+    | Entity ID / Audience URI | `{API_URL}/saml/acs` |
+  </Tab>
+</Tabs>
 
 ## Troubleshooting
 
-The IDP configuration experience could lock yourself out of the application if not configured correctly.
+### Groups not syncing
 
-To wipe all the configuration, connect in the Hoop Postgres database and the delete the following row:
+- Confirm the `groups_claim` field matches the exact claim name your provider includes in the ID token. You can inspect the claim being received by checking the gateway logs when a user signs in.
+- Ensure the claim is configured to be emitted in the **ID token** (not just the access token). Refer to your provider's guide for claim configuration.
+- Some providers (e.g. Okta) only include the groups claim when a user belongs to at least one group. Ensure every user has at least one group assigned.
+
+### Login fails or callback errors
+
+- Verify the redirect URI configured in the identity provider exactly matches `{API_URL}/api/callback` (no trailing slash, correct scheme).
+- For SAML, confirm the ACS URL is set to `{API_URL}/api/saml/callback` and the Entity ID matches `{API_URL}/saml/acs`.
+
+### Access token validation fails (opaque tokens)
+
+Some providers (e.g. Okta with certain authorization server configurations) issue opaque access tokens that cannot be validated directly. Append `?_userinfo=1` to the Issuer URL to instruct the gateway to authenticate via the userinfo endpoint instead:
+
+```
+https://your-org.okta.com/oauth2/default?_userinfo=1
+```
+
+### Locked out after misconfiguration
+
+If an incorrect configuration prevents any user from signing in, connect to the Hoop PostgreSQL database and clear the stored configuration:
 
 ```sql
--- clear all configuration
+-- Remove all IDP configuration (gateway will fall back to environment variables or local auth)
 DELETE FROM private.authconfig WHERE org_id = (SELECT id FROM private.orgs);
 ```
 
-To update a single configuration:
+To update a single field without a full reset:
 
 ```sql
 UPDATE private.authconfig
 SET admin_role_name = 'my-new-admin-role-group'
 WHERE org_id = (SELECT id FROM private.orgs);
 ```
-
-<Tip>
-  In the upcoming releases we will improve this experience to avoid this situation.
-</Tip>

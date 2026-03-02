@@ -28,12 +28,43 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
   </Step>
   <Step title="Collect Issuer Information">
     - The Issuer URI depends on the authorization server being used. Refer to [this documentation](https://developer.okta.com/docs/concepts/auth-servers/#available-authorization-server-types).
+
     <Info>
-    If Okta does not allow external applications to validate access tokens, add the query string option `_userinfo=1` when configuring the Gateway. It indicates to use the user info endpoint.
-    The _userinfo value is removed when used to exchange information with the identity provider.
+    If Okta does not allow external applications to validate access tokens, append `?_userinfo=1` to the Issuer URL (e.g., `https://your-org.okta.com/oauth2/default?_userinfo=1`). This tells the gateway to authenticate using the userinfo endpoint instead of validating the token directly.
     </Info>
   </Step>
 </Steps>
+
+## Configure Hoop Gateway
+
+<Tabs>
+  <Tab title="Web App">
+    Go to **Integrations** > **Authentication** and fill in:
+    - **Auth Method**: OIDC
+    - **Issuer URL**: your Okta authorization server URI
+    - **Client ID**: the Client ID from above
+    - **Client Secret**: the Client Secret from above
+    - **Groups Claim**: `groups`
+  </Tab>
+  <Tab title="API">
+    ```sh
+    curl -X PUT {API_URL}/api/serverconfig/auth \
+      -H "Api-Key: {API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "auth_method": "oidc",
+        "provider_name": "okta",
+        "oidc_config": {
+          "issuer_url": "https://{YOUR_OKTA_DOMAIN}/oauth2/default",
+          "client_id": "{CLIENT_ID}",
+          "client_secret": "{CLIENT_SECRET}",
+          "groups_claim": "groups"
+        },
+        "webapp_users_management_status": "active"
+      }'
+    ```
+  </Tab>
+</Tabs>
 
 ## Configuring Groups
 
@@ -78,9 +109,8 @@ Explains how to configure groups claim to propagate when users sign in.
 
   </Step>
 
-  <Step title="Configure Hoop Gateway">
-    The Hoop gateway requires proper configuration to correctly map claim names for synchronization.
-    For detailed instructions, please consult the [OAuth2/OIDC Authentication Documentation](/setup/configuration/env-vars)
+  <Step title="Verify Groups Claim in Hoop Gateway">
+    Ensure the **Groups Claim** field in **Integrations** > **Authentication** is set to `groups` to match the claim name configured above. This is the default value and usually requires no change.
   </Step>
 
 </Steps>

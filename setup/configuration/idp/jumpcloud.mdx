@@ -2,10 +2,6 @@
 title: "JumpCloud"
 ---
 
-<Info>
-  JumpCloud doesn’t emit JWT as access token, thus the gateway validates if a client is authenticated performing an http request to the userinfo endpoint (oidc spec).
-</Info>
-
 ## Requirements
 
   - An [admin account in JumpCloud](https://console.jumpcloud.com)
@@ -42,6 +38,41 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
     The issuer is fixed to `https://oauth.id.jumpcloud.com/`.
   </Step>
 </Steps>
+
+## Configure Hoop Gateway
+
+<Info>
+  JumpCloud validates authentication via the userinfo endpoint rather than JWT token validation. No special configuration is required for this — it is handled automatically.
+</Info>
+
+<Tabs>
+  <Tab title="Web App">
+    Go to **Integrations** > **Authentication** and fill in:
+    - **Auth Method**: OIDC
+    - **Issuer URL**: `https://oauth.id.jumpcloud.com/`
+    - **Client ID**: the Client ID from above
+    - **Client Secret**: the Client Secret from above
+    - **Groups Claim**: `https://app.hoop.dev/groups` (if groups attribute was configured)
+  </Tab>
+  <Tab title="API">
+    ```sh
+    curl -X PUT {API_URL}/api/serverconfig/auth \
+      -H "Api-Key: {API_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "auth_method": "oidc",
+        "provider_name": "jumpcloud",
+        "oidc_config": {
+          "issuer_url": "https://oauth.id.jumpcloud.com/",
+          "client_id": "{CLIENT_ID}",
+          "client_secret": "{CLIENT_SECRET}",
+          "groups_claim": "https://app.hoop.dev/groups"
+        },
+        "webapp_users_management_status": "active"
+      }'
+    ```
+  </Tab>
+</Tabs>
 
 ## Associating User Groups
 
