@@ -1,0 +1,57 @@
+---
+title: "Plugins"
+description: "Gateway extensions that intercept session lifecycle events and enforce policies on connections"
+---
+
+Plugins are the mechanism by which Hoop features are applied to connections. They intercept events during a session's lifecycle — when it opens, when data flows through, and when it closes — and enforce policies or forward information to external systems.
+
+## How Plugins Work
+
+Plugins are enabled **per-connection**. When you create a connection, a default set of plugins is automatically attached to it. You can configure additional plugins on a connection-by-connection basis.
+
+Plugins are not global switches. Enabling a plugin for your organization doesn't activate it on every connection — it activates it only on connections to which the plugin is explicitly attached.
+
+## Default Plugins
+
+The following plugins are automatically attached to every new connection:
+
+| Plugin | What it does |
+|--------|-------------|
+| `audit` | Records all session activity. Always active. |
+| `dlp` | Data Loss Prevention. Scans session output and redacts configured data types. Inactive until redact types are configured on the connection. |
+| `review` | Access Request workflow. Holds execution until a designated reviewer group approves. Inactive until reviewers are configured on the connection. |
+| `slack` | Sends Slack notifications for access request events and session activity. |
+
+## Full Plugin Reference
+
+| Plugin | Feature | Description |
+|--------|---------|-------------|
+| `audit` | Session Recording | Captures all session input and output. Always active; cannot be removed. |
+| `dlp` | Live Data Masking | Redacts sensitive data patterns in session output. Configurable types include `EMAIL_ADDRESS`, `CREDIT_CARD_NUMBER`, `PHONE_NUMBER`, and more. See [Live Data Masking](/setup/configuration/live-data-masking/fields). |
+| `review` | Access Requests | Implements the approval workflow. A session is held in `open` state until the required reviewers approve or reject it. See [Access Requests](/learn/features/access-requests/action). |
+| `slack` | Slack Notifications | Sends messages to configured Slack channels for access request events. See [Slack Integration](/integrations/slack). |
+| `runbooks` | Runbooks | Enables runbook script execution on the connection. Must be explicitly added. See [Runbooks](/learn/features/runbooks). |
+| `access_control` | Access Control | Restricts which user groups can see and interact with the connection. Must be explicitly added. See [Access Control](/learn/features/access-control). |
+| `webhooks` | Webhooks / SIEM | Forwards session lifecycle events to external webhook endpoints. Must be explicitly added. See [Webhooks & SIEM](/setup/apis/webhooks-siem). |
+| `indexer` | Session Search | Indexes session content for full-text search within the platform. |
+
+## Plugins Managed by Connection
+
+Two plugins — `review` and `dlp` — are configured directly on the connection resource rather than through the plugin API. Their behavior is tied to connection-level fields:
+
+- **`dlp`** is configured via the `redact_types` field on the connection. Setting one or more redact types activates the plugin on that connection; removing all types deactivates it.
+- **`review`** is configured via the `reviewers` field on the connection. Setting one or more reviewer groups activates the approval workflow; removing all reviewers deactivates it.
+
+These two plugins are created automatically when a connection is created and cannot be deleted independently.
+
+## Feature → Plugin Mapping
+
+| Feature | Plugin |
+|---------|--------|
+| Session Recording | `audit` |
+| Live Data Masking | `dlp` |
+| Access Requests | `review` |
+| Slack Notifications | `slack` |
+| Runbooks | `runbooks` |
+| Access Control | `access_control` |
+| Webhooks / SIEM | `webhooks` |

@@ -1,0 +1,58 @@
+---
+title: "Sessions"
+description: "A recorded interaction between a user and a connection"
+---
+
+A session is created every time a user interacts with a connection — running a query, executing a command, or opening an interactive shell. Sessions are the unit of audit in Hoop.
+
+## Lifecycle
+
+Sessions move through three states:
+
+| Status | Meaning |
+|--------|---------|
+| `open` | The session has started and the user is connected |
+| `ready` | All required approvals have been granted; execution is about to begin |
+| `done` | The session has ended (disconnected or timed out) |
+
+When a connection has the **Access Requests** feature enabled, sessions that trigger a review pause in `open` state until approved. Once all required approvers have approved, the session transitions to `ready` and execution proceeds. If the request is rejected or times out, the session moves to `done` without executing.
+
+## What Is Recorded
+
+Each session captures:
+
+- **User identity** — the user's ID, name, and email at the time of the session
+- **Connection metadata** — the connection name, type, and subtype
+- **Input** — the command or query submitted (stored as a blob)
+- **Output stream** — the full response from the resource (stored as a blob)
+- **Timestamps** — when the session started (`created_at`) and ended (`ended_at`)
+- **Exit code** — the exit status of the process or command
+- **Review** — if an access request was triggered, its status and reviewer decisions are linked to the session
+
+## Visibility
+
+Who can see which sessions depends on the user's role:
+
+| Role | Visibility |
+|------|-----------|
+| Admin | All sessions in the organization |
+| Auditor | All sessions in the organization (read-only) |
+| Regular user | Their own sessions, plus any sessions where they are a designated reviewer |
+
+## Viewing Sessions
+
+Sessions are visible in the **Sessions** tab of the Web App. You can filter by:
+
+- User
+- Connection name
+- Connection type
+- Date range
+- Access request review status
+
+Each session entry links to the full recording, including input and output replay.
+
+## Related
+
+- [Session Recording](/learn/features/session-recording)
+- [Access Requests](/learn/features/access-requests/action)
+- [Webhooks & SIEM](/setup/apis/webhooks-siem)

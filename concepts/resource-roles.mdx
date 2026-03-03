@@ -1,203 +1,117 @@
 ---
 title: "Resource Roles"
-description: "The bridge between users and resources"
+description: "Connections that expose internal services to authorized users through the Hoop gateway"
 ---
 
-<img
-  src="/images/concepts/connections-light.png"
-  alt="Connections"
-  className="block dark:hidden"
-/>
+In the **Web App**, these are called **Resource Roles**. In the **API**, the same objects are called **connections**. They refer to the same thing: a named, typed configuration that exposes an internal service through a Hoop agent.
 
-<img
-  src="/images/concepts/connections-dark.png"
-  alt="Connections"
-  className="hidden dark:block"
-/>
+## Connection Types
 
-# Resource Roles
+Every connection has a `type` and an optional `subtype`.
 
-Resource Roles are a central concept in Hoop.dev that serve as secure bridges between users and your organization's resources. They enable controlled access to internal services, databases, and other resources while maintaining security and compliance. Resource Roles are defined by the administrator and can be assigned to users and groups.
+### Database (`type: "database"`)
 
-## What is a Resource Role?
+Connections that implement native database wire protocols. Hoop intercepts queries and can enforce masking, guardrails, and access policies on the traffic.
 
-A Resource Role is a configurable connection that exposes internal services from your infrastructure to authorized users in a secure and controlled manner. It acts as an intermediary layer that:
+| Subtype | Protocol |
+|---------|----------|
+| `postgres` | PostgreSQL wire protocol |
+| `mysql` | MySQL protocol |
+| `mongodb` | MongoDB Wire Protocol |
+| `mssql` | Microsoft SQL Server |
+| `oracledb` | Oracle Database |
 
-- Provides secure access to internal resources
-- Enforces access control policies
-- Enables monitoring and auditing of resource usage
-- Supports various types of services and protocols
+### Application (`type: "application"`)
 
-## Types of Resources 
+Connections to networked services and processes.
 
-Hoop.dev supports several types of connections:
+| Subtype | Description |
+|---------|-------------|
+| `httpproxy` | Forwards HTTP/HTTPS traffic to an upstream service |
+| `tcp` | Raw TCP forwarding |
+| `ssh` | SSH tunneling |
 
-**Databases**
+### Custom (`type: "custom"`)
 
-- PostgreSQL, MySQL and many other database systems
+Arbitrary shell command execution. Use this type when your resource doesn't fit a standard protocol. The `command` field defines what runs when a session opens.
 
-**Applications**
+## Agent Binding
 
-- TCP forwarding, custom CLI tools, and web services
+Each connection is bound to an agent via the `agent_id` field. The connection's status reflects the agent's reachability:
 
-**Custom Resources**
+- **`online`** — the agent is connected and the resource is accessible
+- **`offline`** — the agent is not connected or the resource is unreachable
 
-- Ability to connect to specialized resources
-- Support for complex configurations
-- Integration with custom tools and services
+If no `agent_id` is set on the connection, it inherits the agent from the associated resource.
 
-## Key Features
+## Credentials
 
-### Access Control
+Connection secrets (database passwords, API tokens, hostnames) are stored as environment variables attached to the connection. In the API, they are submitted under a `secret` object with `"envvar:KEY"` keys, base64-encoded:
 
-- Granular permission management
-- Group-based access policies
-- Access request approval processes for sensitive resources
+```json
+{
+  "secret": {
+    "envvar:HOST": "bXlkYi5leGFtcGxlLmNvbQ==",
+    "envvar:PORT": "NTQzMg==",
+    "envvar:USER": "YWRtaW4=",
+    "envvar:PASS": "c3VwZXJzZWNyZXQ="
+  }
+}
+```
 
-### Security
+The agent resolves these environment variables at runtime when opening a session.
 
-- Encrypted communication
-- Credential management
-- Audit logging
-- Security policy enforcement
+## Access Modes
 
-### Monitoring and Compliance
+Each connection exposes up to three interaction modes, each independently enabled or disabled:
 
-- Activity tracking
-- Usage analytics
-- Compliance reporting
-- Integration with SIEM systems
+| Mode | Description |
+|------|-------------|
+| `exec` | Run a command and receive output (non-interactive) |
+| `connect` | Open an interactive session (e.g., a database shell) |
+| `runbooks` | Execute pre-defined runbook scripts against the connection |
 
-## Resource Components
+## Features Per Connection
 
-Resources and Resource Roles in Hoop.dev consist of several components:
+Hoop features are attached to individual connections via the plugin system. When a connection is created, a default set of plugins is automatically enabled. Additional features can be configured on a per-connection basis:
 
-<AccordionGroup>
-  <Accordion title="Configuration">
-    <ul>
-      <li>
-        Name and type
-      </li>
+| Feature | Plugin | What it does |
+|---------|--------|--------------|
+| Session Recording | `audit` | Always active; records all session activity |
+| Live Data Masking | `dlp` | Redacts sensitive patterns (emails, credit cards, etc.) in output |
+| Access Requests | `review` | Holds execution pending approval from a designated reviewer group |
+| Guardrails | — | Enforces input/output rules attached to the connection |
+| Access Control | `access_control` | Restricts which user groups can see and use the connection |
+| Runbooks | `runbooks` | Enables runbook execution on the connection |
+| Webhooks / SIEM | `webhooks` | Forwards session lifecycle events to external endpoints |
+| Slack Notifications | `slack` | Sends Slack messages for access request events |
 
-    
-      <li>
-        Resource specifications
-      </li>
+See [Plugins](/concepts/plugins) for a full reference.
 
-    
-      <li>
-        Security settings
-      </li>
+## Creating Connections
 
-    
-      <li>
-        Access control rules
-      </li>
-
-    </ul>
-  </Accordion>
-  <Accordion title="Agent Integration">
-    <ul>
-      <li>
-        Connects to internal resources
-      </li>
-
-    
-      <li>
-        Manages communication
-      </li>
-
-    
-      <li>
-        Handles authentication
-      </li>
-
-    
-      <li>
-        Enforces security policies
-      </li>
-
-    </ul>
-  </Accordion>
-  <Accordion title="Plugins and Extensions">
-    <ul>
-      <li>
-        Integration with external tools
-      </li>
-
-    
-      <li>
-        Custom functionality
-      </li>
-
-    
-      <li>
-        Automation capabilities
-      </li>
-
-    
-      <li>
-        Compliance features
-      </li>
-
-    </ul>
-  </Accordion>
-</AccordionGroup>
-
-## Best Practices
-
-<CardGroup cols={2}>
-  <Card title="Security First" icon="shield">
-    - Use strong authentication
-    - Implement least privilege access
-    - Enable access request approval for sensitive resources
-    - Regularly audit access patterns
-  </Card>
-  <Card title="Organization" icon="folder">
-    - Use clear naming conventions
-    - Group related resource roles
-    - Document resource role purposes
-    - Maintain access control lists
-  </Card>
-  <Card title="Monitoring" icon="eye">
-    - Enable logging and auditing
-    - Monitor usage patterns
-    - Set up alerts for suspicious activity
-    - Regular security reviews
-  </Card>
-  <Card title="Regular Updates" icon="arrows-rotate">
-    - Keep software and dependencies up to date
-    - Apply security patches promptly
-    - Review and update configurations regularly
-    - Stay informed about new features and improvements
-  </Card>
-</CardGroup>
-
-## Managing Resources 
-
-Resources and Resource Roles can be managed through:
-
-1. **Web Interface**
-   - User-friendly management console
-   - Real-time monitoring
-   - Configuration tools
-   - Access control management
-2. **API**
-   - Programmatic access
-   - Automation capabilities
-   - Integration support
-   - Custom implementations
-3. **CLI**
-   - Command-line management
-   - Scripting support
-   - Automation tools
-   - Quick access
-
-## Next Steps
-
-To get started with your Resources and Resource Roles:
-
-1. [Set up your first resource](/clients/webapp/creating-resource-roles)
-2. [Learn about access management](/clients/webapp/managing-access)
-3. [Explore integration options](/integrations)
-4. [Understand the architecture](/setup/architecture)
+<Tabs>
+  <Tab title="Web App">
+    Navigate to **Resource Roles** in the sidebar, then click **New Resource Role**. Select the type and fill in the required fields.
+  </Tab>
+  <Tab title="API">
+    ```bash
+    curl -X POST https://<your-gateway>/api/connections \
+      -H "Api-Key: <your-api-key>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "prod-postgres",
+        "type": "database",
+        "subtype": "postgres",
+        "agent_id": "<agent-id>",
+        "secret": {
+          "envvar:HOST": "<base64-encoded-host>",
+          "envvar:PORT": "<base64-encoded-port>",
+          "envvar:USER": "<base64-encoded-user>",
+          "envvar:PASS": "<base64-encoded-pass>",
+          "envvar:DB":   "<base64-encoded-dbname>"
+        }
+      }'
+    ```
+  </Tab>
+</Tabs>

@@ -166,6 +166,7 @@
                     "group": "Identity Providers",
                     "pages": [
                       "setup/configuration/idp/get-started",
+                      "setup/configuration/idp/local-auth",
                       "setup/configuration/idp/auth0",
                       "setup/configuration/idp/okta",
                       "setup/configuration/idp/google",
@@ -191,7 +192,9 @@
             "group": "Concepts",
             "pages": [
               "concepts/agents",
-              "concepts/resource-roles"
+              "concepts/resource-roles",
+              "concepts/sessions",
+              "concepts/plugins"
             ]
           },
           {

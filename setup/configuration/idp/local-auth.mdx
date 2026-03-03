@@ -1,0 +1,55 @@
+---
+title: "Local Authentication"
+description: "Built-in username and password authentication — no external identity provider required"
+---
+
+Local authentication is the default mode for new self-hosted Hoop installations. It uses a built-in username and password system and requires no external identity provider.
+
+## When to Use Local Auth
+
+- **New installs** — local auth is active by default when no IdP is configured
+- **Development and test environments** — useful for evaluating Hoop without IdP setup overhead
+- **Small teams** — when an external IdP is not available or not needed
+
+## First User Registration
+
+The first user to register via the web app's signup screen is automatically granted the **admin** role and has full access to the platform.
+
+After the first user is registered, the public registration endpoint is closed. Subsequent users can only join by invitation from an existing admin.
+
+<Note>
+  If you attempt to register a second account via the signup screen without an invitation, you will receive a "unable to register new users, please contact your administrator" error.
+</Note>
+
+## Inviting Additional Users
+
+Admins can invite additional users through the user management screen in the Web App. Go to **Settings > Users** and send an invitation to the new user's email address.
+
+## Configuration
+
+Local auth is enabled by default when no external IdP is configured. You can also set it explicitly via an environment variable:
+
+```env
+AUTH_METHOD=local
+```
+
+No other configuration is required.
+
+## Transitioning to OIDC or SAML
+
+To migrate from local auth to an external identity provider:
+
+1. Go to **Integrations > Authentication** in the Web App
+2. Configure your OIDC or SAML provider
+3. Save the configuration — the gateway reloads automatically with the new auth method
+
+<Warning>
+  After saving a new auth configuration via the Web App, the `AUTH_METHOD` environment variable is no longer consulted — the database configuration takes precedence.
+</Warning>
+
+Existing users are matched by email when they sign in with the new provider. If the `sub` claim from the new provider doesn't match the stored subject, the user will be treated as a new account. Make sure the email addresses in your IdP match the ones already registered in Hoop.
+
+## Related
+
+- [Identity Provider Overview](/setup/configuration/idp/get-started)
+- [Env Vars Reference](/setup/configuration/env-vars)
