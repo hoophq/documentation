@@ -50,7 +50,7 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 ${coverImage ?
 `<Frame>
   <img
-  src="/docs${coverImage}"
+  src="${coverImage}"
   alt="${connection.coverImageAlt || ''}"
   />
 </Frame>` : ''
