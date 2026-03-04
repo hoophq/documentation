@@ -25,14 +25,6 @@ export const ConnectionTemplate = ({ config }) => {
 
   return (
     <div>
-      {finalConfig.coverImage &&
-        <Frame>
-          <img
-            src={`/docs${finalConfig.coverImage}`}
-            alt={finalConfig.coverImageAlt}
-          />
-        </Frame>
-      }
       <h2>Before you start</h2>
       <p>To get the most out of this guide, you will need to:</p>
       <ul>

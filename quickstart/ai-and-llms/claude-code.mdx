@@ -6,13 +6,35 @@ category: "ai-and-llms"
 
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 
+<Frame>
+  <img
+  src="/docs/images/quickstarts/claude-code.png"
+  alt="Claude Code Resource type at hoop.dev"
+  />
+</Frame>
+
+
+Once a coding assistant has API connectivity, it is no longer making suggestions. It is reading production data, ingesting environment variables, and operating inside the same execution path as your engineers.
+
+The default response has been to restrict access to a sandbox, remove production context, and accept reduced usefulness.
+
+That tradeoff is no longer necessary.
+
+The Claude Code connection type routes Claude Code's API traffic through hoop.dev before it reaches your infrastructure. With it, you can give Claude Code production access while maintaining the controls your security and compliance teams require:
+
+- Sensitive data is masked before Claude Code sees it. PII, credentials, and secrets in query results are redacted in real time. The model works with the schema and structure, not the raw values.
+- Credentials are never handed to the model. Claude Code authenticates through hoop.dev's SSO integration. Database credentials are retrieved just-in-time and never exposed to the model or its context window.
+- Every query is logged at the command level. More granular than session-level access records, with hoop.dev every individual query is logged, with full context, in a structured and searchable audit trail.
+- Guardrails can block or gate actions outside approved patterns. Queries or commands that fall outside policy can be blocked outright or routed through an approval workflow, without changing how Claude Code is invoked.
+
+The result is that Claude Code interrogates real schemas, surfaces actual data anomalies, and generates migration scripts against live table structures without your credentials or PII leaving the controlled environment.
+
 <ConnectionTemplate config={{
   "id": "claude-code",
   "name": "Claude Code",
   "description": "Proxy Claude Code to ensure sensitive data won’t leak.",
   "category": "ai-and-llms",
   "icon-name": "claude",
-  "coverImage": "/images/quickstarts/claude-code.png",
   "coverImageAlt": "Claude Code Resource type at hoop.dev",
   "tags": [
     "ai",
@@ -71,3 +93,12 @@ import { ConnectionTemplate } from '/snippets/connection-template.jsx';
 }} />
 
 
+### Claude Code is only as useful as the context you give it
+
+Unproxied access for coding assistants to production resources has three primary risks: what commands a model can execute, what sensitive data a model can see, and what it can send.
+
+Hoop.dev elegantly solves all three risks with controls embedded into the application protocols. Guardrails filter and block dangerous actions. Dynamic data masking ensures the model never sees or sends sensitive data outside of the boundary. Every action taken by Claude is logged with full context and the evidence is made immediately exportable via webhooks.
+
+With hoop.dev, you can confidently give Claude the context and access it needs to be valuable without jeopardizing your security posture or uptime. Talk to our team if you want to discuss your setup before deploying.
+
+[Talk to our team](https://dub.sh/G85aUr8) if you want to discuss your setup before deploying.

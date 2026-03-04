@@ -32,8 +32,13 @@ if (files.length === 0) {
 // MDX template using reusable snippet
 const createMDXContent = (connection) => {
   // Remove additionalInformation from the config passed to ConnectionTemplate
-  const { additionalInformation, ...configForTemplate } = connection;
-  
+  const {
+    additionalInformation,
+    customMarkupContent,
+    coverImage,
+    ...configForTemplate
+  } = connection;
+
   return `---
 title: "${connection.name}"
 description: "${connection.description}"
@@ -41,6 +46,17 @@ category: "${connection.category}"
 ---
 
 import { ConnectionTemplate } from '/snippets/connection-template.jsx';
+
+${coverImage ?
+`<Frame>
+  <img
+  src="/docs${coverImage}"
+  alt="${connection.coverImageAlt || ''}"
+  />
+</Frame>` : ''
+}
+
+${customMarkupContent ? `\n${customMarkupContent}` : ''}
 
 <ConnectionTemplate config={${JSON.stringify(configForTemplate, null, 2)}} />
 
@@ -73,13 +89,13 @@ files.forEach(file => {
 
       // Generate MDX using reusable snippet with custom content
       const mdxContent = createMDXContent(connection);
-      
+
       // Ensure directory exists
       const outputDirPath = path.dirname(outputFile);
       if (!fs.existsSync(outputDirPath)) {
         fs.mkdirSync(outputDirPath, { recursive: true });
       }
-      
+
       fs.writeFileSync(outputFile, mdxContent);
     } else {
       // Check fallback in existing JSON for legacy support
@@ -91,13 +107,13 @@ files.forEach(file => {
 
         // Generate MDX using reusable snippet with custom content
         const mdxContent = createMDXContent(connection);
-        
+
         // Ensure directory exists
         const outputDirPath = path.dirname(outputFile);
         if (!fs.existsSync(outputDirPath)) {
           fs.mkdirSync(outputDirPath, { recursive: true });
         }
-        
+
         fs.writeFileSync(outputFile, mdxContent);
       } else {
         console.log(`Skipping ${connection.id}: no documentationConfig.path specified`);

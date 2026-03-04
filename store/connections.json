@@ -648,7 +648,8 @@
       },
       "documentationConfig": {
         "path": "quickstart/ai-and-llms/claude-code"
-      }
+      },
+      "customMarkupContent": "Once a coding assistant has API connectivity, it is no longer making suggestions. It is reading production data, ingesting environment variables, and operating inside the same execution path as your engineers.\n\nThe default response has been to restrict access to a sandbox, remove production context, and accept reduced usefulness.\n\nThat tradeoff is no longer necessary.\n\nThe Claude Code connection type routes Claude Code's API traffic through hoop.dev before it reaches your infrastructure. With it, you can give Claude Code production access while maintaining the controls your security and compliance teams require:\n\n- Sensitive data is masked before Claude Code sees it. PII, credentials, and secrets in query results are redacted in real time. The model works with the schema and structure, not the raw values.\n- Credentials are never handed to the model. Claude Code authenticates through hoop.dev's SSO integration. Database credentials are retrieved just-in-time and never exposed to the model or its context window.\n- Every query is logged at the command level. More granular than session-level access records, with hoop.dev every individual query is logged, with full context, in a structured and searchable audit trail.\n- Guardrails can block or gate actions outside approved patterns. Queries or commands that fall outside policy can be blocked outright or routed through an approval workflow, without changing how Claude Code is invoked.\n\nThe result is that Claude Code interrogates real schemas, surfaces actual data anomalies, and generates migration scripts against live table structures without your credentials or PII leaving the controlled environment."
     },
     {
       "id": "clojure",
