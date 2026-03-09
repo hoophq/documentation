@@ -105,14 +105,18 @@
                       "quickstart/cloud-services/kubernetes/kubernetes",
                       "quickstart/cloud-services/kubernetes/kubernetes-eks"
                     ]
-                  }
+                  },
+                  "quickstart/cloud-services/git",
+                  "quickstart/cloud-services/github"
                 ]
               },
               {
                 "group": "Web Applications",
                 "pages": [
                   "quickstart/web-applications/webapps-and-apis",
-                  "quickstart/web-applications/http-proxy"
+                  "quickstart/web-applications/http-proxy",
+                  "quickstart/web-applications/grafana-proxy",
+                  "quickstart/web-applications/kibana-proxy"
                 ]
               },
               {
@@ -133,7 +137,7 @@
                 ]
               },
               "quickstart/ssh",
-              "quickstart/applications/remote-desktop"
+              "quickstart/remote-desktop"
             ]
           },
           {
