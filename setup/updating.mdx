@@ -1,0 +1,103 @@
+---
+title: "Updating Hoop"
+description: "Guidance and best practices for updating Hoop components, including version alignment, compatibility considerations, and post-update troubleshooting."
+---
+
+# Troubleshooting After an Update
+
+If you experience issues after updating Hoop components, follow the checks below before contacting support. These steps resolve most update-related problems and help us investigate faster when a ticket is opened.
+
+---
+
+## 1. Verify component versions
+
+All Hoop components must run **the same version**.
+
+Check the versions of:
+
+- **Gateway**
+- **Agent**
+- **CLI** (if you access resources through CLI)
+
+**Expected state**
+
+- Gateway, Agent, and CLI are on the **same version**
+- If CLI is not used, **Gateway and Agent must still match**
+
+Version mismatches can cause connection failures, command issues, and unexpected behavior.
+
+---
+
+## 2. Confirm the Agent is online
+
+After an update, ensure the **Agent is online and connected to the Gateway**.
+
+If the Agent is offline:
+
+- Restart the Agent
+- Confirm network access to the Gateway
+- Verify the service is running in the host environment
+
+---
+
+## 3. Test resource connectivity
+
+If the issue involves a **database or resource connection**, test the connection directly from the Hoop UI.
+
+Go to:
+
+`Resources → Roles → Connect → Test connection`
+
+All checks must return **Success**.
+
+If a check fails:
+
+- **Agent Status**
+  The Agent may be unavailable or disconnected.
+
+- **Connection Status**
+  Credentials may be incorrect, or the resource itself may be unavailable.
+
+---
+
+## 4. Refresh the browser UI
+
+After a platform update, your browser may still be using **cached UI assets**, which can cause visual issues or inconsistent behavior.
+
+Perform a **hard refresh**:
+
+- **macOS:** `Cmd + Shift + R`
+- **Windows / Linux:** `Ctrl + Shift + R`
+
+This forces the browser to load the latest UI assets.
+
+---
+
+## 5. If the issue persists
+
+When reporting the problem, include the following information to help us investigate quickly.
+
+### Reproduction steps
+
+Provide a **clear step-by-step description** of how the issue occurs.
+
+### Evidence
+
+Include **full-screen screenshots or a full-screen recording** showing the complete flow until the issue happens.
+
+### Severity
+
+Describe the impact:
+
+- **Low** – Unexpected behavior, but the workflow is still possible
+- **Medium** – Part of the workflow is affected
+- **Critical** – Usage is completely blocked
+
+### Impact scope
+
+Provide an estimate of how many **users, teams, or business areas** are affected
+(for example: a few users, one team, dozens of users).
+
+---
+
+Providing this information upfront allows our team to investigate more directly and significantly reduces the time required to resolve issues.

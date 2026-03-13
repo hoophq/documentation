@@ -194,6 +194,7 @@
                   "setup/apis/webhooks-siem"
                 ]
               },
+              "setup/updating",
               "setup/license-management"
             ]
           },
