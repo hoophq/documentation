@@ -38,6 +38,7 @@
             "group": "Features",
             "pages": [
               "learn/features/live-data-masking",
+              "learn/features/ai-session-analyzer",
               "learn/features/access-requests/action",
               "learn/features/access-requests/jit",
               "learn/features/access-control",
