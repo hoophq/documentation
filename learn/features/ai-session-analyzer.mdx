@@ -14,134 +14,75 @@ AI Session Analyzer is Hoop's first AI-powered risk analysis capability for term
 - Detect risky commands in real time before impact
 - Block destructive or high-risk operations proactively
 - Apply consistent policy decisions across resources
-- Give admins centralized control while users work normally
-
----
-
-## Overview
-
-AI Session Analyzer is a real-time risk analysis agent embedded in the Web Terminal. It uses LLM reasoning plus resource context to identify data security and reliability risks, such as:
-
-- Destructive operations
-- Long-running lock risks
-- Heavy reads without proper indexing
-- Commands that violate organizational policy
-
-This feature introduces session-level controls that admins configure once, while common users consume passively during their sessions.
-
----
-
-## Who Configures vs Who Uses
-
-| Role | Experience |
-|------|------------|
-| **Admin** | Configures provider, model, API key, and rule policies |
-| **Common User** | Does not configure anything; receives Allowed/Blocked outcomes in terminal sessions |
 
 ---
 
 ## How It Works
 
 <Steps>
-  <Step title="Admin Configures AI Provider">
-    Configure tab is completed first with provider, model, and API key.
+  <Step title="Configure Provider and Rules">
+    Configure the AI provider and define risk rules.
   </Step>
-  <Step title="Admin Creates Rules">
-    Rules define scope (roles/attributes) and actions (for example, alert or block).
+  <Step title="Command Is Analyzed">
+    A command runs and is analyzed in real time by AI.
   </Step>
-  <Step title="User Runs Terminal Commands">
-    During a session, commands are evaluated in real time against configured rules.
-  </Step>
-  <Step title="System Applies Action">
-    Session is marked Allowed or Blocked, with risk status available in terminal and session details.
+  <Step title="Action Is Applied">
+    Based on the rules and AI analysis, the command is allowed or blocked.
   </Step>
 </Steps>
 
 ---
 
-## Admin Journey
+## Quick Start
 
-### 1) First Configuration (Required)
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
-The **Configure** tab is the required starting point. AI Session Analyzer will not run until configuration is valid and saved.
+<Prerequisites />
 
-If an admin opens the **Rules** tab before completing configuration, the UI shows an empty state.
+- Access to AI Session Analyzer settings in the Web App
+- A valid AI provider account and API key
 
-#### Provider Options
+### Step 1: Configure the AI Provider
 
-Admins can select one provider at a time:
+In **AI Session Analyzer > Configure**:
 
-- Azure OpenAI
-- OpenAI
-- Claude
-- Anthropic
-- Custom (OpenAI-compatible API)
-
-**Behavior rules:**
-
-- Only one provider can be active at a time
-- Selected provider card shows active highlight and border
-- Changing provider resets selected model
-- Changing provider clears API key input
-
-#### OpenAI, Claude, Anthropic
-
-- Model is selected from a dropdown
-- Admin configures model plus API key
-
-#### Custom (OpenAI-compatible API)
-
-- Admin fills required custom endpoint fields
-- Configuration must still include a valid model and API key
-
-#### Validation and Save
+1. Select one provider:
+   - Azure OpenAI
+   - OpenAI
+   - Anthropic
+   - Custom (OpenAI-compatible API)
+2. Select a model (when applicable)
+3. Enter the API key
+4. Click **Save**
 
 - Required fields cannot be empty
-- Credentials are validated before saving
-- On successful save, show: `Configuration saved.`
-- If user leaves with unsaved changes, show a confirmation prompt
+- Credentials are validated before save
 
-### 2) First Rule Creation
+On success, the UI shows: `Configuration saved.`
 
-After configuration is complete, the rule flow is enabled.
+### Step 2: Create the First Rule
 
-<Steps>
-  <Step title="Open Empty State">
-    Admin lands on AI Session Analyzer empty state in Rules.
-  </Step>
-  <Step title="Create First Rule">
-    Click to create the first rule.
-  </Step>
-  <Step title="Define Rule">
-    Add Name, optional Description, then configure roles, attributes, and risk actions.
-  </Step>
-  <Step title="Save and Redirect">
-    On success, redirect to Rules list and show success indicator.
-  </Step>
-</Steps>
+In **AI Session Analyzer > Rules**:
 
-**Important:** Recommended actions are preselected by the system. If an admin chooses a different action, the `recommended` tag remains visible.
+1. Click to create the first rule
+2. Add a **Name** and optional **Description**
+3. Configure rule scope (roles and attributes)
+4. Select risk action behavior (for example, warn or block)
+5. Save the rule
 
-If user leaves the rule page with unsaved changes, show a confirmation prompt.
+### Step 3: Run a Command in Terminal
 
-### 3) Normal Admin Usage
+Open a terminal session and run a command.
 
-After first configuration and first rule creation:
+The command is evaluated in real time using your configured provider and rules.
 
-- Rules list shows existing rules
-- **Create new rule** button is available in the top area
-- Admin can create additional rules with the same flow
-- Admin can configure existing rules from the list
-- Admin can delete rules
-- Delete requires confirmation modal
-- After deletion, redirect to list and remove the rule
-- Leaving unsaved edit pages prompts confirmation
+### Step 4: Verify the Result
+
+Confirm the resulting action and risk status in the terminal and in session details.
 
 ---
 
-## Common User Experience
-
-Common users do not configure AI Session Analyzer. They only experience its effects during terminal usage.
+## Runtime Analysis Experience
 
 ### In-Terminal Behavior
 
@@ -162,7 +103,6 @@ In the session detailed view:
   - Title plus risk level indicator (**Low Risk**, **Medium Risk**, **High Risk**)
   - Action applied by rule (**Allowed** or **Blocked**)
 
-When Tabs are enabled in production, this card should be included in the Tabs structure.
 
 ---
 
@@ -173,26 +113,19 @@ When Tabs are enabled in production, this card should be included in the Tabs st
 | **Allowed** | Session complies with configured risk rules |
 | **Blocked** | Session violates one or more configured risk rules |
 
-<Note>
-Some sessions may still require Review, even when AI Session Analyzer marks them as Allowed or Blocked.
-</Note>
-
 ---
 
 ## Best Practices
 
 <CardGroup cols={2}>
-  <Card title="Start in Alert Mode" icon="bell">
-    Begin with less disruptive actions to calibrate signal quality before enforcing blocks broadly.
+  <Card title="Recommended Risk Evaluation" icon="bell">
+    Use the recommended risk evaluation to apply policies based on each session's risk profile.
   </Card>
   <Card title="Scope by Role" icon="users">
     Apply stricter policies to privileged roles and production-facing resources first.
   </Card>
   <Card title="Review Outcomes Weekly" icon="calendar">
     Audit Allowed/Blocked trends and tune rules for false positives or blind spots.
-  </Card>
-  <Card title="Combine with Guardrails" icon="shield">
-    Use Guardrails and Live Data Masking with AI Session Analyzer for layered protection.
   </Card>
 </CardGroup>
 
@@ -219,7 +152,7 @@ Some sessions may still require Review, even when AI Session Analyzer marks them
 **Check:**
 1. At least one rule exists and is active
 2. Rule scope (roles/attributes) matches the current session
-3. User is running commands in Web Terminal where analyzer status is shown
+3. Commands are running in Web Terminal where analyzer status is shown
 
 ---
 
