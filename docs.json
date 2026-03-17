@@ -181,7 +181,8 @@
                       "setup/configuration/idp/google",
                       "setup/configuration/idp/azure",
                       "setup/configuration/idp/jumpcloud",
-                      "setup/configuration/idp/aws-cognito"
+                      "setup/configuration/idp/aws-cognito",
+                      "setup/configuration/idp/onelogin"
                     ]
                   }
                 ]
