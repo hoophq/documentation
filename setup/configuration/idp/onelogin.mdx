@@ -1,0 +1,71 @@
+---
+title: "OneLogin (SAML 2.0)"
+---
+
+## Requirements
+
+- An [account in OneLogin](https://www.onelogin.com/)
+- `API_URL` is the public DNS name of the hoop gateway instance
+
+Contact the administrator of the hoop gateway instance to retrieve the `API_URL` address.
+
+## Identity Provider Configuration
+
+<Steps titleSize="h3">
+  <Step title="Create an Application">
+   Create a new application
+   - Go to **Applications** and click on the **Add App** button
+   - Search for `saml`
+   - Select **"SAML Custom Connector (Advanced)"**
+   - Add a display name and click on Save
+
+   <Frame>
+      <img src="/images/configure/identity-providers/onelogin-saml-1.png" />
+    </Frame>
+  </Step>
+  <Step title="Confirm your user is allowed to login">
+   - Click on **Users** in the **left sidebar**
+   - Confirm your user is allowed to login
+
+   <Note>
+    If your is not included by default, make sure to add manually through the **Users** menu.
+   </Note>
+  </Step>
+  <Step title="Configure Audience and Recipient">
+    - Navigate to **Configuration** in the **left sidebar**
+    - In `Audience (EntityID)` add the value `{API_URL}/saml/acs`
+    - In `Recipient` add the value `{API_URL}/api/saml/callback`
+    - Click on **Save** to persist the changes
+
+    <Note>
+      Leave all other fields with default values.
+    </Note>
+    <Frame>
+      <img src="/images/configure/identity-providers/onelogin-saml-2.png" />
+    </Frame> 
+  </Step>
+  <Step title="Collect IDP Issuer URL Metadata">
+    - Go to **SSO** in the **left sidebar** and copy the **issuer URL**
+
+    **Example:** `https://app.onelogin.com/saml/metadata/<uuid>`
+  </Step>
+</Steps>
+
+## Parameters Configuration
+
+To propagate the Display name of users and synchronize with Hoop, make sure to add the following parameters:
+
+- Field Name: `first_name`, Value: `First Name`
+- Field Name: `last_name`, Value: `Last Name`
+
+<Frame>
+  <img src="/images/configure/identity-providers/onelogin-saml-3.png" />
+</Frame>
+
+After a user sign in, the display name will be updated accordingly.
+
+## Groups Configuration
+
+<Note>
+  Coming soon...
+</Note>

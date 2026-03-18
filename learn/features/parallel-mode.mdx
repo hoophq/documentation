@@ -1,19 +1,19 @@
 ---
 title: "Parallel Mode"
-description: "Execute commands across multiple connections simultaneously"
+description: "Execute commands across multiple resource roles simultaneously"
 ---
 
 <Frame>
-  <img src="/images/learn/features/parallel-mode.png" alt="Parallel Mode" />
+  ![Parallel Mode](/images/learn/features/parallel-mode.png)
 </Frame>
 
 <Note>
-This feature is currently in Beta. Update to the latest Hoop version to access it.
+  This feature is currently in Beta. Update to the latest Hoop version to access it.
 </Note>
 
 ## What You'll Accomplish
 
-**Parallel Mode** runs the same command across multiple connections simultaneously. Instead of connecting to each server one at a time, you can:
+Parallel Mode lets you run the same command across multiple resource roles at once. Instead of connecting to each server individually, you can:
 
 - Restart services across multiple servers simultaneously
 - Run the same query on multiple databases
@@ -25,17 +25,17 @@ This feature is currently in Beta. Update to the latest Hoop version to access i
 ## How It Works
 
 <Steps>
-  <Step title="Select Connections">
-    Choose multiple connections to run your command on
+  <Step title="Select Resources Roles">
+    Choose multiple resources roles to run your command on
   </Step>
   <Step title="Enter Command">
     Type the command or query once
   </Step>
   <Step title="Execute">
-    Hoop runs the command on all selected connections in parallel
+    Hoop runs the command on all selected resources roles in parallel
   </Step>
   <Step title="View Results">
-    See results from all connections in a unified view
+    See results from all resource roles in a unified view
   </Step>
 </Steps>
 
@@ -48,21 +48,22 @@ This feature is currently in Beta. Update to the latest Hoop version to access i
 1. Go to the **Web Terminal** in the Hoop Web App
 2. Click the **Parallel Mode** toggle in the top-right corner
 
-### Step 2: Select Connections
+### Step 2: Select Resources
 
-1. Use the connection picker to select multiple connections
-2. Filter by type, tags, or name to find connections quickly
-3. Click connections to add them to your selection
+1. Use the resources roles picker to select multiple resources
+2. Filter by type, tags, or name to find resource roles quickly
+3. Click resources roles to add them to your selection
 
 ### Step 3: Run a Command
 
 1. Type your command in the input field
 2. Click **Execute** or press Enter
-3. Watch results stream in from all connections
+3. Watch results stream in from all resources
 
 ### Step 4: Review Results
 
 The Execution Summary shows:
+
 - **Success** - Command completed successfully
 - **Error** - Command failed (click to see details)
 - **Approval Required** - Waiting for access request approval
@@ -79,7 +80,7 @@ Restart a service across all application servers:
 sudo systemctl restart myapp
 ```
 
-Select all `app-server-*` connections and execute once.
+Select all `app-server-*` resources roles and execute once.
 
 ### 2. Database Health Checks
 
@@ -115,7 +116,7 @@ Scale deployments across multiple clusters:
 kubectl scale deployment myapp --replicas=5
 ```
 
-Run on connections for each Kubernetes cluster.
+Run on resource roles for each Kubernetes cluster.
 
 ---
 
@@ -123,18 +124,18 @@ Run on connections for each Kubernetes cluster.
 
 ### Execution Summary
 
-The summary panel shows the status of each connection:
+The summary panel shows the status of each resource role:
 
-| Status | Icon | Meaning |
-|--------|------|---------|
-| Success | Green check | Command completed successfully |
-| Error | Red X | Command failed |
-| Running | Spinner | Command in progress |
-| Pending Approval | Clock | Waiting for access request |
+| Status           | Icon        | Meaning                        |
+| ---------------- | ----------- | ------------------------------ |
+| Success          | Green check | Command completed successfully |
+| Error            | Red X       | Command failed                 |
+| Running          | Spinner     | Command in progress            |
+| Pending Approval | Clock       | Waiting for access request     |
 
 ### Viewing Output
 
-Click on any connection in the summary to see its full output:
+Click on any resource role in the summary to see its full output:
 
 - **stdout** - Standard output from the command
 - **stderr** - Error output (if any)
@@ -143,6 +144,7 @@ Click on any connection in the summary to see its full output:
 ### Comparing Results
 
 Results are displayed side-by-side, making it easy to:
+
 - Spot differences between servers
 - Identify which servers have issues
 - Verify consistent state across infrastructure
@@ -153,7 +155,8 @@ Results are displayed side-by-side, making it easy to:
 
 ### Filter by Type
 
-Select connections by resource type:
+Select resource role by resource type:
+
 - Databases
 - Servers
 - Kubernetes clusters
@@ -161,61 +164,62 @@ Select connections by resource type:
 
 ### Filter by Tags
 
-Use tags to group related connections:
+Use tags to group related resource roles:
+
 - `environment:production`
 - `region:us-east`
 - `team:platform`
 
 ### Search
 
-Type to search connections by name.
+Type to search resource roles by name.
 
 ### Select All Matching
 
-After filtering, click **Select All** to add all visible connections.
+After filtering, click **Select All** to add all visible resource roles.
 
 ---
 
 ## Access Requests in Parallel Mode
 
-For connections that require approval:
+If resource roles require access request approval:
 
-1. **JIT Access Requests:** You'll be prompted to request access for each connection that requires it
+1. **JIT Access Requests:** You'll be prompted to request access for each resource role that requires it
 2. **Action Access Requests:** Each command submission creates approval requests
-3. **Mixed:** Some connections may execute immediately while others wait for approval
+3. **Mixed:** Some resource roles may execute immediately while others wait for approval
 
-The Execution Summary shows which connections are waiting for approval.
+The Execution Summary shows which resource roles are waiting for approval.
 
 ---
 
 ## Runbooks in Parallel Mode
 
-Run Runbooks across multiple connections:
+You can also run Runbooks across multiple resource roles:
 
 1. Open **Runbooks** in the sidebar
 2. Select a runbook
 3. Enable **Parallel Mode**
-4. Select target connections
+4. Select target resource roles
 5. Fill in runbook parameters
 6. Execute
 
-All connections receive the same parameter values.
+All resource roles receive the same parameter values.
 
 ---
 
 ## Best Practices
 
 <CardGroup cols={2}>
-  <Card title="Test First" icon="flask">
-    Run commands on one connection before scaling to many
+  <Card icon="flask" title="Test First">
+    Run commands on one resource role before scaling to many
   </Card>
-  <Card title="Use Tags" icon="tags">
-    Tag connections for easy group selection
+  <Card icon="tags" title="Use Tags">
+    Tag resource roles for easy group selection
   </Card>
-  <Card title="Start Small" icon="minimize">
-    Begin with a few connections, then expand
+  <Card icon="minimize" title="Start Small">
+    Begin with a few resource roles, then expand
   </Card>
-  <Card title="Review Carefully" icon="eye">
+  <Card icon="eye" title="Review Carefully">
     Check all results, not just the first one
   </Card>
 </CardGroup>
@@ -223,30 +227,30 @@ All connections receive the same parameter values.
 ### Safety Tips
 
 1. **Dry run first:** If your command supports it (e.g., `--dry-run`), test before executing
-2. **Limit scope:** Don't select all connections unless you're sure
-3. **Check the list:** Review selected connections before executing
+2. **Limit scope:** Don't select all resource roles unless you're sure
+3. **Check the list:** Review selected resource roles before executing
 4. **Monitor results:** Watch for failures as they occur
 
 ---
 
 ## Troubleshooting
 
-### Some Connections Fail
+### Some Resource Roles Fail
 
-If some connections succeed but others fail:
+If some resource roles succeed but others fail:
 
-1. Click the failed connection to see the error
+1. Click the failed resource role to see the error
 2. Common causes:
-   - Connection is offline
+   - Resource role is offline
    - Different OS or command not available
    - Permission issues on that specific host
-3. Fix the issue and re-run on just the failed connections
+3. Fix the issue and re-run on just the failed resource roles
 
 ### Command Timeout
 
 Long-running commands may time out:
 
-1. Check the command on a single connection first
+1. Check the command on a single resource role first
 2. Consider breaking into smaller operations
 3. For very long operations, use a runbook with proper timeout settings
 
@@ -264,28 +268,28 @@ If approvals are slow:
 
 Beta limitations:
 
-| Limitation | Details |
-|------------|---------|
-| Maximum connections | 50 connections per parallel execution |
-| Command size | 64KB maximum command length |
-| Result size | 1MB maximum output per connection |
-| Timeout | 5 minutes default per connection |
+| Limitation             | Details                                  |
+| ---------------------- | ---------------------------------------- |
+| Maximum resource roles | 50 resource roles per parallel execution |
+| Command size           | 64KB maximum command length              |
+| Result size            | 1MB maximum output per resource role     |
+| Timeout                | 5 minutes default per resource role      |
 
 ---
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Runbooks" icon="book" href="/learn/features/runbooks">
+  <Card icon="book" href="/learn/features/runbooks" title="Runbooks">
     Create reusable command templates
   </Card>
-  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
+  <Card icon="clock" href="/learn/features/access-requests/jit" title="Access Requests">
     Configure approval workflows
   </Card>
-  <Card title="Session Recording" icon="video" href="/learn/features/session-recording">
+  <Card icon="video" href="/learn/features/session-recording" title="Session Recording">
     Audit parallel executions
   </Card>
-  <Card title="Web App Overview" icon="browser" href="/clients/webapp/overview">
+  <Card icon="browser" href="/clients/webapp/overview" title="Web App Overview">
     Explore the Web Terminal
   </Card>
 </CardGroup>
