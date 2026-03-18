@@ -9,7 +9,7 @@ description: "Create reusable, parameterized templates for common operations"
 
 ## What You'll Accomplish
 
-Runbooks let you create reusable templates for common operations. Instead of typing the same queries or commands repeatedly, you can:
+**Runbooks** are reusable, parameterized templates for common operations. Store them in Git, share them across your team, and stop typing the same queries repeatedly:
 
 - Create parameterized templates stored in Git
 - Share approved procedures across your team
@@ -92,7 +92,7 @@ hoop admin create plugin runbooks \
 
 ## Template Syntax
 
-Runbooks use Go's `text/template` syntax. Parameters are defined with `{{ .parameter_name }}`.
+Runbooks use Go's `text/template` syntax with `{{ .parameter_name }}` placeholders.
 
 ### Basic Parameter
 
@@ -231,7 +231,7 @@ kubectl rollout status deployment/$DEPLOYMENT --namespace=$NAMESPACE
 
 ### Input Validation
 
-Use `pattern` to prevent injection attacks:
+Use `pattern` to block injection attacks:
 
 ```sql
 -- Safe: Only allows numeric IDs
@@ -243,7 +243,7 @@ WHERE id = {{ .id }}
 
 ### Environment Variables
 
-Use `asenv` to pass values as environment variables instead of inline:
+Use `asenv` to inject values as environment variables rather than inline strings:
 
 ```bash
 # {{ .password | asenv "DB_PASSWORD" }}
@@ -253,7 +253,7 @@ psql -h localhost -U admin -c "SELECT 1"
 
 ### Quoting
 
-Use `squote` or `dquote` to properly quote string values:
+Use `squote` or `dquote` to quote string values:
 
 ```sql
 WHERE name = {{ .name | squote }}
@@ -286,7 +286,7 @@ runbooks/
 
 ### Naming Convention
 
-Files must end with `.runbook.<extension>`:
+All runbook files must end with `.runbook.<extension>`:
 - `.runbook.sql` - SQL queries
 - `.runbook.sh` - Bash scripts
 - `.runbook.py` - Python scripts

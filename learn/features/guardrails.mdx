@@ -9,7 +9,7 @@ description: "Block dangerous queries before they execute with pattern-based rul
 
 ## What You'll Accomplish
 
-Guardrails let you block dangerous queries before they execute. You can:
+**Guardrails** block dangerous queries before they execute. Use them to:
 
 - Prevent accidental `UPDATE` or `DELETE` without a `WHERE` clause
 - Block `DROP TABLE` and other destructive DDL commands
@@ -32,7 +32,7 @@ UPDATE users SET email = 'new@email.com';
 -- 500,000 rows affected 💥
 ```
 
-Guardrails catch these mistakes before they execute, showing an error instead of running the dangerous query.
+Guardrails catch these mistakes before execution and return an error instead.
 
 ---
 
@@ -279,7 +279,7 @@ For each guardrail, test:
 
 ## Viewing Blocked Queries
 
-When a guardrail blocks a query, it's logged in Sessions.
+Blocked queries are logged in Sessions.
 
 <Steps>
   <Step title="Go to Sessions">
@@ -301,7 +301,7 @@ When a guardrail blocks a query, it's logged in Sessions.
 
 ## Emergency Bypass
 
-If a legitimate query is blocked and needs to run immediately:
+If a legitimate query is blocked and must run immediately:
 
 ### Option 1: Temporarily Disable the Guardrail
 
@@ -368,7 +368,7 @@ For specific users or groups that need to bypass certain rules:
 
 ### Performance Impact
 
-Guardrails add minimal latency (typically 1-5ms per query). If you notice slowdowns:
+Guardrails add minimal latency, typically 1-5ms per query. For slowdowns:
 
 1. **Reduce rule count** - Combine similar rules where possible
 2. **Simplify patterns** - Complex regex with backtracking is slower
@@ -385,7 +385,7 @@ Guardrails add minimal latency (typically 1-5ms per query). If you notice slowdo
 | **Access Requests** | Require approval for access | Time-limited or command-level approval |
 | **Access Control** | Control who can access connections | Restrict connection visibility |
 
-These features work together. For example:
+These features complement each other:
 - Guardrails block `DROP TABLE` commands
 - Live Data Masking redacts SSN in `SELECT` results
 - Access Requests require approval before connecting

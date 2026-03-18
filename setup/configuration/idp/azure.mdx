@@ -6,40 +6,40 @@ title: "Azure"
 - Azure account
 - `API_URL` of the Hoop gateway instance
 
-Contact the administrator of the hoop gateway instance to retrieve the API_URL address.
+Contact the hoop gateway administrator to retrieve the `API_URL` address.
 
 ## Identity Provider Configuration
 
 <Steps titleSize="h3">
   <Step title="Create an Application">
-  	Login with your account at https://portal.azure.com/
-	- Go to **Microsoft Entra ID > App Registration**.
-	- Pick a name, and select the Supported account types as you see fit
-	- Register the application with `{API_URL}/api/callback` as the redirect URI.
+  	Log in at https://portal.azure.com/
+	- Go to **Microsoft Entra ID > App Registration**
+	- Pick a name and select Supported account types as needed
+	- Register the application with `{API_URL}/api/callback` as the redirect URI
 
 	<Note>
-	We recommend using the option single tenant option for Supported account types. This will allow selecting exactly what groups to propagate to this application. This option is also required to propagate cloud-only groups as names (see more details below).
+	Use the **single tenant** option for Supported account types. This allows selecting exactly which groups propagate to this application and is required to propagate cloud-only groups as names (see below).
 	</Note>
 
-	Ensure default delegated permissions: `User.Read` for sign in and read user profiles and `email` to view user's email address.
+	Ensure default delegated permissions: `User.Read` for sign-in and user profile reads, and `email` to view user email addresses.
 
 	<Info>
-	These attributes are typically created by default. If errors occur, ensure these options are set correctly.
+	These attributes are created by default. If errors occur, verify these options are set correctly.
 	</Info>
   </Step>
   <Step title="Create the Client Credentials">
-    - Go to App Registration > `{AppName}`
+    - Go to **App Registration > `{AppName}`**
 	- In the overview page, copy the **Application (client) ID** value. This is the Client ID.
-	- Go to  Certificate & Secrets > Client Secrets > New Client Secret
-	- Copy the Secret Value. This is the Client Secret
+	- Go to **Certificate & Secrets > Client Secrets > New Client Secret**
+	- Copy the Secret Value. This is the Client Secret.
   </Step>
   <Step title="Collect Issuer and Custom Scopes Information">
-  The Issuer URL
-  - Go to App registration > `{AppName}` > Overview
-  - Copy the tenant ID and use as the value below
-  - https://login.microsoftonline.com/{tenant_id}/v2.0
+  The Issuer URL:
+  - Go to **App registration > `{AppName}` > Overview**
+  - Copy the tenant ID and use it in the value below:
+  - `https://login.microsoftonline.com/{tenant_id}/v2.0`
 
-  The Custom Scopes
+  The Custom Scopes:
   - Use the Client ID to compose the Custom Scopes value
   - `{CLIENT_ID}/.default`
 
@@ -48,13 +48,12 @@ Contact the administrator of the hoop gateway instance to retrieve the API_URL a
 
 ## Configuring Groups Claims
 
-The integration relies on groups propagated in the `id_token`. By default, Azure Entra ID propagates them in the `groups` claims.
+The integration relies on groups propagated in the `id_token`. By default, Azure Entra ID propagates them in the `groups` claim.
 
-The gateway needs to be configured to match the claim name of the groups.
-This configuration will ensure to sync the groups when a user authenticates on Hoop.
+**Configure the gateway** to match the claim name of the groups. This ensures groups sync when a user authenticates on Hoop.
 
 <Tip>
-  It's possible to inspect the name of the claim that's being propagated by viewing the logs of the gateway when a user sign in.
+  Inspect the claim name being propagated by viewing the gateway logs when a user signs in.
 </Tip>
 
 <Note>
@@ -63,22 +62,21 @@ This configuration will ensure to sync the groups when a user authenticates on H
 </Note>
 
 
-By default, groups are propagate with their object ids. It may be cumbersome to manage groups as UUIDs on Hoop.
-See the section below to propagate them with their display name instead.
+By default, groups propagate with their object IDs. Managing groups as UUIDs in Hoop can be cumbersome; see the section below to propagate them with their display names instead.
 
 <Warning>
-  When you configure groups to sync, you'll lose the admin access on the next sign in.
-  To prevent this issue, set the configuration `ADMIN_USERNAME` on your gateway to change the role of the admin user with a group associated with your application.
-  The name of the admin group depends on whether you propagate the groups as object IDs or as group names (see below).
+  When you configure groups to sync, you lose admin access on the next sign-in.
+  To prevent this, set `ADMIN_USERNAME` on your gateway to change the admin user role to a group associated with your application.
+  The admin group name depends on whether you propagate groups as object IDs or as group names (see below).
 </Warning>
 
 ### Propagating Groups as Names
 
-It's possible to propagate groups with their display names for cloud groups.
+Propagate groups with their display names for cloud groups:
 
-- Click on Manifest
-- Edit the item groups under optionalClaims.idToken and optionalClaims.accessToken attributes and add the name cloud_displayname
-- Make sure that groupMembershipClaims is set to ApplicationGroup
+- Click on **Manifest**
+- Edit the `groups` item under `optionalClaims.idToken` and `optionalClaims.accessToken` and add the name `cloud_displayname`
+- Set `groupMembershipClaims` to `ApplicationGroup`
 
 ```json
 (...)
@@ -108,25 +106,25 @@ It's possible to propagate groups with their display names for cloud groups.
     (...)
 ```
 
-- Click on Save
+- Click **Save**
 
-This option only works when group groupMembershipClaims is set to ApplicationGroup. and after assigning the groups to this application.
+This option only works when `groupMembershipClaims` is set to `ApplicationGroup` and groups are assigned to this application.
 
 <Warning>
-  Be aware that names are not unique and this may cause conflict when propagating groups. Object IDs are a more safer approach to avoid such problems.
+  Group names are not unique and may cause conflicts during propagation. Object IDs are a safer approach to avoid this problem.
 </Warning>
 
 <Info>
-  For other kind of groups it's possible to append additional `properties as sam_account_name`, `dns_domain_and_sam_account_name` or `netbios_domain_and_sam_account_name`.
+  For other group types, you can append additional properties such as `sam_account_name`, `dns_domain_and_sam_account_name`, or `netbios_domain_and_sam_account_name`.
 </Info>
 
 ### Assign Groups to Application
 
-- Go to Enterprise Application > `{AppName}` > User and Groups > Add user/group
-- Select the desired groups and click on Select
-- Click on Assign
+- Go to **Enterprise Application > `{AppName}` > User and Groups > Add user/group**
+- Select the desired groups and click **Select**
+- Click **Assign**
 
-<Info>This option requires an AD subscription that allows assigning groups to application.</Info>
+<Info>This option requires an AD subscription that supports assigning groups to applications.</Info>
 
 References:
 
@@ -137,10 +135,10 @@ References:
 
 <Warning>Available on version 1.17.14+</Warning>
 
-It is possible to access hoop by issuing access tokens using the Oauth2 Client Credentials Flow. The gateway validates and authenticates any access token generated by the app registered in Azure, provided that a service account is active on hoop. The only requirement is that the service account has the same Object ID as the application, which serves as its main identifier.
+Access Hoop by issuing access tokens using the OAuth2 Client Credentials Flow. The gateway validates and authenticates any access token generated by the app registered in Azure, provided a service account is active on Hoop. The service account must have the same Object ID as the application, which serves as its main identifier.
 
 <Info>
-  Authentication only occurs when a token is issued by the identity provider. The service account resource simply maps the subject to identify who is accessing the API.
+  Authentication only occurs when a token is issued by the identity provider. The service account resource maps the subject to identify who is accessing the API.
 </Info>
 
 ### Creating a Service Account
@@ -152,16 +150,16 @@ hoop admin create serviceaccount <azure-app-object-id> \
 ```
 
 <Info>
-  To obtain the Object ID of the application navigate to: Azure Portal > Microsoft Entra ID > Enterprise Applications
+  To obtain the Object ID of the application, navigate to: Azure Portal > Microsoft Entra ID > Enterprise Applications
 </Info>
 
 ### Creating an Access Token
 
-1. Go to App Registrations > Certificate & Secrets > New Client Secret
+1. Go to **App Registrations > Certificate & Secrets > New Client Secret**
 
-Copy the secret value and use in the command below as the attribute for `<APP_CLIENT_SECRET>`
+Copy the secret value and use it as `<APP_CLIENT_SECRET>` in the command below.
 
-2. Generate an access token
+2. Generate an access token:
 
 ```sh
 curl -XPOST -H "Content-Type: application/x-www-form-urlencoded" \
@@ -172,13 +170,13 @@ curl -XPOST -H "Content-Type: application/x-www-form-urlencoded" \
 	https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0/token
 ```
 
-- APP_CLIENT_ID: the client id of the application
-- APP_CLIENT_SECRET: the client secret generated in the step 1
-- TENANT_ID: the tenant id of you app instance
+- APP_CLIENT_ID: the client ID of the application
+- APP_CLIENT_SECRET: the client secret generated in step 1
+- TENANT_ID: the tenant ID of your app instance
 
 For more information, [see this guide](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow#get-a-token).
 
-Access the API
+Access the API:
 
 ```sh
 export HOOP_TOKEN=eyJ0eXAiOiJKV1QiLCJhb...5Z3Be-kkXkAnAA-zIweYuqEUDA
@@ -186,5 +184,5 @@ hoop admin get userinfo
 ```
 
 <Info>
-  In case of receiving access denied (401), make sure that the subject of the access token matches the subject provided when creating the service account (usually matches the object id of the application)
+  If you receive access denied (401), verify that the access token subject matches the subject provided when creating the service account (usually matches the application's object ID).
 </Info>

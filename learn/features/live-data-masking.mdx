@@ -9,7 +9,7 @@ description: "Automatically detect and mask sensitive data in query results with
 
 ## What You'll Accomplish
 
-Live Data Masking automatically detects and redacts sensitive data in your query results. Unlike traditional DLP solutions that require complex rule configuration, Hoop's data masking works out of the box:
+**Live Data Masking** detects and redacts sensitive data in query results automatically. Unlike traditional DLP tools, it requires no rule configuration:
 
 - Automatically detect PII (names, emails, phone numbers, SSNs)
 - Mask credit card numbers and financial data
@@ -26,7 +26,7 @@ Live Data Masking automatically detects and redacts sensitive data in your query
     User runs a query through Hoop
   </Step>
   <Step title="Results Analyzed">
-    AI scans the query results for sensitive data patterns
+    Hoop scans the query results for sensitive data patterns
   </Step>
   <Step title="Data Masked">
     Sensitive values are replaced with redacted placeholders
@@ -236,7 +236,7 @@ curl -X POST http://presidio-analyzer:5001/analyze \
 
 ### Too Much Data Being Masked
 
-If legitimate data is being masked incorrectly:
+If legitimate data is masked incorrectly:
 
 1. Check which field type is triggering
 2. Disable that specific field type in configuration
@@ -244,7 +244,7 @@ If legitimate data is being masked incorrectly:
 
 ### Performance Impact
 
-Live Data Masking adds latency to query results:
+Live Data Masking adds latency proportional to result size:
 
 | Result Size | Typical Latency |
 |-------------|-----------------|
@@ -261,7 +261,7 @@ Live Data Masking adds latency to query results:
 
 ## Compliance
 
-Live Data Masking helps meet requirements for:
+Live Data Masking supports compliance with:
 
 - **GDPR** - Protect EU citizen personal data
 - **HIPAA** - Mask protected health information

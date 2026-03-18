@@ -1,6 +1,6 @@
 ---
 title: "Guardrails Configuration"
-description: "Create and manage pattern-based rules to block dangerous queries"
+description: "Create and manage pattern-based rules to block dangerous queries before they execute"
 ---
 
 <Frame>
@@ -15,7 +15,7 @@ description: "Create and manage pattern-based rules to block dangerous queries"
   />
 </Frame>
 
-Guardrails use pattern matching to evaluate queries and block dangerous operations before they execute. This page covers configuration options and rule syntax.
+**Guardrails** use pattern matching to evaluate queries and block dangerous operations before they execute. This page covers configuration options and rule syntax.
 
 <Note>
 For an introduction to what Guardrails do and common use cases, see [Guardrails Overview](/learn/features/guardrails).
@@ -179,7 +179,7 @@ Require Approval uses the same workflow as [Action Access Requests](/learn/featu
 
 ## Connection Assignment
 
-Each guardrail can be assigned to multiple connections. You can also have multiple guardrails on a single connection.
+Each guardrail can be assigned to multiple connections. A single connection can also have multiple guardrails.
 
 ### Assignment Options
 
@@ -191,11 +191,11 @@ Each guardrail can be assigned to multiple connections. You can also have multip
 
 ### Evaluation Order
 
-When multiple guardrails apply to a connection, they are evaluated in order of priority:
+When multiple guardrails apply to a connection, they evaluate in priority order:
 
 1. **Priority 1** (highest) evaluated first
 2. First matching rule determines the action
-3. If no rules match, query is allowed
+3. If no rules match, the query is allowed
 
 To set priority:
 1. Go to **Manage > Guardrails**
@@ -206,7 +206,7 @@ To set priority:
 
 ## Environment Variables
 
-These environment variables affect guardrails behavior on the gateway:
+These environment variables control guardrails behavior on the gateway:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
