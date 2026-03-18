@@ -1,6 +1,6 @@
 ---
 title: "Teams"
-description: "Hoop.dev can integrate with Microsoft Teams, sending messages to a channel when a particular event happens."
+description: "Send Microsoft Teams notifications when access request events occur."
 ---
 
 ## Requirements
@@ -57,7 +57,7 @@ In the "Overview" tab, the test with the sent event will be displayed.
 
 ## Connections
 
-Now, you can define which connections will send this event based on the plugin configuration. Update or add a new connection to enable this plugin.
+Define which connections trigger events using the plugin configuration. Update or add a connection to enable this plugin.
 
 ```bash
 hoop admin create conn bash -a <agent-name> --overwrite \
@@ -65,7 +65,7 @@ hoop admin create conn bash -a <agent-name> --overwrite \
   --reviewers admin -- bash
 ```
 
-Interacting with the connection via the webapp or the CLI will trigger an alert indicating that an access request has been created. A message will be sent to the Microsoft Teams channel.
+Executing a command via the Web App or CLI creates an access request and sends an alert to the configured Teams channel.
 
 ```bash
 hoop exec bash -i 'ls -l'

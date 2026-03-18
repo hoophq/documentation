@@ -3,7 +3,7 @@ title: "JumpCloud"
 ---
 
 <Info>
-  JumpCloud doesn’t emit JWT as access token, thus the gateway validates if a client is authenticated performing an http request to the userinfo endpoint (oidc spec).
+  JumpCloud does not emit JWTs as access tokens. The gateway validates authentication by making an HTTP request to the userinfo endpoint (OIDC spec).
 </Info>
 
 ## Requirements
@@ -11,31 +11,31 @@ title: "JumpCloud"
   - An [admin account in JumpCloud](https://console.jumpcloud.com)
   - `API_URL` is the public DNS name of the hoop gateway instance
 
-Contact the administrator of the hoop gateway instance to retrieve the `API_URL` address.
+Contact the hoop gateway administrator to retrieve the `API_URL` address.
 
 ## Identity Provider Configuration
 
 <Steps titleSize="h3">
   <Step title="Create an Application">
-  Login with your account at https://console.jumpcloud.com/
+  Log in at https://console.jumpcloud.com/
 
-  * Go to SSO and click on the Add New Application button
-  * Select Custom OIDC App button on the footer of the page
-  * Pick a name, and an optional description
+  * Go to **SSO** and click **Add New Application**
+  * Select **Custom OIDC App** at the bottom of the page
+  * Enter a name and optional description
 
-  * In SSO tab
-    * Add the Redirect URLs to `{APIURL}/api/callback `
-    * Add the Login URL: to `{APIURL}/login `
+  * In the **SSO** tab:
+    * Add the Redirect URL: `{APIURL}/api/callback`
+    * Add the Login URL: `{APIURL}/login`
   </Step>
   <Step title="Attribute Mapping">
-  * Still in the SSO tab, select the standard scopes `Email` and `Profile `
-  * (optional) In the Groups attribute, select include groups attribute and label it https://app.hoop.dev/groups
+  * Still in the **SSO** tab, select the standard scopes **Email** and **Profile**
+  * (Optional) In the Groups attribute, select **Include groups attribute** and label it `https://app.hoop.dev/groups`
   </Step>
   <Step title="Collect the Credentials">
-  * Click activate
+  * Click **Activate**
   * Copy both **Client ID** and **Client Secret**
   <Info>
-  The secret cannot be retrieved later. Make sure you copy and store it now.
+  The secret cannot be retrieved later. Copy and store it now.
   </Info>
   </Step>
   <Step title="Collect Issuer Information">
@@ -45,9 +45,9 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
 
 ## Associating User Groups
 
-To propagate groups to Hoop, create a new group
+To propagate groups to Hoop, create a new group:
 
-  - Go to User Groups > Create Group and provide a name and description
-  - Go to Users tab and mark the users that you wish to add in this new group
-  - Go to Applications tab and mark your custom oidc app
-  - Click in Save
+  - Go to **User Groups > Create Group** and provide a name and description
+  - Go to the **Users** tab and select the users to add to this group
+  - Go to the **Applications** tab and select your custom OIDC app
+  - Click **Save**

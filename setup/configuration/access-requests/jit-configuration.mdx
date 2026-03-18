@@ -1,9 +1,9 @@
 ---
 title: "JIT Access Requests Configuration"
-description: "Configure time-based access controls for your connections"
+description: "Configure time-limited access controls that require approval before a user can connect"
 ---
 
-This page covers the configuration options for Just-in-Time Access Requests. For an introduction to how JIT Access Requests work, see [JIT Access Requests](/learn/features/access-requests/jit).
+**Just-in-Time Access Requests** gate connection access behind a timed approval. For a conceptual overview, see [JIT Access Requests](/learn/features/access-requests/jit).
 
 ## Enabling JIT Access Requests
 
@@ -35,7 +35,7 @@ This page covers the configuration options for Just-in-Time Access Requests. For
 
 ### Via CLI
 
-You can also configure access requests when creating a connection:
+Configure access requests when creating a connection:
 
 ```bash
 hoop admin create conn prod-postgres \
@@ -50,13 +50,13 @@ The `--reviewers` flag specifies which groups can approve access requests.
 
 ## Requesting JIT Access
 
-Users request time-based access using the `--duration` flag:
+Users request time-based access with the `--duration` flag:
 
 ```bash
 hoop connect prod-postgres --duration 2h
 ```
 
-The CLI will wait for approval:
+The CLI waits for approval:
 
 ```
 ⣷ waiting for access request to be approved at https://use.hoop.dev/access-requests/abc123...
@@ -91,7 +91,7 @@ When multiple groups are configured, **all groups** must approve before access i
 
 ### Admin Auto-Approval
 
-Admin users automatically approve their own requests. This is by design to ensure admins always have access.
+Admin users auto-approve their own requests. This ensures admins always have access.
 
 To test the full workflow, use a non-admin account.
 
@@ -119,11 +119,11 @@ hoop admin create conn prod-postgres \
 
 ## Environment Variables
 
-These environment variables affect JIT Access Requests behavior on the gateway:
+These environment variables control JIT Access Requests behavior on the gateway:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REVIEW_TIMEOUT_SEC` | How long to wait for approval before timing out | `3600` (1 hour) |
+| `REVIEW_TIMEOUT_SEC` | Seconds to wait for approval before timing out | `3600` (1 hour) |
 
 ---
 

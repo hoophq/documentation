@@ -3,7 +3,7 @@ title: "Microsoft Presidio"
 description: "Enable sensitive data detection, masking, and guardrail enforcement using Microsoft Presidio."
 ---
 
-Hoop.dev’s Microsoft Presidio integration provides a powerful framework for detecting, classifying, and masking sensitive data within infrastructure sessions and workflows. It strengthens security and compliance by enforcing guardrails and protecting personally identifiable information (PII) across your organization’s resources.
+Microsoft Presidio detects, classifies, and masks sensitive data across your infrastructure sessions. Hoop enforces guardrails and protects PII across all connected resources.
 
 ## Key Features
 
@@ -21,7 +21,7 @@ Hoop.dev’s Microsoft Presidio integration provides a powerful framework for de
 
 ### Extensible Detection
 
-- Utilize Microsoft Presidio’s analyzers and recognizers to detect sensitive entities
+- Use Microsoft Presidio’s analyzers and recognizers to detect sensitive entities
 - Extend detection logic with custom patterns to meet specific organizational requirements
 - Benefit from Presidio’s open-source flexibility and ongoing improvements
 
@@ -45,7 +45,7 @@ Microsoft Presidio works seamlessly with other Hoop.dev capabilities:
 
 <Steps>
   <Step title="Install">
-    Check the Microsoft Presidio documentation to install it.
+    Install Microsoft Presidio using Docker or Kubernetes.
 
     <CardGroup cols={2}>
       <Card title="Microsoft Presidio Docker Installation" icon="docker" href="https://microsoft.github.io/presidio/installation/#docker-installation">
@@ -66,7 +66,7 @@ Microsoft Presidio works seamlessly with other Hoop.dev capabilities:
     | `MSPRESIDIO_ANALYZER_URL`   | `<host-to-analyzer:port>`   |
     | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
   </Step>
-  <Step title="Run hoop.dev's Gateway with the new configs">
-    After setting up the environment variables, hoop.dev will use Microsoft Presidio to mask sensitive data in real-time in the data stream of any connection you configure.
+  <Step title="Restart the gateway">
+    After setting the environment variables, restart the gateway. Hoop.dev will use Microsoft Presidio to mask sensitive data in real time on any configured connection.
   </Step>
 </Steps>

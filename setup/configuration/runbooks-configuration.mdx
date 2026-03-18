@@ -1,14 +1,15 @@
 ---
 title: "Runbooks"
+description: "Configure Runbook Git repository integration and template engine reference."
 ---
 
-This page explains the available options to configure Runbooks with your git server.
+Configure Runbooks with your Git server using public repos, HTTP credentials, or SSH keys.
 
 <Note>
-  This guide provides step-by-step instructions for configuring Runbooks using the command line. Currently, the Webapp supports configuration exclusively with SSH private keys with limited options.
+  This guide covers command-line configuration. The Web App currently supports SSH private keys only, with limited options.
 </Note>
 
-To start, make sure to install the hoop command line and login to your gateway instance:
+First, install the Hoop CLI and log in to your gateway:
 
 ```sh
 hoop config create --api-url https://<API_URL>
@@ -17,7 +18,7 @@ hoop login
 
 ## Public Repositories
 
-To configure any public repositories
+For public repositories, run:
 
 ```sh
 hoop admin create plugin runbooks --overwrite \
@@ -30,7 +31,7 @@ hoop admin create plugin runbooks --overwrite \
 
 ## Basic Credentials
 
-It uses username and password to clone a repository via HTTP.
+Basic authentication clones the repository via HTTP using a username and password.
 
 ```sh
 hoop admin create plugin runbooks --overwrite \
@@ -50,7 +51,7 @@ hoop admin create plugin runbooks --overwrite \
 
 ## SSH Private Keys
 
-It uses a private key to clone the repository via SSH.
+SSH authentication clones the repository using a private key.
 
 ```sh
 hoop admin create plugin runbooks --overwrite \
@@ -89,7 +90,7 @@ hoop admin get runbooks -o json
   This feature is available in version 1.36.11+.
 </Note>
 
-This functionality enables easier integration with any internal workflow by leveraging Hoop as a hook system for your process. It requires specific files in the repository that will start the execution of a runbook when a specific event occurs.
+Runbook hooks integrate with any internal workflow, using Hoop to trigger scripts on session events. Place specific Python files in your repository to execute them when events occur.
 
 | File Path                                     | Event Trigger | Environment Variables       |  Description   |
 | --------------------------------------------- | ------------- |---------------------------- |  ------------- |
@@ -102,7 +103,7 @@ The environment variables are available when the runbook script is called, it co
 
 This feature is currently available only through the command line when a specific plugin configuration is enabled. Web application support will be added in an upcoming release.
 
-To enable this feature, configure the cache time expiration using the `GIT_HOOK_CONFIG_TTL` parameter. This parameter serves two purposes: it activates the runbook hooks functionality and sets the time-to-live (in seconds) for the configuration cache.
+To enable this feature, set `GIT_HOOK_CONFIG_TTL`. This parameter activates runbook hooks and sets the cache time-to-live (in seconds) for the configuration.
 
 ```sh
 hoop admin create plugin runbooks --overwrite \
@@ -165,7 +166,7 @@ print('connection_name: {}'.format(ev['connection_name']))
 
 ## How the template engine works
 
-Runbooks use the [GO text/template](https://pkg.go.dev/text/template) as the template engine. A runbook is a template to be run against a connection, the placeholders are rendered by inputs provided by an HTTP client.
+Runbooks use [Go's text/template](https://pkg.go.dev/text/template). A runbook is a template executed against a connection, with placeholders rendered from inputs provided by an HTTP client.
 
 To define an input, the runbook must be enclosed with `{{ }}` and the input name must start with a dot. - Example - `{{ .myinput }}`
 
@@ -173,7 +174,7 @@ The input name must comply with the regular expression `\.[a-zA-Z0-9_]+`
 
 ### Template Specification
 
-A client could implement input validation based on how templates are created, the specification of inputs are derived from a runbook. The template below:
+Input specifications are derived from the runbook template. The template below:
 
 ```sql
 SELECT name FROM customers WHERE id = '{{ .customer_id }}'
@@ -221,7 +222,7 @@ The specifications supports the following fields:
 - required - if the this field is required
 - default - specifies a default value for an input if it’s empty
 
-The fields indicates how a client could create inputs to a runbook, the fields are defined as function templates in an placeholder using the pipe character `|`. Example:
+Fields define how clients create inputs for a runbook. Declare them as function templates in a placeholder using the pipe character `|`. Example:
 
 ```
 {{ .customer_id
@@ -420,7 +421,7 @@ failed parsing runbook template, reason=(...) function "require" not defined
 
 #### Server Side Template Injection
 
-Templates are subject to [code injection](https://en.wikipedia.org/wiki/Code_injection) depending on the runtime that you’re using. To mitigate this issue, follows these tips:
+Templates are subject to [code injection](https://en.wikipedia.org/wiki/Code_injection) depending on the runtime. Follow these tips to mitigate the risk:
 
 - Use the pattern function to define the format of the input, specially in sql templates.
 
@@ -430,15 +431,14 @@ SELECT name FROM customers WHERE id = '{{ .customer_id | pattern "^[0-9]+$" }}'
 
 This pattern guarantees that the input will be only a number, this prevents any user to inject any sql instruction
 
-- Use the asenv function to expose inputs as environment variables if your runtime supports it
-- This will map the `customer_id` input as an environment variable avoiding bash injections with shell control operators
+- Use the `asenv` function to pass inputs as environment variables if your runtime supports it. This avoids bash injection via shell control operators:
 
 ```shell
 # {{ .customer_id | asenv "CUSTOMER_ID" }}
 /path/to/my/script.sh "$CUSTOMER_ID"
 ```
 
-- The same applies to language runtimes.
+The same applies to language runtimes:
 
 ```python
 # {{ .customer_id | asenv "CUSTOMER_ID" }}

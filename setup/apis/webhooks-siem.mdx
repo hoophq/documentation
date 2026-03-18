@@ -5,7 +5,7 @@ description: "Forward session events to external systems using runbook hooks."
 
 ## Runbook Hooks
 
-The recommended way to integrate Hoop with external systems — SIEMs, alerting pipelines, audit platforms — is through **runbook hooks**. Hook scripts live in your runbooks git repository and execute automatically when session events occur, with the full event payload available as an environment variable.
+The recommended way to integrate Hoop with external systems (SIEMs, alerting pipelines, audit platforms) is through **runbook hooks**. Hook scripts live in your runbooks git repository and execute automatically when session events occur, with the full event payload available as an environment variable.
 
 <Note>
   Runbook hooks require version 1.36.11+ and the [Runbooks plugin](/setup/configuration/runbooks-configuration) configured with a git repository.
@@ -25,7 +25,7 @@ Place hook scripts in a `hoop-hooks/` directory in your runbooks repository. Hoo
 Set `GIT_HOOK_CONFIG_TTL` in your runbooks plugin configuration. This activates hook support and controls how long (in seconds) the configuration is cached between git fetches. See the [Runbooks configuration guide](/setup/configuration/runbooks-configuration) for full setup instructions.
 
 <Tip>
-  Use a higher TTL if your hook scripts change infrequently — this reduces the number of requests to your git server.
+  Use a higher TTL if your hook scripts change infrequently. This reduces the number of requests to your git server.
 </Tip>
 
 ### Event Payload
@@ -55,7 +55,7 @@ The `HOOP_RUNBOOK_HOOK_PAYLOAD` environment variable contains a JSON object with
 
 ### Forwarding Events to a SIEM
 
-The example below shows a session-close hook that forwards the event payload to an external endpoint — a SIEM, a logging pipeline, or any HTTP receiver.
+The example below shows a session-close hook that forwards the event payload to an external endpoint: a SIEM, a logging pipeline, or any HTTP receiver.
 
 ```python
 # hoop-hooks/session-close.runbook.py
