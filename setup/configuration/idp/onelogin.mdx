@@ -66,6 +66,55 @@ After a user sign in, the display name will be updated accordingly.
 
 ## Groups Configuration
 
+To propagate group to Hoop via SAML is creating User Roles and propagating as SAML assertions values.
+
+<Steps titleSize="h3">
+  <Step title="Create a User Role">
+   1. Go to **Users** > **Roles**
+   2. Click on **New Role**
+   3. Add the name of your group and click on **Save**
+   <Frame>
+      <img src="/images/configure/identity-providers/onelogin-saml-4.png" />
+    </Frame>
+  </Step>
+  <Step title="Associate Users to Role">
+    - Return to **Users** > **Roles**
+    - Select the created role
+    - Click in Users in the left side bar
+    - Add the email on the input "Check existing or add new users to this role"
+    - Click in "Add to Role" and then Save
+
+   <Frame>
+    <img src="/images/configure/identity-providers/onelogin-saml-5.png" />
+   </Frame>
+
+   <Note>
+    You could create a mapping to add users automatically to this role.
+   </Note>
+  </Step>
+  <Step title="Create an Application Mapping">
+    - Go to **Applications** > **Your App** > **Parameters**
+    - Add a new field with the name `groups`
+    - Select the checkbox "Include SAML assertion" and "Multi-value parameter"
+    - Click on Save
+    
+    <Frame>
+      <img src="/images/configure/identity-providers/onelogin-saml-6.png" />
+    </Frame> 
+
+    - In the second dropdown field, select "User Roles"
+    - In the next one, select "Semicolon Delimited Input (Multi-value output)"
+    - Click on Save
+
+    <Frame>
+      <img src="/images/configure/identity-providers/onelogin-saml-7.png" />
+    </Frame>
+  </Step>
+  <Step title="Test it">
+    Perform the logout on your Hoop instance and the new group will be synchronized.
+  </Step>
+</Steps>
+
 <Note>
-  Coming soon...
+  Fields from other integrations, such as Active Directory, can likely be propagated by following the same pattern, however this has not been officially validated yet.
 </Note>
