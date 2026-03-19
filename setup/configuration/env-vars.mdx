@@ -1,40 +1,40 @@
 ---
 title: 'Environment Variables'
-description: 'Configure the Hoop Gateway using environment variables'
+description: 'Describe how to configure the Hoop Gateway via environment variables'
 ---
 
 ## Basic configuration
 
 | Environment     | Description |
 | --------------- |-------------
-| POSTGRES_DB_URI | The postgres connection string to connect to the database. |
-| API_URL         | API URL address, usually where your DNS points. If a prefix is included, all endpoints and routes will be available at that prefix. |
+| POSTGRES_DB_URI | The postgres connection string to connect in the database. |
+| API_URL         | API URL address, usually where your DNS will be pointed to. If a prefix is included all endpoints and routes will be available at this prefix. |
 
 <Tabs>
   <Tab title="Local Authentication">
-    Local Authentication manages users and passwords locally and signs JWT access tokens for users.
+    Local Authentication manages users and passwords locally and sign JWT access tokens to users.
 
     | Environment     | Description  |
     | --------------- |------------- |
-    | AUTH_METHOD     | The authentication method to use (`local`, `oidc`, `saml`). Defaults to `local` |
+    | AUTH_METHOD     | The authentication method to use (`local`, `oidc`, `saml`). Default to `local` |
 
 
   </Tab>
   <Tab title="Oauth2/OIDC Authentication">
-    OAuth2/OIDC authentication integrates with any identity provider that supports these protocols. Users are managed in the identity provider.
+    The Oauth2/OIDC authentication integrates with any identity provider that support these protocols. The users are managed on the identity provider.
 
     | Environment       | Description   |
     | ----------------- | ------------- |
-    | IDP_ISSUER (DEPRECATED)        | Identity Provider Issuer URL (OAuth2). Passing `_userinfo=1` as query string forces authentication using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo).  |
-    | IDP_CLIENT_ID (DEPRECATED)    | OAuth2 Client ID. |
-    | IDP_CLIENT_SECRET (DEPRECATED) | OAuth2 Client Secret. |
-    | IDP_CUSTOM_SCOPES (DEPRECATED) | Additional OAuth2 scopes to append to the request. Default values are `openid`, `profile` and `email`. |
-    | IDP_AUDIENCE (DEPRECATED)     | Identity Provider Audience (OAuth2) |
-    | IDP_GROUPS_CLAIM (DEPRECATED) | Specifies the claim identifier for group propagation. Defaults to `https://app.hoop.dev/groups` if not set. |
+    | IDP_ISSUER (DEPRECATED)        | Identity Provider Issuer URL (Oauth2). Passing `_userinfo=1` as query string, it forces to authenticate using the [userinfo endpoint](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo).  |
+    | IDP_CLIENT_ID (DEPRECATED)    | Oauth2 Client ID. |
+    | IDP_CLIENT_SECRET (DEPRECATED) | Oauth2 Client Secret. |
+    | IDP_CUSTOM_SCOPES (DEPRECATED) | Additional Oauth2 scopes to append in the request. Default values are `openid`, `profile` and `email`. |
+    | IDP_AUDIENCE (DEPRECATED)     | Identity Provider Audience (Oauth2) |
+    | IDP_GROUPS_CLAIM (DEPRECATED) | Specifies the claim identifier used to configure group propagation. If not explicitly set, the system defaults to `https://app.hoop.dev/groups` |
 
     <Warning>
-      Authentication configuration is now handled via the Webapp or directly via API.
-      Environment variables with the `IDP_` prefix are deprecated and will be removed in upcoming releases.
+      The authentication configuration is now handled via Webapp or defined via API directly,
+      the environment variable with the prefix `IDP_` are deprecated and will be removed in upcoming releases.
     </Warning>
 
   </Tab>
@@ -42,36 +42,36 @@ description: 'Configure the Hoop Gateway using environment variables'
 
 ## Extra configuration
 
-The fields below are optional and provide additional configuration options.
+All fields below are not required but can give you some extra configuration options to attend your needs.
 
 | Environment                         | Default Value           | Description  |
 | ----------------------------------- | ----------------------- |------------- |
-| ADMIN_USERNAME                      | admin                   | Changes the name of the group that acts as the `admin` role |
-| AUDITOR_USERNAME                    | auditor                 | Changes the name of the group that acts as the `auditor` role |
-| API_KEY                             |                         | When set, enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
-| ANALYTICS_TRACKING                  | enabled                 | Disable analytics tracking by setting to `disabled` |
+| ADMIN_USERNAME                      | admin                   | Changes the name of the group to act as the `admin` role |
+| AUDITOR_USERNAME                    | auditor                 | Changes the name of the group to act as the `auditor` role |
+| API_KEY                             |                         | When this environment is set, it enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
+| ANALYTICS_TRACKING                  | enabled                 | Disable the analytics tracking by setting it to `disabled` |
 | DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
-| DLP_MODE                            | `best-effort`           | The redact mode policy: `best-effort` or `strict`. `best-effort` redacts content and continues on error; `strict` returns an error on any redaction failure. |
+| DLP_MODE                            | `best-effort`           | The redact mode policy: `best-effort` or `strict`. The former makes a best effort to redact the content and the later will return an error in case of any redaction issue.  |
 | DEFAULT_AGENT_GRPC_SCHEME           |                         | Override the gRPC scheme for the default agent. `grpc` or `grpcs`. |
 | DEFAULT_AGENT_GRPC_HOST             |                         | Override the default host for the default agent. |
-| DEFAULT_AGENT_GRPC_SKIP_VERIFY      |                         | Override the skip verify configuration when the default agent connects to the gateway. |
-| DEFAULT_AGENT_GRPC_TLS_CA           |                         | The Certificate Authority file to use when connecting with the default agent, e.g.: `file://` or `base64://` |
-| DISABLE_SESSIONS_DOWNLOAD           | false                   | Controls whether session download is disabled |
+| DEFAULT_AGENT_GRPC_SKIP_VERIFY      |                         | Override the skip verify configuration when the default agent is connecting with the gateway. |
+| DEFAULT_AGENT_GRPC_TLS_CA           |                         | The Certificate Authority file to use when connecting with default agent, e.g.: `file://` or `base64://` |
+| DISABLE_SESSIONS_DOWNLOAD           | false                   | Control if the download session is disabled or not |
 | GIN_MODE                            | release                 | Turn on (debug) logging of routes |
 | GOOGLE_APPLICATION_CREDENTIALS_JSON |                         | GCP DLP credentials |
-| GRPC_URL                            | `grpc://127.0.0.1:8010` | The gRPC URL advertised to clients. |
+| GRPC_URL                            | `grpc://127.0.0.1:8010` | The gRPC URL to advertise to clients. |
 | LOG_ENCODING                        | json                    | The encoding of output logs (console) |
-| LOG_GRPC                            |                         | "1" enables logging of gRPC protocol |
-| LOG_LEVEL                           | info                    | The verbosity of logs (debug, info, warn, error) |
-| SSH_CLIENT_HOST_KEY                 |                         | The private key host key for the local SSH server client. Must be a `PKCS#8` format key encoded as base64.  |
-| INTEGRATION_AWS_INSTANCE_ROLE_ALLOW |                         | When set to `true`, allows using AWS instance role when interacting with AWS Connect integration |
+| LOG_GRPC                            |                         | "1" enables logging gRPC protocol |
+| LOG_LEVEL                           | info                    | The verbosity of logs (debug,info,warn,error) |
+| SSH_CLIENT_HOST_KEY                 |                         | The private key host key to use for the local SSH server client. It should be a key generated in `PKCS#8` format encoded as base64.  |
+| INTEGRATION_AWS_INSTANCE_ROLE_ALLOW |                         | When this option is set to `true`, it allow to use AWS instance role when interacting with AWS Connect integration |
 | MSPRESIDIO_ANALYZER_URL             |                         | Host and port for MS Presidio Analyzer `<host-to-analyzer:port>` |
 | MSPRESIDIO_ANONYMIZER_URL           |                         | Host and port for MS Presidio Anonymizer `<host-to-anonymizer:port>` |
 | ORG_MULTI_TENANT                    |                         | Enable organization multi-tenancy |
-| PLUGIN_AUDIT_PATH                   | `/opt/hoop/sessions`    | The path where temporary sessions are stored |
-| STATIC_UI_PATH                      | `/app/ui/public`        | The path where UI assets reside |
-| TLS_CERT                            |                         | The path or value of the certificate server (pem) e.g.: `file://` or `base64://` |
-| TLS_KEY                             |                         | The path or value of the RSA private key e.g.: `file://` or `base64://` |
-| WEBAPP_USERS_MANAGEMENT             | `on`                    | Enable user management in the Webapp. Allows creating, editing, and deleting users. |
-| WEBHOOK_APPKEY                      |                         | The application key for sending messages to the Svix Webhook provider. |
-| WEBHOOK_APPURL                      |                         | The Svix Server URL for self-hosted setups. |
+| PLUGIN_AUDIT_PATH                   | `/opt/hoop/sessions`    | The path where the temporary sessions are stored |
+| STATIC_UI_PATH                      | `/app/ui/public`        | The path where the UI assets resides |
+| TLS_CERT                            |                         | The path or value to the certificate server (pem) e.g.: `file://` or `base64://` |
+| TLS_KEY                             |                         | The path or value to the RSA private key e.g.: `file://` or `base64://` |
+| WEBAPP_USERS_MANAGEMENT             | `on`                    | Enable the users management in the Webapp. It allows to create, edit and delete users. |
+| WEBHOOK_APPKEY                      |                         | The application key to send messages to the Svix Webhook provider. |
+| WEBHOOK_APPURL                      |                         | The Svix Server URL for self hosted setups. |

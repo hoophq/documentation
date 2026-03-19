@@ -9,7 +9,7 @@ description: "Get AI-powered help writing queries and scripts with context-aware
 
 ## What You'll Accomplish
 
-**AI Query Builder** is a built-in assistant that writes queries and scripts based on your database schema. It provides context-aware suggestions so you can:
+AI Query Builder is a built-in AI assistant that helps you write queries and scripts. It understands your database schema and provides contextual suggestions, so you can:
 
 - Get help writing complex SQL queries
 - Generate scripts based on natural language descriptions
@@ -20,10 +20,10 @@ description: "Get AI-powered help writing queries and scripts with context-aware
 
 ## How It Works
 
-When enabled, AI Query Builder sends your database schema (table names, column names, data types) to OpenAI GPT-4o. The model uses this context to generate accurate suggestions.
+When you enable AI Query Builder, Hoop sends your database schema (table names, column names, data types) to OpenAI's GPT-4o model. The AI uses this context to provide relevant suggestions.
 
 <Note>
-**Privacy:** Only schema metadata is sent to OpenAI, never your actual data. Queries are not associated with your identity or organization.
+**Privacy:** Only schema metadata is sent to OpenAI—never your actual data. Queries are not associated with your identity or organization.
 </Note>
 
 ### What Gets Sent to OpenAI
@@ -66,7 +66,7 @@ env:
 
 ### Step 2: Restart the Gateway
 
-Restart the gateway to apply the change.
+After setting the environment variable, restart your gateway to apply the changes.
 
 ### Step 3: Use the AI Assistant
 
@@ -163,7 +163,7 @@ The AI will identify relevant tables based on your schema.
 
 ## Supported Databases
 
-AI Query Builder works with all database connections in Hoop:
+AI Query Builder works with any database connection in Hoop:
 
 - PostgreSQL
 - MySQL
@@ -172,7 +172,7 @@ AI Query Builder works with all database connections in Hoop:
 - Oracle
 - And more...
 
-Suggestions adapt to each database's SQL dialect.
+The AI adapts its suggestions to the specific SQL dialect of your database.
 
 ---
 
@@ -214,7 +214,7 @@ Suggestions adapt to each database's SQL dialect.
 
 ### Slow Responses
 
-OpenAI API response times vary. For consistently slow responses:
+OpenAI API response times vary. If responses are consistently slow:
 1. Check your OpenAI API quota
 2. Verify network connectivity from the gateway
 3. Try simpler questions first
@@ -232,7 +232,7 @@ OpenAI API response times vary. For consistently slow responses:
 
 ### API Key Security
 
-- Store your OpenAI API key in a secrets manager
+- Store your OpenAI API key securely (use secrets manager)
 - Use a dedicated API key for Hoop
 - Monitor API usage for unexpected activity
 - Rotate keys periodically

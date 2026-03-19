@@ -1,11 +1,12 @@
 ---
-title: "AWS RDS IAM Auth"
-description: "Authenticate to AWS RDS instances using IAM tokens instead of passwords."
+title: "Aws Rds IAM Auth"
+description: "It enables integration with AWS IAM Auth for RDS instances."
 ---
 
 ## AWS RDS IAM Authentication
 
-Hoop supports IAM database authentication for PostgreSQL and MySQL RDS instances. Instead of passwords, users connect with short-lived IAM-generated tokens.
+You can authenticate to your DB cluster using AWS Identity and Access Management (IAM) database authentication. IAM database authentication works with PostgreSQL, MySQL.
+With this authentication method, you don't need to use a password when you connect to a DB. Instead, you use an authentication token.
 
 ## Feature Overview
 <p>
@@ -74,6 +75,7 @@ ALTER USER 'db_user'@'%' REQUIRE SSL;
       <p >
 
         If you deploy your agent on Kubernetes, you need to assume the role. For example:
+        The code example may need to be adjusted to fit your specific setup.
         ```yaml
         apiVersion: v1
         kind: ServiceAccount
@@ -83,12 +85,14 @@ ALTER USER 'db_user'@'%' REQUIRE SSL;
           annotations:
           eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT-ID>:role/HoopRdsIamRole
         ```
-        `HoopRdsIamRole` is the role that holds the policy for generating RDS IAM tokens.
+        `HoopRdsIamRole` is the role that has the policy to create tokens for connecting to RDS using IAM authentication.
 
 
       </p>
       <p>
-        For EKS deployments, use IRSA (IAM Roles for Service Accounts). The trust policy for the EKS cluster OIDC provider is shown below.
+        If the agent runs in Kubernetes on EKS, then the best practice is to use IRSA (IAM Roles for Service Accounts).
+        The trust policy for the EKS cluster OIDC provider is shown below.
+        The code example may need to be adjusted to fit your specific setup.
 
 ```json
 {
@@ -146,13 +150,15 @@ ALTER USER 'db_user'@'%' REQUIRE SSL;
   </Step>
   <Step title="Testing">
   <p>
-    - Run a query in the Web App to verify the connection.
-    - Or create a native connection in the Web App.
+    - You can run the query on webapp.
+    - You can create a native connection on the webapp.
   </p>
 
   </Step>
 </Steps>
 
 <Note>
-The agent must have AWS credentials or be able to assume an IAM role with the policy from Step 1 to generate auth tokens.
+ Make sure your agent has the AWS credentials configured or can assume an AWS role that can use the policy created previously
+ to be able to generate the auth token.
+
 </Note>

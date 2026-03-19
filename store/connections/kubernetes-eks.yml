@@ -102,7 +102,7 @@ additionalInformation: |-
 
   The Hoop agent uses Role X to assume Role Y and generate the EKS token.
 
-  ### Step 1: Create IAM Role Y
+  ### Step 1 — Create IAM Role Y
 
   Create a role that represents the Kubernetes identity (Role Y). Use a clear
   name like `arn:aws:iam::<AWS_ACCOUNT_ID>:role/eks-access-role`.
@@ -124,7 +124,7 @@ additionalInformation: |-
   }
   ```
 
-  ### Step 2: Allow AssumeRole (Role X -> Role Y)
+  ### Step 2 — Allow AssumeRole (Role X -> Role Y)
 
   Attach a policy to Role X:
 
@@ -136,7 +136,7 @@ additionalInformation: |-
   }
   ```
 
-  ### Step 3: Create the EKS Access Entry
+  ### Step 3 — Create the EKS Access Entry
 
   ```sh
   aws eks create-access-entry \
@@ -148,7 +148,7 @@ additionalInformation: |-
 
   The username template becomes the Kubernetes username that RBAC evaluates.
 
-  ### Step 4: Create the Kubernetes ClusterRoleBinding
+  ### Step 4 — Create the Kubernetes ClusterRoleBinding
 
   ```sh
   kubectl apply -f - <<EOF

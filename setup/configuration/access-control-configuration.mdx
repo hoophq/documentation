@@ -1,13 +1,13 @@
 ---
 title: "Access Control Configuration"
-description: "Configure group-based access policies to restrict which users can see and connect to specific connections"
+description: "Configure group-based access policies for your connections"
 ---
 
 <Frame>
   <img src="/images/learn/features/access-control-app.png" alt="Access Control Configuration" />
 </Frame>
 
-**Access Control** restricts which users can see and access specific connections based on group membership. This page covers detailed configuration options.
+Access Control lets you restrict which users can see and access specific connections based on their group memberships. This page covers detailed configuration options.
 
 <Note>
 For an introduction to Access Control concepts, see [Access Control Overview](/learn/features/access-control).
@@ -18,7 +18,7 @@ For an introduction to Access Control concepts, see [Access Control Overview](/l
 ## Enabling Access Control
 
 <Warning>
-Enabling Access Control immediately hides connections from users without explicit access. Plan your group assignments before enabling.
+Enabling Access Control will immediately hide connections from users who don't have explicit access. Plan your group assignments before enabling.
 </Warning>
 
 ### Step 1: Activate Access Control
@@ -32,10 +32,10 @@ Enabling Access Control immediately hides connections from users without explici
     </Frame>
   </Step>
   <Step title="Review the Warning">
-    Read the activation warning before proceeding. Understand that:
-    - Users without group assignments lose access immediately
-    - You must configure each connection individually
-    - Changes take effect right away
+    Read the activation warning carefully. Understand that:
+    - Users without group assignments will lose access
+    - You'll need to configure each connection individually
+    - Changes take effect immediately
 
     <Frame>
       <img src="/images/learn/features/access-control-confirm.png" alt="Activation warning" />
@@ -79,7 +79,7 @@ After activation, configure access for each connection:
 
 ### Creating Groups
 
-Groups can be created two ways:
+Groups can be created in two ways:
 
 **Option A: Manual Creation (in Hoop)**
 
@@ -91,10 +91,10 @@ Groups can be created two ways:
 
 **Option B: Sync from Identity Provider**
 
-Groups sync automatically when users log in:
+Groups can be automatically synced when users log in:
 
-1. Configure your IdP to include a `groups` claim in the ID token
-2. Groups sync on each login
+1. Configure your IdP to include `groups` claim in the ID token
+2. Users' groups are synced on each login
 3. See [Identity Provider Configuration](/setup/configuration/idp/get-started)
 
 ### Built-in Groups
@@ -208,9 +208,9 @@ Connection: contractor-db
 
 ### Syncing Groups from IdP
 
-To sync groups automatically from your identity provider:
+To automatically sync groups from your identity provider:
 
-1. **Configure the IdP to include a groups claim:**
+1. **Configure IdP to include groups claim:**
 
    In your IdP (Okta, Auth0, Azure AD, etc.), configure the OIDC application to include a `groups` claim in the ID token.
 
@@ -220,14 +220,14 @@ To sync groups automatically from your identity provider:
    IDP_GROUPS_CLAIM=groups
    ```
 
-   For custom claim names:
+   Or for custom claim names:
    ```bash
    IDP_GROUPS_CLAIM=https://mycompany.com/groups
    ```
 
 3. **Groups sync on login:**
 
-   When users log in, their groups sync automatically from the IdP.
+   When users log in, their groups are automatically synced from the IdP.
 
 ### Provider-Specific Guides
 
@@ -312,7 +312,7 @@ hoop admin get connection <name>
 
 ### User Sees Connection But Can't Connect
 
-This is not an Access Control issue. Check:
+This is likely NOT an Access Control issue. Check:
 
 1. **Access Requests:** Is JIT or Action approval required?
 2. **Guardrails:** Are there blocking rules?

@@ -7,15 +7,15 @@ title: "Auth0"
 - An [account in Auth0](https://auth0.com)
 - `API_URL` is the public DNS name of the hoop gateway instance
 
-Contact the hoop gateway administrator to retrieve the `API_URL` address.
+Contact the administrator of the hoop gateway instance to retrieve the `API_URL` address.
 
 ## Identity Provider Configuration
 
 <Steps titleSize="h3">
   <Step title="Create an Application">
-   Create a new application:
-   - Go to **Applications > Applications** and click **Create Application**
-   - Select **Regular Web Application**
+   Create a new application
+   - Go to **Applications > Applications** and click on the **Create Application** button
+   - Select a Regular Web Application
   </Step>
   <Step title="Configure the Redirect URIs">
    - Allowed Callback URLs: `{API_URL}/api/callback`
@@ -25,11 +25,11 @@ Contact the hoop gateway administrator to retrieve the `API_URL` address.
     - In the Application Home, copy the **Client ID** and **Client Secret**
   </Step>
   <Step title="Collect Issuer Information">
-    - In **Application Home > Settings**, copy the **Domain**
-    - The issuer URL format is `https://{YOUR_DOMAIN}`
+    - In the **Application Home** > **Settings**, copy the **Domain**.
+    - The issuer url is in the format `https://{YOUR_DOMAIN}`
   </Step>
   <Step title="Collect the Auth0 Management API Audience">
-    - Go to **Applications > API**
+    - Go to **Applications** > **API**
     - Copy the **API Audience** value
   </Step>
 </Steps>

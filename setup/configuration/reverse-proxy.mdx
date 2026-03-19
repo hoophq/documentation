@@ -3,7 +3,8 @@ title: 'Reverse Proxy'
 description: 'Deploying Hoop Behind a Reverse Proxy'
 ---
 
-Deploy Hoop Gateway behind a reverse proxy for load balancing and TLS termination. Both ports must be configured correctly for all functionality to work.
+Hoop Gateway can be deployed behind a reverse proxy to enhance security, enable load balancing, and optimize production performance.
+This guide covers configuration steps for reverse proxy setups.
 
 ## Architecture Overview
 
@@ -11,6 +12,8 @@ Hoop Gateway exposes two ports by default:
 
 - **Port 8009:** Web interface and REST API (HTTP/1.1 and HTTP/2)
 - **Port 8010:** gRPC service (HTTP/2)
+
+When setting up a reverse proxy, both ports need to be properly configured to ensure all functionality works correctly.
 
 ## Prerequisites
 
@@ -140,7 +143,7 @@ This configuration performs TLS termination at the proxy level.
             secretName: hoopdev-tls
         ```
         <Info>
-            The gRPC ingress configuration has two important directives to proxy the connections:
+            The gRPC ingress configuration has two importante directives to proxy the connections:
             - `nginx.ingress.kubernetes.io/backend-protocol: GRPC` - indicates the underline backend protocol
             - `nginx.ingress.kubernetes.io/proxy-body-size: '0'` - use unlimited body size to avoid issues when proxying bi-directional connections
         </Info>
@@ -152,7 +155,7 @@ This configuration performs TLS termination at the proxy level.
 For [Istio deployments](http://istio.io/docs/), you can configure the Envoy proxy to handle both HTTP/2 and gRPC traffic.
 
 <Tip>
-  Do not define timeout or retry policies for gRPC connections (port 8010). Long-lived connections will fail if timeouts are set.
+  It's important to not define any timeout or retry policies for gRPC connections (8010 port) to avoid issues with long-lived connections.
 </Tip>
 
 Below is an example of how to set up the Envoy configuration:
@@ -298,7 +301,7 @@ Below is an example of how to set up the Envoy configuration:
   </Tab>
 </Tabs>
 
-## Troubleshooting
+# Troubleshooting
 
 ### gRPC Logging
 

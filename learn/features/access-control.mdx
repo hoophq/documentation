@@ -1,6 +1,6 @@
 ---
 title: "Access Control"
-description: "Restrict connection visibility to specific groups, so users only see what they're authorized to access."
+description: "Control who can access which connections with group-based permissions"
 ---
 
 <Frame>
@@ -9,7 +9,7 @@ description: "Restrict connection visibility to specific groups, so users only s
 
 ## What You'll Accomplish
 
-**Access Control restricts which users can see and use specific connections.** Instead of giving everyone access to everything, you can:
+Access Control lets you restrict which users can see and use specific connections. Instead of giving everyone access to everything, you can:
 
 - Limit production database access to senior engineers
 - Give read-only access to analysts
@@ -27,13 +27,13 @@ Access Control uses **groups** to manage permissions. Users belong to groups, an
     User logs in via your identity provider (Okta, Auth0, etc.)
   </Step>
   <Step title="Groups Synced">
-    Hoop syncs the user's group memberships from the identity provider.
+    User's group memberships are synced from the identity provider
   </Step>
   <Step title="Access Evaluated">
-    When the user opens a connection, Hoop checks whether their groups are on the allow list.
+    When accessing a connection, Hoop checks if the user's groups are allowed
   </Step>
   <Step title="Access Granted or Denied">
-    The user sees the connection if allowed, or gets an access denied error.
+    User sees the connection if allowed, or gets an access denied error
   </Step>
 </Steps>
 
@@ -60,15 +60,15 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 ### Step 1: Enable Access Control
 
 <Warning>
-Enabling Access Control hides connections from users without explicit access. Plan your group assignments before enabling.
+Enabling Access Control will hide connections from users who don't have explicit access. Plan your group assignments before enabling.
 </Warning>
 
 <Steps>
   <Step title="Navigate to Access Control">
-    Go to **Manage > Access Control** in the sidebar.
+    Go to **Manage > Access Control** in the sidebar
   </Step>
   <Step title="Activate Access Control">
-    Click **Activate** to enable the feature.
+    Click **Activate** to enable the feature
 
     <Frame>
       <img src="/images/learn/features/access-control-confirm.png" alt="Activate Access Control" />
@@ -80,24 +80,24 @@ Enabling Access Control hides connections from users without explicit access. Pl
 
 <Steps>
   <Step title="Select a Connection">
-    Find the connection you want to configure and click on it.
+    Find the connection you want to configure and click on it
   </Step>
   <Step title="Toggle Access Control">
-    Enable the Access Control toggle for this connection.
+    Enable the Access Control toggle for this connection
 
     <Frame>
       <img src="/images/learn/features/access-control-activated.png" alt="Enable on connection" />
     </Frame>
   </Step>
   <Step title="Select Allowed Groups">
-    Choose which groups can access this connection.
+    Choose which groups can access this connection
 
     <Frame>
       <img src="/images/learn/features/access-control-add-groups.png" alt="Select groups" />
     </Frame>
   </Step>
   <Step title="Save">
-    Click **Save** to apply the changes.
+    Click **Save** to apply the changes
   </Step>
 </Steps>
 
@@ -114,9 +114,9 @@ Enabling Access Control hides connections from users without explicit access. Pl
 
 ### Creating Groups
 
-Groups are managed in your identity provider (Okta, Auth0, Azure AD, etc.). When users log in, Hoop syncs their group memberships.
+Groups are typically managed in your identity provider (Okta, Auth0, Azure AD, etc.). When users log in, their group memberships are synced to Hoop.
 
-**To create groups manually in Hoop:**
+**In Hoop, you can also create groups manually:**
 
 1. Go to **Manage > Users & Groups**
 2. Click **Create Group**
@@ -139,7 +139,7 @@ Configure your identity provider to include groups in the ID token:
 | `auditor` | Read-only access to sessions and audit logs |
 
 <Note>
-Admin users bypass Access Control and can access all connections. Use the admin role sparingly.
+Admin users bypass Access Control and can access all connections. Use admin sparingly.
 </Note>
 
 ---
@@ -158,7 +158,7 @@ Restrict production access to senior team members:
 
 ### Pattern 2: Team-Based Access
 
-Each team sees only their own resources:
+Each team only sees their own resources:
 
 | Connection | Allowed Groups |
 |------------|----------------|
@@ -186,8 +186,8 @@ Temporary access for external contractors:
 
 1. Create a `contractors` group
 2. Add contractors to the group
-3. Allow the `contractors` group on specific, limited connections only
-4. Remove from group when the contract ends
+3. Only allow `contractors` group on specific, limited connections
+4. Remove from group when contract ends
 
 ---
 
@@ -198,7 +198,7 @@ Access Control works with other Hoop security features:
 | Feature | Combined Behavior |
 |---------|-------------------|
 | **Access Requests** | Users in allowed groups can request access; others can't |
-| **Guardrails** | Allowed users are still subject to query restrictions |
+| **Guardrails** | Allowed users still subject to query restrictions |
 | **Live Data Masking** | Allowed users see masked data |
 | **Session Recording** | All access is audited regardless of permissions |
 
@@ -221,7 +221,7 @@ For a production database:
 **Check:**
 1. Access Control is enabled on that connection
 2. User's groups are in the allowed list
-3. User has logged out and back in to sync groups
+3. User has logged out and back in (to sync groups)
 4. Identity provider is sending the `groups` claim
 
 **Debug group membership:**
@@ -231,7 +231,7 @@ For a production database:
 
 ### User Sees Connection But Can't Connect
 
-This is an Access Request or Guardrail issue, not Access Control. Check:
+This is likely an Access Request or Guardrail issue, not Access Control. Check:
 1. Is JIT or Action Access Request enabled?
 2. Are there Guardrails blocking the connection?
 
@@ -249,26 +249,26 @@ This is an Access Request or Guardrail issue, not Access Control. Check:
 
 <CardGroup cols={2}>
   <Card title="Least Privilege" icon="shield-check">
-    Grant the minimum access needed for each role.
+    Grant minimum access needed for each role
   </Card>
   <Card title="Use Groups, Not Users" icon="users">
-    Assign access to groups, not individual users.
+    Assign access to groups, not individual users
   </Card>
   <Card title="Regular Audits" icon="clipboard-check">
-    Review access permissions quarterly.
+    Review access permissions quarterly
   </Card>
   <Card title="Document Policies" icon="file-lines">
-    Write down who should have access to what.
+    Write down who should have access to what
   </Card>
 </CardGroup>
 
 ### Access Review Checklist
 
-Review quarterly:
+Quarterly, review:
 - [ ] Are all group memberships still appropriate?
 - [ ] Are there users who left but still have access?
 - [ ] Are there connections that should have stricter access?
-- [ ] Is contractor access scoped to their engagement period?
+- [ ] Are contractors' access limited to their engagement period?
 
 ---
 

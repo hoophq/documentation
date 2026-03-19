@@ -1,6 +1,6 @@
 ---
 title: "1.42.5"
-description: "Fixed terminal navigation errors, broken keyboard shortcuts, and added the resources model for connection management."
+description: "Terminal fixes and a solid foundation for what's coming next. We squashed navigation bugs and built out the resources infrastructure to power better connection management."
 ---
 
 ### TL;DR
@@ -14,7 +14,7 @@ description: "Fixed terminal navigation errors, broken keyboard shortcuts, and a
 
 **Resources Model ([#1083](https://github.com/hoophq/hoop/pull/1083))**
 
-Added a resources model with routes, agent association, and role-based defaults. This is the foundation for more flexible connection management ahead.
+Added a new resources model that lays the groundwork for improved connection management. This infrastructure enhancement includes routes, agent association, and role-based defaults — setting the stage for more flexible resource handling.
 
 ---
 
@@ -24,11 +24,13 @@ Added a resources model with routes, agent association, and role-based defaults.
 
 Fixed two issues that were disrupting the Web Terminal experience:
 
-- **Database navigation error**: Opening a database connection from the connection list no longer triggers a "database not found" error. The schema cache now clears properly on connection selection.
+- **Database navigation error** — Opening a database connection from the connection list no longer triggers a "database not found" error. The schema cache now clears properly on connection selection.
 
-- **Editor shortcuts**: `Ctrl+Enter` and other shortcuts now work in custom and command-line connection types. Removed faulty caching logic in CodeMirror extensions initialization.
+- **Editor shortcuts** — Keyboard shortcuts (like Ctrl+Enter) now work reliably in custom and command-line connection types. We removed faulty caching logic in CodeMirror extensions initialization.
+
+If you were frustrated by either of these, they're gone now.
 
 ---
 
-Smoother terminals. Stronger foundations.
+Smoother terminals and stronger foundations.
 

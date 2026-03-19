@@ -17,46 +17,130 @@ description: "The bridge between users and resources"
 
 # Resource Roles
 
-**A Resource Role is a named, secured connection that exposes a service to authorized users.** Admins define them; users access them through the gateway without touching underlying credentials.
+Resource Roles are a central concept in Hoop.dev that serve as secure bridges between users and your organization's resources. They enable controlled access to internal services, databases, and other resources while maintaining security and compliance. Resource Roles are defined by the administrator and can be assigned to users and groups.
 
-## Types of Resources
+## What is a Resource Role?
 
-Hoop supports three categories:
+A Resource Role is a configurable connection that exposes internal services from your infrastructure to authorized users in a secure and controlled manner. It acts as an intermediary layer that:
 
-**Databases**: PostgreSQL, MySQL, and other database systems.
+- Provides secure access to internal resources
+- Enforces access control policies
+- Enables monitoring and auditing of resource usage
+- Supports various types of services and protocols
 
-**Applications**: TCP forwarding, custom CLI tools, and web services.
+## Types of Resources 
 
-**Custom Resources**: Specialized services with complex configurations and custom tool integrations.
+Hoop.dev supports several types of connections:
+
+**Databases**
+
+- PostgreSQL, MySQL and many other database systems
+
+**Applications**
+
+- TCP forwarding, custom CLI tools, and web services
+
+**Custom Resources**
+
+- Ability to connect to specialized resources
+- Support for complex configurations
+- Integration with custom tools and services
 
 ## Key Features
 
-**Access Control**: Group-based policies with approval workflows for sensitive resources.
+### Access Control
 
-**Security**: Encrypted communication, credential management, audit logging, and policy enforcement.
+- Granular permission management
+- Group-based access policies
+- Access request approval processes for sensitive resources
 
-**Monitoring**: Activity tracking, usage analytics, and SIEM integration for compliance.
+### Security
+
+- Encrypted communication
+- Credential management
+- Audit logging
+- Security policy enforcement
+
+### Monitoring and Compliance
+
+- Activity tracking
+- Usage analytics
+- Compliance reporting
+- Integration with SIEM systems
 
 ## Resource Components
 
+Resources and Resource Roles in Hoop.dev consist of several components:
+
 <AccordionGroup>
   <Accordion title="Configuration">
-    - Name and type
-    - Resource specifications
-    - Security settings
-    - Access control rules
+    <ul>
+      <li>
+        Name and type
+      </li>
+
+    
+      <li>
+        Resource specifications
+      </li>
+
+    
+      <li>
+        Security settings
+      </li>
+
+    
+      <li>
+        Access control rules
+      </li>
+
+    </ul>
   </Accordion>
   <Accordion title="Agent Integration">
-    - Connects to internal resources
-    - Manages communication
-    - Handles authentication
-    - Enforces security policies
+    <ul>
+      <li>
+        Connects to internal resources
+      </li>
+
+    
+      <li>
+        Manages communication
+      </li>
+
+    
+      <li>
+        Handles authentication
+      </li>
+
+    
+      <li>
+        Enforces security policies
+      </li>
+
+    </ul>
   </Accordion>
   <Accordion title="Plugins and Extensions">
-    - Integration with external tools
-    - Custom functionality
-    - Automation capabilities
-    - Compliance features
+    <ul>
+      <li>
+        Integration with external tools
+      </li>
+
+    
+      <li>
+        Custom functionality
+      </li>
+
+    
+      <li>
+        Automation capabilities
+      </li>
+
+    
+      <li>
+        Compliance features
+      </li>
+
+    </ul>
   </Accordion>
 </AccordionGroup>
 
@@ -64,37 +148,56 @@ Hoop supports three categories:
 
 <CardGroup cols={2}>
   <Card title="Security First" icon="shield">
-    - Use least-privilege access
-    - Require approval for sensitive resources
-    - Audit access patterns regularly
+    - Use strong authentication
+    - Implement least privilege access
+    - Enable access request approval for sensitive resources
+    - Regularly audit access patterns
   </Card>
   <Card title="Organization" icon="folder">
     - Use clear naming conventions
-    - Document each resource role's purpose
+    - Group related resource roles
+    - Document resource role purposes
     - Maintain access control lists
   </Card>
   <Card title="Monitoring" icon="eye">
     - Enable logging and auditing
+    - Monitor usage patterns
     - Set up alerts for suspicious activity
-    - Review access quarterly
+    - Regular security reviews
   </Card>
-  <Card title="Maintenance" icon="arrows-rotate">
+  <Card title="Regular Updates" icon="arrows-rotate">
+    - Keep software and dependencies up to date
     - Apply security patches promptly
-    - Review configurations regularly
+    - Review and update configurations regularly
+    - Stay informed about new features and improvements
   </Card>
 </CardGroup>
 
-## Managing Resources
+## Managing Resources 
 
-Manage Resource Roles through:
+Resources and Resource Roles can be managed through:
 
-1. **Web Interface**: Configuration console with real-time monitoring
-2. **API**: Programmatic access and automation
-3. **CLI**: Scripting and quick access
+1. **Web Interface**
+   - User-friendly management console
+   - Real-time monitoring
+   - Configuration tools
+   - Access control management
+2. **API**
+   - Programmatic access
+   - Automation capabilities
+   - Integration support
+   - Custom implementations
+3. **CLI**
+   - Command-line management
+   - Scripting support
+   - Automation tools
+   - Quick access
 
 ## Next Steps
 
+To get started with your Resources and Resource Roles:
+
 1. [Set up your first resource](/clients/webapp/creating-resource-roles)
 2. [Learn about access management](/clients/webapp/managing-access)
-3. [Explore integrations](/integrations)
+3. [Explore integration options](/integrations)
 4. [Understand the architecture](/setup/architecture)

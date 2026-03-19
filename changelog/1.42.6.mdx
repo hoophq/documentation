@@ -1,24 +1,39 @@
 ---
 title: "1.42.6"
-description: "Runbook library scrolling fix, cmd+Enter shortcut, and display improvements."
+description: "Bug fixes and user experience improvements for runbook management, including scrolling fixes and keyboard shortcuts."
 ---
 
 ### TL;DR
-- **Fixed:** Scrolling in runbook library panel; runbook items cut off in list view.
-- **Added:** `cmd+Enter` shortcut to run runbooks; loading states on the run button.
+- **User Experience:** Fixed scrolling issues in runbook library panel and added cmd+Enter keyboard shortcut for running runbooks.
+- **Bug Fixes:** Resolved runbook list display issues and prevented content cutting.
 
 ---
 
-### Improvements
+### User Experience Improvements
+**Making runbooks more accessible and user-friendly.**
 
-- **Runbook library scrolling**: Fixed the panel height calculation so long runbook lists scroll correctly.
+- **Enhanced runbook library panel with proper scrolling**
+  Fixed scrolling issues in the runbooks library panel by implementing calculated height and enabling vertical scrolling, improving usability when displaying long lists of runbooks.
   [PR #1093](https://github.com/hoophq/hoop/pull/1093)
 
-- **cmd+Enter shortcut**: Run runbooks from the keyboard. No mouse required.
+- **Keyboard accessibility with cmd+Enter shortcut**
+  Added support for running runbooks with the cmd+Enter key combination, enhancing keyboard accessibility and providing a faster way to execute runbooks without reaching for the mouse.
   [PR #1093](https://github.com/hoophq/hoop/pull/1093)
 
-- **Runbook list display**: Fixed items being cut off in the library panel.
+---
+
+### Bug Fixes
+**Runbook Interface**
+
+- **Fixed runbook list item display**
+  Resolved an issue where runbook items were being cut off in the library panel, ensuring all runbook information is properly visible.
   [PR #1093](https://github.com/hoophq/hoop/pull/1093)
 
-- **Run button states**: Added loading indicators and OS-specific command labels.
+- **Added loading states and improved button labels**
+  Enhanced the run button with proper loading states and OS-specific command labels for better user feedback and clarity.
   [PR #1093](https://github.com/hoophq/hoop/pull/1093)
+
+---
+
+The theme for this release is **smooth scrolling, snappy shortcuts, and seamless runbook management.**
+See you in the next update!
