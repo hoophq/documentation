@@ -1,9 +1,10 @@
 ---
 title: "Overview"
-description: "Integrate with your own Identity Provider"
+description: "Connect hoop.dev to your Identity Provider using OIDC"
 ---
 
-We support a variety of Identity Providers to authenticate users in hoop.dev. In this guide you will find the IDPs we had success integrating with but as due to how we integrate with them using OIDC standards, you can try to integrate with any OIDC compliant IDP.
+Hoop.dev supports a variety of Identity Providers for user authentication.
+The guides below cover providers we have validated, but any OIDC-compliant or SAML2.0 IDP should work using the same integration method.
 
 <CardGroup cols={3}>
   <Card title="Auth0" href="/setup/configuration/idp/auth0"/>
@@ -12,35 +13,67 @@ We support a variety of Identity Providers to authenticate users in hoop.dev. In
   <Card title="Azure" href="/setup/configuration/idp/azure"/>
   <Card title="Jump Cloud" href="/setup/configuration/idp/jumpcloud"/>
   <Card title="AWS Cognito" href="/setup/configuration/idp/aws-cognito"/>
+  <Card title="OneLogin" href="/setup/configuration/idp/onelogin"/>
 </CardGroup>
 
 ## Users
 
-Users are active and assigned to the default organization when they signup. A user could be set to an inactive state preventing it from accessing the platform, however it’s recommended to manage the state of users in the identity provider.
+**Users are active and assigned to the default organization on signup.** 
+A user can be set to an inactive state to block platform access, but managing user state in the identity provider is the recommended approach.
 
-- The `sub` claim is used as the main identifier of the user in the platform.
-- The profile of the user is derived from the id_token claims `email` and `name`.
+- The `sub` claim is the main user identifier in the platform.
+- For OIDC, the user profile is derived from the `email` and `name` claims in the `id_token`.
+- For SAML, the user profile is derived from assertion Attribute Values
 
-When a user authenticates for the first time, it performs an automatic signup that persist the profile claims along with it’s unique identifier.
+### SAML 2.0 Attribute Values
+
+To propagate information from your Identity Provider to Hoop, propagate them via Attribute Values.
+The supported attributes are described below:
+
+#### Email Address
+
+- `email`
+- `emailaddress`
+- `mail`
+- `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`
+- `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn`
+
+#### First Name
+
+- `first_name`
+- `name`
+- `http://schemas.microsoft.com/identity/claims/displayname`
+- `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
+- `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname`
+
+#### Last Name
+
+- `last_name`
+- `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname`
+
+#### Groups
+
+If the SAML Assertion contains an attribute value with the name `groups` it will synchronize this attribute on every login.
 
 ## Groups
 
-Groups allows defining who may access or interact with certain resources.
+Groups define who can access or interact with specific resources:
 
-- For **connection** resources it’s possible to define which groups has access to a specific connection, this is enforced when the **Access Control feature** is enabled.
-- For **access requests**, it's possible to define which groups are allowed to approve an execution, this is enforced when the **Access Requests feature** is enabled.
+- For **connection** resources, groups control which users can access a specific connection. This is enforced when the **Access Control feature** is enabled.
+- For **access requests**, groups define who can approve an execution. This is enforced when the **Access Requests feature** is enabled.
 
 <Tip>
-This resource could be managed manually via Webapp or propagated by the identity provider via ID Token. In this mode, groups are sync when a user performs a login.
+  Groups can be managed manually in the web app or propagated automatically by the identity provider via the ID token (OIDC) or SAML attribute value.
+  When using IdP propagation, group memberships are synchronized on every user login.
 </Tip>
 
 ## Roles
 
-- The **admin** group is a special role that grants full access to all resources
+- The **admin** group grants full access to all resources.
 
-This role should be granted to users that are responsible for managing the Gateway. All other users are regular, meaning that they can access their own resources and interacting with connections.
+Assign this role to users responsible for managing the Gateway. All other users are standard, meaning they can access their own resources and interact with connections.
 
-- The **auditor** group grants the auditor role that gives read only access to session resources
+- The **auditor** group grants read-only access to session resources.
 
 ## Configuration Page
 
@@ -48,22 +81,20 @@ This role should be granted to users that are responsible for managing the Gatew
   This feature is available beginning with version `1.38.12`
 </Note>
 
-Users are now able to configure the identity provider directly from the Webapp.
+Configure the identity provider directly from the Webapp.
 
 <Frame>
-<img src="/images/idp/auth-page-configuration.png" />
+  <img src="/images/idp/auth-page-configuration.png" />
 </Frame>
 
 <Warning>
-  After the configuration is saved, the identity provider will be automatically reloaded with the new settings.
-  The environment variables will not be considered as part of the configuration.
+  After saving the configuration, the identity provider reloads automatically with the new settings.
+  Environment variables are not considered as part of the configuration after this point.
 </Warning>
 
 ## Troubleshooting
 
-The IDP configuration experience could lock yourself out of the application if not configured correctly.
-
-To wipe all the configuration, connect in the Hoop Postgres database and the delete the following row:
+**A misconfigured IDP can lock you out of the application.** To wipe all configuration, connect to the Hoop Postgres database and delete the following row:
 
 ```sql
 -- clear all configuration
@@ -79,5 +110,5 @@ WHERE org_id = (SELECT id FROM private.orgs);
 ```
 
 <Tip>
-  In the upcoming releases we will improve this experience to avoid this situation.
+  Upcoming releases will improve this experience to avoid this situation.
 </Tip>
