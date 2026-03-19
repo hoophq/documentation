@@ -4,18 +4,18 @@ title: "Okta"
 
 ## Requirements
 
-- An [Okta account](https://developer.okta.com)
+- An [account in OKTA](https://developer.okta.com)
 - `API_URL` is the public DNS name of the hoop gateway instance
 
-Contact the hoop gateway administrator to retrieve the `API_URL` address.
+Contact the administrator of the hoop gateway instance to retrieve the `API_URL` address.
 
 ## Identity Provider Configuration
 
 <Steps titleSize="h3">
   <Step title="Create an Application">
-    - Go to **Applications > Applications** and click **Create App Integration**
-    - In **Sign-in Method**, select **OIDC - OpenID Connect**
-    - In **Application type**, select **Web Application**
+    - Go to `Applications > Applications` and click on the Create App Integration button
+    - In Sign-in Method, select OIDC - OpenID Connect
+    - In Application type, select Web Application
   </Step>
   <Step title="Configure the Redirect URIs">
     - Signin redirect URIs: `{API_URL}/api/callback`
@@ -23,21 +23,21 @@ Contact the hoop gateway administrator to retrieve the `API_URL` address.
     <img src="/images/idp/okta-1.jpeg" />
   </Step>
   <Step title="Collect the Credentials">
-    - In the Application Home, copy the **Client ID** and **Client Secret**
+    - In the Application Home copy the **Client ID** and **Client Secret**
     <img src="/images/idp/okta-2.jpeg" />
   </Step>
   <Step title="Collect Issuer Information">
-    - The Issuer URI depends on the authorization server in use. Refer to [this documentation](https://developer.okta.com/docs/concepts/auth-servers/#available-authorization-server-types).
+    - The Issuer URI depends on the authorization server being used. Refer to [this documentation](https://developer.okta.com/docs/concepts/auth-servers/#available-authorization-server-types).
     <Info>
-    If Okta does not allow external applications to validate access tokens, add the query string `_userinfo=1` when configuring the Gateway. This instructs the gateway to use the user info endpoint.
-    The `_userinfo` value is removed when exchanging information with the identity provider.
+    If Okta does not allow external applications to validate access tokens, add the query string option `_userinfo=1` when configuring the Gateway. It indicates to use the user info endpoint.
+    The _userinfo value is removed when used to exchange information with the identity provider.
     </Info>
   </Step>
 </Steps>
 
 ## Configuring Groups
 
-Configure the groups claim to propagate when users sign in.
+Explains how to configure groups claim to propagate when users sign in.
 
 <Info>
   Refer to [Okta's Documentation](https://developer.okta.com/docs/guides/customize-tokens-groups-claim/main/#add-a-groups-claim-for-the-org-authorization-server) for more information.
@@ -45,10 +45,10 @@ Configure the groups claim to propagate when users sign in.
 
 <Steps titleSize="h3">
   <Step title="Add Groups Claims">
-    - Go to **Security > API > {authorization server} > Claims**
-    - Click **Add Claims**
+    - Go to `Security > API > {authorization server} > Claims`
+    - Click on `Add Claims` button
 
-    Add the `groups` claim for the ID Token to any scope (image below):
+    Add the `groups` claim for the ID Token to any scope (image below)
 
     <Frame>
       <img src="/images/configure/identity-providers/add-claim-groups-okta.png" />
@@ -56,31 +56,31 @@ Configure the groups claim to propagate when users sign in.
 
   </Step>
   <Step title="Token Preview Test">
-    Validate that the configuration returns the `groups` claim correctly:
+    This step validate if the configuration is returning the `groups` claim properly
 
-    - Go to the **Token Preview** tab
+    - Go to `Token Preview` tab
     - Select the Hoop Application
-    - Set the Grant Type to **Authorization Code**
+    - Select the Grant Type as `Authorization Code`
     - Select a user associated with this application
     - Add the scope `openid`
 
-    The payload must include a claim named `groups` containing the groups associated with your application (image below):
+    The payload must appear with a claim named `groups` containing the groups associated with your application (image below)
 
     <Frame>
       <img src="/images/configure/identity-providers/okta-token-preview-test.png" />
     </Frame>
 
     <Warning>
-      The `groups` claim **will not be present when a user has no group assignments**.
+      Please note that the `groups` claim **will not be present when a user has no group assignments**.
       Hoop synchronizes group information only when this attribute is configured.
-      To prevent issues, ensure each user is assigned to at least one default group.
+      To prevent potential issues, ensure each user is assigned to at least one default group.
     </Warning>
 
   </Step>
 
   <Step title="Configure Hoop Gateway">
-    Configure the Hoop gateway to map claim names correctly for synchronization.
-    For detailed instructions, see the [OAuth2/OIDC Authentication Documentation](/setup/configuration/env-vars).
+    The Hoop gateway requires proper configuration to correctly map claim names for synchronization.
+    For detailed instructions, please consult the [OAuth2/OIDC Authentication Documentation](/setup/configuration/env-vars)
   </Step>
 
 </Steps>

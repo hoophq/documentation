@@ -59,14 +59,16 @@ description: 'This deployment leverages `docker compose` to deploy Hoop on local
 
 ## Download & Run in your machine
 
-No configuration required for a local run:
+This simpler version doesn't require much configuration, it just runs in your localhost.
 
 ```sh
 touch .env && curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && \
   docker compose up
 ```
 
-Access it at `http://localhost:8009`. For a custom identity provider or remote setup, follow the guide below.
+This will download the docker-compose file and run it in your local machine. You can access it at `http://localhost:8009` in your browser.
+
+If you want to set up a custom Identity Provider or run it in a remote machine, follow the **Download & Run in a remote machine** guide below.
 
 ## Download & Run in a remote machine
 
@@ -78,7 +80,8 @@ Access it at `http://localhost:8009`. For a custom identity provider or remote s
   </Step>
 
   <Step title="Set the .env file">
-    Required for authentication. See all available settings in the [environment variables reference](/setup/configuration/env-vars).
+    This step is required for authentication mostly, but a lot more configurations can be added to your `.env` file.
+    Check all the available configurations in the [environment variables section](/setup/configuration/env-vars).
 
     <Note>
       The `.env` file must be at the same level as the docker-compose.yml file

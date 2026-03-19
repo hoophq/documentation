@@ -1,6 +1,6 @@
 ---
 title: "1.42.1"
-description: "Fixed a critical bug where HTTP proxy environment variables and headers couldn't be accessed."
+description: "A quick patch fixing a critical issue with HTTP proxy environment variables. Sometimes the smallest fixes make the biggest difference."
 ---
 
 ### TL;DR
@@ -12,14 +12,16 @@ description: "Fixed a critical bug where HTTP proxy environment variables and he
 
 **HTTP Proxy Environment Variables ([#1073](https://github.com/hoophq/hoop/pull/1073))**
 
-Fixed a bug where environment variables and headers couldn't be accessed in HTTP proxy connections. The issue blocked index-based operations on environment variables due to a data structure problem.
+Fixed a critical bug where environment variables and headers couldn't be properly accessed in the HTTP proxy connection setup. The issue prevented index-based operations on environment variables due to improper data structure handling.
 
 **What changed:**
 - Environment variables now initialize correctly as vectors
 - Headers processing properly filters the `INSECURE` variable
 - Improved error handling when environment-variables collection is empty or nil
 
+If you experienced issues configuring HTTP proxy connections, this fixes it.
+
 ---
 
-Small fix. Big unblock.
+A small but mighty fix. Back to smooth sailing.
 

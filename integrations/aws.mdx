@@ -3,7 +3,8 @@ title: "AWS Connect"
 description: "Database Resource Discovery and Automatic Connection Creation."
 ---
 
-AWS Connect discovers RDS databases in your account and provisions standard database roles directly through Hoop. Use IAM credentials or the Hoop Gateway instance role to grant database access to users.
+This feature enables you to discover and provision common database roles to your RDS databases in AWS seamlessly.
+Using either IAM credentials or the instance role of the Hoop Gateway, you can quickly grant database access to users.
 
 <Frame>
   <img src="/images/integrations/aws-connect-1.jpg" alt="AWS Connect Interface" />
@@ -12,7 +13,8 @@ AWS Connect discovers RDS databases in your account and provisions standard data
 <Warning>
     Be aware that our current implementation **resets the master password** for RDS instances and stores the new credentials in the Hoop database.
 
-    Upcoming releases will add AWS Secrets Manager and IAM database authentication support.
+    In upcoming releases, we aim to support additional authentication methods for accessing these instances,
+    including AWS Secrets Manager integration and IAM database authentication.
 </Warning>
 
 ## Requirements
@@ -22,7 +24,7 @@ AWS Connect discovers RDS databases in your account and provisions standard data
 
 ## Configuration
 
-AWS Connect needs permissions to list resources and modify RDS instances.
+To configure the AWS Connect integration, it needs proper permissions to list resources and modify RDS instances.
 
 ### Main Account Setup
 
@@ -80,15 +82,16 @@ AWS Connect needs permissions to list resources and modify RDS instances.
     </Step>
 </Steps>
 
-This completes the main account setup.
+These steps should be sufficient to begin the provisioning process in your main account.
 
 ### Multi Account Setup
 
-For multi-account setup, configure your IAM user or instance role to access resources across different accounts.
+For multi-account setup, you can configure your IAM user or instance role to access resources across different accounts.
 
 #### Invite your AWS Account
 
-Hoop lists AWS accounts from your Organization on the integration configuration page. Invite the account you want to provision roles for.
+To allow Hoop to access your AWS account, you need to invite it to your AWS Organization.
+The list of AWS accounts will be displayed in the integration configuration page, and you can select the accounts you want to provision roles for.
 
 <Steps>
     <Step title="Invite AWS Account">
@@ -105,7 +108,8 @@ Hoop lists AWS accounts from your Organization on the integration configuration 
 
 #### Policy and Role Creation
 
-Create a policy and role in each AWS account you want Hoop to manage. The policy grants permissions that Hoop assumes via the role.
+To allow Hoop to access your AWS account, you need to create a policy and a role in each AWS account that you want to allow Hoop to access.
+The policy grants the necessary permissions to the role, which is then assumed by Hoop to perform actions on your behalf.
 
 <Steps>
     <Step title="Create IAM Policy">
@@ -168,7 +172,8 @@ See the step above to create the IAM role.
 
 ## Web Interface
 
-The web interface lists available AWS accounts and databases ready to provision.
+The web interface allows you to configure the AWS Connect integration and manage the provisioning of database roles.
+It will list the available AWS accounts and the databases that can be provisioned.
 
 ### Access Key Credentials
 
@@ -184,7 +189,8 @@ The web interface lists available AWS accounts and databases ready to provision.
 
 ## Agent Deployment
 
-The agent connects to your infrastructure to provision and access databases. Deploy an agent in every private network where a database runs.
+The agent connects to your underlying infrastructure to provision and access your databases.
+Before proceeding, make sure to provision an agent for every private network in which your database is running.
 
 <Note>
     If you have connectivity with all databases from a single machine, you could deploy the agent in this network
@@ -201,26 +207,30 @@ The agent connects to your infrastructure to provision and access databases. Dep
 
 ## Security Group Management
 
-The gateway creates a dedicated security group for each database to enable connectivity between the gateway and your agent. It has the following properties:
+The gateway automatically creates and associates a dedicated security group to enable secure connectivity between the gateway and your agent.
+This security group is configured with the following properties:
 
 - **Resource Name:** `hoop-aws-connect-sg-<db-instance-identifier>`
 - **Tag:** `hoop.dev/gateway=<api-hostname>`
 
-Manage these security groups directly to customize connectivity settings.
+You have the option to manage these security groups directly to customize connectivity settings as needed.
 
 ## Roles and Connection Management
 
-The provisioner resets the master database credentials with a random password and stores them in Hoop. Subsequent provisioning requests reuse those stored credentials.
+The provisioner will reset the master database credentials using a random password.
+The user and password are stored in Hoop's database. Subsequent requests for provisioning roles reuse the master credentials stored in Hoop.
 
-The provisioner creates three static user roles for each database, depending on the engine:
+The provisioner will create three static user roles for all existing databases depending on the engine:
 
 - hoop_ro
 - hoop_rw
 - hoop_ddl
 
-Running the process multiple times may remove and recreate some database users. The provisioner creates the role if it doesn't exist, or updates its password if it does.
+If you run the process multiple times, some database users might be removed and recreated.
+The default behavior is to provision the role if it doesn't exist and change the password if the role already exists.
 
-The final step creates three connections, one per role:
+In the final step of the provisioning process, it creates connections with the credentials of each role.
+Three connections are provisioned as the outcome:
 
 - `<connection-name-prefix>-ro`
 - `<connection-name-prefix>-rw`
@@ -230,7 +240,7 @@ The final step creates three connections, one per role:
   <img src="/images/integrations/aws-connect-4.png" alt="Connection Configuration" />
 </Frame>
 
-Database role permissions are static:
+The database user roles permissions are static and described below:
 
 | ENGINE   | READ ONLY | READ WRITE | DDL       |
 | -------- | ----------| ---------- | --------- |
@@ -240,7 +250,12 @@ Database role permissions are static:
 
 ## Webhooks (Svix)
 
-In the final step of the job, you can send webhooks to an external system. The webhook provider must be configured first; see [Svix](./svix). The payload matches the `GET /api/dbroles/:id` endpoint.
+In the final step of the job, you can send webhooks to an external system for integration purposes.
+The webhook provider must be configured to send the message properly. More information could be found [here](./svix).
+The payload structure matches the endpoint `GET /api/dbroles/:id`.
+
+In the final step of the job it's possible to send Webhooks to an external system for integration purporses.
+The Webhook provider must be configured to send the message properly. The payload is the same structure of the endpoint `GET /api/dbroles/:id`.
 
 ```json
 {
@@ -260,7 +275,8 @@ In the final step of the job, you can send webhooks to an external system. The w
   This feature is available in version 1.35.7+.
 </Note>
 
-As an alternative to Webhook Providers, execute a Python script in the final step of the job. This integrates with any internal workflow using Hoop as a hook system.
+As an alternative to using a Webhook Provider, you can execute a Python script in the final step of the job.
+This functionality enables easier integration with any internal workflow by leveraging Hoop as a hook system for your process.
 
 **Requirements for running this hook:**
 
@@ -433,7 +449,10 @@ print('response status: ', response['status'])
 
 ## Vault Secrets Manager
 
-This integration delegates secret management to HashiCorp Vault. When enabled, all provisioned role credentials are stored in Vault. For deployments with connection provisioning, the integration automatically adds the secrets provider reference and secret ID.
+This integration enables you to delegate the management of secrets to HashiCorp Vault, a robust secrets management solution.
+When enabled, all provisioned roles are securely stored in Vault.
+
+For deployments with connection provisioning enabled, the integration automatically adds the necessary reference secrets provider and secret ID.
 
 <Note>
     For this integration to function properly, the agent must be configured with the correct Vault credentials.

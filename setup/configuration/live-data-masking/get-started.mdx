@@ -1,6 +1,6 @@
 ---
 title: "Get Started"
-description: "Configure Live Data Masking for self-hosted Hoop instances."
+description: "Set up and know better about hoop.dev's Live Data Masking"
 ---
 
 <Frame>
@@ -9,10 +9,10 @@ description: "Configure Live Data Masking for self-hosted Hoop instances."
 
 ## Prerequisites
 
-- hoop.dev installed via any method in the [deployment overview](/setup/deployment/overview)
-- Enterprise plan
-- Access to set environment variables on the hoop.dev gateway
-- Admin access to your hoop.dev instance
+- Have properly installed hoop.dev through one of the options available in the [deployment overview](/setup/deployment/overview)
+- Be on an enterprise plan
+- Enough access to your infrastructure so you can load environment variables to your hoop.dev instance
+- Have admin access to your hoop.dev instance
 
 <Note>
   This page is dedicated to the setup of Live Data Masking in self-hosted instances. If you are looking for the Learn Guides of Live Data Masking, [click here](/learn/features/live-data-masking).
@@ -53,8 +53,8 @@ Google Cloud Data Loss Prevention (DLP) is still available for existing customer
     | `MSPRESIDIO_ANALYZER_URL`   | `<host-to-analyzer:port>`   |
     | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
   </Step>
-  <Step title="Restart the gateway">
-    After setting the environment variables, restart the gateway. Hoop.dev will use Microsoft Presidio to mask sensitive data in real time on any configured connection.
+  <Step title="Run hoop.dev's Gateway with the new configs">
+    After setting up the environment variables, hoop.dev will use Microsoft Presidio to mask sensitive data in real-time in the data stream of any connection you configure.
   </Step>
 </Steps>
 
@@ -70,23 +70,23 @@ When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLI
 
 ## Redact Modes
 
-Two operational modes control how the gateway handles redaction failures. Set the **DLP_MODE** environment variable to `strict` or `best-effort`.
+The gateway now supports two operational modes that control how redaction failures are handled. Configure your preferred mode by setting the environment variable **DLP_MODE** to either `strict` or `best-effort`.
 
 ### best-effort
 
-The default mode. The gateway redacts detected content and continues running if any masking error occurs.
+This is the default mode, it will redact the content, however if it find any error it will continue to operate without any disruption.
 
 - `DLP_MODE=best-effort`
 
 ### strict
 
-Returns an error if any redaction fails. All content is blocked until the issue is resolved.
+This mode will return an error in case it find any redaction issue
 
 - `DLP_MODE=strict`
 
 ## Activate to your connections
 
-In the Web App, go to **Manage > Live Data Masking**. Toggle connections on and click **Configure** to select which fields to mask.
+Navigate to your Web App instance \> Open the Manage toggle \> click at Live Data Masking \> Activate by connection and to configure which fields you want to set, hit the "Configure" button.
 
 <Frame>
   ![](/images/configure/ai-data-masking-activate-connection.png)
@@ -94,6 +94,6 @@ In the Web App, go to **Manage > Live Data Masking**. Toggle connections on and 
 
 ## How it works
 
-At the protocol layer, hoop.dev intercepts communication with databases and servers, sending data to the DLP provider for masking in memory and in real time. Data is never stored in its original form.
+At the protocol layer when communicating with a database or server, hoop.dev will open the package and communicate with DLP provider to mask sensitive data in it. This happens in memory and in real-time, so the data is never stored in the database or server in its original form.
 
-After setup, a set of default fields is pre-configured. Add or remove fields as needed. See [all supported fields](/setup/configuration/live-data-masking/fields).
+After the setup, we automatically give you a bunch of default and most used fields, so you don't need to worry much about that part either. You can remove or add fields as much as you like. To see all fields available, check our [documentation page for all fields supported](/setup/configuration/live-data-masking/fields).

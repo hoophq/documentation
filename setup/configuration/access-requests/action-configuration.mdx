@@ -1,9 +1,9 @@
 ---
 title: "Action Access Requests Configuration"
-description: "Configure per-command approval workflows that block execution until an authorized reviewer approves"
+description: "Configure command-level approval workflows for your connections"
 ---
 
-**Action Access Requests** require approval for each command before it executes. This page covers detailed configuration options.
+Action Access Requests require approval for each command before it executes. This page covers detailed configuration options.
 
 <Note>
 For an introduction to Action Access Requests, see [Action Access Requests Overview](/learn/features/access-requests/action).
@@ -29,7 +29,7 @@ For an introduction to Action Access Requests, see [Action Access Requests Overv
     Select which groups can approve commands:
     - Click **Add Group**
     - Select one or more groups
-    - Group members will receive approval notifications
+    - Groups members will receive approval notifications
   </Step>
   <Step title="Save">
     Click **Save** to apply the configuration
@@ -86,13 +86,13 @@ When multiple groups are configured, **all groups must approve**:
 
 ### Exempt Groups
 
-Admin users auto-approve their own requests. To test the full workflow, use a non-admin account.
+Admin users automatically approve their own requests. To test the full workflow, use a non-admin account.
 
 ---
 
 ## Timeout Configuration
 
-**Set how long to wait for approval** before the request expires.
+Set how long to wait for approval before the request expires.
 
 ### Gateway Environment Variable
 
@@ -213,14 +213,14 @@ hoop admin create connection pii-database \
 
 Use both for defense in depth:
 
-- **Guardrails:** Automatically block dangerous commands
+- **Guardrails:** Automatically block obviously dangerous commands
 - **Action:** Require approval for everything else
 
 Example: Guardrails block `DROP TABLE`, but `DELETE` still requires approval.
 
 ### Action + Live Data Masking
 
-Approved queries still show masked results:
+Even approved queries show masked results:
 
 - Approver sees the command being run
 - User sees masked results after execution

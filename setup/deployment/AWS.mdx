@@ -4,13 +4,15 @@ description: 'This deployment leverages AWS CloudFormation to automatically crea
 ---
 
 ## Requirements
+1. Admin permissions
 
-1. **Admin permissions**: required to deploy the stack and create resources. We recommend an isolated AWS account to avoid hitting service limits.
-2. **Dedicated AWS account**: reduces the risk of configuration errors and keeps management simple.
+    A user with Admin permissions is required in order to deploy the stack and create the resources described below. Resources used are subject to change in the future, which is why we currently recommend Admin permissions (and an isolated AWS account, mentioned below).
+2. Dedicated AWS Account
+
+    We recommend deploying the Platform in an isolated AWS account. This reduces the risk of errors, such as hitting AWS service resource limits, and overall makes things simpler to manage.
 
 ## Setup
-
-Click a region-specific button below and follow the AWS CloudFormation console:
+To deploy the Stack, press one of the following region-specific deploy buttons, and click through the AWS web GUI console.
 
 <CardGroup cols={4}>
   <Card title="us-east-1" icon="aws" href="https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-east-1.s3.us-east-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">

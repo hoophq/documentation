@@ -3,7 +3,7 @@ title: "Agents"
 description: "The agent links your private infrastructure to Hoop, acting as a proxy between your network and the central gateway."
 ---
 
-**The agent connects to the Hoop gateway and exposes services within its network.** Install it on any Unix system with a `HOOP_KEY` authentication key.
+The agent connects to a central gateway and exposes services within its network scope. It can be installed on any Unix system and requires an authentication key (`HOOP_KEY`).
 
 ## Deploying the Agent
 
@@ -58,20 +58,20 @@ This installs a system service (`hoop-agent`) that starts automatically on login
 
 | Variable | Description | Default |
 |---|---|---|
-| `HOOP_KEY` | Agent authentication DSN (required) | - |
+| `HOOP_KEY` | Agent authentication DSN (required) | — |
 | `LOG_LEVEL` | Log level: `debug`, `info`, `warn`, `error` | `info` |
 | `LOG_ENCODING` | Log format: `json`, `console`, `human`, `verbose` | auto |
-| `HOOP_TLSCA` | Path to a custom TLS CA certificate | - |
+| `HOOP_TLSCA` | Path to a custom TLS CA certificate | — |
 | `HOOP_TLS_SKIP_VERIFY` | Skip TLS verification (not recommended) | `false` |
 
 ## Standard Mode
 
-**Standard mode runs the agent as a standalone background service.** Use it for long-lived connections managed by the OS service manager. Ideal for:
+Standard mode runs the agent as a standalone background service. Use this mode when you want a long-lived, stable connection that can handle multiple resource types with automatic start/stop via the OS service manager. It's ideal for:
 
 - Databases
-- Port-forwarding internal services
-- Container platforms (kubectl, AWS ECS, etc.)
-- Jump host setups
+- Port-Forward Internal Services
+- Container Platforms (kubectl, aws ecs, etc)
+- Acting as a Jump Host
 
 <Note>
 Supported platforms
@@ -85,7 +85,10 @@ export HOOP_KEY=<your-key>
 hoop agent start
 ```
 
-This installs or updates the service definition, enables it to start on login, and starts the agent immediately.
+This will:
+- Install or update the agent service definition
+- Enable the service to start on login
+- Start the agent immediately
 
 ### Managing the Agent Service
 

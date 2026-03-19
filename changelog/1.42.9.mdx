@@ -15,7 +15,7 @@ description: "Data masking for MongoDB, RDP improvements, and a crucial fix for 
 
 **MongoDB Data Masking with MS Presidio**
 
-Microsoft Presidio now works with MongoDB connections. Data masking for MongoDB aligns with the same architecture used across all databases.
+Microsoft Presidio is now integrated for MongoDB connections, bringing enterprise-grade data masking to your MongoDB workflows. We also refactored the MongoDB DLP implementation to align with the current masking architecture across all databases.
 
 ---
 
@@ -27,7 +27,7 @@ RDP connections are now configured as custom type with `rdp` subtype, providing 
 
 **Connection Metadata Script ([#1099](https://github.com/hoophq/hoop/pull/1099))**
 
-Improved the connection metadata download script with better HTTP status handling and JSON validation. Clear error messages now show for 403, 404, and 429 responses.
+Improved the connection metadata download script with better HTTP status handling and JSON validation. Added clear error messages for common issues (403, 404, 429) to make troubleshooting easier.
 
 ---
 
@@ -35,11 +35,11 @@ Improved the connection metadata download script with better HTTP status handlin
 
 **Connection Form State Persistence ([#1100](https://github.com/hoophq/hoop/pull/1100))**
 
-Fixed a bug where switching from one connection to another in the terminal retained data from the first. Connection details now load synchronously, so each connection starts with a clean state.
+Fixed a synchronization issue where editing a connection in the terminal and then switching to configure a different connection would retain data from the first one. Connection details now load synchronously, ensuring clean state when switching between connections.
 
 If you noticed old data appearing in connection forms, this fixes it.
 
 ---
 
-MongoDB gets proper data masking. Connection management gets a cleaner state.
+Security meets stability — MongoDB gets smarter masking, and connection management gets cleaner.
 

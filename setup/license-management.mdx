@@ -3,7 +3,8 @@ title: 'License Management'
 description: 'Managing License for your Hoop Installation'
 ---
 
-**Hoop ships with the Open Source license by default.** Use this guide to apply or update an enterprise license.
+Hoop includes the Open Source license by default. If you're evaluating or using enterprise features,
+this guide will help you manage your license in your current installation.
 
 ## License Characteristics
 
@@ -13,7 +14,7 @@ description: 'Managing License for your Hoop Installation'
 
 ## Managing Licenses Through the Web Application
 
-Upload a new license or replace an expired one through the web app.
+The web application allows you to upload a new license or update an expired one.
 
 <Frame>
   <img
@@ -28,7 +29,7 @@ Upload a new license or replace an expired one through the web app.
 
 ## Managing Licenses Through the Command Line
 
-The CLI lets you update a license before it expires:
+The command line interface provides more flexibility, including the ability to update licenses before expiration:
 
 ```sh
 hoop admin license install --file /path/to/license.json
@@ -36,7 +37,7 @@ hoop admin license install --file /path/to/license.json
 
 ### License Information
 
-Check your current license:
+To obtain license information of you current installation
 
 ```sh
 hoop admin serverinfo
@@ -55,18 +56,18 @@ License:
 
 ## Handling Expired Licenses
 
-When a license expires, all executions fail. Two options:
+When a license expires, all execution attempts will fail with an error. You have two options:
 
-1. Apply a new enterprise license
+1. Update to a new enterprise license
 2. Downgrade to the Open Source license
 
 <Tip>
     Contact [our support team](https://help.hoop.dev) if your license is nearing expiration.
 </Tip>
 
-### Downgrading to Open Source
+###  Downgrading to Open Source
 
-Replace the current license with the OSS version:
+To downgrade your installation, update the license with the Open Source version:
 
 ```
 curl -L https://releases.hoop.dev/default-oss-license.json > /tmp/hoop-oss-license.json

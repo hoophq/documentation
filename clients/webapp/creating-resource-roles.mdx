@@ -7,7 +7,7 @@ description: "Learn how to set up secure connections to your resources through t
   <img src="/images/clients/webapp/connection-types.png" alt="Resource Types Selection" />
 </Frame>
 
-**Set up a resource role in three steps:**
+Hoop.dev provides an intuitive web interface to create and manage secure connections to your resources. The resource role setup process is divided into three simple steps:
 
 1. Resource Type Selection
 2. Agent Configuration
@@ -15,17 +15,21 @@ description: "Learn how to set up secure connections to your resources through t
 
 ## Resource Type Selection
 
-Choose from available resource types. If unsure, start with Demo Postgres.
+When setting up a new resource, you'll first choose one of the multiple types of resources available. If you're not sure what type of resource you need, you can choose the Demo Postgres resource to get started.
 
 ## Agent Configuration
+After selecting your resource type, you'll need to configure the agent that will be used to connect to the resource. You can choose to use the default agent or you can create a new agent.
 
-Select the default agent or create a new one. The agent handles authentication, connection, and data transmission to the resource.
+The agent is the component that will be used to connect to the resource. It is responsible for:
+- Authenticating to the resource
+- Connecting to the resource
+- Transmitting data to and from the resource
 
 <Note>You can learn more about agents in the [Agents](/concepts/agents) section.</Note>
 
 ## Resource Role Credentials
 
-Required fields vary by resource type:
+After selecting your resource type, you'll need to provide the necessary credentials and connection details. The required fields vary by resource type.
 
 <AccordionGroup>
   <Accordion title="Databases">
@@ -73,29 +77,31 @@ Required fields vary by resource type:
 
 ## Additional Configuration
 
-After configuring credentials, set optional security features:
+After configuring the agent and the resource role credentials, you will be able to configure additional settings for your resource role on the configuration section.
 
-- Tags for organization
-- **Access Requests**: Require approval before execution
-- **Live Data Masking**: Mask sensitive data in query results
+- Add optional tags for organization
+- Configure additional security features
+    - Access Requests - Require approval prior to resource role execution
+    - Live Data Masking - Automatically mask sensitive data in query results
+    - and more...
 
 ## Security Best Practices
 
 <CardGroup cols={2}>
   <Card title="Meaningful Names" icon="tag">
-    Name resource roles to indicate purpose and environment (e.g., `prod-postgres-ro`).
+    Use descriptive names that indicate the purpose and environment of the configured resource role.
   </Card>
-
+  
   <Card title="Tag Organization" icon="tags">
-    Use tags to categorize and filter resource roles.
+    Utilize tags to categorize and manage resource roles effectively.
   </Card>
-
+  
   <Card title="Enable Access Requests" icon="shield-check">
-    Require approval for sensitive resources.
+    Set up access requests for sensitive resources to maintain security.
   </Card>
-
+  
   <Card title="Data Protection" icon="mask">
-    Enable Live Data Masking for resources that return PII.
+    Enable Live Data Masking when handling sensitive information.
   </Card>
 </CardGroup>
 
