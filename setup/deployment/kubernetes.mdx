@@ -953,31 +953,40 @@ The ingress configuration establishes these two differing configurations based o
   </Tab>
 </Tabs>
 
-### Service Configuration
+### Proxy Protocol Services
 
-The chart allows configuring the main service that exposes the service of the gateway.
+Starting from version **1.45+**, the protocols are served directly on the Gateway.
+These ports must be exposed to your network via a Network Load Balancer.
+
+**Configuration Example:**
 
 ```yaml
-mainService:
+proxyService:
+  enabled: true
   annotations:
-    beta.cloud.google.com/backend-config: '{"ports": {"http": "hoopgateway-http", "grpc": "hoopgateway-grpc"}}'
-    cloud.google.com/app-protocols: '{"http":"HTTPS", "grpc":"HTTP2"}'
-  httpBackendConfig:
-    healthCheckType: HTTPS
-  grpcBackendConfig:
-    healthCheckType: HTTPS
-    timeoutSec: 259200
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+  ports:
+  - name: api
+    port: 443
+    targetPort: 8009
+  - name: grpcs
+    port: 8443
+    targetPort: 8010
+  - name: pgproxy
+    port: 15432
+    targetPort: 15432
+  - name: sshproxy
+    port: 12222
+    targetPort: 12222
+  - name: rdpproxy
+    port: 13389
+    targetPort: 13389
 ```
 
-- `mainService.annotations` attribute allows adding an annotation mapping. GCP for instance configure aspects of how to configure the load balancer based on this configuration
-- `mainService.httpBackendConfig`: It creates the `hoopgateway-http` Backend Config resource when this attribute is set. It could be referenced using the annotation `beta.cloud.google.com/backend-config`
-  - `healthCheckType`: The protocol used by probe systems for health checking. The BackendConfig only supports creating health checks using the HTTP, HTTPS, or HTTP2
-  - `timeoutSec`: The amount of time in seconds that Google Cloud waits for a response to a probe.
-- `mainService.grpcBackendConfig`: It creates the `hoopgateway-grpc` Backend Config resource when this attribute is set. It could be referenced using the annotation `beta.cloud.google.com/backend-config`
-  - `healthCheckType`: The protocol used by probe systems for health checking. The BackendConfig only supports creating health checks using the HTTP, HTTPS, or HTTP2
-  - `timeoutSec`: The amount of time in seconds that Google Cloud waits for a response to a probe.
-
-For more information of how to configure these resources, refer to the [GCP Ingress Configuration Reference](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-configuration#associating_backendconfig_with_your_ingress).
+<Note>
+  This setup requires configuring TLS directly on the gateway.
+</Note>
 
 ### Computing Resources
 
