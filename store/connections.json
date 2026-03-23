@@ -2545,8 +2545,8 @@
         }
       },
       "resourceConfiguration": {
-        "type": "custom",
-        "subtype": "web-application",
+        "type": "application",
+        "subtype": "tcp",
         "credentials": [
           {
             "name": "HOST",
