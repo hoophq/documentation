@@ -1048,22 +1048,14 @@ dataMasking:
   mode: best-effort
 
   analyzer:
+    replicas: 2
     resources:
-      limits:
-        cpu: 512m
-        memory: 1024Mi
       requests:
-        cpu: 256m
+        cpu: 2048m
         memory: 1024Mi
-
-  anonymizer:
-    resources:
       limits:
-        cpu: 512m
-        memory: 512Mi
-      requests:
-        cpu: 256m
-        memory: 512Mi
+        cpu: 2500m
+        memory: 2048Mi
 ```
 
 <Note>
@@ -1076,7 +1068,7 @@ dataMasking:
   - GOOGLE_APPLICATION_CREDENTIALS_JSON
 
   If you need more control over the deployment, we recommend using a standalone helm chart of Presidio.
-  See more details above in the [Presidio Deployment](#presidio-deployment) section.
+  See more details above in the [Presidio Deployment](/setup/deployment/presidio) section.
 </Note>
 
 <Tip>
@@ -1138,190 +1130,7 @@ affinity:
 
 ## Presidio Deployment
 
-The Data Masking feature uses Microsoft Presidio.
-We provide a Helm chart that gives more control over the deployment.
-
-```bash
-helm upgrade --install presidio \
-  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.0.3 \
-  -f values.yaml
-```
-
-<AccordionGroup>
-  <Accordion title="values.yaml">
-    ```yaml
-
-    # analyzer service configuration
-    analyzer:
-      replicas: 1
-      imageRepository: mcr.microsoft.com/presidio-analyzer
-      imagePullPolicy: Always
-      # versions: https://github.com/microsoft/presidio/releases
-      imageTag: latest
-      resources:
-        limits:
-          cpu: 512m
-          memory: 1024Mi
-        requests:
-          cpu: 256m
-          memory: 1024Mi
-
-      # -- Node labels for pod assignment
-      nodeSelector: {}
-
-      # -- Toleration labels for pod assignment
-      tolerations: []
-
-      # -- Affinity settings for pod assignment
-      affinity: {}
-
-    # anonymizer service configuration
-    anonymizer:
-      replicas: 1
-      imageRepository: mcr.microsoft.com/presidio-anonymizer
-      imagePullPolicy: Always
-      # versions: https://github.com/microsoft/presidio/releases
-      imageTag: latest
-      resources:
-        limits:
-          cpu: 512m
-          memory: 512Mi
-        requests:
-          cpu: 256m
-          memory: 512Mi
-
-      # -- Node labels for pod assignment
-      nodeSelector: {}
-
-      # -- Toleration labels for pod assignment
-      tolerations: []
-
-      # -- Affinity settings for pod assignment
-      affinity: {}
-    ```
-  </Accordion>
-</AccordionGroup>
-
-The chart will create two services that are used in the gateway to configure the data masking feature:
-- `presidio-analyzer` -  The analyzer service that detects PII data in text.
-- `presidio-anonymizer` -  The anonymizer service that masks PII data in text
-
-These services must be respectively configured in the Gateway with the following environment variables:
-
-```conf
-DLP_PROVIDER=mspresidio
-MSPRESIDIO_ANALYZER_URL=http://presidio-analyzer:3000
-MSPRESIDIO_ANONYMIZER_URL=http://presidio-anonymizer:3000
-```
-
-For more information about new releases, consult the [Presidio Helm Chart repository](https://github.com/hoophq/presidio-helm).
-
-### Presidio With Flair
-
-<Note>
-  Available under the agent version **1.37.22+** and the Helm Presidio Chart version **v0.0.2+**.
-</Note>
-
-We have a custom build of Presidio that leverages the use of [Flair](https://flairnlp.github.io/flair/), it provides better accuracy in detecting PII data.
-To use this custom build, you could use our custom build of the Presidio Analyzer.
-
-```yaml
-analyzer:
-  replicas: 1
-  imageRepository: hoophq/presidio-analyzer-flair
-  imageTag: 0.0.3
-  imagePullPolicy: Always
-  resources:
-    limits:
-      cpu: 8192m
-      memory: 16384Mi
-    requests:
-      cpu: 8192m
-      memory: 16384Mi
-
-# anonymizer service configuration
-anonymizer:
-  replicas: 1
-  imageRepository: mcr.microsoft.com/presidio-anonymizer
-  imagePullPolicy: Always
-  resources:
-    limits:
-      cpu: 512m
-      memory: 512Mi
-    requests:
-      cpu: 256m
-      memory: 512Mi
-```
-
-<Warning>
-  The custom build of Presidio Analyzer with Flair requires more resources than the default official image.
-  We recommend allocating at least 8vCPU and 16GB to the analyzer process.
-</Warning>
-
-### Node Selector
-
-<Note>
-  Available on Helm Chart version **v0.0.3+**.
-</Note>
-
-This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
-
-See [this documentation](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/) for more information.
-
-```yaml
-# -- Node labels for pod assignment
-nodeSelector:
-  disktype: ssd
-```
-
-### Tolerations
-
-<Note>
-  Available on Helm Chart version **v0.0.3+**.
-</Note>
-
-See this article explaining how to configure [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
-
-```yaml
-# -- Toleration labels for pod assignment
-tolerations:
-- effect: NoExecute
-  key: spot
-  value: "true"
-- effect: NoSchedule
-  key: spot
-  value: "true"
-```
-
-### Node Affinity
-
-<Note>
-  Available on Helm Chart version **v0.0.3+**.
-</Note>
-
-See [this article](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) explaining how to configure affinity and anti-affinity rules
-
-```yaml
-# -- Affinity settings for pod assignment
-affinity:
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: topology.kubernetes.io/zone
-          operator: In
-          values:
-          - antarctica-east1
-          - antarctica-west1
-    preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 1
-      preference:
-        matchExpressions:
-        - key: another-node-label-key
-          operator: In
-          values:
-          - another-node-label-value
-```
+Moved to a [dedicated section](/setup/deployment/presidio).
 
 ## Generating Manifests
 

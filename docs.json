@@ -150,6 +150,7 @@
                   "setup/deployment/overview",
                   "setup/deployment/docker-compose",
                   "setup/deployment/kubernetes",
+                  "setup/deployment/presidio",
                   "setup/deployment/AWS"
                 ]
               },
