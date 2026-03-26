@@ -31,7 +31,7 @@ helm upgrade --install presidio \
 ```
 
 <AccordionGroup>
-  <Accordion title="values.yaml">
+  <Accordion title="values.yaml (default)">
     ```yaml
     # -- Analyzer service configuration
     analyzer:
@@ -507,3 +507,46 @@ analyzer:
 <Warning>
   The custom build of Presidio Analyzer with Flair requires more resources than the default official image. We recommend allocating at least 8vCPU and 16GB to the analyzer process.
 </Warning>
+
+## Troubleshooting
+
+### HPA Field Conflict on Helm Upgrade
+
+When upgrading a Helm release that toggles autoscaling on and then modifies HPA fields like minReplicas, the upgrade fails with a server-side apply conflict error:
+
+```
+Error: UPGRADE FAILED: conflict occurred while applying object default/presidio-<component>-hpa
+autoscaling/v2, Kind=HorizontalPodAutoscaler: Apply failed with 1 conflict:
+conflict with "helm" using autoscaling/v2: .spec.minReplicas
+```
+
+Starting with Helm 3.12+, Helm uses server-side apply (SSA) by default. SSA is a Kubernetes feature where the API server tracks field ownership — it records which manager last set each field in a resource.
+
+#### How to Fix
+
+**Option 1: Disable Server-Side Apply**
+
+Pass `--server-side=false` to fall back to the classic client-side apply, which does not track field ownership:
+
+```sh
+helm upgrade --install presidio oci://ghcr.io/hoophq/helm-charts/presidio-chart \
+  --set <component>.autoscaling.enabled=true \
+  --set <component>.autoscaling.minReplicas=1 \
+  --server-side=false
+```
+
+This is the simplest fix but means you lose the benefits of SSA (such as stricter conflict detection for multi-manager scenarios).
+
+**Option 2: Force Conflict Resolution**
+
+Pass `--force-conflicts` to allow Helm to take ownership of the conflicting fields:
+
+```sh
+helm upgrade --install presidio oci://ghcr.io/hoophq/helm-charts/presidio-chart \
+  --set <component>.autoscaling.enabled=true \
+  --set <component>.autoscaling.minReplicas=1 \
+  --force-conflicts
+```
+
+This keeps SSA enabled but tells Kubernetes to let Helm override any existing field ownership.
+This is safe when Helm is the only manager of the resource.

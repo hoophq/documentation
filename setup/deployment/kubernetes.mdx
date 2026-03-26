@@ -24,6 +24,7 @@ This page provides instructions on how to configure the Helm chart to install Ho
               --set postgres.enabled=true \
               --set defaultAgent.enabled=true \
               --set dataMasking.enabled=true \
+              --set dataMasking.analyzer.replicas=2 \
               --set config.POSTGRES_DB_URI=postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable \
               --set config.API_URL=http://localhost:8009
             ```
@@ -153,6 +154,9 @@ This page provides instructions on how to configure the Helm chart to install Ho
         dataMasking:
           enabled: true
           mode: best-effort
+
+          analyzer:
+            replicas: 2
 
         # an agent will be deployed along with the gateway
         defaultAgent:
@@ -1130,7 +1134,43 @@ affinity:
 
 ## Presidio Deployment
 
-Moved to a [dedicated section](/setup/deployment/presidio).
+The Data Masking feature uses Microsoft Presidio. We provide a Helm chart that gives more control over the deployment.
+
+```sh
+helm upgrade --install presidio \
+  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.1.0 \
+  -f values.yaml
+```
+
+We recommend starting with at least 2 replicas to handle concurrent requests more efficiently:
+
+```yaml
+analyzer:
+  replicas: 2
+
+  resources:
+    requests:
+      cpu: 2048m
+      memory: 1024Mi
+    limits:
+      cpu: 2500m
+      memory: 2048Mi
+```
+
+<Note>
+  It will guarantee at least four concurrent requests when performing model inference.
+  If you want the workload to be burstable, decrease the CPU requests to 1024m.
+  For maximum performance, ensure CPU requests are always set to 2 vCPUs and enable the Horizontal Pod Autoscaler.
+</Note>
+
+These services must be respectively configured in the Gateway with the following environment variables:
+```conf
+DLP_PROVIDER=mspresidio
+MSPRESIDIO_ANALYZER_URL=http://presidio-envoy-lb:3010
+MSPRESIDIO_ANONYMIZER_URL=http://presidio-envoy-lb:3010
+```
+
+For more information about Presidio Deployment, see [this section](/setup/deployment/presidio).
 
 ## Generating Manifests
 
