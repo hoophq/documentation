@@ -3,17 +3,11 @@ title: "Guardrails Configuration"
 description: "Create and manage pattern-based rules to block dangerous queries"
 ---
 
-<Frame>
-  <img
-    src="/images/clients/webapp/guardrails-light.png"
-    className="block dark:hidden"
-  />
+import { KillCommandDemo } from '/snippets/annimations/KillCommandDemo.jsx';
 
-  <img
-    src="/images/clients/webapp/guardrails-dark.png"
-    className="hidden dark:block"
-  />
-</Frame>
+<div style={{height: 380, overflow: 'hidden', borderRadius: 14}}>
+  <KillCommandDemo />
+</div>
 
 Guardrails use pattern matching to evaluate queries and block dangerous operations before they execute. This page covers configuration options and rule syntax.
 
