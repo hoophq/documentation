@@ -3,9 +3,27 @@
   "theme": "mint",
   "name": "Hoop.dev - Automated Access and Data Protection",
   "colors": {
-    "primary": "#111928",
-    "light": "#E5E7EB",
-    "dark": "#111928"
+    "primary": "#333333",
+    "light": "#B0B0B0",
+    "dark": "#333333"
+  },
+  "appearance": {
+    "default": "light"
+  },
+  "background": {
+    "decoration": "gradient"
+  },
+  "styling": {
+    "codeblocks": "dark"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Sora",
+      "weight": 700
+    },
+    "body": {
+      "family": "DM Sans"
+    }
   },
   "favicon": "/favicon.svg",
   "redirects": [

@@ -1,0 +1,210 @@
+/* ==========================================================================
+   Hoop.dev Grayscale Theme
+   Minimal overrides on top of Mintlify's built-in system.
+   Only uses documented safe selectors: #navbar, #sidebar, #footer, #body-content
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Design Tokens
+   -------------------------------------------------------------------------- */
+
+:root {
+  --hoop-near-black: #0A0A0A;
+  --hoop-strong: #1A1A1A;
+  --hoop-body: #1A1A1A;
+  --hoop-secondary: #333333;
+  --hoop-muted: #6E6E6E;
+  --hoop-slate: #444444;
+  --hoop-slate-dark: #1A1A1A;
+  --hoop-charcoal: #1A1A1A;
+  --hoop-silver: #B0B0B0;
+  --hoop-gray-100: #F7F7F7;
+  --hoop-gray-200: #EBEBEB;
+  --hoop-gray-300: #DEDEDE;
+  --hoop-gray-400: #C4C4C4;
+
+  /* Animation design tokens (grayscale variant) */
+  --warm-gold: #B0B0B0;
+  --warm-gold-rgb: 176,176,176;
+  --bronze: #5A5A5A;
+  --bronze-rgb: 90,90,90;
+  --bronze-dark: #333333;
+  --bronze-dark-rgb: 51,51,51;
+  --espresso: #1A1A1A;
+  --espresso-rgb: 26,26,26;
+  --sand-100: #F7F7F7;
+  --sand-100-rgb: 247,247,247;
+  --sand-200: #EBEBEB;
+  --sand-300: #DEDEDE;
+  --sand-400: #C4C4C4;
+  --sand-500: #8E8E8E;
+  --sand-500-rgb: 142,142,142;
+  --error: #6E6E6E;
+  --error-rgb: 110,110,110;
+  --success: #8E8E8E;
+  --success-rgb: 142,142,142;
+  --prompt: #B0B0B0;
+  --gradient-dark-start: #111111;
+  --gradient-dark-start-rgb: 17,17,17;
+  --gradient-dark-mid: #1A1A1A;
+  --gradient-dark-end: #2A2A2A;
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --display: 'Sora', 'DM Sans', system-ui, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   2. Light Mode Typography (high contrast)
+   -------------------------------------------------------------------------- */
+
+:root:not(.dark) #body-content,
+:root:not(.dark) #body-content p,
+:root:not(.dark) #body-content li,
+:root:not(.dark) #body-content dd,
+:root:not(.dark) #body-content blockquote,
+:root:not(.dark) #body-content span,
+:root:not(.dark) #body-content td {
+  color: #1A1A1A !important;
+}
+
+:root:not(.dark) #body-content h1,
+:root:not(.dark) #body-content h2,
+:root:not(.dark) #body-content h3,
+:root:not(.dark) #body-content h4,
+:root:not(.dark) #body-content h5,
+:root:not(.dark) #body-content h6,
+:root:not(.dark) #body-content strong {
+  color: #0A0A0A !important;
+  letter-spacing: -0.02em;
+}
+
+:root:not(.dark) #body-content a {
+  color: #1A1A1A !important;
+  text-decoration-color: #C4C4C4;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s ease;
+}
+
+:root:not(.dark) #body-content a:hover {
+  text-decoration-color: #1A1A1A;
+}
+
+:root:not(.dark) #body-content :not(pre) > code {
+  background: #EBEBEB;
+  color: #1A1A1A !important;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.875em;
+}
+
+:root:not(.dark) #body-content table thead th {
+  color: #0A0A0A !important;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   3. Light Mode Sidebar
+   -------------------------------------------------------------------------- */
+
+:root:not(.dark) #sidebar a {
+  color: #333333;
+  transition: color 0.15s ease;
+}
+
+:root:not(.dark) #sidebar a:hover {
+  color: #0A0A0A;
+}
+
+:root:not(.dark) #sidebar a[data-active="true"] {
+  color: #0A0A0A;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   4. Light Mode Navbar
+   -------------------------------------------------------------------------- */
+
+:root:not(.dark) #navbar {
+  border-bottom: 1px solid #EBEBEB;
+}
+
+/* --------------------------------------------------------------------------
+   5. Light Mode Cards
+   -------------------------------------------------------------------------- */
+
+:root:not(.dark) .card {
+  border: 1px solid #EBEBEB;
+  border-radius: 10px;
+  transition: border-color 0.15s ease;
+}
+
+:root:not(.dark) .card:hover {
+  border-color: #C4C4C4;
+}
+
+/* --------------------------------------------------------------------------
+   6. Light Mode Code Blocks
+   -------------------------------------------------------------------------- */
+
+:root:not(.dark) .code-block {
+  border-radius: 8px;
+  border: 1px solid #EBEBEB;
+}
+
+/* --------------------------------------------------------------------------
+   7. Light Mode Footer
+   -------------------------------------------------------------------------- */
+
+:root:not(.dark) #footer {
+  border-top: 1px solid #EBEBEB;
+}
+
+/* --------------------------------------------------------------------------
+   8. Light Mode Tabs
+   -------------------------------------------------------------------------- */
+
+:root:not(.dark) .tabs [data-active="true"] {
+  color: #0A0A0A;
+  border-color: #1A1A1A;
+}
+
+/* --------------------------------------------------------------------------
+   9. Badges (both modes)
+   -------------------------------------------------------------------------- */
+
+[data-badge] {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --------------------------------------------------------------------------
+   10. Selection (both modes)
+   -------------------------------------------------------------------------- */
+
+::selection {
+  background: rgba(90, 90, 90, 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   11. Scrollbar (both modes)
+   -------------------------------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hoop-gray-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--hoop-gray-400);
+}

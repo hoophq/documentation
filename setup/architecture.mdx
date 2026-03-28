@@ -3,18 +3,13 @@ title: "Architecture"
 description: "Understand how Hoop's components fit together and how traffic flows through the system."
 ---
 
+import { GatewayVisualization } from '/snippets/annimations/GatewayVisualization.jsx';
+
 Hoop is a secure access gateway that sits between your users and your infrastructure. It proxies connections through a lightweight agent running inside your network — no inbound firewall rules required, no VPN needed, and nothing in your infrastructure exposed to the internet.
 
-<Frame>
-  <img
-    className="block dark:hidden"
-    src="/images/learn/Architecture_Light.png"
-  />
-  <img
-    className="hidden dark:block"
-    src="/images/learn/Architecture_Dark.png"
-  />
-</Frame>
+<div style={{height: 350, overflow: 'hidden', borderRadius: 14}}>
+  <GatewayVisualization />
+</div>
 
 ## Components
 
