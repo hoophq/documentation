@@ -1,0 +1,552 @@
+---
+title: 'Microsoft Presidio'
+---
+
+This guide covers production deployment of Microsoft Presidio using the official Helm chart, with detailed rationale for each configuration decision based on Presidio's internal resource model.
+
+## Overview
+
+Hoop integrates with Presidio through a configuration interface that allows users to select which entity types will be used to perform redaction analysis.
+
+Based on this configuration, the Agent component parses the protocol (Postgres, Mongo, terminal, etc.) in real time and constructs a structured payload to analyze the protocol's contents. Any findings are then anonymized and the content is redacted back into the original protocol format. Redaction statistics are also collected and sent to the gateway, where they are stored in the database for further analysis.
+
+## Architecture
+
+Presidio is composed of three deployable components in this chart:
+
+- **Analyzer** — NLP-heavy service; holds a spaCy model in memory and performs inference per request
+- **Anonymizer** — Lightweight string transformation; no ML model, negligible resource cost
+- **Envoy Proxy** — Reverse proxy using least-connections load balancing to distribute traffic efficiently across Analyzer pods
+
+These components have fundamentally different resource profiles and must be tuned independently.
+
+## Helm Chart Reference
+
+To deploy using a full `values.yaml` file
+
+```bash
+helm upgrade --install presidio \
+  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.1.0 \
+  -f values.yaml
+```
+
+<AccordionGroup>
+  <Accordion title="values.yaml (default)">
+    ```yaml
+    # -- Analyzer service configuration
+    analyzer:
+      replicas: 1
+      imageRepository: mcr.microsoft.com/presidio-analyzer
+      imagePullPolicy: Always
+      # Presidio version information: https://github.com/microsoft/presidio/releases
+      imageTag: latest
+
+      # Presidio WSGI HTTP Server configuration
+      gunicornConfigFile: |
+        bind = '0.0.0.0:3000'
+        workers = 2
+        threads = 4
+        timeout = 120
+        keep_alive = 65
+        preload_app = True
+        loglevel = 'debug'
+        worker_class = 'gthread'
+
+      resources:
+        requests:
+          cpu: 1024m
+          memory: 1024Mi
+        limits:
+          cpu: 2500m
+          memory: 2048Mi
+
+      # -- AutoScaling: Horizontal Pod AutoScaler
+      autoscaling:
+        enabled: false
+        minReplicas: 2
+        maxReplicas: 6
+        # -- Target CPU utilization percentage to trigger scaling
+        cpuAverageUtilization: 70
+        # -- Seconds to wait before allowing further scale up after a scaling event
+        scaleUpStabilizationWindowSeconds: 30
+        # -- Seconds to wait before allowing further scale down after a scaling event
+        scaleDownStabilizationWindowSeconds: 120
+
+      # -- Node labels for pod assignment
+      nodeSelector: {}
+
+      # -- Toleration labels for pod assignment
+      tolerations: []
+
+      # -- Affinity settings for pod assignment
+      affinity: {}
+
+    # -- Anonymizer service configuration
+    anonymizer:
+      replicas: 1
+      imageRepository: mcr.microsoft.com/presidio-anonymizer
+      imagePullPolicy: Always
+      # Presidio version information: https://github.com/microsoft/presidio/releases
+      imageTag: latest
+
+      # Presidio WSGI HTTP Server configuration
+      gunicornConfigFile: |
+        bind = '0.0.0.0:3000'
+        workers = 2
+        threads = 4
+        timeout = 120
+        keep_alive = 65
+        preload_app = True
+        loglevel = 'debug'
+        worker_class = 'gthread'
+
+      resources:
+        requests:
+          cpu: 256m
+          memory: 512Mi
+        limits:
+          cpu: 2048m
+          memory: 1024Mi
+
+      # -- AutoScaling: Horizontal Pod AutoScaler
+      autoscaling:
+        enabled: false
+        minReplicas: 2
+        maxReplicas: 4
+        # -- Target CPU utilization percentage to trigger scaling
+        cpuAverageUtilization: 70
+        # -- Seconds to wait before allowing further scale up after a scaling event
+        scaleUpStabilizationWindowSeconds: 30
+        # -- Seconds to wait before allowing further scale down after a scaling event
+        scaleDownStabilizationWindowSeconds: 120
+
+      # -- Node labels for pod assignment
+      nodeSelector: {}
+
+      # -- Toleration labels for pod assignment
+      tolerations: []
+
+      # -- Affinity settings for pod assignment
+      affinity: {}
+
+    # -- Envoy Proxy
+    envoyProxy:
+      replicas: 1
+      imageRepository: envoyproxy/envoy
+      imageTag: v1.33-latest
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
+
+      # -- AutoScaling: Horizontal Pod AutoScaler
+      autoscaling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 3
+        # -- Target CPU utilization percentage to trigger scaling
+        cpuAverageUtilization: 75
+        # -- Target memory utilization percentage to trigger scaling
+        memoryAverageUtilization: 80
+        # -- Seconds to wait before allowing further scale up after a scaling event
+        scaleUpStabilizationWindowSeconds: 60
+        # -- Seconds to wait before allowing further scale down after a scaling event
+        scaleDownStabilizationWindowSeconds: 180
+
+      # -- Node labels for pod assignment
+      nodeSelector: {}
+
+      # -- Toleration labels for pod assignment
+      tolerations: []
+
+      # -- Affinity settings for pod assignment
+      affinity: {}
+    ```
+  </Accordion>
+</AccordionGroup>
+
+The chart will create three deployments that are used in the gateway to configure the data masking feature:
+- `presidio-analyzer` -  The analyzer service that detects PII data in text.
+- `presidio-anonymizer` -  The anonymizer service that masks PII data in text
+- `presidio-envoy-proxy` - The envoy proxy that load balance connections with Presidio
+
+Once the installation is done, configure the Hoop Gateway environment variables to point to the Presidio Envoy Service. Example:
+
+```conf
+DLP_PROVIDER=mspresidio
+MSPRESIDIO_ANALYZER_URL=http://presidio-envoy-lb:3010
+MSPRESIDIO_ANONYMIZER_URL=http://presidio-envoy-lb:3010
+```
+
+### Release Information
+
+For more information about new releases, consult the [Presidio Helm Chart repository](https://github.com/hoophq/presidio-helm).
+
+### Generating Manifests
+
+If you prefer using manifests over Helm, we recommend this approach. It allows you to track any modifications to the chart whenever a new version appears. You can apply a diff to your versioned files to identify what has been altered.
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm template hoop \
+  oci://ghcr.io/hoophq/helm-charts/presidio-chart --version v0.1.0 \
+  -f values.yaml
+```
+
+## Presidio Analyzer
+
+For the default installation, the Analyzer component loads the `en_core_web_lg` spaCy model (~750MB) once at startup. Every request runs a full NLP pipeline: 
+
+- tokenizer → tagger → dependency parser → named entity recognizer → recognizer chain. 
+
+This pipeline is synchronous and single-threaded per request — **a single request fully saturates one CPU core** for its entire duration.
+
+Key implications:
+- **Memory** is mostly static after startup (dominated by the model)
+- **CPU** is consumed per request, and scales linearly with token count
+- More CPU cores do **not** speed up a single request — they allow more requests to run **simultaneously**
+- CPU allocation controls **throughput**, not latency
+
+### NER Entity Cost Tiers
+
+Not all entity types have the same CPU cost:
+
+| Tier | Entity Types | Cost |
+|---|---|---|
+| Regex / rule-based | `EMAIL_ADDRESS`, `PHONE_NUMBER`, `CREDIT_CARD`, `US_SSN`, `IP_ADDRESS`, `URL`, `DATE_TIME`, `IBAN_CODE`, `CRYPTO`, country-specific IDs | Low (a few ms each) |
+| NER-backed | `PERSON`, `LOCATION`, `ORGANIZATION`, `NRP` | High (requires full spaCy NER pipeline) |
+
+If your workload does not require NER-backed entities, make sure to select only the proper `entities` when configuring the data masking resource on Hoop. This is one of the most effective ways to reduce per-request CPU time.
+
+### Gunicorn Configuration
+
+```yaml
+analyzer:
+  gunicornConfigFile: |
+    bind = '0.0.0.0:3000'
+    workers = 2
+    threads = 4
+    timeout = 120
+    keep_alive = 65
+    preload_app = True
+    loglevel = 'debug'
+    worker_class = 'gthread'
+```
+
+#### Enable Preload
+
+```ini
+preload_app = True
+```
+
+Without `preload_app`, each Gunicorn worker independently loads the spaCy model at startup:
+
+```
+Master starts
+  ├── Worker 1 → loads model (~750MB, ~15s)
+  ├── Worker 2 → loads model (~750MB, ~15s)
+  └── Worker 3 → loads model (~750MB, ~15s)
+# Total: ~2.25GB RAM for model data alone
+```
+
+With `preload_app = True`, the master process loads the model once, then forks workers that inherit memory via Linux copy-on-write (CoW). Because the model weights are read-only during inference, these pages are **never copied** — they remain shared across all workers:
+
+```
+Master loads model once (~750MB, ~15s)
+  ├── Worker 1 → inherits via CoW
+  ├── Worker 2 → inherits via CoW
+  └── Worker 3 → inherits via CoW
+# Total: ~750MB + (N × ~100MB overhead)
+```
+
+Memory comparison with and without `preload_app`:
+
+| Workers | Without preload | With preload | Concurrent requests |
+|---|---|---|---|
+| 1 | ~1.2Gi | ~1.2Gi | 1 |
+| 2 | ~2.4Gi | ~1.4Gi | 2 |
+| 4 | ~4.8Gi | ~1.6Gi | 4 |
+| 8 | ~9.6Gi | ~2.0Gi | 8 |
+
+#### Workers and CPU Requests
+
+```ini
+workers = 2
+```
+
+Since each worker saturates one CPU core during inference, **workers must equal the number of guaranteed CPU cores** (i.e., `requests.cpu` in whole cores):
+
+```
+workers = CPU requests (in whole cores)
+```
+
+The chart configures `requests.cpu: 1024m` (~1 core), so `workers = 2` provides a small amount of headroom. If you increase CPU requests to `2000m`, set `workers = 2`; for `4000m`, set `workers = 4`.
+
+If workers exceed guaranteed cores, they compete for CPU time under load. The kernel's CFS scheduler throttles workers that exceed their quota window (100ms intervals), introducing latency spikes mid-inference.
+
+#### Threads Configuration
+
+```ini
+worker_class = 'gthread'
+threads      = 4
+```
+
+`gthread` workers are thread-based and handle I/O-bound concurrency within a worker using multiple threads. Combined with `workers = 2`, this allows up to 8 concurrent connections with overlap during I/O phases (request parsing, response serialization). CPU-bound inference still blocks the thread, so effective CPU-saturating concurrency remains bounded by `workers`.
+
+It gives access to consuming endpoints that are not meant for inference, allowing them to respond without blocking.
+
+### Kubernetes Resources
+
+```yaml
+analyzer:
+  resources:
+    requests:
+      cpu: 1024m
+      memory: 1024Mi
+    limits:
+      cpu: 2500m
+      memory: 2048Mi
+```
+
+- **CPU requests (`1024m`)** determine guaranteed scheduling and should match your worker count. The scheduler places the pod assuming ~1 core is needed.
+
+- **CPU limits (`2500m`)** allow burst to ~2.5 cores when the node has spare capacity. This benefits Presidio during traffic spikes before the HPA scales out new pods. However, burst is not guaranteed — on a fully loaded node, the pod receives exactly `1024m`. **Always size workers for the request, not the limit.**
+
+  <Note>
+    The default configuration does not guarantee optimal resource allocation. While sufficient for evaluating the solution in most setups, production workloads with stricter requirements should always have CPU resources explicitly reserved based on the Gunicorn Workers configuration.
+  </Note>
+
+- **Memory requests (`1024Mi`)** must accommodate the preloaded spaCy model (~750MB) plus worker overhead. This is the minimum viable allocation with `preload_app = True` and 2 workers.
+
+- **Memory limits (`2048Mi`)** provide headroom for longer documents, traffic spikes, and Python GC overhead. OOM kills are destructive (mid-inference requests are dropped), so the limit should be meaningfully above the steady-state baseline.
+
+<Warning>
+The Hoop Agent will timeout if the Analyzer takes too long to respond. Under CPU throttling or queue buildup, latency increases non-linearly. Keep workers aligned to CPU requests to avoid this.
+</Warning>
+
+### Autoscaling
+
+```yaml
+analyzer:
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    cpuAverageUtilization: 70
+    scaleUpStabilizationWindowSeconds: 30
+    scaleDownStabilizationWindowSeconds: 120
+```
+
+When enabled, the HPA scales the number of Analyzer **pods** (not workers) based on CPU utilization. The recommended strategy is **moderate pod sizes with horizontal scale-out** rather than large fat pods:
+
+- **Fault isolation**: Losing a 2-worker pod drops 2 concurrent slots. Losing a 16-worker pod drops 16.
+- **Rolling deploy safety**: Each pod restart incurs a ~15–30s model reload window. Smaller pods reduce the blast radius per restart.
+- **Scheduling flexibility**: Smaller pods fit on more nodes, reducing pending risk during cluster autoscaler events.
+
+**`cpuAverageUtilization: 70`** leaves 30% headroom before scaling, accounting for the fact that CPU usage spikes sharply during NER inference. Scaling at 90%+ would trigger only after latency has already degraded.
+
+**`scaleUpStabilizationWindowSeconds: 30`** allows fast scale-up response to traffic bursts. Presidio CPU spikes are sudden and sustained.
+
+**`scaleDownStabilizationWindowSeconds: 120`** prevents thrashing — each new pod incurs a 15–30s startup cost, so premature scale-down followed by immediate scale-up wastes time and causes dropped requests.
+
+<Tip>
+**ARM64 note**: Benchmarks show 20–30% performance gains running the Analyzer on ARM64 instances (tested on AWS `c8g.2xlarge`). If your cluster supports ARM64 nodes, use `nodeSelector` or `affinity` to target them for Analyzer pods.
+</Tip>
+
+### Image Configuration
+
+By default, the latest version is used. If you want to use a specific image or pin the versions, refer to the configuration below:
+
+```yaml
+analyzer:
+  imageRepository: mcr.microsoft.com/presidio-analyzer
+  imagePullPolicy: Always
+  imageTag: latest
+```
+
+
+---
+
+## Presidio Anonymizer
+
+### Kubernetes Resources
+
+The Anonymizer receives text and a list of pre-detected entity positions, then applies string substitutions (redact, replace, encrypt). It holds **no NLP model**, performs no inference, and its CPU and memory usage are negligible.
+
+```yaml
+anonymizer:
+  resources:
+    requests:
+      cpu: 256m
+      memory: 512Mi
+    limits:
+      cpu: 2048m
+      memory: 1024Mi
+```
+
+The wide gap between requests and limits is intentional — the Anonymizer is I/O-bound and lightweight under normal load, but benefits from burst headroom during spikes. A single pod handles most workloads; the HPA (when enabled) scales from `minReplicas: 2` to `maxReplicas: 4`.
+
+### Gunicorn Configuration
+
+```yaml
+anonymizer:
+  gunicornConfigFile: |
+    bind = '0.0.0.0:3000'
+    workers = 2
+    threads = 4
+    timeout = 120
+    keep_alive = 65
+    preload_app = True
+    loglevel = 'debug'
+    worker_class = 'gthread'
+```
+
+The Anonymizer uses the same Gunicorn template as the Analyzer, but resource constraints are far looser. `preload_app = True` has minimal impact here since there is no heavy model to share, but it does not hurt and keeps configuration consistent.
+
+### Image Configuration
+
+By default, the latest version is used. If you want to use a specific image or pin the versions, refer to the configuration below:
+
+```yaml
+analyzer:
+  imageRepository: mcr.microsoft.com/presidio-anonymizer
+  imagePullPolicy: Always
+  imageTag: latest
+```
+
+---
+
+## Presidio Envoy Proxy
+
+Standard round-robin distributes requests in rotation with no knowledge of backend occupancy. For Presidio, this is problematic for two reasons:
+
+1. **Request processing time varies significantly with text length.** A 100-token document completes in ~2ms; a 5,000-token document in ~100ms. A pod that receives two consecutive long-document requests is occupied for 200ms while round-robin keeps routing new requests to it.
+
+2. **Workers are fully synchronous.** A 2-worker pod with 2 active requests has zero available slots. Any additional request must queue behind the running ones.
+
+Envoy's **least-connections** strategy routes each new request to the backend with the fewest currently active connections — a real-time occupancy signal. For Presidio this maps precisely to available worker slots, naturally directing traffic away from saturated pods and toward idle ones.
+
+<Note>
+Least-connections strategy was validated on benchmarks tests to handle saturated Analyzer instances more efficiently than round-robin.
+</Note>
+
+### Envoy Resources
+
+```yaml
+envoyProxy:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+```
+
+Envoy is purely proxying HTTP traffic with a connection-count heuristic — these allocations are appropriate for most deployments.
+
+### Autoscaling
+
+```yaml
+envoyProxy:
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    cpuAverageUtilization: 75
+    memoryAverageUtilization: 80
+    scaleUpStabilizationWindowSeconds: 60
+    scaleDownStabilizationWindowSeconds: 180
+```
+
+Envoy scales more conservatively than the Analyzer. 
+
+- `scaleUpStabilizationWindowSeconds: 60` prevents reactive scaling on short bursts; a single Envoy instance handles significant concurrency before becoming a bottleneck.
+
+### Image Configuration
+
+By default, the latest version is used. If you want to use a specific image or pin the versions, refer to the configuration below:
+
+```yaml
+analyzer:
+  imageRepository: envoyproxy/envoy
+  imagePullPolicy: Always
+  imageTag: v1.33-latest
+```
+
+## Presidio Inference Models
+
+### Spacy 
+
+#### en_core_web_lg
+
+The default installation comes with the base model [en_core_web_lg](https://spacy.io/models/en#en_core_web_lg), which is a spaCy large English model.
+
+### Flair
+
+We have a custom build of Presidio that leverages the use of [Flair](https://flairnlp.github.io/), it provides better accuracy in detecting PII data. To use this custom build, you could use our custom build of the Presidio Analyzer.
+
+```yaml
+analyzer:
+  replicas: 1
+  imageRepository: hoophq/presidio-analyzer-flair
+  imageTag: 0.0.3
+  imagePullPolicy: Always
+  resources:
+    limits:
+      cpu: 8192m
+      memory: 16384Mi
+    requests:
+      cpu: 8192m
+      memory: 16384Mi
+```
+
+<Warning>
+  The custom build of Presidio Analyzer with Flair requires more resources than the default official image. We recommend allocating at least 8vCPU and 16GB to the analyzer process.
+</Warning>
+
+## Troubleshooting
+
+### HPA Field Conflict on Helm Upgrade
+
+When upgrading a Helm release that toggles autoscaling on and then modifies HPA fields like minReplicas, the upgrade fails with a server-side apply conflict error:
+
+```
+Error: UPGRADE FAILED: conflict occurred while applying object default/presidio-<component>-hpa
+autoscaling/v2, Kind=HorizontalPodAutoscaler: Apply failed with 1 conflict:
+conflict with "helm" using autoscaling/v2: .spec.minReplicas
+```
+
+Starting with Helm 3.12+, Helm uses server-side apply (SSA) by default. SSA is a Kubernetes feature where the API server tracks field ownership — it records which manager last set each field in a resource.
+
+#### How to Fix
+
+**Option 1: Disable Server-Side Apply**
+
+Pass `--server-side=false` to fall back to the classic client-side apply, which does not track field ownership:
+
+```sh
+helm upgrade --install presidio oci://ghcr.io/hoophq/helm-charts/presidio-chart \
+  --set <component>.autoscaling.enabled=true \
+  --set <component>.autoscaling.minReplicas=1 \
+  --server-side=false
+```
+
+This is the simplest fix but means you lose the benefits of SSA (such as stricter conflict detection for multi-manager scenarios).
+
+**Option 2: Force Conflict Resolution**
+
+Pass `--force-conflicts` to allow Helm to take ownership of the conflicting fields:
+
+```sh
+helm upgrade --install presidio oci://ghcr.io/hoophq/helm-charts/presidio-chart \
+  --set <component>.autoscaling.enabled=true \
+  --set <component>.autoscaling.minReplicas=1 \
+  --force-conflicts
+```
+
+This keeps SSA enabled but tells Kubernetes to let Helm override any existing field ownership.
+This is safe when Helm is the only manager of the resource.
