@@ -60,6 +60,7 @@
               "learn/features/access-requests/action",
               "learn/features/access-requests/jit",
               "learn/features/access-control",
+              "learn/features/abac",
               "learn/features/guardrails",
               "learn/features/runbooks",
               "learn/features/secrets-manager",
