@@ -217,6 +217,8 @@ The specifications supports the following fields:
   - url
   - email
   - select
+  - textarea
+  - password
   - file
 - required - if the this field is required
 - default - specifies a default value for an input if it’s empty
@@ -277,6 +279,10 @@ The template engine has auxiliary functions which helps to build better and secu
   - `<type>` - the type of the input (see supported fields for a list of types)
 - `placeholder "<message>"` - used as attribute specification to client input validation
   - `<message>` - the description of the placeholder
+- `minlength "<length>"` - minimum character length for the input
+  - `<length>` - the minimum number of characters required
+- `maxlength "<length>"` - maximum character length for the input
+  - `<length>` - the maximum number of characters allowed
 - `options "<option>" "..."` - used as attribute specification to client input validation
   - `"<option>" "..."` - a list of strings describing each option
 - `squote` - wraps the input with single quotes: `'`

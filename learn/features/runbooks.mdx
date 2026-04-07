@@ -112,18 +112,26 @@ WHERE email = {{ .email
     | pattern "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$" }}
 ```
 
-### Parameter Functions
+### Parameter Functions                                   
 
 | Function | Description | Example |
 |----------|-------------|---------|
 | `description` | Help text for the input | `description "Customer ID"` |
 | `required` | Error message if empty | `required "This field is required"` |
 | `default` | Default value if not provided | `default "US"` |
+| `placeholder` | Placeholder text shown inside the input | `placeholder "e.g. 12345"` |
 | `type` | Input type for UI | `type "number"` |
 | `pattern` | Regex validation | `pattern "^[0-9]+$"` |
 | `options` | Dropdown options | `options "active" "inactive"` |
+| `order` | Integer that controls field order in the form | `order "1"` |
+| `minlength` | Minimum character length | `minlength "3"` |
+| `maxlength` | Maximum character length | `maxlength "100"` |
+| `asenv` | Pass value as environment variable instead of inline | `asenv "API_KEY"` |
 | `squote` | Wrap value in single quotes | `squote` |
 | `dquote` | Wrap value in double quotes | `dquote` |
+| `quotechar` | Wrap value with a custom character | `quotechar "$"` |
+| `encodeb64` | Encode value as base64 | `encodeb64` |
+| `decodeb64` | Decode a base64 value | `decodeb64` |
 
 ### Input Types
 
@@ -134,6 +142,11 @@ WHERE email = {{ .email
 | `email` | Email validation |
 | `date` | Date picker |
 | `time` | Time picker |
+| `tel` | Phone number input |
+| `url` | URL input |
+| `password` | Masked text input with show/hide toggle |
+| `textarea` | Multi-line text input |
+| `file` | File upload — value sent as base64 |
 | `select` | Dropdown (use with `options`) |
 
 ---
