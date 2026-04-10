@@ -31,14 +31,16 @@ Contact the administrator of the hoop gateway instance to retrieve the `API_URL`
     If your is not included by default, make sure to add manually through the **Users** menu.
    </Note>
   </Step>
-  <Step title="Configure Audience and Recipient">
+  <Step title="Configure Audience, Recipient and Expiration Time">
     - Navigate to **Configuration** in the **left sidebar**
     - In `Audience (EntityID)` add the value `{API_URL}/saml/acs`
     - In `Recipient` add the value `{API_URL}/api/saml/callback`
+    - In `SAML not valid on or after` add the value `60` (minutes)
     - Click on **Save** to persist the changes
 
     <Note>
-      Leave all other fields with default values.
+      The SAML Not Valid on Or After defines the access token duration when issuing the token on Hoop, 
+      so you can adjust this value according to your needs.
     </Note>
     <Frame>
       <img src="/images/configure/identity-providers/onelogin-saml-2.png" />
