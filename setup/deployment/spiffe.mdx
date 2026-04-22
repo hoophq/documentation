@@ -8,10 +8,11 @@ enabled, an agent authenticates by presenting a short-lived JWT-SVID that
 the gateway validates against a SPIFFE trust bundle, then resolves to a
 Hoop agent identity through an admin-managed mapping table.
 
-This page covers the MVP scope: **JWT-SVID validation on the gateway,
-admin-managed SPIFFE-ID-to-agent mappings, and a file-based SVID loader on
-the agent side.** X.509-SVID / mTLS and native SPIRE Workload API
-integration are out of scope for this release.
+This page covers Hoop's SPIFFE support: **JWT-SVID validation on the
+gateway, admin-managed SPIFFE-ID-to-agent mappings, and a file-based
+SVID loader on the agent side.** X.509-SVID / mTLS and native SPIRE
+Workload API integration are tracked as future enhancements — see
+[What this does and doesn't do](#what-this-does-and-doesnt-do).
 
 ## When to use this
 
@@ -328,11 +329,12 @@ spiffe" line per reconnect with `spiffe_id`, `trust_domain`, and
 
 ### Helm users
 
-The official agent chart at `deploy/helm-chart/chart/agent/` does not yet
-template the sidecar, so in the current release you need to render a
-custom Deployment alongside the chart (or fork it). A built-in
-`spiffe.enabled` toggle is on the roadmap — see the
-[What this does and doesn't do](#what-this-does-and-doesnt-do) section.
+The official agent chart at `deploy/helm-chart/chart/agent/` does not
+template the `spiffe-helper` sidecar. To deploy via Helm, render a
+companion `Deployment` alongside the chart (or fork it) using the
+manifest shown above. A built-in `spiffe.enabled` toggle is a planned
+addition; see
+[What this does and doesn't do](#what-this-does-and-doesnt-do).
 
 ## Rotation and revocation
 
@@ -357,8 +359,8 @@ Practical consequences:
   agent pod). All agents re-authenticate on reconnect, and anything
   whose SVID was revoked or whose mapping was deleted fails.
 
-Proactive mid-stream rotation / revocation is on the roadmap and will
-not require any deployment changes when it lands.
+Proactive mid-stream rotation and revocation is a planned enhancement
+and will not require any deployment changes when it lands.
 
 ## Fallback behavior
 
@@ -387,40 +389,39 @@ the gateway with these fields:
 - `svid_expires_at` — expiry time from the SVID.
 - `agent_id`, `agent_name` — the Hoop identity the mapping resolved to.
 
-These are available through any log pipeline you already consume (stdout
-/ JSON log aggregator / SIEM). Surfacing the same fields on the
-`/api/sessions` response so you can filter sessions by SPIFFE ID from
-the webapp or API is on the roadmap but not yet wired up in this
-release.
+These are available through any log pipeline you already consume
+(stdout, JSON log aggregator, SIEM). Surfacing the same fields on the
+`/api/sessions` response — so you can filter sessions by SPIFFE ID from
+the webapp or API — is a planned enhancement; today the data is
+available in gateway logs only.
 
 ## What this does and doesn't do
 
-This release:
+Hoop's SPIFFE integration:
 
 - Validates JWT-SVIDs on the gateway at gRPC authentication time.
 - Resolves SPIFFE IDs to Hoop agents via exact-match or prefix+template
   mappings.
-- Enriches audit output with SPIFFE metadata.
-- Keeps static `HOOP_KEY` working in parallel.
+- Enriches gateway logs with SPIFFE metadata.
+- Keeps static `HOOP_KEY` working in parallel, so SPIFFE can be rolled
+  out alongside existing agents without a forced migration.
 
-This release does **not**:
+It does **not**:
 
 - Terminate mTLS directly against X.509-SVIDs. If you want X.509-SVID
-  end-to-end, terminate mTLS in front of the gateway (e.g. an Envoy
-  proxy configured as a SPIFFE workload) and let that upstream assert
-  the identity via JWT-SVID to Hoop.
-- Integrate directly with the SPIRE Workload API on the gateway side.
-  The gateway consumes JWKS, so you'll typically point
-  `HOOP_SPIFFE_BUNDLE_URL` at SPIRE's bundle endpoint or front it with
-  a small fetcher.
+  end-to-end, terminate mTLS in front of the gateway (for example an
+  Envoy proxy configured as a SPIFFE workload) and let that upstream
+  assert the identity via JWT-SVID to Hoop.
+- Consume the SPIRE Workload API on the gateway side. The gateway
+  consumes JWKS, so typically you point `HOOP_SPIFFE_BUNDLE_URL` at
+  SPIRE's bundle endpoint or front it with a small fetcher.
 - Pin SVIDs to workload attestation evidence (Kubernetes pod, AWS
-  instance ID). Your SPIRE registration entries should already enforce
-  that before an SVID is issued; Hoop trusts SPIRE's decision.
+  instance ID, etc.). Your SPIRE registration entries should already
+  enforce that before an SVID is issued; Hoop trusts SPIRE's decision.
 - Template a `spiffe-helper` sidecar in the official agent Helm chart.
   The [Complete Kubernetes example](#complete-kubernetes-example-with-spire)
-  above shows the manifest shape until the chart adds a `spiffe.enabled`
-  toggle.
+  above shows the manifest shape to use today.
 - Revoke an in-flight agent mid-stream. Revocation takes effect on the
   next reconnect; see [Rotation and revocation](#rotation-and-revocation).
-- Expose SPIFFE fields on the sessions API. They are available in
-  gateway logs only; API enrichment is on the roadmap.
+- Surface SPIFFE fields on the `/api/sessions` response. The data is
+  available in gateway logs.
