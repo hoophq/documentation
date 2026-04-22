@@ -1,0 +1,228 @@
+---
+title: 'SPIFFE Agent Identity'
+---
+
+Hoop supports authenticating agents using [SPIFFE](https://spiffe.io)
+JWT-SVIDs as an alternative to the default static `HOOP_KEY` token. When
+enabled, an agent authenticates by presenting a short-lived JWT-SVID that
+the gateway validates against a SPIFFE trust bundle, then resolves to a
+Hoop agent identity through an admin-managed mapping table.
+
+This page covers the MVP scope: **JWT-SVID validation on the gateway,
+admin-managed SPIFFE-ID-to-agent mappings, and a file-based SVID loader on
+the agent side.** X.509-SVID / mTLS and native SPIRE Workload API
+integration are out of scope for this release.
+
+## When to use this
+
+Use SPIFFE when you already run [SPIRE](https://spiffe.io/docs/latest/spire-about/)
+(or an equivalent SPIFFE issuer) for workload identity, and you want to
+eliminate long-lived static tokens for your agents. If you don't run SPIRE
+today, keep using `HOOP_KEY`; SPIFFE is additive, not a replacement.
+
+SPIFFE gives you:
+
+- Short-lived agent credentials that rotate automatically (no more
+  long-lived `HOOP_KEY` sitting in a secrets manager indefinitely).
+- Cryptographically attested identity: the SVID is tied to the workload
+  by your SPIRE registration entries, not just to whoever possesses a
+  string.
+- Audit records that include the full SPIFFE ID, trust domain, and SVID
+  expiry alongside the Hoop agent name.
+
+## Gateway configuration
+
+The gateway reads SPIFFE settings from environment variables at startup.
+
+| Variable | Required | Description |
+|---|---|---|
+| `HOOP_SPIFFE_MODE` | yes | `disabled`, `observe`, or `enforce`. |
+| `HOOP_SPIFFE_TRUST_DOMAIN` | yes when mode is `observe` or `enforce` | The trust domain you accept, e.g. `customer.com`. |
+| `HOOP_SPIFFE_BUNDLE_URL` | one of these | HTTPS endpoint serving a SPIFFE trust bundle (JWKS). |
+| `HOOP_SPIFFE_BUNDLE_FILE` | one of these | Path to a JWKS file on disk. |
+| `HOOP_SPIFFE_AUDIENCE` | no | Expected `aud` claim. Defaults to Hoop's gateway URL. |
+| `HOOP_SPIFFE_REFRESH_PERIOD` | no | Trust-bundle refresh interval (e.g. `5m`). Default `5m`. |
+
+### Modes
+
+- **`disabled`** — No SPIFFE validation. All agents must authenticate with
+  `HOOP_KEY`. This is the default.
+- **`observe`** — The gateway validates JWT-SVIDs when presented. If
+  validation fails for a JWT-shaped token, the gateway falls through to
+  the static-token path so in-flight agents aren't disrupted while you
+  roll out SPIRE. Use this during migration.
+- **`enforce`** — JWT-shaped tokens are validated strictly; validation
+  failure is rejected with `Unauthenticated`. Static `HOOP_KEY` tokens
+  still work in parallel — enforce controls what happens to JWT-shaped
+  tokens, not whether static tokens are allowed.
+
+In both `observe` and `enforce` mode, a successful SVID validation must
+resolve to a row in the `agent_spiffe_mappings` table or the
+authentication is rejected.
+
+### Example (Kubernetes)
+
+```yaml
+env:
+  - name: HOOP_SPIFFE_MODE
+    value: "enforce"
+  - name: HOOP_SPIFFE_TRUST_DOMAIN
+    value: "customer.com"
+  - name: HOOP_SPIFFE_BUNDLE_URL
+    value: "https://spire-server.customer.com/bundle"
+  - name: HOOP_SPIFFE_AUDIENCE
+    value: "https://hoop.customer.com"
+```
+
+The gateway will log a single line at startup indicating SPIFFE was
+initialized, and will refresh the trust bundle on the configured
+interval.
+
+## Mapping SPIFFE IDs to agents
+
+The gateway validates SVIDs against the trust bundle, but it doesn't
+decide *which* Hoop agent a given SPIFFE ID represents. That decision is
+controlled by admin-managed mappings stored in the
+`private.agent_spiffe_mappings` table. Manage them via the HTTP API or
+the `hoop admin` CLI.
+
+### Exact match
+
+Pin a single SPIFFE ID to a single agent:
+
+```bash
+hoop admin create spiffe-mapping \
+  --trust-domain customer.com \
+  --spiffe-id spiffe://customer.com/agent/arqa-prod \
+  --agent-id 11111111-2222-3333-4444-555555555555 \
+  --groups agents,workflow-automation
+```
+
+### Prefix match with template
+
+Accept any SVID under a prefix and derive the agent name from the suffix.
+This is useful when you register many agents under a naming convention
+and don't want to create one Hoop mapping per agent:
+
+```bash
+hoop admin create spiffe-mapping \
+  --trust-domain customer.com \
+  --spiffe-prefix spiffe://customer.com/agent/ \
+  --agent-template '{{.WorkloadIdentifier}}' \
+  --groups agents
+```
+
+With the prefix set to `spiffe://customer.com/agent/` and the template
+`{{.WorkloadIdentifier}}`, an SVID with subject
+`spiffe://customer.com/agent/arqa-prod` resolves to the Hoop agent named
+`arqa-prod` (which must exist).
+
+Available template fields:
+
+- `{{.WorkloadIdentifier}}` — the portion of the SPIFFE ID after the
+  prefix.
+- `{{.SPIFFEID}}` — the full SPIFFE ID.
+
+### Listing and deleting
+
+```bash
+hoop admin get spiffe-mappings
+hoop admin delete spiffe-mapping <id>
+```
+
+## Agent configuration
+
+The agent side has two ways to present a SPIFFE identity.
+
+### Option 1 — pass the SVID directly in `HOOP_KEY`
+
+Set `HOOP_KEY` to the JWT-SVID string, and `HOOP_GRPCURL` to the gateway
+address. Refresh is the caller's responsibility (restart on rotation).
+Most useful for quick experiments.
+
+### Option 2 — `HOOP_KEY_FILE` (recommended)
+
+Set `HOOP_KEY_FILE` to a path where a sidecar — typically
+[spiffe-helper](https://github.com/spiffe/spiffe-helper) — writes the
+current JWT-SVID. The agent re-reads this file before every reconnect,
+so rotated SVIDs are picked up without restarting.
+
+```yaml
+env:
+  - name: HOOP_KEY_FILE
+    value: /var/run/spiffe/agent.jwt
+  - name: HOOP_GRPCURL
+    value: hoop.customer.com:8443
+  - name: HOOP_NAME
+    value: arqa-prod
+```
+
+`HOOP_NAME` is optional; the gateway resolves identity from the SPIFFE
+mapping, not from this field, but setting it produces cleaner logs.
+
+`spiffe-helper` example config:
+
+```hcl
+agent_address = "/spiffe/sockets/agent.sock"
+cmd = ""
+cert_dir = "/var/run/spiffe"
+svid_file_name = ""
+svid_key_file_name = ""
+svid_bundle_file_name = ""
+jwt_svids = [
+  {
+    jwt_audience = "https://hoop.customer.com"
+    jwt_svid_file_name = "agent.jwt"
+  }
+]
+```
+
+## Fallback behavior
+
+The gateway determines which auth path to use based on the shape of the
+token an agent presents, not by policy:
+
+- DSN-encoded static tokens (starting with `x-agt-` or `xapi-`) always
+  take the static-token path.
+- Tokens that look like JWTs (three dot-separated segments) take the
+  SPIFFE path when a provider is configured.
+
+In `observe` mode a JWT-shaped token whose signature doesn't validate
+falls through to the static-token path (which will almost certainly
+reject it, but doesn't disrupt a rollout). In `enforce` mode it is
+rejected with `Unauthenticated` on the spot.
+
+## Audit output
+
+Successful SPIFFE authentications log the following fields, which also
+appear in session audit events when the agent is involved:
+
+- `spiffe_id` — full SPIFFE ID from the SVID subject.
+- `trust_domain` — trust domain portion of the SPIFFE ID.
+- `audience` — the `aud` claim we matched against.
+- `svid_type` — currently always `jwt`.
+- `svid_expires_at` — expiry time from the SVID.
+- `agent_id`, `agent_name` — the Hoop identity the mapping resolved to.
+
+## What this does and doesn't do
+
+This release:
+
+- Validates JWT-SVIDs on the gateway at gRPC authentication time.
+- Resolves SPIFFE IDs to Hoop agents via exact-match or prefix+template
+  mappings.
+- Enriches audit output with SPIFFE metadata.
+- Keeps static `HOOP_KEY` working in parallel.
+
+This release does **not**:
+
+- Terminate mTLS directly against X.509-SVIDs. If you want X.509-SVID
+  end-to-end, terminate mTLS in front of the gateway (e.g. an Envoy
+  proxy configured as a SPIFFE workload) and let that upstream assert
+  the identity via JWT-SVID to Hoop.
+- Integrate directly with the SPIRE Workload API. The gateway consumes
+  JWKS, so you'll typically point `HOOP_SPIFFE_BUNDLE_URL` at SPIRE's
+  bundle endpoint or front it with a small fetcher.
+- Pin SVIDs to workload attestation evidence (Kubernetes pod, AWS
+  instance ID). Your SPIRE registration entries should already enforce
+  that before an SVID is issued; Hoop trusts SPIRE's decision.
