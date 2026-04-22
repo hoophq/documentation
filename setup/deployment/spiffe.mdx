@@ -177,6 +177,189 @@ jwt_svids = [
 ]
 ```
 
+## Complete Kubernetes example with SPIRE
+
+The snippets above each cover one piece of the setup. This section puts
+them together end-to-end, assuming you already run a SPIRE server and the
+[SPIFFE CSI Driver](https://github.com/spiffe/spiffe-csi) is installed in
+the cluster where the Hoop agent runs.
+
+### 1. Register the agent workload with SPIRE
+
+Create a registration entry that issues an SVID for the agent's
+Kubernetes ServiceAccount. Adjust the parent ID, selectors, and TTL to
+match your SPIRE topology:
+
+```bash
+spire-server entry create \
+  -spiffeID spiffe://customer.com/agent/arqa-prod \
+  -parentID spiffe://customer.com/spire/agent/k8s_psat/prod-cluster/node \
+  -selector k8s:ns:hoop \
+  -selector k8s:sa:hoopagent \
+  -jwtSVIDTTL 300
+```
+
+A 5-minute JWT TTL is a reasonable default. `spiffe-helper` refreshes at
+roughly half the TTL, so a 5-minute TTL produces one rotation every
+~2.5 minutes.
+
+### 2. Create the Hoop agent and SPIFFE mapping
+
+On the gateway admin, create the Hoop agent record and the mapping that
+binds the SPIFFE ID to it:
+
+```bash
+hoop admin create agent arqa-prod \
+  --mode standard
+
+hoop admin create spiffe-mapping \
+  --trust-domain customer.com \
+  --spiffe-id spiffe://customer.com/agent/arqa-prod \
+  --agent-id $(hoop admin get agents --name arqa-prod -o json | jq -r '.id') \
+  --groups agents
+```
+
+If you use prefix matching with templates (see
+[Mapping SPIFFE IDs to agents](#mapping-spiffe-ids-to-agents)) you only
+do this once — additional SPIRE registration entries under the same
+prefix resolve through the template without extra Hoop config.
+
+### 3. Deploy the agent pod with the spiffe-helper sidecar
+
+The pod runs two containers sharing an in-memory `emptyDir`: the sidecar
+writes the rotated JWT-SVID to `/run/spiffe/agent.jwt`, and the Hoop
+agent reads it via `HOOP_KEY_FILE`.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spiffe-helper-config
+  namespace: hoop
+data:
+  helper.conf: |
+    agent_address = "/spiffe-workload-api/spire-agent.sock"
+    cmd = ""
+    jwt_svids = [
+      {
+        jwt_audience       = "https://hoop.customer.com"
+        jwt_svid_file_name = "/run/spiffe/agent.jwt"
+      }
+    ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoopagent
+  namespace: hoop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hoopagent
+  template:
+    metadata:
+      labels:
+        app: hoopagent
+    spec:
+      serviceAccountName: hoopagent
+      containers:
+      - name: spiffe-helper
+        image: ghcr.io/spiffe/spiffe-helper:0.9.1
+        args: ["-config", "/etc/spiffe-helper/helper.conf"]
+        volumeMounts:
+        - name: spiffe-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+        - name: spiffe-tokens
+          mountPath: /run/spiffe
+        - name: spiffe-helper-config
+          mountPath: /etc/spiffe-helper
+          readOnly: true
+      - name: agent
+        image: hoophq/hoopdev:latest
+        env:
+        - name: HOOP_KEY_FILE
+          value: /run/spiffe/agent.jwt
+        - name: HOOP_GRPCURL
+          value: hoop.customer.com:8443
+        - name: HOOP_NAME
+          value: arqa-prod
+        volumeMounts:
+        - name: spiffe-tokens
+          mountPath: /run/spiffe
+          readOnly: true
+      volumes:
+      - name: spiffe-workload-api
+        csi:
+          driver: csi.spiffe.io
+          readOnly: true
+      - name: spiffe-tokens
+        emptyDir:
+          medium: Memory
+      - name: spiffe-helper-config
+        configMap:
+          name: spiffe-helper-config
+```
+
+Key points:
+
+- The `csi.spiffe.io` volume is what hands the sidecar a Unix socket to
+  the node-local SPIRE agent. Without the SPIFFE CSI Driver installed,
+  the sidecar has nothing to talk to.
+- `spiffe-tokens` is an in-memory `emptyDir` — the JWT never hits disk.
+- The agent container mounts `spiffe-tokens` **read-only**; only the
+  sidecar writes to it.
+- `HOOP_NAME` is cosmetic in SPIFFE mode (the gateway resolves identity
+  from the SPIFFE mapping), but it makes the agent's own logs clearer.
+
+### 4. Verify
+
+From the sidecar pod:
+
+```bash
+kubectl -n hoop exec deploy/hoopagent -c spiffe-helper -- \
+  cat /run/spiffe/agent.jwt | cut -d. -f2 | base64 -d
+```
+
+From the gateway logs you should see a single "agent authenticated via
+spiffe" line per reconnect with `spiffe_id`, `trust_domain`, and
+`svid_expires_at` fields set.
+
+### Helm users
+
+The official agent chart at `deploy/helm-chart/chart/agent/` does not yet
+template the sidecar, so in the current release you need to render a
+custom Deployment alongside the chart (or fork it). A built-in
+`spiffe.enabled` toggle is on the roadmap — see the
+[What this does and doesn't do](#what-this-does-and-doesnt-do) section.
+
+## Rotation and revocation
+
+The agent re-reads `HOOP_KEY_FILE` before every reconnect attempt. This
+means rotation works transparently *as long as the gRPC stream
+disconnects* — which in practice happens on gateway restarts, network
+blips, or pod restarts. The gateway validates the SVID once at stream
+establishment and does not re-check `exp` mid-stream.
+
+Practical consequences:
+
+- **Steady state**: a running agent can keep its stream open past the
+  SVID's `exp` because validation isn't repeated on every packet. This
+  is consistent with how long-lived gRPC auth normally works, but it
+  means "revoke a SPIFFE ID" does not immediately cut an in-flight
+  agent.
+- **Short TTLs are still useful**: on any disconnect — planned or not —
+  the agent has to present a *current* SVID to reconnect. So a revoked
+  agent cannot come back. For most deployments the worst-case revocation
+  window is "until the next natural disconnect."
+- **If you need fast revocation today**: restart the gateway (or the
+  agent pod). All agents re-authenticate on reconnect, and anything
+  whose SVID was revoked or whose mapping was deleted fails.
+
+Proactive mid-stream rotation / revocation is on the roadmap and will
+not require any deployment changes when it lands.
+
 ## Fallback behavior
 
 The gateway determines which auth path to use based on the shape of the
@@ -194,15 +377,21 @@ rejected with `Unauthenticated` on the spot.
 
 ## Audit output
 
-Successful SPIFFE authentications log the following fields, which also
-appear in session audit events when the agent is involved:
+Every successful SPIFFE authentication writes a structured log line on
+the gateway with these fields:
 
 - `spiffe_id` — full SPIFFE ID from the SVID subject.
 - `trust_domain` — trust domain portion of the SPIFFE ID.
-- `audience` — the `aud` claim we matched against.
+- `audience` — the `aud` claim matched against.
 - `svid_type` — currently always `jwt`.
 - `svid_expires_at` — expiry time from the SVID.
 - `agent_id`, `agent_name` — the Hoop identity the mapping resolved to.
+
+These are available through any log pipeline you already consume (stdout
+/ JSON log aggregator / SIEM). Surfacing the same fields on the
+`/api/sessions` response so you can filter sessions by SPIFFE ID from
+the webapp or API is on the roadmap but not yet wired up in this
+release.
 
 ## What this does and doesn't do
 
@@ -220,9 +409,18 @@ This release does **not**:
   end-to-end, terminate mTLS in front of the gateway (e.g. an Envoy
   proxy configured as a SPIFFE workload) and let that upstream assert
   the identity via JWT-SVID to Hoop.
-- Integrate directly with the SPIRE Workload API. The gateway consumes
-  JWKS, so you'll typically point `HOOP_SPIFFE_BUNDLE_URL` at SPIRE's
-  bundle endpoint or front it with a small fetcher.
+- Integrate directly with the SPIRE Workload API on the gateway side.
+  The gateway consumes JWKS, so you'll typically point
+  `HOOP_SPIFFE_BUNDLE_URL` at SPIRE's bundle endpoint or front it with
+  a small fetcher.
 - Pin SVIDs to workload attestation evidence (Kubernetes pod, AWS
   instance ID). Your SPIRE registration entries should already enforce
   that before an SVID is issued; Hoop trusts SPIRE's decision.
+- Template a `spiffe-helper` sidecar in the official agent Helm chart.
+  The [Complete Kubernetes example](#complete-kubernetes-example-with-spire)
+  above shows the manifest shape until the chart adds a `spiffe.enabled`
+  toggle.
+- Revoke an in-flight agent mid-stream. Revocation takes effect on the
+  next reconnect; see [Rotation and revocation](#rotation-and-revocation).
+- Expose SPIFFE fields on the sessions API. They are available in
+  gateway logs only; API enrichment is on the roadmap.
