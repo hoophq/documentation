@@ -25,7 +25,7 @@ This page provides instructions on how to configure the Helm chart to install Ho
               --set defaultAgent.enabled=true \
               --set dataMasking.enabled=true \
               --set dataMasking.analyzer.replicas=2 \
-              --set config.POSTGRES_DB_URI=postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable \
+              --set 'config.POSTGRES_DB_URI=postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable' \
               --set config.API_URL=http://localhost:8009
             ```
           </Step>
@@ -88,7 +88,7 @@ This page provides instructions on how to configure the Helm chart to install Ho
         DNS.1 = $DOMAIN_HOSTNAME
         IP.1 = 127.0.0.1
         EOF
-        
+
         openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 730 -sha256 -extfile server.v3.ext
         ```
 
@@ -145,7 +145,7 @@ This page provides instructions on how to configure the Helm chart to install Ho
           TLS_CERT: "base64://$TLS_CERT_ENC"
 
         # uses a local Postgres database with Host mounted stored
-        # use a distinct storage class name for more durable setups 
+        # use a distinct storage class name for more durable setups
         postgres:
           enabled: true
           storageClassName: null
