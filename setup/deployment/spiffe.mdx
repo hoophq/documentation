@@ -37,8 +37,8 @@ The gateway reads SPIFFE settings from environment variables at startup.
 
 | Variable | Required | Description |
 |---|---|---|
-| `HOOP_SPIFFE_MODE` | yes | `disabled`, `observe`, or `enforce`. |
-| `HOOP_SPIFFE_TRUST_DOMAIN` | yes when mode is `observe` or `enforce` | The trust domain you accept, e.g. `customer.com`. |
+| `HOOP_SPIFFE_MODE` | yes | `disabled` or `enforce`. |
+| `HOOP_SPIFFE_TRUST_DOMAIN` | yes when mode is `enforce` | The trust domain you accept, e.g. `customer.com`. |
 | `HOOP_SPIFFE_BUNDLE_URL` | one of these | HTTPS endpoint serving a SPIFFE trust bundle (JWKS). |
 | `HOOP_SPIFFE_BUNDLE_FILE` | one of these | Path to a JWKS file on disk. |
 | `HOOP_SPIFFE_AUDIENCE` | no | Expected `aud` claim. Defaults to Hoop's gateway URL. |
@@ -46,20 +46,38 @@ The gateway reads SPIFFE settings from environment variables at startup.
 
 ### Modes
 
-- **`disabled`** — No SPIFFE validation. All agents must authenticate with
-  `HOOP_KEY`. This is the default.
-- **`observe`** — The gateway validates JWT-SVIDs when presented. If
-  validation fails for a JWT-shaped token, the gateway falls through to
-  the static-token path so in-flight agents aren't disrupted while you
-  roll out SPIRE. Use this during migration.
-- **`enforce`** — JWT-shaped tokens are validated strictly; validation
-  failure is rejected with `Unauthenticated`. Static `HOOP_KEY` tokens
-  still work in parallel — enforce controls what happens to JWT-shaped
-  tokens, not whether static tokens are allowed.
+- **`disabled`** — No SPIFFE validation. All agents must authenticate
+  with `HOOP_KEY` (DSN or legacy static token). This is the default.
+- **`enforce`** — JWT-SVIDs are validated on every agent authentication
+  and rejected on failure. Static-token agents keep working in parallel.
 
-In both `observe` and `enforce` mode, a successful SVID validation must
-resolve to a row in the `agent_spiffe_mappings` table or the
-authentication is rejected.
+Failure handling under `enforce`:
+
+- **Config errors** (missing trust domain, invalid bundle URL syntax,
+  neither or both of `HOOP_SPIFFE_BUNDLE_URL`/`HOOP_SPIFFE_BUNDLE_FILE`
+  set) fail startup. These are deploy mistakes — the gateway does not
+  start until they are fixed.
+- **Initial bundle fetch failures** (bundle URL temporarily unreachable,
+  file not yet present) log a warning and the gateway keeps running. The
+  provider's background refresh loop retries every
+  `HOOP_SPIFFE_REFRESH_PERIOD`, so SPIFFE comes online as soon as the
+  bundle is reachable. JWT-shaped tokens are rejected until then, but
+  DSN and static-token agents are unaffected.
+
+A successful SVID validation must resolve to a row in the
+`agent_spiffe_mappings` table or the authentication is rejected. Static
+`HOOP_KEY` tokens always work in parallel; `HOOP_SPIFFE_MODE` controls
+SPIFFE itself, not whether static tokens are allowed.
+
+<Note>
+  An earlier `observe` mode existed that let the gateway keep running
+  without SPIFFE when the trust bundle failed to load, while `enforce`
+  made boot failures fatal. Both modes have been collapsed into
+  `enforce`, which takes the best of both: config errors fail fast, but
+  a transient bundle fetch failure only warns — it no longer takes the
+  gateway (and its DSN agents) down. If you previously set
+  `HOOP_SPIFFE_MODE=observe`, change it to `enforce`.
+</Note>
 
 ### Example (Kubernetes)
 
@@ -362,20 +380,30 @@ Practical consequences:
 Proactive mid-stream rotation and revocation is a planned enhancement
 and will not require any deployment changes when it lands.
 
-## Fallback behavior
+## Token dispatch
 
-The gateway determines which auth path to use based on the shape of the
-token an agent presents, not by policy:
+The gateway picks an auth backend based on the *shape* of the bearer
+token an agent presents. Each shape maps to exactly one backend, and
+there is no fallback between them:
 
-- DSN-encoded static tokens (starting with `x-agt-` or `xapi-`) always
-  take the static-token path.
-- Tokens that look like JWTs (three dot-separated segments) take the
-  SPIFFE path when a provider is configured.
+| Token shape | Backend | Example |
+|---|---|---|
+| Starts with `x-agt-` | Legacy static token | `x-agt-...` |
+| Contains `://` (URL) | DSN (per-agent secret) | `grpc://name:secret@host:8010?mode=standard` |
+| Three dot-separated segments | SPIFFE JWT-SVID | `eyJhbGc...xxx.yyy.zzz` |
 
-In `observe` mode a JWT-shaped token whose signature doesn't validate
-falls through to the static-token path (which will almost certainly
-reject it, but doesn't disrupt a rollout). In `enforce` mode it is
-rejected with `Unauthenticated` on the spot.
+Consequences:
+
+- DSN-based agents and SPIFFE agents can coexist on the same gateway —
+  each agent's token choice determines its auth path independently.
+- A malformed, unsigned, or mapping-less JWT-shaped token is rejected
+  with `Unauthenticated` on the spot. It is never retried against the
+  static-token path. This is true whenever SPIFFE is enabled.
+- A DSN-shaped token that fails to parse or look up is rejected outright;
+  it is never sent through SPIFFE validation.
+- Switching an agent between auth methods is a matter of changing the
+  token the agent presents — update `HOOP_KEY` or switch to
+  `HOOP_KEY_FILE`. No gateway configuration changes are needed.
 
 ## Audit output
 
