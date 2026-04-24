@@ -95,6 +95,13 @@ controlled by admin-managed mappings stored in the
 `private.agent_spiffe_mappings` table. Manage them via the HTTP API or
 the `hoop admin` CLI.
 
+Unlike most `hoop admin` resources, a SPIFFE mapping has no user-chosen
+name. It is identified by the composite key `(trust-domain, spiffe-id)`
+or `(trust-domain, spiffe-prefix)`, so `hoop admin create spiffe-mapping`
+doesn't take a positional resource name — it derives identity from the
+flags below. `--overwrite` matches on that same composite key to update
+an existing mapping instead of failing with a conflict.
+
 ### Exact match
 
 Pin a single SPIFFE ID to a single agent:
@@ -132,12 +139,33 @@ Available template fields:
   prefix.
 - `{{.SPIFFEID}}` — the full SPIFFE ID.
 
+### Updating an existing mapping
+
+Re-run the same `create` command with `--overwrite`. The CLI looks up the
+mapping by `(trust-domain, spiffe-id)` or `(trust-domain, spiffe-prefix)`
+and sends a `PUT` instead of a `POST` when it finds one; agent binding
+and groups are replaced with the new values:
+
+```bash
+hoop admin create spiffe-mapping --overwrite \
+  --trust-domain customer.com \
+  --spiffe-id spiffe://customer.com/agent/arqa-prod \
+  --agent-id 22222222-2222-2222-2222-222222222222 \
+  --groups agents,oncall
+```
+
+Without `--overwrite`, a second create with the same composite key
+returns an HTTP 409 conflict.
+
 ### Listing and deleting
 
 ```bash
 hoop admin get spiffe-mappings
 hoop admin delete spiffe-mapping <id>
 ```
+
+Delete takes the mapping's UUID, which you can find with
+`hoop admin get spiffe-mappings`.
 
 ## Agent configuration
 
