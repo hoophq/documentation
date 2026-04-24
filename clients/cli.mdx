@@ -133,6 +133,20 @@ Users will authenticate to obtain a valid access token, which remains active bas
 
 ### Automation Usage Scenario
 
+When automating Hoop from scripts, CI jobs, or AI agents, use an [API Key](/setup/apis/api-key) for authentication and group related invocations with `--correlation-id` so they can be traced as a single workflow run.
+
+```sh
+hoop exec postgres-demo \
+    --correlation-id task-12345 \
+    -i "SELECT * FROM customers WHERE id = 42"
+```
+
+Every `hoop exec` call that shares the same correlation value is tagged on the session record, which lets you later filter and group the sessions that belong to one logical task (for example, all the queries and API calls an agent made while processing a single ticket).
+
+<Note>
+  The correlation ID is a free-form string up to 255 printable ASCII characters. Use whatever identifier your orchestrator already has — a task ID, job ID, workflow run ID, etc.
+</Note>
+
 ## Programmatic API Access
 
 This authentication method is designed for administrators who need programmatic access to the API for tasks such as managing connections,
@@ -140,17 +154,25 @@ configuring policies, or executing operations within automation pipelines.
 
 Programmatic access requires static authentication credentials that can be obtained through the following methods:
 
-### Static API Key
+### API Key
 
-A Static API Key provides persistent authentication by setting an environment variable in the gateway with a secure random string.
+An API Key (prefixed with `hpk_`) authenticates the CLI headlessly — no browser login, no token expiry. Keys are created from the Web App under **Settings → API Keys** and inherit the permissions of the groups assigned to them.
 
-Configure the token in your local configuration using this command:
+Persist the key in your local config when bootstrapping a new machine:
 
 ```sh
-HOOP_TOKEN=<api-key> hoop config create --api-url https://yourgateway-domain.tld
+hoop config create \
+    --api-key hpk_your_key_value \
+    --api-url https://yourgateway-domain.tld
 ```
 
-- Refer to the [API Key Usage for more information](/setup/apis/api-key)
+Or, if the config already exists, use `hoop login --api-key` to store the key as the current token:
+
+```sh
+hoop login --api-key hpk_your_key_value
+```
+
+- Refer to the [API Keys guide for more information](/setup/apis/api-key)
 
 ### Service Account
 
