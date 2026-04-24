@@ -69,16 +69,6 @@ A successful SVID validation must resolve to a row in the
 `HOOP_KEY` tokens always work in parallel; `HOOP_SPIFFE_MODE` controls
 SPIFFE itself, not whether static tokens are allowed.
 
-<Note>
-  An earlier `observe` mode existed that let the gateway keep running
-  without SPIFFE when the trust bundle failed to load, while `enforce`
-  made boot failures fatal. Both modes have been collapsed into
-  `enforce`, which takes the best of both: config errors fail fast, but
-  a transient bundle fetch failure only warns — it no longer takes the
-  gateway (and its DSN agents) down. If you previously set
-  `HOOP_SPIFFE_MODE=observe`, change it to `enforce`.
-</Note>
-
 ### Example (Kubernetes)
 
 ```yaml
