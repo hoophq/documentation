@@ -1,0 +1,218 @@
+---
+title: "Workflow Observability"
+description: "See exactly what scripts, CI/CD jobs, and AI agents did in Hoop, attributed to named identities and grouped by workflow run"
+---
+
+import { WorkflowObservabilityAnimation } from '/snippets/annimations/WorkflowObservabilityAnimation.jsx';
+
+<div style={{background: 'linear-gradient(135deg, #111111 0%, #1A1A1A 35%, #2A2A2A 70%, #3A3A3A 100%)', borderRadius: 14, overflow: 'hidden', padding: 24, height: 460}}>
+  <WorkflowObservabilityAnimation />
+</div>
+
+## What You'll Accomplish
+
+Workflow Observability lets you see exactly what any headless caller (script, CI/CD job, scheduled batch, or AI agent) did in Hoop, with the same identity, audit, and policy story as an interactive user. You can:
+
+- Authenticate automation with **named identities** instead of shared admin credentials
+- **Scope** each caller's permissions to only the connections and groups it needs
+- **Group** the sessions of the same logical run into one workflow, even across multiple commands or connections
+- Keep a complete **audit trail** of who ran what, when, and as part of which task
+
+---
+
+## The Problem Workflow Observability Solves
+
+Much of the work that touches production is not interactive: ad-hoc scripts against the warehouse, deploy pipelines running migrations and smoke tests, scheduled export jobs, AI agents chaining tool calls to finish each queued task.
+
+To an audit log, all of that typically looks the same: a string of isolated, anonymous-looking sessions with no way to answer the questions operators actually ask:
+
+- Who (or which system) ran this command?
+- What else did it do before and after?
+- Which of these fifty sessions belong to the ticket we're investigating?
+
+Without a named identity for the caller and a way to correlate its sessions, every invocation is disconnected. Workflow Observability closes that gap so audit, masking, and guardrail features work for automation the same way they do for humans.
+
+---
+
+## How Workflow Observability Works
+
+Two building blocks make this possible.
+
+### 1. API Keys: named identities for headless callers
+
+Automated callers authenticate using an **API Key** (prefixed with `hpk_`) instead of a browser login. Keys are:
+
+- **Named**: sessions are attributed to `nightly-report`, `deploy-pipeline`, or `ticket-agent` rather than an anonymous administrator.
+- **Scoped**: the key inherits only its assigned groups' permissions, so the blast radius matches the job.
+- **Revocable**: deactivate a compromised or retired key instantly, without redeploying the Gateway.
+- **Auditable**: the Gateway tracks who created each key, who deactivated it, and when it was last used.
+
+Keys are managed in the Web App under **Settings → API Keys**.
+
+### 2. Correlation IDs: group related sessions into a workflow
+
+Most automated work is a chain of steps: a deploy migration then smoke test then health check, a pipeline querying a source and writing to a destination, an agent reading a task and calling several APIs.
+
+Tag each call with a shared correlation value so the sessions of the same run link together. The behavior is identical on the CLI and the REST API.
+
+<Tabs>
+  <Tab title="CLI">
+    Pass `--correlation-id` on every `hoop exec` invocation:
+
+    ```sh
+    hoop exec postgres-demo \
+        --correlation-id deploy-2026-04-24-17a \
+        -i "SELECT COUNT(*) FROM schema_migrations"
+
+    hoop exec internal-api \
+        --correlation-id deploy-2026-04-24-17a \
+        -i "POST /health HTTP/1.1 ..."
+    ```
+  </Tab>
+  <Tab title="REST API">
+    Send the value in the `X-Hoop-Correlation-Id` header on every request that opens a session:
+
+    ```sh
+    curl https://yourgateway-domain.tld/<endpoint> \
+        -H "Authorization: Bearer hpk_your_key_value" \
+        -H "X-Hoop-Correlation-Id: deploy-2026-04-24-17a" \
+        -d '...'
+    ```
+  </Tab>
+</Tabs>
+
+Sessions carrying the same value are stored against one workflow run, so you can trace the full path: which commands ran, against which connections, in what order, with what outcome.
+
+<Note>
+  The correlation ID is a free-form printable ASCII string up to 255 characters. Use whatever identifier the caller already has: a CI build number, cron run ID, ticket/task ID, agent workflow ID, or a UUID generated at the start of the run.
+</Note>
+
+---
+
+## Common Scenarios
+
+<CardGroup cols={2}>
+  <Card title="Scripts run by engineers" icon="terminal">
+    A data scientist runs a multi-step script against production. Each step is executed through `hoop exec` with a shared correlation ID, so the whole run shows up as one traceable workflow instead of scattered queries.
+  </Card>
+  <Card title="CI/CD pipelines" icon="arrows-rotate">
+    A deploy pipeline uses a scoped API Key to run migrations, seed data, and health checks. Tagging every step with the build ID answers "what did build #842 actually do in prod?" from the audit log.
+  </Card>
+  <Card title="Scheduled jobs" icon="clock">
+    A nightly export uses an API Key scoped to a single read-only connection. Tagging each run with its cron run ID lets you trace and replay a failed export without guessing which sessions belong to it.
+  </Card>
+  <Card title="AI agents" icon="robot">
+    An agent picks up tasks from a queue and issues many tool calls per task. With a named API Key and task-ID tagging, operators can open any task and see exactly what the agent did, under the same masking and guardrails as any other caller.
+  </Card>
+</CardGroup>
+
+---
+
+## Quick Start
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- Admin access to create API Keys
+- A script, CI job, scheduled task, or agent that calls Hoop through the CLI (`hoop exec`) or the REST API
+
+### Step 1: Create an API Key for the workflow
+
+<Steps>
+  <Step title="Open the API Keys page">
+    Go to **Settings → API Keys** in the Web App and click **Create new API key**.
+  </Step>
+  <Step title="Name and scope the key">
+    Name the key after the caller (e.g. `nightly-report`, `deploy-pipeline`, `ticket-agent`). Assign groups that grant only the connections this workflow needs; avoid `admin` unless genuinely required.
+  </Step>
+  <Step title="Store the key">
+    Copy the `hpk_…` value at creation (it is shown only once) and load it into your workflow's secret store (CI secret, Vault, Kubernetes Secret, etc.).
+  </Step>
+</Steps>
+
+See the [API Keys setup guide](/setup/apis/api-key) for the full reference on key management, rotation, and REST endpoints.
+
+### Step 2: Authenticate with the API key
+
+<Tabs>
+  <Tab title="CLI">
+    Persist the key in the local config on the workflow's host:
+
+    ```sh
+    hoop config create \
+        --api-key hpk_your_key_value \
+        --api-url https://yourgateway-domain.tld
+    ```
+
+    The CLI then authenticates as the key's identity for every subsequent command.
+  </Tab>
+  <Tab title="REST API">
+    Send the key as a bearer token in the `Authorization` header on every request:
+
+    ```sh
+    curl https://yourgateway-domain.tld/<endpoint> \
+        -H "Authorization: Bearer hpk_your_key_value"
+    ```
+
+    Any REST endpoint that accepts an authenticated caller accepts an `hpk_` bearer token, subject to the key's group permissions.
+  </Tab>
+</Tabs>
+
+### Step 3: Tag each call with a correlation ID
+
+Pass a shared identifier on every call in the same logical run:
+
+<Tabs>
+  <Tab title="CLI">
+    Use the `--correlation-id` flag on `hoop exec`:
+
+    ```sh
+    CORRELATION_ID="${CI_BUILD_ID:-$(uuidgen)}"
+
+    hoop exec postgres-demo \
+        --correlation-id "$CORRELATION_ID" \
+        -i "SELECT * FROM customers WHERE id = 42"
+    ```
+  </Tab>
+  <Tab title="REST API">
+    Send the value in the `X-Hoop-Correlation-Id` header on every request that opens a session:
+
+    ```sh
+    curl https://yourgateway-domain.tld/<endpoint> \
+        -H "Authorization: Bearer hpk_your_key_value" \
+        -H "X-Hoop-Correlation-Id: $CORRELATION_ID" \
+        -d '...'
+    ```
+
+    <Note>
+      The header is session-scoped: read once when the session opens, then inherited by every subsequent request that reuses the session.
+    </Note>
+  </Tab>
+</Tabs>
+
+All sessions sharing that value are linked as one workflow run in audit logs and session history. To fetch every session in a run, filter the sessions endpoint by the same identifier:
+
+```sh
+curl "https://yourgateway-domain.tld/api/sessions?correlation_id=deploy-2026-04-24-17a" \
+    -H "Authorization: Bearer hpk_your_key_value"
+```
+
+---
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Session Recording" icon="video" href="/learn/features/session-recording">
+    Full replay of every session, including automated ones. See exactly what a script, pipeline, or agent executed and what it got back.
+  </Card>
+  <Card title="Guardrails" icon="shield-check" href="/learn/features/guardrails">
+    Block destructive operations regardless of the caller. The same rules apply to humans, scripts, and agents.
+  </Card>
+  <Card title="Live Data Masking" icon="eye-slash" href="/learn/features/live-data-masking">
+    Mask automated query results just like interactive sessions, so sensitive data never leaves the Gateway.
+  </Card>
+  <Card title="API Keys Setup" icon="key" href="/setup/apis/api-key">
+    Technical reference for creating, rotating, and revoking API keys via the Web App and REST API.
+  </Card>
+</CardGroup>
