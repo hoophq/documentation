@@ -4,7 +4,7 @@ export const WorkflowObservabilityAnimation = () => {
       caller: "deploy-pipeline",
       keyHash: "hpk_xR9a",
       icon: "ci",
-      correlationId: "deploy-2026-04-24-17a",
+      correlationId: "deploy-2026-04-28-17a",
       sessions: [
         { connection: "postgres-migrate",   command: "ALTER TABLE users ADD COLUMN locale TEXT", duration: 340 },
         { connection: "postgres-migrate",   command: "INSERT INTO schema_versions VALUES ('2026_04_24_a')", duration: 89 },
@@ -16,11 +16,11 @@ export const WorkflowObservabilityAnimation = () => {
       caller: "nightly-report",
       keyHash: "hpk_m4Tk",
       icon: "cron",
-      correlationId: "cron-2026-04-24T02:00",
+      correlationId: "cron-2026-04-28T02:00",
       sessions: [
         { connection: "warehouse-read",   command: "SELECT * FROM fact_sales WHERE ds = CURRENT_DATE - 1", duration: 612 },
         { connection: "warehouse-read",   command: "SELECT * FROM dim_customer", duration: 418 },
-        { connection: "s3-exports",       command: "PUT s3://reports/2026-04-24/daily.parquet", duration: 204 },
+        { connection: "s3-exports",       command: "PUT s3://reports/2026-04-28/daily.parquet", duration: 204 },
         { connection: "slack-notify",     command: "POST /notify #data-reports", duration: 93 },
       ],
     },
