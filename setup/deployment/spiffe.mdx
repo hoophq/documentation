@@ -455,6 +455,14 @@ spiffe:
   # workloadAPI:
   #   type: hostPath
   #   hostPath: /run/spire/agent-sockets
+
+  # Optional: when the gateway's gRPC port doesn't terminate TLS
+  # (typically local clusters where TLS_KEY/TLS_CERT are unset on
+  # the gateway), force plaintext gRPC. Production deployments
+  # should always leave this false. Note that spiffe.grpcSkipVerify
+  # only skips TLS *certificate validation* — the TLS handshake
+  # still happens. To bypass TLS entirely, use grpcInsecure below.
+  # grpcInsecure: true
 ```
 
 When `spiffe.enabled: true`:
@@ -463,6 +471,12 @@ When `spiffe.enabled: true`:
   `HOOP_SPIFFE_KEY_FILE=/run/spiffe/agent.jwt` instead.
 - The gRPC endpoint comes from `spiffe.grpcHost` (as `HOOP_GRPCURL`),
   not from `config.HOOP_GATEWAY_URL`.
+- The agent dials the gateway over TLS by default for any non-loopback
+  URL. `spiffe.grpcSkipVerify` skips **TLS certificate validation only**,
+  not the TLS handshake itself. To dial plaintext gRPC (e.g. against a
+  local-cluster gateway with no `TLS_KEY` / `TLS_CERT`), set
+  `spiffe.grpcInsecure: true`. Production deployments should always
+  leave `grpcInsecure` unset and run a TLS-terminated gateway.
 - The chart always requires a SPIRE Agent DaemonSet and a matching
   `agent_spiffe_mappings` row on the gateway. Depending on
   `spiffe.workloadAPI.type` it additionally requires either the
