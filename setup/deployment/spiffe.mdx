@@ -223,9 +223,7 @@ The agent side has two ways to present a SPIFFE identity.
 <Note>
 **Credential precedence.** When both `HOOP_KEY` and `HOOP_SPIFFE_KEY_FILE`
 are set, the agent **always uses `HOOP_KEY`** and ignores the SVID file. To
-authenticate via SPIFFE, you must leave `HOOP_KEY` unset (or empty). The
-agent logs a warning at startup if both are provided so you can spot a
-stale `HOOP_KEY` left over from a previous deployment.
+authenticate via SPIFFE, you must leave `HOOP_KEY` unset (or empty).
 </Note>
 
 ### Option 1 — pass the SVID directly in `HOOP_KEY`
@@ -630,7 +628,7 @@ setting the underlying env vars directly via `extraSecret`.
 
 | Helm value | Rendered env var | Notes |
 |---|---|---|
-| `spiffe.enabled: true` | (toggle) | Renders the spiffe-helper sidecar and SVID volume. Leave `config.HOOP_KEY` unset — HOOP_KEY takes precedence over SPIFFE on the agent, so a stale `HOOP_KEY` value silently disables SPIFFE (the agent logs a warning at startup). |
+| `spiffe.enabled: true` | (toggle) | Renders the spiffe-helper sidecar and SVID volume. Leave `config.HOOP_KEY` unset — HOOP_KEY takes precedence over SPIFFE on the agent, so a stale `HOOP_KEY` value silently disables SPIFFE. |
 | _(hardcoded by chart)_ | `HOOP_SPIFFE_KEY_FILE=/run/spiffe/agent.jwt` | Path the spiffe-helper sidecar writes to. Not user-configurable. |
 | `spiffe.grpcHost` | `HOOP_GRPCURL` | Gateway gRPC endpoint, `host:port` form (no scheme). Required when `spiffe.enabled=true`. |
 | `spiffe.grpcSkipVerify` | `HOOP_TLS_SKIP_VERIFY` | Skips TLS *certificate* validation only — the TLS handshake still happens. |
