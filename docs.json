@@ -172,6 +172,7 @@
                   "setup/deployment/docker-compose",
                   "setup/deployment/kubernetes",
                   "setup/deployment/presidio",
+                  "setup/deployment/spiffe",
                   "setup/deployment/AWS"
                 ]
               },

@@ -1,0 +1,771 @@
+---
+title: 'SPIFFE Agent Identity'
+---
+
+Hoop supports authenticating agents using [SPIFFE](https://spiffe.io)
+JWT-SVIDs as an alternative to the default static `HOOP_KEY` token. When
+enabled, an agent authenticates by presenting a short-lived JWT-SVID that
+the gateway validates against a SPIFFE trust bundle, then resolves to a
+Hoop agent identity through an admin-managed mapping table.
+
+This page covers Hoop's SPIFFE support: **JWT-SVID validation on the
+gateway, admin-managed SPIFFE-ID-to-agent mappings, and a file-based
+SVID loader on the agent side.** X.509-SVID / mTLS and native SPIRE
+Workload API integration are tracked as future enhancements — see
+[What this does and doesn't do](#what-this-does-and-doesnt-do).
+
+## When to use this
+
+Use SPIFFE when you already run [SPIRE](https://spiffe.io/docs/latest/spire-about/)
+(or an equivalent SPIFFE issuer) for workload identity, and you want to
+eliminate long-lived static tokens for your agents. If you don't run SPIRE
+today, keep using `HOOP_KEY`; SPIFFE is additive, not a replacement.
+
+SPIFFE gives you:
+
+- Short-lived agent credentials that rotate automatically (no more
+  long-lived `HOOP_KEY` sitting in a secrets manager indefinitely).
+- Cryptographically attested identity: the SVID is tied to the workload
+  by your SPIRE registration entries, not just to whoever possesses a
+  string.
+- Audit records that include the full SPIFFE ID, trust domain, and SVID
+  expiry alongside the Hoop agent name.
+
+## Gateway configuration
+
+The gateway reads SPIFFE settings from environment variables at startup.
+
+| Variable | Required | Description |
+|---|---|---|
+| `HOOP_SPIFFE_MODE` | yes | `disabled` or `enforce`. |
+| `HOOP_SPIFFE_TRUST_DOMAIN` | yes when mode is `enforce` | The trust domain you accept, e.g. `customer.com`. |
+| `HOOP_SPIFFE_BUNDLE_URL` | one of these | HTTPS endpoint serving a SPIFFE trust bundle (JWKS). |
+| `HOOP_SPIFFE_BUNDLE_FILE` | one of these | Path to a JWKS file on disk. |
+| `HOOP_SPIFFE_BUNDLE_JWKS` | one of these | Inline JWKS content. Accepts either raw JSON (detected by a leading `{`) or standard-base64 of the JWKS JSON. Intended for deployments where mounting a file is inconvenient — e.g. injected via `secretKeyRef`. |
+| `HOOP_SPIFFE_AUDIENCE` | no | Expected `aud` claim. Defaults to Hoop's gateway URL. |
+| `HOOP_SPIFFE_REFRESH_PERIOD` | no | Trust-bundle refresh interval (e.g. `5m`). Default `5m`. Applies to `BUNDLE_URL` (HTTP poll) and `BUNDLE_FILE` (re-read from disk). `BUNDLE_JWKS` is held in memory after startup; to rotate, update the env value and restart the gateway. |
+
+### Modes
+
+- **`disabled`** — No SPIFFE validation. All agents must authenticate
+  with `HOOP_KEY` (DSN or legacy static token). This is the default.
+- **`enforce`** — JWT-SVIDs are validated on every agent authentication
+  and rejected on failure. Static-token agents keep working in parallel.
+
+Failure handling under `enforce`:
+
+- **Config errors** (missing trust domain, invalid bundle URL syntax,
+  fewer or more than one of `HOOP_SPIFFE_BUNDLE_URL` /
+  `HOOP_SPIFFE_BUNDLE_FILE` / `HOOP_SPIFFE_BUNDLE_JWKS` set,
+  `HOOP_SPIFFE_BUNDLE_JWKS` that isn't valid base64 or JSON) fail
+  startup. These are deploy mistakes — the gateway does not start until
+  they are fixed.
+- **Initial bundle fetch failures** (bundle URL temporarily unreachable,
+  file not yet present) log a warning and the gateway keeps running. The
+  provider's background refresh loop retries every
+  `HOOP_SPIFFE_REFRESH_PERIOD`, so SPIFFE comes online as soon as the
+  bundle is reachable. JWT-shaped tokens are rejected until then, but
+  DSN and static-token agents are unaffected.
+
+A successful SVID validation must resolve to a row in the
+`agent_spiffe_mappings` table or the authentication is rejected. Static
+`HOOP_KEY` tokens always work in parallel; `HOOP_SPIFFE_MODE` controls
+SPIFFE itself, not whether static tokens are allowed.
+
+### Example (Kubernetes — bundle from URL)
+
+```yaml
+env:
+  - name: HOOP_SPIFFE_MODE
+    value: "enforce"
+  - name: HOOP_SPIFFE_TRUST_DOMAIN
+    value: "customer.com"
+  - name: HOOP_SPIFFE_BUNDLE_URL
+    value: "https://spire-server.customer.com/bundle"
+  - name: HOOP_SPIFFE_AUDIENCE
+    value: "https://hoop.customer.com"
+```
+
+### Example (Kubernetes — bundle inline as env var)
+
+When you have the JWKS on hand and don't want to wire up a URL or mount
+a file, pass it directly as `HOOP_SPIFFE_BUNDLE_JWKS`. The official
+gateway Helm chart renders this into the `hoop-config` Secret alongside
+the other `HOOP_SPIFFE_*` env vars.
+
+```yaml
+env:
+  - name: HOOP_SPIFFE_MODE
+    value: "enforce"
+  - name: HOOP_SPIFFE_TRUST_DOMAIN
+    value: "customer.com"
+  - name: HOOP_SPIFFE_BUNDLE_JWKS
+    value: |
+      { "keys": [ { "kty": "RSA", "n": "...", "e": "AQAB", "kid": "..." } ] }
+  - name: HOOP_SPIFFE_AUDIENCE
+    value: "https://hoop.customer.com"
+```
+
+If you prefer to keep the bundle in its own Secret (for rotation or
+RBAC reasons), point at it with `valueFrom.secretKeyRef`:
+
+```yaml
+env:
+  - name: HOOP_SPIFFE_BUNDLE_JWKS
+    valueFrom:
+      secretKeyRef:
+        name: my-spiffe-bundle
+        key: bundle.jwks
+```
+
+`HOOP_SPIFFE_BUNDLE_JWKS` also accepts a single-line base64 encoding of
+the JWKS JSON, which is friendlier to shell heredocs, `kubectl create
+secret --from-literal`, and GitOps pipelines that dislike multi-line
+values:
+
+```bash
+kubectl create secret generic my-spiffe-bundle \
+  --from-literal=bundle.jwks="$(base64 < bundle.jwks | tr -d '\n')"
+```
+
+The gateway auto-detects which form was passed (raw JSON starts with
+`{`; anything else is treated as base64 and decoded at startup).
+
+The gateway will log a single line at startup indicating SPIFFE was
+initialized, and will refresh the trust bundle on the configured
+interval when using `HOOP_SPIFFE_BUNDLE_URL`. Inline (`_JWKS`) values
+are read once at startup; restart the gateway to roll the bundle.
+
+## Mapping SPIFFE IDs to agents
+
+The gateway validates SVIDs against the trust bundle, but it doesn't
+decide *which* Hoop agent a given SPIFFE ID represents. That decision is
+controlled by admin-managed mappings stored in the
+`private.agent_spiffe_mappings` table. Manage them via the HTTP API or
+the `hoop admin` CLI.
+
+Unlike most `hoop admin` resources, a SPIFFE mapping has no user-chosen
+name. It is identified by the composite key `(trust-domain, spiffe-id)`
+or `(trust-domain, spiffe-prefix)`, so `hoop admin create spiffe-mapping`
+doesn't take a positional resource name — it derives identity from the
+flags below. `--overwrite` matches on that same composite key to update
+an existing mapping instead of failing with a conflict.
+
+### Exact match
+
+Pin a single SPIFFE ID to a single agent:
+
+```bash
+hoop admin create spiffe-mapping \
+  --trust-domain customer.com \
+  --spiffe-id spiffe://customer.com/agent/arqa-prod \
+  --agent-id 11111111-2222-3333-4444-555555555555 \
+  --groups agents,workflow-automation
+```
+
+### Prefix match with template
+
+Accept any SVID under a prefix and derive the agent name from the suffix.
+This is useful when you register many agents under a naming convention
+and don't want to create one Hoop mapping per agent:
+
+```bash
+hoop admin create spiffe-mapping \
+  --trust-domain customer.com \
+  --spiffe-prefix spiffe://customer.com/agent/ \
+  --agent-template '{{.WorkloadIdentifier}}' \
+  --groups agents
+```
+
+With the prefix set to `spiffe://customer.com/agent/` and the template
+`{{.WorkloadIdentifier}}`, an SVID with subject
+`spiffe://customer.com/agent/arqa-prod` resolves to the Hoop agent named
+`arqa-prod` (which must exist).
+
+Available template fields:
+
+- `{{.WorkloadIdentifier}}` — the portion of the SPIFFE ID after the
+  prefix.
+- `{{.SPIFFEID}}` — the full SPIFFE ID.
+
+### Updating an existing mapping
+
+Re-run the same `create` command with `--overwrite`. The CLI looks up the
+mapping by `(trust-domain, spiffe-id)` or `(trust-domain, spiffe-prefix)`
+and sends a `PUT` instead of a `POST` when it finds one; agent binding
+and groups are replaced with the new values:
+
+```bash
+hoop admin create spiffe-mapping --overwrite \
+  --trust-domain customer.com \
+  --spiffe-id spiffe://customer.com/agent/arqa-prod \
+  --agent-id 22222222-2222-2222-2222-222222222222 \
+  --groups agents,oncall
+```
+
+Without `--overwrite`, a second create with the same composite key
+returns an HTTP 409 conflict.
+
+### Listing and deleting
+
+```bash
+hoop admin get spiffe-mappings
+hoop admin delete spiffe-mapping <id>
+```
+
+Delete takes the mapping's UUID, which you can find with
+`hoop admin get spiffe-mappings`.
+
+## Agent configuration
+
+The agent presents its SPIFFE identity by reading a JWT-SVID from a file
+pointed to by `HOOP_SPIFFE_KEY_FILE`. `HOOP_KEY` is reserved for
+DSN-encoded tokens (`<scheme>://<name>:<secret>@<host>:<port>?mode=...`);
+a raw JWT-SVID placed in `HOOP_KEY` is rejected at startup with
+`HOOP_KEY is in wrong format`.
+
+<Note>
+**Credential precedence.** When both `HOOP_KEY` and `HOOP_SPIFFE_KEY_FILE`
+are set, the agent **always uses `HOOP_KEY`** and ignores the SVID file. To
+authenticate via SPIFFE, you must leave `HOOP_KEY` unset (or empty).
+</Note>
+
+### Configuring `HOOP_SPIFFE_KEY_FILE`
+
+Set `HOOP_SPIFFE_KEY_FILE` to a path where a sidecar — typically
+[spiffe-helper](https://github.com/spiffe/spiffe-helper) — writes the
+current JWT-SVID. The agent re-reads this file before every reconnect,
+so rotated SVIDs are picked up without restarting.
+
+For quick experiments you can also write a short-lived SVID to disk by
+hand and point the agent at it:
+
+```bash
+echo -n "$SVID" > /tmp/agent.jwt
+HOOP_SPIFFE_KEY_FILE=/tmp/agent.jwt \
+HOOP_GRPCURL=hoop.customer.com:8443 \
+  hoop start agent
+```
+
+Refresh on rotation is the caller's responsibility in that mode (restart
+the agent or rewrite the file before the SVID expires).
+
+```yaml
+env:
+  - name: HOOP_SPIFFE_KEY_FILE
+    value: /var/run/spiffe/agent.jwt
+  - name: HOOP_GRPCURL
+    value: hoop.customer.com:8443
+  - name: HOOP_SPIFFE_NAME
+    value: arqa-prod
+```
+
+`HOOP_SPIFFE_NAME` is optional; the gateway resolves identity from the
+SPIFFE mapping, not from this field, but setting it produces cleaner logs.
+
+`spiffe-helper` example config:
+
+```hcl
+agent_address = "/spiffe/sockets/agent.sock"
+cmd = ""
+cert_dir = "/var/run/spiffe"
+svid_file_name = ""
+svid_key_file_name = ""
+svid_bundle_file_name = ""
+jwt_svids = [
+  {
+    jwt_audience = "https://hoop.customer.com"
+    jwt_svid_file_name = "agent.jwt"
+  }
+]
+```
+
+## Complete Kubernetes example with SPIRE
+
+The snippets above each cover one piece of the setup. This section puts
+them together end-to-end, assuming you already run a SPIRE server and the
+[SPIFFE CSI Driver](https://github.com/spiffe/spiffe-csi) is installed in
+the cluster where the Hoop agent runs.
+
+### 1. Register the agent workload with SPIRE
+
+Create a registration entry that issues an SVID for the agent's
+Kubernetes ServiceAccount. Adjust the parent ID, selectors, and TTL to
+match your SPIRE topology:
+
+```bash
+spire-server entry create \
+  -spiffeID spiffe://customer.com/agent/arqa-prod \
+  -parentID spiffe://customer.com/spire/agent/k8s_psat/prod-cluster/node \
+  -selector k8s:ns:hoop \
+  -selector k8s:sa:hoopagent \
+  -jwtSVIDTTL 300
+```
+
+A 5-minute JWT TTL is a reasonable default. `spiffe-helper` refreshes at
+roughly half the TTL, so a 5-minute TTL produces one rotation every
+~2.5 minutes.
+
+### 2. Create the Hoop agent and SPIFFE mapping
+
+On the gateway admin, create the Hoop agent record and the mapping that
+binds the SPIFFE ID to it:
+
+```bash
+hoop admin create agent arqa-prod \
+  --mode standard
+
+hoop admin create spiffe-mapping \
+  --trust-domain customer.com \
+  --spiffe-id spiffe://customer.com/agent/arqa-prod \
+  --agent-id $(hoop admin get agents --name arqa-prod -o json | jq -r '.id') \
+  --groups agents
+```
+
+If you use prefix matching with templates (see
+[Mapping SPIFFE IDs to agents](#mapping-spiffe-ids-to-agents)) you only
+do this once — additional SPIRE registration entries under the same
+prefix resolve through the template without extra Hoop config.
+
+### 3. Deploy the agent pod with the spiffe-helper sidecar
+
+The pod runs two containers sharing an in-memory `emptyDir`: the sidecar
+writes the rotated JWT-SVID to `/run/spiffe/agent.jwt`, and the Hoop
+agent reads it via `HOOP_SPIFFE_KEY_FILE`.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spiffe-helper-config
+  namespace: hoop
+data:
+  helper.conf: |
+    agent_address = "/spiffe-workload-api/spire-agent.sock"
+    cmd = ""
+    jwt_svids = [
+      {
+        jwt_audience       = "https://hoop.customer.com"
+        jwt_svid_file_name = "/run/spiffe/agent.jwt"
+      }
+    ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoopagent
+  namespace: hoop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hoopagent
+  template:
+    metadata:
+      labels:
+        app: hoopagent
+    spec:
+      serviceAccountName: hoopagent
+      containers:
+      - name: spiffe-helper
+        image: ghcr.io/spiffe/spiffe-helper:0.9.1
+        args: ["-config", "/etc/spiffe-helper/helper.conf"]
+        volumeMounts:
+        - name: spiffe-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+        - name: spiffe-tokens
+          mountPath: /run/spiffe
+        - name: spiffe-helper-config
+          mountPath: /etc/spiffe-helper
+          readOnly: true
+      - name: agent
+        image: hoophq/hoopdev:latest
+        env:
+        - name: HOOP_SPIFFE_KEY_FILE
+          value: /run/spiffe/agent.jwt
+        - name: HOOP_GRPCURL
+          value: hoop.customer.com:8443
+        - name: HOOP_SPIFFE_NAME
+          value: arqa-prod
+        volumeMounts:
+        - name: spiffe-tokens
+          mountPath: /run/spiffe
+          readOnly: true
+      volumes:
+      - name: spiffe-workload-api
+        csi:
+          driver: csi.spiffe.io
+          readOnly: true
+      - name: spiffe-tokens
+        emptyDir:
+          medium: Memory
+      - name: spiffe-helper-config
+        configMap:
+          name: spiffe-helper-config
+```
+
+Key points:
+
+- The `csi.spiffe.io` volume is what hands the sidecar a Unix socket to
+  the node-local SPIRE agent. Without the SPIFFE CSI Driver installed,
+  the sidecar has nothing to talk to.
+- `spiffe-tokens` is an in-memory `emptyDir` — the JWT never hits disk.
+- The agent container mounts `spiffe-tokens` **read-only**; only the
+  sidecar writes to it.
+- `HOOP_SPIFFE_NAME` is cosmetic in SPIFFE mode (the gateway resolves
+  identity from the SPIFFE mapping), but it makes the agent's own logs
+  clearer.
+
+<Note>
+**Alternative: `hostPath` instead of the SPIFFE CSI Driver.** If you'd
+rather not install the CSI DaemonSet, you can point the sidecar at the
+SPIRE Agent socket directory directly. Replace the `spiffe-workload-api`
+volume with:
+
+```yaml
+- name: spiffe-workload-api
+  hostPath:
+    path: /run/spire/agent-sockets
+    type: Directory
+```
+
+Then update `agent_address` in `spiffe-helper-config` to match the
+socket filename your SPIRE agent writes (commonly `api.sock` or
+`agent.sock` — not `spire-agent.sock`, which is the CSI driver's
+renamed convention). This drops the CSI Driver requirement but requires
+a Pod Security Admission profile that allows `hostPath` volumes.
+</Note>
+
+### 4. Verify
+
+From the sidecar pod:
+
+```bash
+kubectl -n hoop exec deploy/hoopagent -c spiffe-helper -- \
+  cat /run/spiffe/agent.jwt | cut -d. -f2 | base64 -d
+```
+
+From the gateway logs you should see a single "agent authenticated via
+spiffe" line per reconnect with `spiffe_id`, `trust_domain`, and
+`svid_expires_at` fields set.
+
+## Deploying the SPIFFE agent with the official Helm chart
+
+The previous section is the from-scratch path: it shows the raw
+manifests so you can see exactly what gets deployed. In practice most
+teams already run Hoop via Helm — gateway and a default `HOOP_KEY`
+agent — and want to *add* a SPIFFE-authenticated agent next to it
+without touching the existing release. The official `hoopagent-chart`
+covers that case: set `spiffe.enabled: true` and the chart renders the
+spiffe-helper sidecar, the SVID volume, and the agent container for
+you, equivalent to the manifest in
+[Deploy the agent pod with the spiffe-helper sidecar](#3-deploy-the-agent-pod-with-the-spiffe-helper-sidecar).
+
+This section assumes you already have a Hoop gateway and (optionally)
+a default `HOOP_KEY` agent running per
+[Kubernetes deployment](/setup/deployment/kubernetes), and now want to
+deploy a SPIFFE agent as a **separate Helm release**.
+
+### Prerequisites
+
+<Steps>
+  <Step title="A Hoop gateway with SPIFFE enabled">
+    The gateway needs `HOOP_SPIFFE_MODE=enforce`, a trust domain, and
+    a trust bundle source (`HOOP_SPIFFE_BUNDLE_URL`,
+    `HOOP_SPIFFE_BUNDLE_FILE`, or `HOOP_SPIFFE_BUNDLE_JWKS`). See
+    [Gateway configuration](#gateway-configuration).
+  </Step>
+
+  <Step title="A SPIRE Agent DaemonSet on the cluster">
+    The SPIRE Agent must expose its Workload API socket on every
+    node where the SPIFFE agent pod may be scheduled (typically
+    `/run/spire/agent-sockets/`). With `workloadAPI.type=csi`
+    (default) you also need the
+    [SPIFFE CSI Driver](https://github.com/spiffe/spiffe-csi)
+    installed; with `hostPath` you instead need a Pod Security
+    Admission profile that allows `hostPath` volumes.
+  </Step>
+
+  <Step title="A SPIRE registration entry for this pod">
+    The SPIRE entry binds a SPIFFE ID to the pod's selectors
+    (namespace, ServiceAccount, etc.). See
+    [Register the agent workload with SPIRE](#1-register-the-agent-workload-with-spire).
+  </Step>
+
+  <Step title="A Hoop agent + agent_spiffe_mappings row">
+    The gateway resolves the validated SPIFFE ID to a Hoop agent via a
+    row in `agent_spiffe_mappings`. See
+    [Create the Hoop agent and SPIFFE mapping](#2-create-the-hoop-agent-and-spiffe-mapping).
+  </Step>
+</Steps>
+
+### Step 1 — Define the values
+
+The chart accepts a single `spiffe` block in `values.yaml`. The fields
+below are the ones you'll typically set; everything else defaults
+sensibly.
+
+<AccordionGroup>
+  <Accordion title="values.yaml — CSI Driver (recommended)">
+    ```yaml
+    # values.yaml for the hoopagent-chart
+    replicaCount: 1   # SPIFFE gives each replica its own SVID, so HA is safe
+
+    spiffe:
+      enabled: true
+      # Gateway gRPC endpoint: host:port (no scheme). Reachable from this pod.
+      grpcHost: hoop.customer.com:8443
+      # Cosmetic; identity is resolved from the SPIFFE mapping, not this field.
+      name: arqa-prod
+      spiffeHelper:
+        # Must match HOOP_SPIFFE_AUDIENCE on the gateway.
+        audience: https://hoop.customer.com
+      # workloadAPI.type defaults to "csi" (uses the SPIFFE CSI Driver).
+    ```
+  </Accordion>
+
+  <Accordion title="values.yaml — hostPath (no CSI Driver)">
+    ```yaml
+    # values.yaml for the hoopagent-chart
+    replicaCount: 1
+
+    spiffe:
+      enabled: true
+      grpcHost: hoop.customer.com:8443
+      name: arqa-prod
+
+      workloadAPI:
+        type: hostPath
+        # Directory on the node where SPIRE Agent exposes its Workload API socket.
+        hostPath: /run/spire/agent-sockets
+
+      spiffeHelper:
+        audience: https://hoop.customer.com
+        # Adjust to your SPIRE agent's actual socket filename
+        # (commonly api.sock or agent.sock under hostPath mode).
+        agentAddress: /spiffe-workload-api/api.sock
+    ```
+  </Accordion>
+
+  <Accordion title="values.yaml — local cluster, plaintext gateway">
+    ```yaml
+    # Use only when the gateway's gRPC port does NOT terminate TLS
+    # (typically dev clusters where TLS_KEY / TLS_CERT are unset).
+    # Production deployments should always run a TLS-terminated gateway.
+    replicaCount: 1
+
+    spiffe:
+      enabled: true
+      grpcHost: hoopgateway:8010
+      grpcInsecure: true   # forces plaintext gRPC
+      name: dev-spiffe
+      spiffeHelper:
+        audience: https://hoop.local
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Step 2 — Install or upgrade the SPIFFE agent release
+
+This is a separate Helm release from your gateway, so you can roll the
+SPIFFE agent independently. The chart name is the same `hoopagent-chart`
+used in the
+[non-SPIFFE Agent Deployment](/setup/deployment/kubernetes#agent-deployment) —
+SPIFFE mode is selected via `spiffe.enabled: true`, not by a different
+chart.
+
+<Tabs>
+  <Tab title="With a values file (recommended)">
+    ```bash
+    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+    helm upgrade --install hoopagent \
+      oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
+      --namespace hoop \
+      -f values.yaml \
+      --wait
+    ```
+  </Tab>
+
+  <Tab title="With --set flags (one-liner)">
+    ```bash
+    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+    helm upgrade --install hoopagent \
+      oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
+      --namespace hoop \
+      --set spiffe.enabled=true \
+      --set spiffe.grpcHost=hoop.customer.com:8443 \
+      --set spiffe.spiffeHelper.audience=https://hoop.customer.com \
+      --set spiffe.name=arqa-prod
+    ```
+
+    For a hostPath-based deployment, append:
+
+    ```bash
+      --set spiffe.workloadAPI.type=hostPath \
+      --set spiffe.workloadAPI.hostPath=/run/spire/agent-sockets \
+      --set spiffe.spiffeHelper.agentAddress=/spiffe-workload-api/api.sock
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+You don't pass `HOOP_SPIFFE_KEY_FILE`, `HOOP_GRPCURL`, or
+`HOOP_TLS_SKIP_VERIFY` directly. The chart's `spiffe.*` values render
+those env vars on your behalf — see the
+[Helm values reference](#helm-values-to-env-vars-reference) below.
+</Note>
+
+### Step 3 — Verify
+
+```bash
+# spiffe-helper has minted the SVID and the agent container can read it.
+# (the agent image contains base64; the spiffe-helper image is distroless.)
+kubectl -n hoop exec deploy/hoopagent -c agent -- \
+  sh -c 'cat /run/spiffe/agent.jwt | cut -d. -f2 | base64 -d 2>/dev/null'
+
+# The gateway accepted the SPIFFE auth (one log line per reconnect).
+kubectl -n hoop logs deploy/hoopgateway | grep "agent authenticated via spiffe"
+
+# The agent shows up online in the admin UI.
+hoop admin get agents | grep arqa-prod
+```
+
+### Helm values to env vars reference
+
+The chart abstracts the agent's environment behind a higher-level
+`spiffe.*` block. Configure the chart through these values rather than
+setting the underlying env vars directly via `extraSecret`.
+
+| Helm value | Rendered env var | Notes |
+|---|---|---|
+| `spiffe.enabled: true` | (toggle) | Renders the spiffe-helper sidecar and SVID volume. Leave `config.HOOP_KEY` unset — HOOP_KEY takes precedence over SPIFFE on the agent, so a stale `HOOP_KEY` value silently disables SPIFFE. |
+| _(hardcoded by chart)_ | `HOOP_SPIFFE_KEY_FILE=/run/spiffe/agent.jwt` | Path the spiffe-helper sidecar writes to. Not user-configurable. |
+| `spiffe.grpcHost` | `HOOP_GRPCURL` | Gateway gRPC endpoint, `host:port` form (no scheme). Required when `spiffe.enabled=true`. |
+| `spiffe.grpcSkipVerify` | `HOOP_TLS_SKIP_VERIFY` | Skips TLS *certificate* validation only — the TLS handshake still happens. |
+| `spiffe.grpcInsecure` | `HOOP_GRPC_INSECURE` | Forces plaintext gRPC. Dev/local-cluster only; production should always run a TLS-terminated gateway. |
+| `spiffe.name` | `HOOP_SPIFFE_NAME` | Cosmetic only; identity comes from the SPIFFE mapping. |
+| `spiffe.spiffeHelper.audience` | _(consumed by spiffe-helper)_ | Must match `HOOP_SPIFFE_AUDIENCE` on the gateway. |
+
+### Scaling and rollback
+
+- **Scale up safely.** With SPIFFE each pod gets its own short-lived
+  SVID, so `replicaCount > 1` is supported (unlike `HOOP_KEY`-based
+  agents, where multiple replicas share one identity and cause stream
+  flapping on the gateway). Coordinate the bump with gateway capacity
+  first — every replica opens a long-lived gRPC stream.
+- **Roll back the SPIFFE release without affecting the gateway.**
+  `helm rollback hoopagent <REV> -n hoop`, or rerun the upgrade
+  command with the previous `$VERSION`.
+- **Disable SPIFFE entirely.** Set `spiffe.enabled: false` (and a
+  `config.HOOP_KEY` if you want a static-token agent in its place),
+  then `helm upgrade hoopagent`. `HOOP_SPIFFE_MODE` on the gateway is
+  unrelated — static-token agents keep working in parallel regardless
+  of whether SPIFFE is enabled.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| `hoopagent` pod `CrashLoopBackOff`, `spiffe-helper` logs `dial unix: connect: no such file or directory` | SPIRE Agent not running on the node, or its socket path differs from `spiffe.workloadAPI.hostPath` / `spiffe.spiffeHelper.agentAddress`. |
+| `spiffe-helper` logs `rpc error: code = PermissionDenied` | No SPIRE registration entry matches the pod's selectors (namespace, ServiceAccount). Create the entry. |
+| Gateway rejects with `spiffe: no mapping for <spiffe-id>` | Missing `agent_spiffe_mappings` row. Create it with `hoop admin create spiffe-mapping ...`. |
+| Agent disappears after a few minutes | SPIRE rotated the SVID but the sidecar isn't rewriting the file. Check `spiffe-helper` logs and confirm `spiffe.spiffeHelper.audience` matches `HOOP_SPIFFE_AUDIENCE` on the gateway. |
+| Pod forbidden: `spec.volumes[x].hostPath` | Namespace's Pod Security Admission tightened. Switch `spiffe.workloadAPI.type` to `csi` and install the SPIFFE CSI Driver. |
+
+## Rotation and revocation
+
+The agent re-reads `HOOP_SPIFFE_KEY_FILE` before every reconnect attempt.
+This means rotation works transparently *as long as the gRPC stream
+disconnects* — which in practice happens on gateway restarts, network
+blips, or pod restarts. The gateway validates the SVID once at stream
+establishment and does not re-check `exp` mid-stream.
+
+Practical consequences:
+
+- **Steady state**: a running agent can keep its stream open past the
+  SVID's `exp` because validation isn't repeated on every packet. This
+  is consistent with how long-lived gRPC auth normally works, but it
+  means "revoke a SPIFFE ID" does not immediately cut an in-flight
+  agent.
+- **Short TTLs are still useful**: on any disconnect — planned or not —
+  the agent has to present a *current* SVID to reconnect. So a revoked
+  agent cannot come back. For most deployments the worst-case revocation
+  window is "until the next natural disconnect."
+- **If you need fast revocation today**: restart the gateway (or the
+  agent pod). All agents re-authenticate on reconnect, and anything
+  whose SVID was revoked or whose mapping was deleted fails.
+
+Proactive mid-stream rotation and revocation is a planned enhancement
+and will not require any deployment changes when it lands.
+
+## Token dispatch
+
+The gateway picks an auth backend based on the *shape* of the bearer
+token an agent presents. Each shape maps to exactly one backend, and
+there is no fallback between them:
+
+| Token shape | Backend | Example |
+|---|---|---|
+| Starts with `x-agt-` | Legacy static token | `x-agt-...` |
+| Contains `://` (URL) | DSN (per-agent secret) | `grpc://name:secret@host:8010?mode=standard` |
+| Three dot-separated segments | SPIFFE JWT-SVID | `eyJhbGc...xxx.yyy.zzz` |
+
+Consequences:
+
+- DSN-based agents and SPIFFE agents can coexist on the same gateway —
+  each agent's token choice determines its auth path independently.
+- A malformed, unsigned, or mapping-less JWT-shaped token is rejected
+  with `Unauthenticated` on the spot. It is never retried against the
+  static-token path. This is true whenever SPIFFE is enabled.
+- A DSN-shaped token that fails to parse or look up is rejected outright;
+  it is never sent through SPIFFE validation.
+- Switching an agent between auth methods is a matter of changing the
+  token the agent presents — update `HOOP_KEY` or switch to
+  `HOOP_SPIFFE_KEY_FILE`. No gateway configuration changes are needed.
+
+## Audit output
+
+Every successful SPIFFE authentication writes a structured log line on
+the gateway with these fields:
+
+- `spiffe_id` — full SPIFFE ID from the SVID subject.
+- `trust_domain` — trust domain portion of the SPIFFE ID.
+- `audience` — the `aud` claim matched against.
+- `svid_type` — currently always `jwt`.
+- `svid_expires_at` — expiry time from the SVID.
+- `agent_id`, `agent_name` — the Hoop identity the mapping resolved to.
+
+These are available through any log pipeline you already consume
+(stdout, JSON log aggregator, SIEM). Surfacing the same fields on the
+`/api/sessions` response — so you can filter sessions by SPIFFE ID from
+the webapp or API — is a planned enhancement; today the data is
+available in gateway logs only.
+
+## What this does and doesn't do
+
+Hoop's SPIFFE integration:
+
+- Validates JWT-SVIDs on the gateway at gRPC authentication time.
+- Resolves SPIFFE IDs to Hoop agents via exact-match or prefix+template
+  mappings.
+- Enriches gateway logs with SPIFFE metadata.
+- Keeps static `HOOP_KEY` working in parallel, so SPIFFE can be rolled
+  out alongside existing agents without a forced migration.
+
+It does **not**:
+
+- Terminate mTLS directly against X.509-SVIDs. If you want X.509-SVID
+  end-to-end, terminate mTLS in front of the gateway (for example an
+  Envoy proxy configured as a SPIFFE workload) and let that upstream
+  assert the identity via JWT-SVID to Hoop.
+- Consume the SPIRE Workload API on the gateway side. The gateway
+  consumes JWKS, so typically you point `HOOP_SPIFFE_BUNDLE_URL` at
+  SPIRE's bundle endpoint or front it with a small fetcher.
+- Pin SVIDs to workload attestation evidence (Kubernetes pod, AWS
+  instance ID, etc.). Your SPIRE registration entries should already
+  enforce that before an SVID is issued; Hoop trusts SPIRE's decision.
+- Revoke an in-flight agent mid-stream. Revocation takes effect on the
+  next reconnect; see [Rotation and revocation](#rotation-and-revocation).
+- Surface SPIFFE fields on the `/api/sessions` response. The data is
+  available in gateway logs.
