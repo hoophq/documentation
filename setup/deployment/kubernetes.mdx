@@ -382,6 +382,14 @@ helm template hoopagent \
   Starting from version **1.21.9**, there is only one way to configure the agent key, which is by using the `config.HOOP_KEY` configuration. This requires creating a key in a DSN format in the API. To use legacy options, use the Helm chart version **1.21.4**.
 </Warning>
 
+<Note>
+  Need short-lived agent credentials instead of a static `HOOP_KEY`?
+  The same `hoopagent-chart` also supports SPIFFE JWT-SVID
+  authentication with a `spiffe-helper` sidecar — see
+  [SPIFFE Agent Identity → Deploying with the official Helm chart](/setup/deployment/spiffe#deploying-the-spiffe-agent-with-the-official-helm-chart)
+  for the step-by-step guide.
+</Note>
+
 ### Standalone Deployment
 
 <AccordionGroup>

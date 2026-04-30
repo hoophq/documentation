@@ -433,57 +433,228 @@ From the gateway logs you should see a single "agent authenticated via
 spiffe" line per reconnect with `spiffe_id`, `trust_domain`, and
 `svid_expires_at` fields set.
 
-### Helm users
+## Deploying the SPIFFE agent with the official Helm chart
 
-The official agent chart at `deploy/helm-chart/chart/agent/` templates
-the `spiffe-helper` sidecar, the CSI volume, and the emptyDir shared
-with the agent container. Set `spiffe.enabled: true` in your values
-file and the chart renders the manifest shown above:
+The previous section is the from-scratch path: it shows the raw
+manifests so you can see exactly what gets deployed. In practice most
+teams already run Hoop via Helm — gateway and a default `HOOP_KEY`
+agent — and want to *add* a SPIFFE-authenticated agent next to it
+without touching the existing release. The official `hoopagent-chart`
+covers that case: set `spiffe.enabled: true` and the chart renders the
+spiffe-helper sidecar, the SVID volume, and the agent container for
+you, equivalent to the manifest in
+[Deploy the agent pod with the spiffe-helper sidecar](#3-deploy-the-agent-pod-with-the-spiffe-helper-sidecar).
 
-```yaml
-# values.yaml for the agent chart
-replicaCount: 3   # SPIFFE gives each replica its own SVID, so HA works safely
+This section assumes you already have a Hoop gateway and (optionally)
+a default `HOOP_KEY` agent running per
+[Kubernetes deployment](/setup/deployment/kubernetes), and now want to
+deploy a SPIFFE agent as a **separate Helm release**.
 
-spiffe:
-  enabled: true
-  grpcHost: hoop.customer.com:8443
-  spiffeHelper:
-    audience: https://hoop.customer.com
-  # Optional: skip the SPIFFE CSI Driver and mount the SPIRE Agent
-  # socket from the node directly. Requires a PSA profile that allows
-  # hostPath volumes.
-  # workloadAPI:
-  #   type: hostPath
-  #   hostPath: /run/spire/agent-sockets
+### Prerequisites
 
-  # Optional: when the gateway's gRPC port doesn't terminate TLS
-  # (typically local clusters where TLS_KEY/TLS_CERT are unset on
-  # the gateway), force plaintext gRPC. Production deployments
-  # should always leave this false. Note that spiffe.grpcSkipVerify
-  # only skips TLS *certificate validation* — the TLS handshake
-  # still happens. To bypass TLS entirely, use grpcInsecure below.
-  # grpcInsecure: true
+<Steps>
+  <Step title="A Hoop gateway with SPIFFE enabled">
+    The gateway needs `HOOP_SPIFFE_MODE=enforce`, a trust domain, and
+    a trust bundle source (`HOOP_SPIFFE_BUNDLE_URL`,
+    `HOOP_SPIFFE_BUNDLE_FILE`, or `HOOP_SPIFFE_BUNDLE_JWKS`). See
+    [Gateway configuration](#gateway-configuration).
+  </Step>
+
+  <Step title="A SPIRE Agent DaemonSet on the cluster">
+    The SPIRE Agent must expose its Workload API socket on every
+    node where the SPIFFE agent pod may be scheduled (typically
+    `/run/spire/agent-sockets/`). With `workloadAPI.type=csi`
+    (default) you also need the
+    [SPIFFE CSI Driver](https://github.com/spiffe/spiffe-csi)
+    installed; with `hostPath` you instead need a Pod Security
+    Admission profile that allows `hostPath` volumes.
+  </Step>
+
+  <Step title="A SPIRE registration entry for this pod">
+    The SPIRE entry binds a SPIFFE ID to the pod's selectors
+    (namespace, ServiceAccount, etc.). See
+    [Register the agent workload with SPIRE](#1-register-the-agent-workload-with-spire).
+  </Step>
+
+  <Step title="A Hoop agent + agent_spiffe_mappings row">
+    The gateway resolves the validated SPIFFE ID to a Hoop agent via a
+    row in `agent_spiffe_mappings`. See
+    [Create the Hoop agent and SPIFFE mapping](#2-create-the-hoop-agent-and-spiffe-mapping).
+  </Step>
+</Steps>
+
+### Step 1 — Define the values
+
+The chart accepts a single `spiffe` block in `values.yaml`. The fields
+below are the ones you'll typically set; everything else defaults
+sensibly.
+
+<AccordionGroup>
+  <Accordion title="values.yaml — CSI Driver (recommended)">
+    ```yaml
+    # values.yaml for the hoopagent-chart
+    replicaCount: 1   # SPIFFE gives each replica its own SVID, so HA is safe
+
+    spiffe:
+      enabled: true
+      # Gateway gRPC endpoint: host:port (no scheme). Reachable from this pod.
+      grpcHost: hoop.customer.com:8443
+      # Cosmetic; identity is resolved from the SPIFFE mapping, not this field.
+      name: arqa-prod
+      spiffeHelper:
+        # Must match HOOP_SPIFFE_AUDIENCE on the gateway.
+        audience: https://hoop.customer.com
+      # workloadAPI.type defaults to "csi" (uses the SPIFFE CSI Driver).
+    ```
+  </Accordion>
+
+  <Accordion title="values.yaml — hostPath (no CSI Driver)">
+    ```yaml
+    # values.yaml for the hoopagent-chart
+    replicaCount: 1
+
+    spiffe:
+      enabled: true
+      grpcHost: hoop.customer.com:8443
+      name: arqa-prod
+
+      workloadAPI:
+        type: hostPath
+        # Directory on the node where SPIRE Agent exposes its Workload API socket.
+        hostPath: /run/spire/agent-sockets
+
+      spiffeHelper:
+        audience: https://hoop.customer.com
+        # Adjust to your SPIRE agent's actual socket filename
+        # (commonly api.sock or agent.sock under hostPath mode).
+        agentAddress: /spiffe-workload-api/api.sock
+    ```
+  </Accordion>
+
+  <Accordion title="values.yaml — local cluster, plaintext gateway">
+    ```yaml
+    # Use only when the gateway's gRPC port does NOT terminate TLS
+    # (typically dev clusters where TLS_KEY / TLS_CERT are unset).
+    # Production deployments should always run a TLS-terminated gateway.
+    replicaCount: 1
+
+    spiffe:
+      enabled: true
+      grpcHost: hoopgateway:8010
+      grpcInsecure: true   # forces plaintext gRPC
+      name: dev-spiffe
+      spiffeHelper:
+        audience: https://hoop.local
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Step 2 — Install or upgrade the SPIFFE agent release
+
+This is a separate Helm release from your gateway, so you can roll the
+SPIFFE agent independently. The chart name is the same `hoopagent-chart`
+used in the
+[non-SPIFFE Agent Deployment](/setup/deployment/kubernetes#agent-deployment) —
+SPIFFE mode is selected via `spiffe.enabled: true`, not by a different
+chart.
+
+<Tabs>
+  <Tab title="With a values file (recommended)">
+    ```bash
+    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+    helm upgrade --install hoopagent \
+      oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
+      --namespace hoop \
+      -f values.yaml \
+      --wait
+    ```
+  </Tab>
+
+  <Tab title="With --set flags (one-liner)">
+    ```bash
+    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+    helm upgrade --install hoopagent \
+      oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
+      --namespace hoop \
+      --set spiffe.enabled=true \
+      --set spiffe.grpcHost=hoop.customer.com:8443 \
+      --set spiffe.spiffeHelper.audience=https://hoop.customer.com \
+      --set spiffe.name=arqa-prod
+    ```
+
+    For a hostPath-based deployment, append:
+
+    ```bash
+      --set spiffe.workloadAPI.type=hostPath \
+      --set spiffe.workloadAPI.hostPath=/run/spire/agent-sockets \
+      --set spiffe.spiffeHelper.agentAddress=/spiffe-workload-api/api.sock
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+You don't pass `HOOP_SPIFFE_KEY_FILE`, `HOOP_GRPCURL`, or
+`HOOP_TLS_SKIP_VERIFY` directly. The chart's `spiffe.*` values render
+those env vars on your behalf — see the
+[Helm values reference](#helm-values-to-env-vars-reference) below.
+</Note>
+
+### Step 3 — Verify
+
+```bash
+# spiffe-helper has minted the SVID and the agent container can read it.
+# (the agent image contains base64; the spiffe-helper image is distroless.)
+kubectl -n hoop exec deploy/hoopagent -c agent -- \
+  sh -c 'cat /run/spiffe/agent.jwt | cut -d. -f2 | base64 -d 2>/dev/null'
+
+# The gateway accepted the SPIFFE auth (one log line per reconnect).
+kubectl -n hoop logs deploy/hoopgateway | grep "agent authenticated via spiffe"
+
+# The agent shows up online in the admin UI.
+hoop admin get agents | grep arqa-prod
 ```
 
-When `spiffe.enabled: true`:
+### Helm values to env vars reference
 
-- `config.HOOP_KEY` is no longer required; the agent reads
-  `HOOP_SPIFFE_KEY_FILE=/run/spiffe/agent.jwt` instead.
-- The gRPC endpoint comes from `spiffe.grpcHost` (as `HOOP_GRPCURL`),
-  not from `config.HOOP_GATEWAY_URL`.
-- The agent dials the gateway over TLS by default for any non-loopback
-  URL. `spiffe.grpcSkipVerify` skips **TLS certificate validation only**,
-  not the TLS handshake itself. To dial plaintext gRPC (e.g. against a
-  local-cluster gateway with no `TLS_KEY` / `TLS_CERT`), set
-  `spiffe.grpcInsecure: true`. Production deployments should always
-  leave `grpcInsecure` unset and run a TLS-terminated gateway.
-- The chart always requires a SPIRE Agent DaemonSet and a matching
-  `agent_spiffe_mappings` row on the gateway. Depending on
-  `spiffe.workloadAPI.type` it additionally requires either the
-  SPIFFE CSI Driver (`csi`, the default) or PSA clearance for
-  `hostPath` volumes (`hostPath`). With `hostPath` you also typically
-  need to set `spiffe.spiffeHelper.agentAddress` to match your SPIRE
-  agent's socket filename (e.g. `/spiffe-workload-api/api.sock`).
+The chart abstracts the agent's environment behind a higher-level
+`spiffe.*` block. Configure the chart through these values rather than
+setting the underlying env vars directly via `extraSecret`.
+
+| Helm value | Rendered env var | Notes |
+|---|---|---|
+| `spiffe.enabled: true` | (toggle) | Mutually exclusive with `config.HOOP_KEY`. When enabled, `config.HOOP_KEY` is ignored. |
+| _(hardcoded by chart)_ | `HOOP_SPIFFE_KEY_FILE=/run/spiffe/agent.jwt` | Path the spiffe-helper sidecar writes to. Not user-configurable. |
+| `spiffe.grpcHost` | `HOOP_GRPCURL` | Gateway gRPC endpoint, `host:port` form (no scheme). Required when `spiffe.enabled=true`. |
+| `spiffe.grpcSkipVerify` | `HOOP_TLS_SKIP_VERIFY` | Skips TLS *certificate* validation only — the TLS handshake still happens. |
+| `spiffe.grpcInsecure` | `HOOP_GRPC_INSECURE` | Forces plaintext gRPC. Dev/local-cluster only; production should always run a TLS-terminated gateway. |
+| `spiffe.name` | `HOOP_SPIFFE_NAME` | Cosmetic only; identity comes from the SPIFFE mapping. |
+| `spiffe.spiffeHelper.audience` | _(consumed by spiffe-helper)_ | Must match `HOOP_SPIFFE_AUDIENCE` on the gateway. |
+
+### Scaling and rollback
+
+- **Scale up safely.** With SPIFFE each pod gets its own short-lived
+  SVID, so `replicaCount > 1` is supported (unlike `HOOP_KEY`-based
+  agents, where multiple replicas share one identity and cause stream
+  flapping on the gateway). Coordinate the bump with gateway capacity
+  first — every replica opens a long-lived gRPC stream.
+- **Roll back the SPIFFE release without affecting the gateway.**
+  `helm rollback hoopagent <REV> -n hoop`, or rerun the upgrade
+  command with the previous `$VERSION`.
+- **Disable SPIFFE entirely.** Set `spiffe.enabled: false` (and a
+  `config.HOOP_KEY` if you want a static-token agent in its place),
+  then `helm upgrade hoopagent`. `HOOP_SPIFFE_MODE` on the gateway is
+  unrelated — static-token agents keep working in parallel regardless
+  of whether SPIFFE is enabled.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| `hoopagent` pod `CrashLoopBackOff`, `spiffe-helper` logs `dial unix: connect: no such file or directory` | SPIRE Agent not running on the node, or its socket path differs from `spiffe.workloadAPI.hostPath` / `spiffe.spiffeHelper.agentAddress`. |
+| `spiffe-helper` logs `rpc error: code = PermissionDenied` | No SPIRE registration entry matches the pod's selectors (namespace, ServiceAccount). Create the entry. |
+| Gateway rejects with `spiffe: no mapping for <spiffe-id>` | Missing `agent_spiffe_mappings` row. Create it with `hoop admin create spiffe-mapping ...`. |
+| Agent disappears after a few minutes | SPIRE rotated the SVID but the sidecar isn't rewriting the file. Check `spiffe-helper` logs and confirm `spiffe.spiffeHelper.audience` matches `HOOP_SPIFFE_AUDIENCE` on the gateway. |
+| Pod forbidden: `spec.volumes[x].hostPath` | Namespace's Pod Security Admission tightened. Switch `spiffe.workloadAPI.type` to `csi` and install the SPIFFE CSI Driver. |
 
 ## Rotation and revocation
 
