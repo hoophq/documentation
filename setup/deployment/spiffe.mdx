@@ -218,7 +218,11 @@ Delete takes the mapping's UUID, which you can find with
 
 ## Agent configuration
 
-The agent side has two ways to present a SPIFFE identity.
+The agent presents its SPIFFE identity by reading a JWT-SVID from a file
+pointed to by `HOOP_SPIFFE_KEY_FILE`. `HOOP_KEY` is reserved for
+DSN-encoded tokens (`<scheme>://<name>:<secret>@<host>:<port>?mode=...`);
+a raw JWT-SVID placed in `HOOP_KEY` is rejected at startup with
+`HOOP_KEY is in wrong format`.
 
 <Note>
 **Credential precedence.** When both `HOOP_KEY` and `HOOP_SPIFFE_KEY_FILE`
@@ -226,18 +230,25 @@ are set, the agent **always uses `HOOP_KEY`** and ignores the SVID file. To
 authenticate via SPIFFE, you must leave `HOOP_KEY` unset (or empty).
 </Note>
 
-### Option 1 — pass the SVID directly in `HOOP_KEY`
-
-Set `HOOP_KEY` to the JWT-SVID string, and `HOOP_GRPCURL` to the gateway
-address. Refresh is the caller's responsibility (restart on rotation).
-Most useful for quick experiments.
-
-### Option 2 — `HOOP_SPIFFE_KEY_FILE` (recommended)
+### Configuring `HOOP_SPIFFE_KEY_FILE`
 
 Set `HOOP_SPIFFE_KEY_FILE` to a path where a sidecar — typically
 [spiffe-helper](https://github.com/spiffe/spiffe-helper) — writes the
 current JWT-SVID. The agent re-reads this file before every reconnect,
 so rotated SVIDs are picked up without restarting.
+
+For quick experiments you can also write a short-lived SVID to disk by
+hand and point the agent at it:
+
+```bash
+echo -n "$SVID" > /tmp/agent.jwt
+HOOP_SPIFFE_KEY_FILE=/tmp/agent.jwt \
+HOOP_GRPCURL=hoop.customer.com:8443 \
+  hoop start agent
+```
+
+Refresh on rotation is the caller's responsibility in that mode (restart
+the agent or rewrite the file before the SVID expires).
 
 ```yaml
 env:
