@@ -1,0 +1,393 @@
+---
+title: "MCP Server"
+description: "Connect AI agents to Hoop with the built-in Model Context Protocol server — every action stays under the same authorization, masking, guardrails, and review controls as a human session"
+---
+
+## What You'll Accomplish
+
+Hoop ships a built-in [Model Context Protocol](https://modelcontextprotocol.io) server that exposes the gateway as a set of tools an AI agent can call. Point Claude Code, Cursor, Devin, or any MCP-compatible client at it and the agent inherits the same controls a human user gets:
+
+- Run queries and commands against connections without ever handling credentials
+- Trigger and wait for human approvals before sensitive actions execute
+- Inspect schemas, sessions, and AI risk analysis from inside the agent's loop
+- Manage connections, guardrails, data masking, and review rules — gated by admin roles
+
+Every tool call goes through the same authorization, data masking, guardrails, and review gates as the rest of Hoop. The MCP server does not bypass any of them.
+
+---
+
+## How It Works
+
+<Steps>
+  <Step title="Agent connects">
+    The MCP client authenticates against the gateway's OAuth endpoint and opens a streamable HTTP session at `/api/mcp`.
+  </Step>
+  <Step title="Agent calls a tool">
+    The agent invokes a tool (for example `exec` to run a query, or `connections_list` to discover what's available).
+  </Step>
+  <Step title="Gateway enforces policy">
+    The gateway resolves the user's identity, checks resource roles, applies data masking and guardrails, and triggers reviews when required — exactly as it does for the CLI and Web App.
+  </Step>
+  <Step title="Agent receives a structured response">
+    Tool results come back as JSON envelopes with explicit status fields (`completed`, `pending_approval`, `running`, `failed`) so the agent can decide what to do next.
+  </Step>
+</Steps>
+
+---
+
+## Endpoint and Authentication
+
+The MCP server is mounted at:
+
+```
+https://<your-gateway>/api/mcp
+```
+
+Two authentication methods are supported. Pick whichever your client makes easier — both result in the agent acting as the authenticated user with the same RBAC, masking, guardrails, and review controls.
+
+### Option A: Bearer Token (always available)
+
+Pass an existing Hoop access token in the standard `Authorization` header:
+
+```
+Authorization: Bearer <token>
+```
+
+This is the simplest path for clients that don't yet implement the MCP OAuth flow, or for scripted setups where the token is already on hand. Any token that works against the Hoop API works here — for example, the one issued by `hoop login`.
+
+### Option B: OAuth 2.0 (must be enabled)
+
+Hoop also implements the [MCP authorization spec](https://modelcontextprotocol.io/specification/draft/basic/authorization) so MCP clients can negotiate access automatically. When enabled, discovery metadata is published at:
+
+```
+https://<your-gateway>/.well-known/oauth-protected-resource/api/mcp
+```
+
+Most MCP clients (Claude Code, Cursor, Devin) detect this metadata and handle the OAuth flow without manual configuration — you only need to provide the `/api/mcp` URL.
+
+<Note>
+  OAuth for the MCP endpoint is **off by default** and must be enabled by an administrator on the gateway before clients can use it. Until it's enabled, use the Bearer Token method above.
+</Note>
+
+<Note>
+  Admin-only tools (creating connections, managing guardrails, deleting rules, etc.) are rejected for non-admin users with a clear `admin access required` error. Read tools follow the same RBAC rules as the Web App.
+</Note>
+
+### Enabling OAuth via the CLI
+
+OAuth on the `/api/mcp` endpoint is managed by an administrator with the `hoop admin mcp auth` command group. When enabled, the endpoint accepts JWTs issued by the gateway's configured OIDC issuer **in addition** to regular Hoop bearer tokens — so existing Bearer-token clients keep working.
+
+<Note>
+  These commands require an authenticated admin session (run `hoop login` first as an admin user).
+</Note>
+
+#### Enable OAuth
+
+```bash
+hoop admin mcp auth enable
+```
+
+Optional flags let you override the defaults at the same time:
+
+```bash
+hoop admin mcp auth enable \
+  --resource-uri https://<your-gateway>/api/mcp \
+  --groups-claim groups
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--resource-uri` | `<api-url>/api/mcp` | Canonical [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) audience binding. Inbound JWTs must carry this value as the `aud` claim. |
+| `--groups-claim` | `groups` | The JWT claim from which user groups are extracted. |
+
+#### Check current status
+
+```bash
+hoop admin mcp auth status
+```
+
+Prints the current state, resource URI, and groups claim:
+
+```text
+MCP OAuth Status:
+  State:        enabled
+  Resource URI: https://<your-gateway>/api/mcp
+  Groups Claim: groups
+```
+
+#### Update configuration without toggling state
+
+Use `configure` to change the resource URI or groups claim while leaving `enabled`/`disabled` as-is:
+
+```bash
+hoop admin mcp auth configure --groups-claim cognito:groups
+```
+
+You must pass at least one of `--resource-uri` or `--groups-claim`.
+
+#### Disable OAuth
+
+```bash
+hoop admin mcp auth disable
+```
+
+After this, `/api/mcp` accepts only Hoop bearer tokens. Any MCP client that was relying on the OAuth flow will need to switch to the `Authorization: Bearer <token>` header.
+
+---
+
+## Quick Start
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- An MCP-compatible client (Claude Code, Cursor, Devin, or any client that supports streamable HTTP transport with OAuth)
+- A user account in Hoop with access to at least one connection
+
+### Step 1: Add the MCP server to your client
+
+Configure your MCP client to point at your gateway. The exact format varies by client.
+
+**With OAuth enabled** (the client negotiates the token automatically):
+
+```json
+{
+  "mcpServers": {
+    "hoop": {
+      "url": "https://<your-gateway>/api/mcp"
+    }
+  }
+}
+```
+
+On first connect, the client opens a browser window to complete the OAuth flow against your IdP (Google, Okta, Azure, etc., depending on your gateway configuration).
+
+**With a Bearer token** (works without OAuth being enabled):
+
+```json
+{
+  "mcpServers": {
+    "hoop": {
+      "url": "https://<your-gateway>/api/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+Use the token from `hoop login` or any valid Hoop API token.
+
+### Step 2: Confirm identity
+
+Ask the agent to call `me_get`. The response confirms which user the MCP session is acting as, the groups it belongs to, and whether it has admin or auditor privileges. This is the recommended first call in any session.
+
+### Step 3: Discover what's available
+
+Have the agent call `connections_list` (and optionally `serverinfo_get` for gateway version and license info). The agent now knows which databases, applications, and custom resources it can target.
+
+### Step 4: Run a query
+
+Use `exec` to run a command against a connection. The response is one of three envelopes the agent should handle explicitly:
+
+| `status` | Meaning | What the agent does next |
+|---|---|---|
+| `completed` | Output is in the response. May include AI analysis. | Use the output. Done. |
+| `failed` | Command ran but exited non-zero. | Inspect `output` and `exit_code`. |
+| `pending_approval` | A review is required before the command can run. | Call `reviews_wait`, then `reviews_execute` once `status=APPROVED`. |
+| `running` | Command is still running after a 50-second timeout. | Poll `sessions_get` with the returned `session_id`. |
+
+---
+
+## The Approval Flow
+
+When a connection requires review, `exec` returns `status=pending_approval` with a `review_id` and `review_url`. The agent should:
+
+<Steps>
+  <Step title="Notify the user">
+    Surface the `review_url` so a reviewer can approve in Slack, Teams, or the Web App.
+  </Step>
+  <Step title="Long-poll the review">
+    Call `reviews_wait` with the `review_id`. It blocks for up to 5 minutes (default 60 seconds) and returns when the review reaches a terminal status (`APPROVED`, `REJECTED`, `REVOKED`, `EXECUTED`). If it times out without a decision, the response carries `timed_out=true` — call again to keep waiting.
+  </Step>
+  <Step title="Execute the approved query">
+    Once `status=APPROVED`, call `reviews_execute` with the same `review_id`. This runs the originally submitted query — the reviewer's decision is final, and the agent cannot drift from what was approved.
+  </Step>
+</Steps>
+
+This pattern lets autonomous agents safely operate against sensitive resources: the human reviewer is always in the loop for anything that matches a review rule, and the agent simply waits for the answer.
+
+---
+
+## Tool Highlights
+
+The MCP server exposes ~50 tools organized by area. The most commonly used ones:
+
+### Identity and Discovery
+
+| Tool | Purpose |
+|---|---|
+| `me_get` | Authenticated user's profile, groups, admin/auditor flags |
+| `serverinfo_get` | Gateway version, auth method, license info |
+| `connections_list` | List connections accessible to the user, with optional filters |
+| `connections_get` | Get a single connection by name or ID |
+
+### Execution
+
+| Tool | Purpose |
+|---|---|
+| `exec` | Run a one-shot query or command against a connection. Mirrors `hoop exec`. Returns `completed`, `pending_approval`, or `running` envelope. |
+| `connection_databases` | List databases on a Postgres / MySQL / MSSQL / MongoDB connection |
+| `connection_tables` | List tables in a database |
+| `connection_columns` | List columns of a table with their types |
+
+### Reviews (Approvals)
+
+| Tool | Purpose |
+|---|---|
+| `reviews_list` | List all reviews for the organization |
+| `reviews_get` | Get a single review by ID or session ID |
+| `reviews_wait` | Long-poll a review until it reaches a terminal status. Returns `timed_out=true` after the timeout — call again to keep waiting. |
+| `reviews_execute` | Run a query that was blocked on an approved one-time review |
+| `reviews_update` | Approve, reject, or revoke a review (requires reviewer group membership) |
+
+### Sessions and Audit
+
+| Tool | Purpose |
+|---|---|
+| `sessions_list` | List sessions with filters (user, connection, date range, review status). Max 100 per page. |
+| `sessions_get` | Session metadata by ID |
+| `sessions_get_content` | Input script and stdout/stderr output. Owner or admin/auditor only. |
+| `sessions_get_analysis` | Hoop's AI analysis: risk level, title, explanation, action |
+| `sessions_wait_analysis` | Long-poll until AI analysis is generated (it runs asynchronously after a session ends) |
+
+### Administration (admin role required)
+
+| Tool | Purpose |
+|---|---|
+| `connections_create` / `connections_update` / `connections_delete` | Manage connections |
+| `guardrails_*` | Manage guardrail rules |
+| `datamasking_rules_*` | Manage data masking rules |
+| `access_control_set` / `access_control_unset` / `access_control_get` / `access_control_list` | Restrict connections to specific user groups |
+| `access_request_rules_*` | Manage approval workflows for connections |
+| `runbook_rules_*` | Manage allowed runbooks per group/connection |
+| `usergroups_*` | Manage user groups |
+| `users_list` / `users_get` | Read user directory |
+
+<Note>
+  Some admin tools (data masking, access request rules) are limited to **1 rule** on the OSS license. Upgrade for unlimited rules and additional features.
+</Note>
+
+---
+
+## Long-Running Operations
+
+MCP clients tear down idle streams after roughly 60–120 seconds. Hoop accommodates this with two complementary patterns:
+
+- **Bounded long-poll**. `reviews_wait` and `sessions_wait_analysis` accept a `timeout_seconds` argument (default 60, max 300). When the timeout elapses without a terminal state, the response carries `timed_out=true` and the agent re-calls to continue waiting. The server sends MCP-level pings every 30 seconds to keep the connection warm.
+- **Async handoff**. `exec` and `reviews_execute` return `status=running` with a `session_id` after a 50-second internal timeout. The execution continues in the background; the agent polls `sessions_get` to retrieve the final result.
+
+Agents should always handle `timed_out=true` and `status=running` explicitly rather than treating them as errors.
+
+---
+
+## Security Model
+
+The MCP server enforces the same controls as every other Hoop interface:
+
+<CardGroup cols={2}>
+  <Card title="Authorization" icon="lock">
+    Every tool resolves the caller's user, organization, groups, and resource roles. Cross-org access is impossible — queries are always org-scoped.
+  </Card>
+  <Card title="Data Masking" icon="mask">
+    Configured masking rules apply to `exec` output before it reaches the agent. The model never sees raw PII or secrets.
+  </Card>
+  <Card title="Guardrails" icon="shield">
+    Input and output guardrails block or modify content before the agent receives it. Same rules as the CLI.
+  </Card>
+  <Card title="Reviews" icon="user-check">
+    Connections with review rules cannot be executed without human approval. The agent gets `pending_approval` and must wait.
+  </Card>
+  <Card title="Audit" icon="file-lines">
+    Every `exec` creates a session row, records the input, and runs AI analysis. Sessions are queryable via `sessions_*` tools and exportable via webhooks/SIEM.
+  </Card>
+  <Card title="Secrets Isolation" icon="key">
+    Connection secrets are never returned by `connections_list`. `connections_get` only includes them for admin users.
+  </Card>
+</CardGroup>
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start with me_get" icon="id-card">
+    Always confirm which identity the MCP session is acting as before doing anything sensitive.
+  </Card>
+  <Card title="Handle every envelope" icon="code-branch">
+    Don't assume `exec` returns output — branch on `status` for `pending_approval` and `running`.
+  </Card>
+  <Card title="Use schema tools first" icon="database">
+    `connection_databases` → `connection_tables` → `connection_columns` lets the agent ground queries in real schemas instead of guessing.
+  </Card>
+  <Card title="Pair with review rules" icon="user-check">
+    Configure review rules on sensitive connections so agent-initiated actions are gated by human approval.
+  </Card>
+</CardGroup>
+
+---
+
+## Troubleshooting
+
+### `unauthorized: missing auth context` or `missing access token`
+
+**Check:**
+1. If using OAuth, the MCP client completed the flow successfully and OAuth is enabled on the gateway
+2. If using a Bearer token, the `Authorization: Bearer <token>` header is being sent and the token has not expired
+3. The gateway URL points to `/api/mcp` exactly
+
+### OAuth flow does not start / metadata endpoint returns 404
+
+OAuth for the MCP endpoint is off by default. Ask an administrator to enable it on the gateway, or fall back to the Bearer token method in the meantime.
+
+### `admin access required`
+
+The tool is gated to admin users. Ask an administrator to perform the action, or use a read-only equivalent.
+
+### `connection not found or not accessible`
+
+**Check:**
+1. The connection name is correct (use `connections_list` to verify)
+2. The user has a resource role granting access to this connection
+3. If the connection is bound to `access_control`, the user is in one of the allowed groups
+
+### `pending_approval` never resolves
+
+**Check:**
+1. A reviewer group exists and has at least one member who can approve
+2. The reviewer was notified (Slack/Teams integration is configured, or they're checking the Web App)
+3. The agent is calling `reviews_wait` repeatedly after each `timed_out=true`
+
+### Agent disconnects on long queries
+
+This is expected for executions over ~50 seconds. Ensure the agent handles `status=running` by polling `sessions_get` with the returned `session_id`, rather than treating it as an error.
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Claude Code Connection" icon="robot" href="/quickstart/ai-and-llms/claude-code">
+    Proxy Claude Code's API traffic through Hoop for end-to-end AI safety
+  </Card>
+  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
+    Configure review rules so agent actions require human approval
+  </Card>
+  <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
+    Define deterministic rules that block dangerous queries before they reach the connection
+  </Card>
+  <Card title="Live Data Masking" icon="mask" href="/learn/features/live-data-masking">
+    Redact PII and secrets in query output before the agent sees them
+  </Card>
+</CardGroup>
