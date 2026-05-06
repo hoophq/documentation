@@ -1,0 +1,192 @@
+---
+title: "Hoop Shell Plugins (hsh)"
+description: "Use ssh and kubectl natively \u2014 hsh transparently routes them through your Hoop gateway."
+---
+
+import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
+
+<Prerequisites />
+
+`hsh` is a small companion CLI that wraps `ssh` and `kubectl` so they
+work against resources behind your Hoop gateway without any workflow
+changes. You keep typing the commands you already know; `hsh` handles
+authentication, finds the right Hoop connection, and routes the call
+through the gateway.
+
+<Note>
+  `hsh` is **separate from the `hoop` CLI**. They can be installed side-by-side and don't conflict. Use `hoop` for administrative and automation tasks (managing connections, running `hoop exec`, configuring policies). Use `hsh` for day-to-day terminal work where you want `ssh`/`kubectl` to "just work".
+</Note>
+
+## Installation
+
+<Tabs>
+  <Tab title="MacOS">
+    Through homebrew:
+
+    ```bash
+      brew tap hoophq/brew https://github.com/hoophq/brew.git
+      brew install hsh
+    ```
+
+    To upgrade it:
+
+    ```bash
+      brew update && brew upgrade hsh
+    ```
+  </Tab>
+  <Tab title="Linux">
+    Download the latest binary from [GitHub Releases](https://github.com/hoophq/hsh/releases/latest):
+
+    ```bash
+      # x86_64
+      curl -L -o hsh https://github.com/hoophq/hsh/releases/latest/download/hsh-linux-x64
+      chmod +x hsh
+      sudo mv hsh /usr/local/bin/
+
+      # arm64
+      curl -L -o hsh https://github.com/hoophq/hsh/releases/latest/download/hsh-linux-arm64
+      chmod +x hsh
+      sudo mv hsh /usr/local/bin/
+    ```
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Download">
+        Download the latest [hsh-windows-x64.exe](https://github.com/hoophq/hsh/releases/latest/download/hsh-windows-x64.exe) and save it to your **Downloads** folder.
+      </Step>
+      <Step title="Rename and place it">
+        Rename `hsh-windows-x64.exe` to `hsh.exe` and move it into a folder on your `PATH`, for example `C:\Windows\System32\` or `%LOCALAPPDATA%\Microsoft\WindowsApps\`.
+      </Step>
+      <Step title="Verify">
+        Open a terminal and run `hsh --version` to confirm it's installed.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Manual">
+    Download the binary that matches your operating system and CPU architecture from the [releases page](https://github.com/hoophq/hsh/releases). Each release ships a `SHA256SUMS` file you can verify with `sha256sum -c`.
+  </Tab>
+</Tabs>
+
+## Initial setup
+
+<Steps>
+  <Step title="Point hsh at your gateway">
+    ```bash
+    hsh config set api-url https://your-company.hoop.dev
+    ```
+
+    The configuration is stored in `~/.hsh/config.json`. Use `hsh config list` to view it.
+  </Step>
+
+  <Step title="Authenticate">
+    ```bash
+    hsh login
+    ```
+
+    `hsh` automatically detects whether your gateway uses an OIDC identity provider or local-auth (email + password) and prompts accordingly:
+
+    - **OIDC (most managed gateways)** \u2014 your browser opens to your identity provider; once you sign in, the JWT is written to `~/.hsh/auth.json` (mode `0600`).
+    - **Local-auth (self-hosted with `AUTH_METHOD=local`)** \u2014 `hsh` prompts for email and password directly in the terminal; no browser involved.
+
+    Run `hsh status` at any time to see which gateway you're pointed at and whether your token is still valid.
+  </Step>
+
+  <Step title="Activate the shell plugins">
+    Add a single line to your shell startup file. This is what tells your shell to route `ssh` and `kubectl` through `hsh`:
+
+    <Tabs>
+      <Tab title="bash / zsh">
+        ```bash
+        echo 'eval "$(hsh shell-init)"' >> ~/.bashrc   # or ~/.zshrc
+        ```
+      </Tab>
+      <Tab title="fish">
+        ```bash
+        echo 'hsh shell-init --shell fish | source' >> ~/.config/fish/config.fish
+        ```
+      </Tab>
+    </Tabs>
+
+    Restart your shell (or `source` the file you just edited). From now on, plain `ssh` and `kubectl` commands are intercepted by `hsh`.
+
+    <Tip>
+      `hsh` only intercepts commands that match a Hoop connection. Anything else falls straight through to your native `ssh`/`kubectl` binary, untouched.
+    </Tip>
+  </Step>
+</Steps>
+
+## SSH
+
+Once the shell plugin is active, the workflow for connecting to a Hoop-managed host is just:
+
+```bash
+ssh production-db
+```
+
+`hsh` recognizes `production-db` as a Hoop connection, mints a short-lived access token, and feeds it to `ssh` via the standard `SSH_ASKPASS` mechanism. You don't see a token, you don't paste anything \u2014 the password prompt is answered for you.
+
+<Note>
+  Automatic token injection requires **OpenSSH 8.4 or newer** (which honors `SSH_ASKPASS_REQUIRE=force`). On older clients, `hsh` falls back to the legacy flow: it prints the token in a box and you paste it at the password prompt. To disable injection on a single invocation, run `HSH_SSH_ASKPASS=0 ssh <host>`.
+</Note>
+
+If the host doesn't match any Hoop connection (e.g. a personal VPS, your CI runner, GitHub), `ssh` runs unchanged \u2014 `hsh` doesn't get in the way.
+
+### What hsh does behind the scenes
+
+1. Parses your ssh arguments (`user@host`, `-p`, `-l`, `-i`, etc.).
+2. Verifies your `~/.hsh/auth.json` is still valid; if not, exits with a clear "run hsh login" message.
+3. Searches your Hoop connections for one matching the host you typed.
+4. Creates a session and asks the gateway for a one-time access token.
+5. Writes a small SSH askpass shim, runs `ssh` with `SSH_ASKPASS` pointing at it, and lets ssh authenticate normally.
+
+## Kubernetes
+
+For `kubectl`, the integration is even more transparent:
+
+```bash
+kubectl get pods
+kubectl --context my-eks-cluster logs deploy/api
+```
+
+`hsh` looks at your current `kubectl` context (or `--context=<name>`), finds the matching Hoop connection, requests a short-lived proxy URL + token, and merges them into your kubeconfig before running `kubectl`. The original kubeconfig is restored when the command exits.
+
+If you want a long-lived kubeconfig you can use from any tool (kubens, k9s, lens, etc.), generate one explicitly:
+
+```bash
+hsh kubeconfig my-eks-cluster > ~/.kube/hoop-eks.yaml
+export KUBECONFIG=~/.kube/hoop-eks.yaml
+```
+
+`hsh kubeconfig` prints a complete kubeconfig on stdout \u2014 every status message goes to stderr, so it's safe to redirect.
+
+## Useful commands
+
+| Command | What it does |
+|---|---|
+| `hsh login` | Authenticate against the configured gateway (OIDC or local-auth). |
+| `hsh logout` | Clear credentials in `~/.hsh/auth.json`. |
+| `hsh status` | Show gateway URL, auth state, expiry, and current version. |
+| `hsh config set <key> <value>` | Set a config value (most commonly `api-url`). |
+| `hsh config list` | Print the contents of `~/.hsh/config.json`. |
+| `hsh shell-init [--shell bash\|zsh\|fish]` | Emit shell integration code (use with `eval` / `source`). |
+| `hsh kubeconfig <connection>` | Print a Hoop-aware kubeconfig for the given connection. |
+| `hsh update` | Self-update to the latest GitHub release. |
+
+## Troubleshooting
+
+When something doesn't behave the way you expect \u2014 `hsh` falls through to native `ssh`/`kubectl` when you wanted it routed through Hoop, or vice versa \u2014 set `HSH_DEBUG` to see exactly what `hsh` decided:
+
+```bash
+HSH_DEBUG=1 ssh production-db 2>debug.log
+HSH_DEBUG=1 kubectl get pods 2>debug.log
+```
+
+Output goes to **stderr only**, so it never pollutes the program's stdout. Common things to look for:
+
+- **`match: level=null`** \u2014 the host or context didn't match any Hoop connection at any matching level. `hsh` runs the native command unchanged.
+- **`api: fetch failed reason=timeout`** \u2014 the gateway is unreachable. `hsh` falls open to native `ssh`/`kubectl` after \u22483s. Run `hsh status` to confirm the API URL.
+- **`cache: hit expire_at=...`** \u2014 `hsh` reused a cached credential. Run `hsh logout` (clears every cache file) to force a fresh issue.
+
+`HSH_DEBUG` accepts `1`, `true`, `yes`, or `on` (case-insensitive). Tokens and passwords are filtered out of debug output by design.
+
+For deeper details, see the [hsh README](https://github.com/hoophq/hsh#readme) and the [troubleshooting guide](https://github.com/hoophq/hsh/blob/main/docs/troubleshooting.md) in the source repository.
