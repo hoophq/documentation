@@ -82,7 +82,8 @@
                   "clients/webapp/monitoring-sessions"
                 ]
               },
-              "clients/cli"
+              "clients/cli",
+              "clients/hsh"
             ]
           },
           {
