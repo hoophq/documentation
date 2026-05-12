@@ -1,0 +1,157 @@
+---
+title: "Keycloak"
+description: "Connect hoop.dev to Keycloak using OpenID Connect (OIDC)."
+---
+
+## Requirements
+
+- A running Keycloak instance (v17 or later recommended)
+- Admin access to the Keycloak Admin Console
+- `API_URL` is the public DNS name of the Hoop gateway instance (e.g. `https://hoop.yourcompany.com`)
+
+Contact the administrator of the Hoop gateway instance to retrieve the `API_URL` address.
+
+<Note>
+  The Keycloak instance must be reachable by both the Hoop gateway (for server-side token exchange) and end users' browsers (for the login redirect). If your Keycloak hostname resolves differently inside your VPC, use the internal hostname as the Issuer URL.
+</Note>
+
+## Identity Provider Configuration
+
+<Steps titleSize="h3">
+  <Step title="Create a Client">
+    - Log in to the Keycloak Admin Console at `https://<keycloak-host>/admin`
+    - Select your **Realm** from the top-left dropdown
+
+    <Note>
+      The **master** realm is acceptable for testing. A dedicated realm is recommended for production.
+    </Note>
+
+    - Go to **Clients** and click **Create client**
+    - Set **Client type** to `OpenID Connect`
+    - Set **Client ID** to a name that identifies your Hoop instance (e.g. `hoop`)
+    - Click **Next**
+
+    On the **Capability config** step:
+    - Enable **Client authentication** (this makes the client confidential)
+    - Enable **Standard flow**
+    - Click **Next**, then **Save**
+  </Step>
+
+  <Step title="Configure the Redirect URIs">
+    - Open the client you just created and go to the **Settings** tab
+    - Set **Valid redirect URIs** to: `{API_URL}/api/callback`
+    - Set **Valid post logout redirect URIs** to: `{API_URL}/api/logout`
+    - Click **Save**
+  </Step>
+
+  <Step title="Collect the Credentials">
+    - Go to the **Credentials** tab of the client
+    - Copy the **Client Secret** — this is generated automatically when client authentication is enabled
+
+    The **Client ID** is the value you set during creation (e.g. `hoop`). It is also visible on the **Settings** tab.
+  </Step>
+
+  <Step title="Collect the Issuer URL">
+    The Issuer URL format depends on your Keycloak version:
+
+    - **Keycloak v17 and later:** `https://<keycloak-host>/realms/<your-realm>`
+    - **Keycloak v16 and earlier:** `https://<keycloak-host>/auth/realms/<your-realm>`
+
+    To confirm the exact value, go to **Realm Settings > General** and click **OpenID Endpoint Configuration**. The `issuer` field in the returned JSON is the value to use.
+  </Step>
+
+  <Step title="Configure an Audience Mapper">
+    Keycloak does not include the client audience in the token by default. Without it, Hoop cannot validate the token. You must add an audience mapper to the client.
+
+    - Go to **Clients** and select your client
+    - Open the **Client scopes** tab
+    - Click the link named `{your-client}-dedicated` (e.g. `hoop-dedicated`) to open the dedicated scope for this client
+
+    <Note>
+      This dedicated scope is only visible inside the client's **Client scopes** tab. It does not appear in the global **Client scopes** menu in the left sidebar.
+    </Note>
+
+    - Click **Add mapper > By configuration**
+    - Select **Audience**
+    - Set **Name** to `hoop-audience`
+    - Set **Included Client Audience** to your Client ID (e.g. `hoop`)
+    - Enable **Add to ID token** and **Add to access token**
+    - Click **Save**
+  </Step>
+</Steps>
+
+## Configuring Groups (Optional)
+
+Groups in Keycloak are propagated to Hoop via a claim in the ID token. Complete this section if you want Hoop to sync Keycloak group membership on every login and use groups for access control.
+
+<Steps titleSize="h3">
+  <Step title="Create a Groups Scope">
+    - Go to **Client scopes** in the left sidebar and click **Create client scope**
+    - Set **Name** to `groups`
+    - Set **Type** to `Optional`
+    - Click **Save**
+    - Go to the **Mappers** tab and click **Add mapper > By configuration**
+    - Select **Group Membership**
+    - Set **Name** to `groups`
+    - Set **Token Claim Name** to `groups`
+    - Disable **Full group path** unless your group names include a path separator
+    - Click **Save**
+  </Step>
+
+  <Step title="Assign the Scope to Your Client">
+    - Go to **Clients** and select your client
+    - Open the **Client scopes** tab
+    - Click **Add client scope**
+    - Select `groups` and choose **Optional**
+    - Click **Add**
+  </Step>
+</Steps>
+
+## Configure Hoop Gateway
+
+Once you have collected the credentials from Keycloak, configure the identity provider in the Hoop web app.
+
+Go to **Integrations > Authentication** and provide the following values:
+
+| Field | Value |
+|---|---|
+| **Client ID** | The Client ID set during client creation (e.g. `hoop`) |
+| **Client Secret** | The secret copied from the **Credentials** tab |
+| **Issuer URL** | `https://<keycloak-host>/realms/<your-realm>` |
+| **Custom Scopes** | Optional. Add `groups` here if you completed the Groups configuration above. |
+| **Groups Claim** | `groups` — required if you completed the Groups configuration above. |
+| **Audience** | Leave blank (see note below) |
+
+<Warning>
+  Do not set the **Audience** field when using Keycloak. Audience validation is enforced through the token mapper configured in Step 5, not the authorization request. Setting this field will cause Keycloak to reject logins with a 400 error.
+</Warning>
+
+Click **Save**. Your users can now log in to Hoop using their Keycloak credentials.
+
+For a full reference of gateway environment variables, see the [Environment Variables documentation](/setup/configuration/env-vars).
+
+## Troubleshooting
+
+**Token validation fails after login**
+
+The most common cause is a missing or misconfigured audience mapper. Confirm that the `aud` claim in the issued token matches the Client ID. You can inspect the token by decoding it at [jwt.io](https://jwt.io).
+
+**Wrong Issuer URL format**
+
+Keycloak changed its URL structure in v17. If the issuer URL returns a 404, check whether your instance uses `/auth/realms/` (v16 and earlier) or `/realms/` (v17 and later).
+
+**Login redirects to Keycloak but returns a 400 error**
+
+This is most commonly caused by the **Audience** field being set in Hoop's gateway configuration. Leave it blank — see the [Configure Hoop Gateway](#configure-hoop-gateway) section above.
+
+**Groups not syncing**
+
+Confirm that the `groups` client scope is assigned to the client and that the user belongs to at least one group. Hoop will not sync an empty groups claim.
+
+**Keycloak is unreachable from the Hoop gateway**
+
+Confirm that the Issuer URL is accessible from within the network where the Hoop gateway is deployed, not just from a browser. The gateway makes server-side requests to Keycloak for token exchange. If the hostname resolves differently inside your VPC, use the internal hostname as the Issuer URL.
+
+**Locked out after configuration**
+
+If a misconfigured IDP locks you out of the application, refer to the [Identity Providers troubleshooting guide](/setup/configuration/idp/get-started#troubleshooting).
