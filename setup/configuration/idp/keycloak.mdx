@@ -154,8 +154,4 @@ Confirm that the Issuer URL is accessible from within the network where the Hoop
 
 **Locked out after configuration**
 
-If a misconfigured IDP locks you out of the application, connect to the Hoop Postgres database and run:
-
-```sql
-DELETE FROM private.authconfig WHERE org_id = (SELECT id FROM private.orgs);
-```
+If a misconfigured IDP locks you out of the application, refer to the [Identity Providers troubleshooting guide](/setup/configuration/idp/get-started#troubleshooting).
