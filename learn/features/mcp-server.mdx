@@ -349,7 +349,21 @@ The MCP server enforces the same controls as every other Hoop interface:
 
 ### OAuth flow does not start / metadata endpoint returns 404
 
-OAuth for the MCP endpoint is off by default. Ask an administrator to enable it on the gateway, or fall back to the Bearer token method in the meantime.
+OAuth for the MCP endpoint is off by default. Ask an administrator to enable it on the gateway (`hoop admin mcp auth enable`), or fall back to the Bearer token method in the meantime.
+
+### `Incompatible auth server: does not support dynamic client registration`
+
+This message comes from the MCP client (Claude Code, Cursor, etc.), not from Hoop. The client discovered Hoop's protected-resource metadata, followed the `authorization_servers` URL to your IdP (Okta, Azure AD, Google, Auth0, etc.), and found that the IdP does not expose a `registration_endpoint` — so the client cannot create itself an OAuth client on the fly via [RFC 7591 Dynamic Client Registration](https://datatracker.ietf.org/doc/html/rfc7591).
+
+Hoop itself does not implement DCR; it only delegates authorization to your IdP. You have two ways to move forward:
+
+- **Pre-register a static OAuth client in your IdP:**
+If you need full OAuth, ask your IdP admin to create an OAuth client for the MCP client manually and configure that client with the resulting `client_id` / `client_secret`. Each IdP exposes this differently — for example, Okta calls it an "OIDC application", Azure calls it an "App Registration". Most IdPs that support DCR have it disabled by default for security reasons.
+
+- **Use the Bearer token method:**
+This skips OAuth entirely. Configure your MCP client with an `Authorization: Bearer <token>` header using a token from `hoop login`. See [Option A above](#option-a-bearer-token-always-available).
+
+If your IdP **does** support DCR and you expected it to work, confirm that DCR is enabled in your tenant and that the IdP's discovery document (`/.well-known/openid-configuration` at the issuer URL) advertises a `registration_endpoint`.
 
 ### `admin access required`
 
