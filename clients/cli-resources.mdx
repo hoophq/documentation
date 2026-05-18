@@ -1,0 +1,241 @@
+---
+title: "hoop resources"
+description: "Manage and provision PostgreSQL roles from the command line using hoop resources plan, apply, and health."
+---
+
+## Overview
+
+The `hoop resources` command group lets you automate role provisioning workflows from CI pipelines, scripts, or the terminal. It mirrors the plan/apply workflow available in the Provisioning hub of the Web App.
+
+```
+hoop resources <subcommand> [flags]
+```
+
+| Subcommand | Purpose |
+|---|---|
+| `health <name>` | Test connectivity to a resource |
+| `plan [name]` | Compute a dry-run SQL diff for one or more roles |
+| `plan status <sid>` | Fetch the output of a plan session by session ID |
+| `apply [name]` | Apply a previously computed plan to Postgres |
+
+---
+
+## hoop resources health
+
+Runs a lightweight connectivity check (`SELECT 1`) against a resource using the agent. Use this to confirm network access before planning or applying.
+
+```bash
+hoop resources health <resource-name>
+```
+
+**Example:**
+
+```bash
+hoop resources health analytics
+```
+
+A successful check exits 0 and prints `OK`. On failure, the error from the agent is printed and the command exits non-zero.
+
+---
+
+## hoop resources plan
+
+Connects to the Postgres cluster via the agent, introspects the live catalog state, and computes the exact SQL statements needed to reach the desired role configuration. Nothing is written to Postgres — this is a read-only dry run.
+
+```bash
+hoop resources plan [resource-name] [flags]
+```
+
+### Single resource
+
+Pass the resource name as a positional argument along with role configuration flags:
+
+```bash
+hoop resources plan analytics \
+  --role ro \
+  --type managed \
+  --scopes analytics.public,analytics.legacy \
+  --privileges SELECT
+```
+
+On success, the command prints the session ID (SID) and the plan YAML, which includes a **checksum** that locks in the intended SQL. The same checksum is verified at apply time — if the live Postgres state changes between plan and apply, the apply is rejected and a fresh plan is required.
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--role` | | Role label appended to the generated role name (e.g. `ro` → `hoopdev_analytics_ro_<hash>`) |
+| `--type` | `managed` | Role type: `managed` or `external` |
+| `--scopes` | | Comma-separated `database.schema` scopes for managed roles (e.g. `analytics.public,analytics.legacy`) |
+| `--privileges` | `SELECT` | Postgres privileges to grant within each scope (e.g. `SELECT`, `INSERT,UPDATE`) |
+| `--rotate-password` | `false` | Force a password rotation on apply even if the role already exists |
+| `-o <file>` | stdout | Write plan output to a file instead of stdout (used with `-f` in batch mode) |
+| `--sid <sid>` | | Resume and print the output of an existing plan session rather than starting a new one |
+
+### Batch mode
+
+To plan multiple resources at once, pass a YAML file with `-f` and write results to a file with `-o`:
+
+```bash
+hoop resources plan -f plan.yaml -o results.yaml
+```
+
+**plan.yaml** format — one entry per role:
+
+```yaml
+- resource: analytics
+  role: ro
+  type: managed
+  scopes:
+    - analytics.public
+    - analytics.legacy
+  privileges:
+    - SELECT
+
+- resource: analytics
+  role: rw
+  type: managed
+  scopes:
+    - analytics.public
+  privileges:
+    - SELECT
+    - INSERT
+    - UPDATE
+    - DELETE
+
+- resource: marketplace
+  role: ro
+  type: external
+  source_role: pg_read_all_data
+```
+
+Hoop plans all entries concurrently. The output file (`results.yaml`) contains the plan result for each entry including session IDs and checksums, and is passed directly to `hoop resources apply`.
+
+---
+
+## hoop resources plan status
+
+Fetches and prints the output of a plan or apply session after the fact. Useful in CI when you want to archive the SQL output or inspect a historical plan.
+
+```bash
+hoop resources plan status <session-id>
+```
+
+**Example:**
+
+```bash
+hoop resources plan status 4869bea2-ec6b-4404-bc61-8eba88033cf2
+```
+
+Prints the full session output including the YAML configuration block and the generated SQL statements.
+
+---
+
+## hoop resources apply
+
+Applies a plan that was previously computed with `hoop resources plan`. Hoop re-verifies the checksum against the current live state before executing any SQL — if the Postgres cluster has changed since the plan was computed, the apply fails with a drift error and a new plan must be run.
+
+```bash
+hoop resources apply [resource-name] [flags]
+```
+
+### Single resource (from session ID)
+
+Pass the SID returned by a previous `plan` run:
+
+```bash
+hoop resources apply analytics --sid 4869bea2-ec6b-4404-bc61-8eba88033cf2
+```
+
+### Batch mode
+
+Pass the results file produced by `hoop resources plan -o`:
+
+```bash
+hoop resources apply -f results.yaml
+```
+
+Hoop applies all entries concurrently. Each apply creates a Hoop session that captures the full SQL output for auditing.
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--sid <sid>` | | Session ID of the plan to apply (single-resource mode) |
+| `-f <file>` | | Results file from `hoop resources plan -o` (batch mode) |
+
+---
+
+## End-to-End File Workflow
+
+The canonical CI pattern for bulk provisioning:
+
+```bash
+# 1. Declare the desired state
+cat > plan.yaml << 'EOF'
+- resource: analytics
+  role: ro
+  type: managed
+  scopes:
+    - analytics.public
+  privileges:
+    - SELECT
+
+- resource: marketplace
+  role: ro
+  type: external
+  source_role: pg_read_all_data
+EOF
+
+# 2. Compute the plan (dry run — nothing changes in Postgres)
+hoop resources plan -f plan.yaml -o results.yaml
+
+# 3. Review results.yaml — inspect session IDs and SQL checksums
+
+# 4. Apply when ready
+hoop resources apply -f results.yaml
+```
+
+The `results.yaml` file produced by `plan` acts as the handoff artifact between the plan and apply stages. Keeping this file in version control or passing it as a CI artifact lets you separate the review step from execution.
+
+---
+
+## Role Naming
+
+Role names are generated deterministically from the resource name, label, and configuration:
+
+```
+hoopdev_<resource-slug>_<role-label>_<8-char-hash>
+```
+
+For example, a `ro` role on the `analytics` resource might produce `hoopdev_analytics_ro_6079a443`. The hash prevents collisions when multiple roles share the same label and keeps names within Postgres' 63-byte identifier limit.
+
+---
+
+## Auditing
+
+Every `plan` and `apply` call creates a Hoop session that records:
+- The role configuration (type, scopes, privileges, source role)
+- The generated SQL statements
+- The exit status and timing
+
+Sessions are visible in the Web App under **Provisioning → Sessions** and in the main **Sessions** view. Use `hoop resources plan status <sid>` to retrieve session output directly from the CLI.
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Resource Provisioning Hub" icon="layer-group" href="/learn/features/resource-provisioning">
+    Walk through the same workflow in the Web App with a visual step-by-step guide
+  </Card>
+  <Card title="Session Recording" icon="film" href="/learn/features/session-recording">
+    Every plan and apply is a full audit session — explore what gets captured
+  </Card>
+  <Card title="Access Control" icon="lock" href="/learn/features/access-control">
+    Restrict provisioned connections to specific user groups after roles are applied
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/clients/cli">
+    Full CLI installation and authentication guide
+  </Card>
+</CardGroup>

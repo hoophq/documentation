@@ -1,0 +1,210 @@
+---
+title: "Resource Provisioning Hub"
+description: "Bulk-provision and manage PostgreSQL roles across every database connected to Hoop — with a plan/apply dry-run workflow and full audit trail."
+---
+
+## What You'll Accomplish
+
+The **Provisioning** hub gives platform and security teams a single place to own the full lifecycle of database access roles across all PostgreSQL resources connected to Hoop:
+
+- Import your databases into a managed **Inventory** catalog
+- Configure **admin credentials** that Hoop uses to apply changes
+- Declare the roles you need and let Hoop compute a **dry-run plan** before touching anything
+- **Apply** approved plans and watch every SQL operation captured in an audit session
+- Retrieve generated credentials from the Hoop connection that Hoop creates for each provisioned role
+
+The workflow mirrors Terraform: `plan` → review → `apply`. Nothing changes in Postgres until you explicitly approve it.
+
+---
+
+## How It Works
+
+Resources tagged with `RESOURCE_CATALOG=true` appear in the provisioning hub. Hoop connects to Postgres using the admin credentials you supply, introspects the live catalog state, computes the minimum SQL diff required to reach the desired role configuration, and executes it — recording every statement in a session for audit.
+
+<Steps>
+  <Step title="Inventory">
+    Import your PostgreSQL instances into the catalog. Each resource tracks host, port, type, and setup progress.
+  </Step>
+  <Step title="Manage">
+    Supply an admin account (username + password) per resource. Hoop uses this account to run `CREATE ROLE`, `GRANT`, and `REVOKE` statements.
+  </Step>
+  <Step title="Provision">
+    Define roles, scopes, and privileges. Run a plan to see the exact SQL diff, then apply it. Hoop creates a Connection for each provisioned role so team members can start using it immediately.
+  </Step>
+</Steps>
+
+---
+
+## Prerequisites
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- At least one PostgreSQL connection registered in Hoop and tagged with `RESOURCE_CATALOG=true`
+- Admin credentials (username + password) for each database you want to manage
+- The agent serving those connections must be online
+
+---
+
+## Step 1: Build the Inventory
+
+Navigate to **Provisioning** in the left sidebar. The Resource Catalog opens on the **Inventory** tab.
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-1.png" alt="Importing resources into the inventory via CSV" />
+</Frame>
+
+Click **Add to Inventory**. You can enter resources manually or upload a CSV with columns `name`, `type`, `host`, and `port`. The wizard previews the rows before importing, flagging new additions, updates, and unchanged entries.
+
+Once imported, the Inventory tab lists every resource with its current **Setup progress** (a three-step bar: Inventory → Manage → Provision).
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-2.png" alt="Inventory tab showing two resources with 1/3 setup progress" />
+</Frame>
+
+---
+
+## Step 2: Configure Admin Accounts
+
+After import, the **Manage** funnel counter shows how many resources still need admin credentials. Click **Set up admin** next to any resource (or select multiple and use the bulk action bar) to open the admin account editor.
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-3.png" alt="Manage admin accounts page with username and password fields" />
+</Frame>
+
+Enter the **Admin user** (typically `postgres` or another superuser) and the corresponding **Password** for each resource. You can also import credentials from a CSV if you're configuring many resources at once.
+
+Select the **Agent** that has network access to the databases — the dropdown shows all online agents. Click **Apply changes** to save. Hoop validates connectivity before storing the credentials.
+
+Once every resource has credentials, the Manage counter drops to zero and the **Provision** counter shows the pending count.
+
+---
+
+## Step 3: Provision Roles
+
+Open the **Provision** tab. Resources that have admin credentials but no provisioned roles appear here.
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-4.png" alt="Provision tab showing 2 pending resources" />
+</Frame>
+
+You can configure roles in two ways:
+
+### Option A: Import from CSV
+
+Click **Import CSV** to upload a role definition file. Each row defines one role:
+
+| Column | Required | Description |
+|---|---|---|
+| `resource` | Yes | Name of the resource in the inventory |
+| `role_label` | Yes | Short label used in the generated role name (e.g. `ro`, `rw`) |
+| `type` | Yes | `managed` or `external` |
+| `scopes` | Managed only | Comma-separated list of `database.schema` scopes (e.g. `analytics.public,analytics.legacy`) |
+| `privileges` | Managed only | Postgres privileges to grant (e.g. `SELECT`, `INSERT`) |
+| `source_role` | External only | Existing Postgres role to inherit from |
+
+### Option B: Provision roles individually
+
+Click **Provision roles** next to a specific resource to open the role configuration wizard for that resource.
+
+### Running the Plan
+
+After configuring your roles, click **Provision all** (or select individual resources and click **Provision roles**). Hoop runs a **dry-run plan** — it connects to each Postgres cluster, inspects the live catalog state, and computes the exact SQL statements needed.
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-6.png" alt="Provision screen showing 3 roles in Plan ready state" />
+</Frame>
+
+Each role appears with:
+- The generated role name (e.g. `hoopdev_analytics_ro_6079a443`)
+- The target scopes or inherited role
+- A **View session** link to inspect the full plan output
+- **Plan ready** status — meaning the plan computed successfully and is safe to apply
+
+<Note>
+  Role names follow the pattern `hoopdev_<resource>_<label>_<8-char-hash>`. The hash is derived from the role configuration and keeps names unique and deterministic while staying within Postgres' 63-byte identifier limit.
+</Note>
+
+### Applying the Plan
+
+Review the plan sessions to confirm the SQL looks correct. When satisfied, click **Apply** on individual roles or **Apply N roles** to apply all at once. Hoop executes the SQL against each Postgres cluster.
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-7.png" alt="Provision screen showing all 3 roles applied successfully" />
+</Frame>
+
+On completion, every role shows **Applied** status and the Inventory tab reflects the fully configured state.
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-9.png" alt="Inventory tab with both resources showing 3/3 Configured" />
+</Frame>
+
+---
+
+## Audit Sessions
+
+Every plan and apply step creates an administrative session that captures the full SQL output. Click **View session** on any role in the Provision view (or navigate to **Sessions** in the Provision tab) to inspect the raw output.
+
+<Frame>
+  <img src="/images/integrations/hub-provisioning-8.png" alt="Session detail showing the YAML config and SQL output for the applied role" />
+</Frame>
+
+The session output includes the role configuration used for the plan:
+
+```yaml
+sid: 4869bea2-ec6b-4404-bc61-8eba88033cf2
+config:
+  type: managed
+  role_name: hoopdev_analytics_ro_6079a443
+  source_role: ""
+  scopes:
+    - analytics.public
+    - legacy
+    - app
+  privileges:
+```
+
+Sessions are queryable in the **Sessions** page and are included in any connected SIEM or webhook export.
+
+---
+
+## Role Types
+
+### Managed
+
+Hoop fully owns the role:
+
+- Creates the role if it does not exist
+- Manages the password (rotates on each apply when `--rotate-password` is used)
+- Grants the specified `USAGE` on schemas and `SELECT / INSERT / …` on tables within each scope
+- Reconciles grants on each apply — adding or revoking as the scope list changes
+
+Use `managed` when you want Hoop to issue credentials that Hoop itself controls end-to-end.
+
+### External
+
+Hoop creates the role (if missing) and runs `GRANT <source_role> TO <new_role>`, giving the new role all privileges the source role has. No per-table grants are managed.
+
+Use `external` when an existing superuser or read-all role already covers the access needed — for example, `inherits pg_read_all_data`.
+
+---
+
+## After Provisioning
+
+Once a role is applied, Hoop automatically creates or updates a **Connection** for that role. Team members can connect via the Web App or CLI using that connection — Hoop injects the credentials at session time without exposing them to users.
+
+<CardGroup cols={2}>
+  <Card title="Access Control" icon="lock" href="/learn/features/access-control">
+    Restrict provisioned connections to specific user groups
+  </Card>
+  <Card title="CLI Plan & Apply" icon="terminal" href="/clients/cli-resources">
+    Automate provisioning from the command line with `hoop resources plan` and `hoop resources apply`
+  </Card>
+  <Card title="Session Recording" icon="film" href="/learn/features/session-recording">
+    Every plan and apply is recorded — review the full SQL audit trail
+  </Card>
+  <Card title="Live Data Masking" icon="mask" href="/learn/features/live-data-masking">
+    Mask sensitive columns in query output even for provisioned roles
+  </Card>
+</CardGroup>

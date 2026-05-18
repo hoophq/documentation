@@ -67,7 +67,8 @@
               "learn/features/secrets-manager",
               "learn/features/session-recording",
               "learn/features/parallel-mode",
-              "learn/features/mcp-server"
+              "learn/features/mcp-server",
+              "learn/features/resource-provisioning"
             ]
           },
           {
@@ -83,6 +84,7 @@
                 ]
               },
               "clients/cli",
+              "clients/cli-resources",
               "clients/hsh"
             ]
           },
