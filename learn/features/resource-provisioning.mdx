@@ -11,7 +11,7 @@ The **Provisioning** hub gives platform and security teams a single place to own
 - Configure **admin credentials** that Hoop uses to apply changes
 - Declare the roles you need and let Hoop compute a **dry-run plan** before touching anything
 - **Apply** approved plans and watch every SQL operation captured in an audit session
-- Retrieve generated credentials from the Hoop connection that Hoop creates for each provisioned role
+- Retrieve generated credentials from the Hoop Resource Role that Hoop creates for each provisioned role
 
 The workflow mirrors Terraform: `plan` → review → `apply`. Nothing changes in Postgres until you explicitly approve it.
 
@@ -29,7 +29,7 @@ Hoop connects to Postgres using the admin credentials you supply, introspects th
     Supply an admin account (username + password) per resource. Hoop uses this account to run `CREATE ROLE`, `GRANT`, and `REVOKE` statements.
   </Step>
   <Step title="Provision">
-    Define roles, scopes, and privileges. Run a plan to see the exact SQL diff, then apply it. Hoop creates a Connection for each provisioned role so team members can start using it immediately.
+    Define roles, scopes, and privileges. Run a plan to see the exact SQL diff, then apply it. Hoop creates a Resource Role for each provisioned role so team members can start using it immediately.
   </Step>
 </Steps>
 
@@ -41,9 +41,9 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
 <Prerequisites />
 
-- At least one PostgreSQL connection registered in Hoop
+- At least one PostgreSQL Resource Role registered in Hoop
 - Admin credentials (username + password) for each database you want to manage
-- The agent serving those connections must be online
+- The agent serving those Resource Roles must be online
 
 ---
 
@@ -289,72 +289,8 @@ Use `external` when an existing superuser or read-all role already covers the ac
 
 ## Managing via the CLI
 
-All provisioning operations available in the Web App are also accessible from the `hoop resources` command group. This makes it straightforward to automate provisioning from CI pipelines or scripts.
-
-### Resources
-
-List all resources registered in the gateway:
-
-```bash
-hoop resources list
-
-# Filter by name
-hoop resources list --name analytics
-
-# Search across name, type, and subtype
-hoop resources list --search postgres
-
-# Output as JSON
-hoop resources list --json
-```
-
-Create a new resource (registers a PostgreSQL instance in the catalog):
-
-```bash
-hoop resources create analytics \
-  --type database \
-  --subtype postgres \
-  --agent-id <uuid> \
-  --env-var HOST=192.168.18.54 \
-  --env-var PORT=5432
-```
-
-| Flag | Required | Description |
-|---|---|---|
-| `--type` | Yes | Resource type: `database`, `application`, or `custom` |
-| `--subtype` | No | Database engine, e.g. `postgres`, `mysql` |
-| `--agent-id` | No | UUID of the agent that has network access to the host |
-| `--env-var KEY=VALUE` | No | Environment variable passed to the resource (repeatable) |
-
-### Resource Roles
-
-List all roles (connections) associated with a resource:
-
-```bash
-hoop resources roles list analytics
-hoop resources roles list analytics --json
-```
-
-Create a role manually (useful when you want to define a connection without going through the plan/apply flow):
-
-```bash
-hoop resources roles create hoopdev_analytics_ro_6075a443 \
-  --resource analytics \
-  --type database \
-  --subtype postgres \
-  --agent-id <uuid> \
-  --secret "envvar:DB_HOST=<base64>" \
-  --secret "envvar:DB_PASS=<base64>"
-```
-
-| Flag | Required | Description |
-|---|---|---|
-| `--resource` | Yes | Resource name to associate with |
-| `--type` | Yes | Role type: `database`, `application`, or `custom` |
-| `--agent-id` | Yes | UUID of the agent serving this role |
-| `--subtype` | No | Database engine subtype |
-| `--command` | No | Command override (repeatable) |
-| `--secret KEY=VALUE` | No | Secret injected at session time (repeatable) |
+All provisioning operations available in the Web App are also accessible from the `hoop resources` command group.
+This makes it straightforward to automate provisioning from CI pipelines or scripts.
 
 ### Health Check
 
@@ -477,11 +413,11 @@ Hoop re-verifies the plan checksum against live Postgres state at apply time. If
 
 ## After Provisioning
 
-Once a role is applied, Hoop automatically creates or updates a **Connection** for that role. Team members can connect via the Web App or CLI using that connection — Hoop injects the credentials at session time without exposing them to users.
+Once a role is applied, Hoop automatically creates or updates a **Resource Role** for that role. Team members can connect via the Web App or CLI using that resource role — Hoop injects the credentials at session time without exposing them to users.
 
 <CardGroup cols={2}>
   <Card title="Access Control" icon="lock" href="/learn/features/access-control">
-    Restrict provisioned connections to specific user groups
+    Restrict provisioned Resource Roles to specific user groups
   </Card>
   <Card title="Session Recording" icon="film" href="/learn/features/session-recording">
     Every plan and apply is recorded — review the full SQL audit trail
