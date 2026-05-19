@@ -225,7 +225,7 @@ export const JDBCProxy = () => {
           width: 100%;
           max-width: 650px;
           margin: 0 auto;
-          font-family: 'DM Sans', system-ui, sans-serif;
+          font-family: 'Inter', system-ui, sans-serif;
         }
 
         .jdbc-flow {
@@ -264,7 +264,7 @@ export const JDBCProxy = () => {
         }
 
         .jdbc-card-name {
-          font-family: 'DM Sans', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 12px;
           font-weight: 600;
           transition: color 0.4s ease;
@@ -345,7 +345,7 @@ export const JDBCProxy = () => {
         }
 
         .jdbc-gateway-label {
-          font-family: 'Sora', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 11px;
           font-weight: 600;
           transition: color 0.4s ease;
@@ -405,7 +405,7 @@ export const JDBCProxy = () => {
         }
 
         .jdbc-dest-name {
-          font-family: 'DM Sans', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 12px;
           font-weight: 600;
           transition: color 0.4s ease;
@@ -425,7 +425,7 @@ export const JDBCProxy = () => {
           margin-top: 20px;
           padding-top: 14px;
           border-top: 1px solid rgba(var(--sand-100-rgb),0.06);
-          font-family: 'DM Sans', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 12px;
           font-weight: 500;
           color: rgba(var(--sand-100-rgb),0.4);

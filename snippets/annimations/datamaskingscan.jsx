@@ -1,6 +1,6 @@
 export const LiveDataMasking = () => {
   const FONTS_URL =
-    "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700;800&display=swap";
+    "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap";
 
   const C = {
     nearBlack: "#111111",
@@ -127,7 +127,7 @@ export const LiveDataMasking = () => {
 
     return (
       <span style={{
-        fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 600,
+        fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 600,
         textTransform: "uppercase", letterSpacing: "0.06em",
         color: c.gold ? C.warmGold : "rgba(var(--sand-100-rgb),0.18)",
         background: c.gold ? "rgba(var(--warm-gold-rgb),0.10)" : "rgba(var(--sand-100-rgb),0.04)",
@@ -320,7 +320,7 @@ export const LiveDataMasking = () => {
           background: "linear-gradient(135deg, var(--gradient-dark-start) 0%, var(--gradient-dark-mid) 35%, var(--gradient-dark-end) 70%, var(--bronze) 100%)",
           borderRadius: 14,
           padding: "32px 36px 28px",
-          fontFamily: "'DM Sans', system-ui, sans-serif",
+          fontFamily: "'Inter', system-ui, sans-serif",
           position: "relative",
           overflow: "hidden",
           maxWidth: 720,
@@ -343,7 +343,7 @@ export const LiveDataMasking = () => {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <ShieldIcon done={allDone} active={isAfter("streaming")} />
             <span style={{
-              fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 600,
+              fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600,
               color: C.sand100, letterSpacing: "-0.01em",
             }}>
               Live Data Masking
@@ -458,7 +458,7 @@ export const LiveDataMasking = () => {
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%", background: "rgba(var(--sand-100-rgb),0.06)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 8, fontWeight: 600,
+                  fontFamily: "'Inter', sans-serif", fontSize: 8, fontWeight: 600,
                   color: "rgba(var(--sand-100-rgb),0.30)", zIndex: 4,
                 }}>{row.avatar}</div>
 
@@ -494,7 +494,7 @@ export const LiveDataMasking = () => {
                       {showDetection && (
                         <span style={{
                           position: "absolute", top: -18, left: 0,
-                          fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 600,
+                          fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 600,
                           color: C.warmGold, background: "rgba(var(--espresso-rgb),0.92)",
                           border: "1px solid rgba(var(--warm-gold-rgb),0.25)",
                           padding: "1px 7px", borderRadius: 4, whiteSpace: "nowrap",
@@ -515,7 +515,7 @@ export const LiveDataMasking = () => {
             display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 32,
           }}>
             <span style={{
-              fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "rgba(var(--sand-100-rgb),0.20)",
+              fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(var(--sand-100-rgb),0.20)",
             }}>
               {allDone ? "4 rows returned, 16 fields masked"
                 : phase === "streaming" ? "Intercepting results..."
@@ -550,7 +550,7 @@ export const LiveDataMasking = () => {
         }}>
           {["No schema required", "GDPR", "HIPAA", "PCI DSS"].map((tag) => (
             <span key={tag} style={{
-              fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 600,
+              fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 600,
               textTransform: "uppercase", color: "rgba(var(--sand-100-rgb),0.25)",
               background: "rgba(var(--sand-100-rgb),0.04)", padding: "2px 8px",
               borderRadius: 99, letterSpacing: "0.04em",

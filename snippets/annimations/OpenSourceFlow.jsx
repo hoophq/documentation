@@ -114,7 +114,7 @@ export const OpenSourceFlow = () => {
       background: 'linear-gradient(135deg, var(--gradient-dark-start) 0%, var(--gradient-dark-mid) 35%, var(--gradient-dark-end) 70%, var(--bronze) 100%)',
       borderRadius: 14, padding: '32px 28px 24px', position: 'relative', overflow: 'hidden',
       height: 440,
-      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontFamily: "'Inter', system-ui, sans-serif",
     }}>
       {/* Glow */}
       <div style={{
@@ -132,7 +132,7 @@ export const OpenSourceFlow = () => {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--warm-gold)' }}>
             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" fill="currentColor"/>
           </svg>
-          <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 600, color: 'var(--sand-100)' }}>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 600, color: 'var(--sand-100)' }}>
             Open Source Gateway
           </span>
         </div>
@@ -141,7 +141,7 @@ export const OpenSourceFlow = () => {
             <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/>
           </svg>
           <span style={{
-            fontFamily: "'Sora', sans-serif", fontSize: 13, fontWeight: 700,
+            fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 700,
             color: 'var(--warm-gold)',
           }}>{gh.stars < 1000 ? '1K' : gh.stars < 2500 ? '2.5K' : gh.stars < 5000 ? '5K' : '10K'}</span>
           <span style={{
@@ -261,7 +261,7 @@ export const OpenSourceFlow = () => {
                   )}
                 </div>
                 <span style={{
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 500,
+                  fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 500,
                   color: active ? 'var(--sand-100)' : 'rgba(var(--sand-100-rgb),0.30)',
                   transition: 'all 0.35s ease',
                 }}>{c.label}</span>
@@ -284,7 +284,7 @@ export const OpenSourceFlow = () => {
         {/* Contributors */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{
-            fontFamily: "'DM Sans', sans-serif", fontSize: 10, fontWeight: 500,
+            fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 500,
             color: 'rgba(var(--sand-100-rgb),0.25)', marginRight: 4,
           }}>Contributors</span>
           <div style={{ display: 'flex' }}>
@@ -313,27 +313,27 @@ export const OpenSourceFlow = () => {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 90 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: 'var(--sand-100)' }}>{gh.stars.toLocaleString()}</span>
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>/ {goalLabel} goal</span>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 700, color: 'var(--sand-100)' }}>{gh.stars.toLocaleString()}</span>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>/ {goalLabel} goal</span>
                 </div>
                 <div style={{ height: 3, background: 'rgba(var(--sand-100-rgb),0.06)', borderRadius: 2, overflow: 'hidden' }}>
                   <div style={{ width: `${pct}%`, height: '100%', background: 'var(--warm-gold)', borderRadius: 2, opacity: 0.7 }}/>
                 </div>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>Stars</span>
+                <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>Stars</span>
               </div>
             );
           })()}
 
           {/* Forks */}
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: 'var(--sand-100)' }}>{gh.forks}</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>Forks</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 700, color: 'var(--sand-100)' }}>{gh.forks}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>Forks</div>
           </div>
 
           {/* License */}
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 700, color: 'var(--warm-gold)' }}>MIT</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>License</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 700, color: 'var(--warm-gold)' }}>MIT</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: 'rgba(var(--sand-100-rgb),0.20)' }}>License</div>
           </div>
         </div>
       </div>

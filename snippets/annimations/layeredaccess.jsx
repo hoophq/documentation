@@ -368,7 +368,7 @@ export const LayeredAccess = () => {
                     <text
                       x={LABEL_X}
                       y={labelY - 2}
-                      fontFamily="Sora, DM Sans, sans-serif"
+                      fontFamily="Inter, Inter, sans-serif"
                       fontSize={isActive ? 14 : 13}
                       fontWeight="600"
                       fill={isActive ? 'var(--warm-gold)' : 'var(--sand-100)'}
@@ -382,7 +382,7 @@ export const LayeredAccess = () => {
                     <text
                       x={LABEL_X}
                       y={labelY + 14}
-                      fontFamily="DM Sans, sans-serif"
+                      fontFamily="Inter, sans-serif"
                       fontSize="11"
                       fontWeight="400"
                       fill="rgba(var(--sand-100-rgb),0.3)"
@@ -410,7 +410,7 @@ export const LayeredAccess = () => {
                 x={CX}
                 y={CY - 5}
                 textAnchor="middle"
-                fontFamily="Sora"
+                fontFamily="Inter"
                 fontSize="8"
                 fontWeight="700"
                 letterSpacing="0.1em"
@@ -422,7 +422,7 @@ export const LayeredAccess = () => {
                 x={CX}
                 y={CY + 8}
                 textAnchor="middle"
-                fontFamily="Sora"
+                fontFamily="Inter"
                 fontSize="8"
                 fontWeight="700"
                 letterSpacing="0.1em"

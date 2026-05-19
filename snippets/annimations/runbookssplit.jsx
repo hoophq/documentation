@@ -3,10 +3,10 @@ export const SplitScreen = () => {
   const S1 = "var(--sand-100)";
   const S5 = "var(--sand-500)";
   const GRAD = "linear-gradient(135deg, var(--gradient-dark-start) 0%, var(--gradient-dark-mid) 35%, var(--gradient-dark-end) 70%, var(--bronze) 100%)";
-  const FONT_URL = "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700;800&display=swap";
+  const FONT_URL = "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap";
   const rgba = (a) => `rgba(var(--sand-100-rgb),${a})`;
   const mono = "'JetBrains Mono', monospace";
-  const sans = "'DM Sans', sans-serif";
+  const sans = "'Inter', sans-serif";
 
   function useTypewriter(text, active, speed = 65) {
     const [out, setOut] = useState("");

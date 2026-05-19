@@ -12,7 +12,7 @@ export const GuardrailsAnimation = () => {
     { sql: "SELECT name, role FROM team WHERE dept = 'eng'", blocked: false, rule: null, type: "SELECT" },
   ];
 
-  const FONT_URL = "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700;800&display=swap";
+  const FONT_URL = "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap";
 
   const animationStyles = `
     @keyframes slideIn {
@@ -173,7 +173,7 @@ export const GuardrailsAnimation = () => {
 
   return (
     <div style={{
-      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontFamily: "'Inter', system-ui, sans-serif",
       borderRadius: 12,
       padding: "20px 24px 16px",
       position: "relative",

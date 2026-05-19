@@ -14,7 +14,7 @@ export const RunbooksAnimation = () => {
   const TEXT_SECONDARY = "#777777";
   const TEXT_MUTED = "#999999";
 
-  const FONTS = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700;800&display=swap');`;
+  const FONTS = `@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap');`;
 
   const PHASES = [
     { id: "git-sync", label: "Git Sync", duration: 5000 },
@@ -148,7 +148,7 @@ export const RunbooksAnimation = () => {
           {syncPulse && (
             <span
               style={{
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 10,
                 fontWeight: 600,
                 textTransform: "uppercase",
@@ -249,7 +249,7 @@ export const RunbooksAnimation = () => {
             </span>
             <span
               style={{
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 12,
                 color: "rgba(var(--sand-100-rgb),0.35)",
                 marginLeft: 10,
@@ -275,7 +275,7 @@ export const RunbooksAnimation = () => {
       <div>
         <div
           style={{
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "'Inter', sans-serif",
             fontSize: 11,
             fontWeight: 600,
             textTransform: "uppercase",
@@ -329,7 +329,7 @@ export const RunbooksAnimation = () => {
                 </div>
                 <span
                   style={{
-                    fontFamily: "'DM Sans', sans-serif",
+                    fontFamily: "'Inter', sans-serif",
                     fontSize: 10,
                     fontWeight: 600,
                     textTransform: "uppercase",
@@ -361,7 +361,7 @@ export const RunbooksAnimation = () => {
             </svg>
             <span
               style={{
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 12,
                 color: "rgba(var(--sand-100-rgb),0.4)",
               }}
@@ -384,7 +384,7 @@ export const RunbooksAnimation = () => {
       <div>
         <div
           style={{
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "'Inter', sans-serif",
             fontSize: 11,
             fontWeight: 600,
             textTransform: "uppercase",
@@ -401,7 +401,7 @@ export const RunbooksAnimation = () => {
           <div style={{ opacity: easeOut(progress * 3) }}>
             <div
               style={{
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 11,
                 color: "rgba(var(--sand-100-rgb),0.3)",
                 marginBottom: 4,
@@ -427,7 +427,7 @@ export const RunbooksAnimation = () => {
           <div style={{ opacity: easeOut(Math.max(0, (progress - 0.1) * 3)) }}>
             <div
               style={{
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 11,
                 color: "rgba(var(--sand-100-rgb),0.3)",
                 marginBottom: 4,
@@ -458,7 +458,7 @@ export const RunbooksAnimation = () => {
           <div style={{ opacity: easeOut(Math.max(0, (progress - 0.15) * 3)) }}>
             <div
               style={{
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 11,
                 color: "rgba(var(--sand-100-rgb),0.3)",
                 marginBottom: 4,
@@ -520,7 +520,7 @@ export const RunbooksAnimation = () => {
       <div>
         <div
           style={{
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "'Inter', sans-serif",
             fontSize: 11,
             fontWeight: 600,
             textTransform: "uppercase",
@@ -544,12 +544,12 @@ export const RunbooksAnimation = () => {
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 500, color: SAND_100 }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, color: SAND_100 }}>
               restart-service.runbook.sh
             </span>
             <span
               style={{
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 10,
                 fontWeight: 600,
                 textTransform: "uppercase",
@@ -572,7 +572,7 @@ export const RunbooksAnimation = () => {
           </div>
           <div
             style={{
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: "'Inter', sans-serif",
               fontSize: 11,
               color: "rgba(var(--sand-100-rgb),0.3)",
             }}
@@ -602,7 +602,7 @@ export const RunbooksAnimation = () => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 11,
                 fontWeight: 600,
                 color: "rgba(var(--sand-100-rgb),0.3)",
@@ -613,7 +613,7 @@ export const RunbooksAnimation = () => {
             <div>
               <div
                 style={{
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   fontSize: 12,
                   color: "rgba(var(--sand-100-rgb),0.5)",
                 }}
@@ -622,7 +622,7 @@ export const RunbooksAnimation = () => {
               </div>
               <div
                 style={{
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   fontSize: 10,
                   color: approved ? WARM_GOLD : "rgba(var(--sand-100-rgb),0.2)",
                   transition: "color 0.5s",
@@ -741,7 +741,7 @@ export const RunbooksAnimation = () => {
       <div>
         <div
           style={{
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "'Inter', sans-serif",
             fontSize: 11,
             fontWeight: 600,
             textTransform: "uppercase",
@@ -786,7 +786,7 @@ export const RunbooksAnimation = () => {
                 </span>
                 <span
                   style={{
-                    fontFamily: "'DM Sans', sans-serif",
+                    fontFamily: "'Inter', sans-serif",
                     fontSize: 12,
                     color: "rgba(var(--sand-100-rgb),0.55)",
                     flex: 1,
@@ -857,7 +857,7 @@ export const RunbooksAnimation = () => {
               </div>
               <span
                 style={{
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   fontSize: 9,
                   fontWeight: isActive ? 600 : 400,
                   textTransform: "uppercase",
@@ -937,7 +937,7 @@ export const RunbooksAnimation = () => {
           width: "100%",
           maxWidth: 620,
           margin: "0 auto",
-          fontFamily: "'DM Sans', system-ui, sans-serif",
+          fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
         <div
@@ -977,7 +977,7 @@ export const RunbooksAnimation = () => {
               <HoopDots size={14} color={SAND_100} />
               <span
                 style={{
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   fontSize: 13,
                   fontWeight: 700,
                   color: SAND_100,
@@ -989,7 +989,7 @@ export const RunbooksAnimation = () => {
             </div>
             <span
               style={{
-                fontFamily: "'Sora', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: 13,
                 fontWeight: 600,
                 color: WARM_GOLD,

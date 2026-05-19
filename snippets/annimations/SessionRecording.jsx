@@ -124,7 +124,7 @@ export const SessionRecording = () => {
         opacity: visible ? 1 : 0,
         transform: visible ? "translateX(0)" : "translateX(16px)",
         transition: "opacity 0.6s ease, transform 0.6s ease",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: "'Inter', sans-serif",
         overflow: "hidden",
       }}>
         <div style={{
@@ -193,7 +193,7 @@ export const SessionRecording = () => {
         <span style={{
           fontSize: 10, fontWeight: 600, letterSpacing: "0.06em",
           color: active ? "rgba(var(--sand-100-rgb),0.45)" : "rgba(var(--sand-100-rgb),0.15)",
-          textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif",
+          textTransform: "uppercase", fontFamily: "'Inter', sans-serif",
         }}>REC</span>
       </div>
     );
@@ -314,7 +314,7 @@ export const SessionRecording = () => {
   return (
     <div style={{ width: "100%", maxWidth: 860, margin: "0 auto" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap');
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.85)} }
         @keyframes fadeInLine { from{opacity:0;transform:translateY(2px)} to{opacity:1;transform:translateY(0)} }
@@ -359,7 +359,7 @@ export const SessionRecording = () => {
               background: "rgba(0,0,0,0.15)",
               border: "1px solid rgba(var(--sand-100-rgb),0.04)",
               fontSize: 11, color: "rgba(var(--sand-100-rgb),0.25)",
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: "'Inter', sans-serif",
             }}>
               <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
                 <rect x="2" y="7" width="12" height="2" rx="1" fill="rgba(var(--sand-100-rgb),0.15)" />
@@ -375,7 +375,7 @@ export const SessionRecording = () => {
             display: "flex", gap: 0,
             background: "rgba(0,0,0,0.12)",
             borderBottom: "1px solid rgba(var(--sand-100-rgb),0.06)",
-            fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+            fontFamily: "'Inter', sans-serif", fontSize: 12,
           }}>
             {["Terminal", "Logs", "Video"].map((tab, i) => (
               <div key={tab} style={{
@@ -428,7 +428,7 @@ export const SessionRecording = () => {
                   </svg>
                   <span style={{
                     fontSize: 12, color: COLORS.warmGold, opacity: 0.8,
-                    fontFamily: "'DM Sans', sans-serif",
+                    fontFamily: "'Inter', sans-serif",
                   }}>Session recorded. 6 events captured.</span>
                 </div>
               )}
