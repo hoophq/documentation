@@ -76,6 +76,11 @@
 :root:not(.dark) #body-content strong {
   color: #0A0A0A !important;
   letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.dark #body-content strong {
+  font-weight: 600;
 }
 
 :root:not(.dark) #body-content a {
