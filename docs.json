@@ -18,11 +18,11 @@
   },
   "fonts": {
     "heading": {
-      "family": "Sora",
+      "family": "Inter",
       "weight": 700
     },
     "body": {
-      "family": "DM Sans"
+      "family": "Inter"
     }
   },
   "favicon": "/favicon.svg",

@@ -68,7 +68,7 @@ export const ApprovalCard = () => {
       overflow: 'hidden',
       borderRadius: 12,
       background: `linear-gradient(135deg, var(--gradient-dark-start) 0%, ${T.espresso} 35%, var(--gradient-dark-end) 70%, ${T.bronze} 100%)`,
-      fontFamily: "var(--sans, 'DM Sans', system-ui, sans-serif)",
+      fontFamily: "var(--sans, 'Inter', system-ui, sans-serif)",
     },
     sceneGlow: {
       content: '""',
@@ -107,7 +107,7 @@ export const ApprovalCard = () => {
       right: 0,
       textAlign: 'center',
       zIndex: 3,
-      fontFamily: "var(--display, 'Sora', system-ui, sans-serif)",
+      fontFamily: "var(--display, 'Inter', system-ui, sans-serif)",
       fontSize: 12,
       fontWeight: 600,
       color: 'rgba(var(--sand-100-rgb),0.2)',
@@ -263,7 +263,7 @@ export const ApprovalCard = () => {
   function CardActions({ mode, actionsVisible }) {
     const btnBase = {
       flex: 1, padding: 10, borderRadius: 8, border: 'none',
-      fontFamily: "var(--sans, 'DM Sans', system-ui, sans-serif)",
+      fontFamily: "var(--sans, 'Inter', system-ui, sans-serif)",
       fontSize: 13, fontWeight: 600, cursor: 'default', textAlign: 'center',
       transition: 'transform 0.2s, opacity 0.2s',
     };

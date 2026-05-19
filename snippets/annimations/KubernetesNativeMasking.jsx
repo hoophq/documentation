@@ -1,6 +1,6 @@
 export const KubernetesNativeMasking = () => {
   const FONT_URL =
-    "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700;800&display=swap";
+    "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap";
 
   const C = {
     sand100: "var(--sand-100)",
@@ -361,7 +361,7 @@ export const KubernetesNativeMasking = () => {
       maxWidth: 700,
       width: "100%",
       margin: "0 auto",
-      fontFamily: "'DM Sans', sans-serif",
+      fontFamily: "'Inter', sans-serif",
       opacity: fadingOut ? 0 : 1,
       transition: "opacity 0.8s ease",
     }}>
@@ -395,7 +395,7 @@ export const KubernetesNativeMasking = () => {
           }}>
             <K8sIcon size={13} />
             <span style={{
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: "'Inter', sans-serif",
               fontSize: 10,
               fontWeight: 600,
               color: "rgba(var(--sand-100-rgb),0.7)",
@@ -525,7 +525,7 @@ export const KubernetesNativeMasking = () => {
             gap: 6,
           }}>
             <span style={{
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: "'Inter', sans-serif",
               fontSize: 10,
               fontWeight: 600,
               color: "rgba(var(--sand-100-rgb),0.7)",

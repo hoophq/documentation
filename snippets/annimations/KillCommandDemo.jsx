@@ -153,7 +153,7 @@ export const KillCommandDemo = () => {
 
   return (
     <div style={{
-      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontFamily: "'Inter', system-ui, sans-serif",
       borderRadius: 12,
       padding: "20px 24px 16px",
       position: "relative",

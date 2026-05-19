@@ -5,7 +5,7 @@ export const ActionAccessAnimation = () => {
   const SAND_300 = "var(--sand-300)";
   const SAND_500 = "var(--sand-500)";
 
-  const FONTS = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700;800&display=swap');`;
+  const FONTS = `@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap');`;
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -159,7 +159,7 @@ export const ActionAccessAnimation = () => {
   return (
     <div style={{
       width: "100%", maxWidth: 780, margin: "0 auto",
-      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontFamily: "'Inter', system-ui, sans-serif",
     }}>
       <style>{FONTS}{`
         @keyframes hoop_blink { 0%,100%{opacity:1} 50%{opacity:0} }
@@ -172,7 +172,7 @@ export const ActionAccessAnimation = () => {
 
       {/* Overline */}
       <div style={{
-        fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600,
+        fontFamily: "'Inter', sans-serif", fontSize: 11, fontWeight: 600,
         color: WARM_GOLD, letterSpacing: "0.1em", textTransform: "uppercase",
         marginBottom: 12, textAlign: "center",
       }}>
@@ -321,11 +321,11 @@ export const ActionAccessAnimation = () => {
                     <span style={{ fontSize: 11, color: "rgba(var(--sand-100-rgb),0.4)" }}>#</span>
                   </div>
                   <span style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600,
+                    fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 600,
                     color: "rgba(var(--sand-100-rgb),0.60)",
                   }}>#access-requests</span>
                   <span style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 10,
+                    fontFamily: "'Inter', sans-serif", fontSize: 10,
                     color: "rgba(var(--sand-100-rgb),0.20)", marginLeft: "auto",
                   }}>just now</span>
                 </div>
@@ -333,7 +333,7 @@ export const ActionAccessAnimation = () => {
                 {/* Body */}
                 <div style={{ borderLeft: `2.5px solid ${WARM_GOLD}`, paddingLeft: 14, marginBottom: 14 }}>
                   <div style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600,
+                    fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 600,
                     color: "rgba(var(--sand-100-rgb),0.70)", marginBottom: 6,
                   }}>
                     Access Request from alice@company.com
@@ -341,7 +341,7 @@ export const ActionAccessAnimation = () => {
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{
-                        fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+                        fontFamily: "'Inter', sans-serif", fontSize: 11,
                         color: "rgba(var(--sand-100-rgb),0.30)", minWidth: 70,
                       }}>Connection</span>
                       <span style={{
@@ -351,7 +351,7 @@ export const ActionAccessAnimation = () => {
                     </div>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <span style={{
-                        fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+                        fontFamily: "'Inter', sans-serif", fontSize: 11,
                         color: "rgba(var(--sand-100-rgb),0.30)", minWidth: 70,
                       }}>Command</span>
                       <span style={{
@@ -365,7 +365,7 @@ export const ActionAccessAnimation = () => {
                 {/* Buttons */}
                 <div style={{ display: "flex", gap: 8 }}>
                   <button style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600,
+                    fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 600,
                     padding: "6px 20px", borderRadius: 6, border: "none", cursor: "pointer",
                     transition: "all 0.3s ease",
                     background: approveClicked ? WARM_GOLD : SAND_100,
@@ -375,7 +375,7 @@ export const ActionAccessAnimation = () => {
                     {approveClicked ? "✓ Approved" : "Approve"}
                   </button>
                   <button style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 500,
+                    fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 500,
                     padding: "6px 20px", borderRadius: 6,
                     border: "1px solid rgba(var(--sand-100-rgb),0.12)",
                     background: "transparent", color: "rgba(var(--sand-100-rgb),0.35)",
@@ -403,7 +403,7 @@ export const ActionAccessAnimation = () => {
             <circle cx="7" cy="17" r="3.5"/><circle cx="17" cy="17" r="3.5"/>
           </svg>
           <span style={{
-            fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 500,
+            fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 500,
             color: "rgba(var(--sand-100-rgb),0.2)",
           }}>hoop.dev</span>
           <div style={{ flex: 1, height: 1, background: "rgba(var(--sand-100-rgb),0.06)" }} />

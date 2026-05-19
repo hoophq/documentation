@@ -49,8 +49,8 @@
   --gradient-dark-mid: #1A1A1A;
   --gradient-dark-end: #2A2A2A;
   --mono: 'JetBrains Mono', 'SF Mono', monospace;
-  --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --display: 'Sora', 'DM Sans', system-ui, sans-serif;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --display: 'Inter', system-ui, sans-serif;
 }
 
 /* --------------------------------------------------------------------------

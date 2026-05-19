@@ -440,7 +440,7 @@ export const ClaudeCodeTerminal = () => {
           text-align: center;
           font-size: 11px;
           color: rgba(var(--sand-100-rgb),0.25);
-          font-family: 'DM Sans', system-ui, sans-serif;
+          font-family: 'Inter', system-ui, sans-serif;
           letter-spacing: 0.3px;
           font-weight: 500;
         }
@@ -564,7 +564,7 @@ export const ClaudeCodeTerminal = () => {
           transform: scale(1.4);
         }
         .phase-lbl {
-          font-family: 'DM Sans', system-ui, sans-serif;
+          font-family: 'Inter', system-ui, sans-serif;
           font-size: 11px;
           color: rgba(var(--sand-100-rgb),0.25);
           font-weight: 500;

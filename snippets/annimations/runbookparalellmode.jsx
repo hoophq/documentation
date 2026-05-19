@@ -211,11 +211,11 @@ export const RunbooksAnimation = () => {
         width: "100%",
         maxWidth: 720,
         margin: "0 auto",
-        fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
+        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       }}
     >
       <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet"
       />
 
@@ -378,7 +378,7 @@ export const RunbooksAnimation = () => {
                 </div>
                 <span
                   style={{
-                    fontFamily: "'Sora', sans-serif",
+                    fontFamily: "'Inter', sans-serif",
                     fontSize: 16,
                     fontWeight: 700,
                     color: COLORS.sand100,
@@ -610,7 +610,7 @@ export const RunbooksAnimation = () => {
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.warmGold }} />
                       <span
                         style={{
-                          fontFamily: "'Sora', sans-serif",
+                          fontFamily: "'Inter', sans-serif",
                           fontSize: 14,
                           fontWeight: 600,
                           color: COLORS.sand100,
