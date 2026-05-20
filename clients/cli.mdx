@@ -78,7 +78,7 @@ import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
 </Tabs>
 
 <Note>
-  Already installed? Once you've authenticated against a gateway, you can keep the CLI in sync with `hoop upgrade` — it downloads the matching release, installs it under `$HOME/.hoop/versions/`, and manages multiple versions side-by-side. See [hoop upgrade](/clients/cli-upgrade) for details.
+  Already installed? The CLI ships its own version manager under `hoop versions`. Use `hoop versions sync` to match the connected gateway, `hoop versions upgrade` to track the latest release, or `hoop versions install <version>` to pin a specific version. See [hoop versions](/clients/cli-versions) for details.
 </Note>
 
 ## Authentication

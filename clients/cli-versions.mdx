@@ -1,0 +1,286 @@
+---
+title: "hoop versions"
+description: "Manage hoop CLI versions: sync to the connected gateway, upgrade to the latest release, or install any specific version side-by-side."
+---
+
+## Overview
+
+The hoop CLI ships a built-in version manager modeled on `nvm` and `fnm`. It downloads release binaries, stores them under `$HOME/.hoop/versions/<version>/hoop`, and points a single symlink at `$HOME/.hoop/bin/hoop` to the active version. Add that directory to your `PATH` once and you can switch versions freely without ever touching `brew` or `/usr/local/bin` again.
+
+All version-management commands live under `hoop versions`:
+
+```bash
+hoop versions <subcommand> [flags]
+```
+
+| Subcommand | Aliases | Purpose |
+|---|---|---|
+| `sync` | | Install the version reported by the connected gateway |
+| `upgrade` | | Install the latest published release from `releases.hoop.dev` |
+| `install <version>` | | Download a specific version |
+| `list` | `ls` | Show installed versions and the active one |
+| `use <version>` | | Switch the active version |
+| `remove <version>` | `rm`, `uninstall` | Delete an installed version |
+
+<Note>
+  The version manager only handles releases **1.74.0 and newer** — `hoop versions` was introduced in that release. Older CLIs don't ship this command group, so the manager refuses to install them (it would leave you unable to switch back).
+</Note>
+
+---
+
+## hoop versions sync
+
+Asks the connected gateway for its version (via `/api/serverinfo`), downloads the matching CLI release for your OS and architecture, verifies the SHA-256 checksum, and switches the active version to the newly installed one.
+
+```bash
+hoop versions sync [flags]
+```
+
+Use this when you want the CLI and the gateway to be on **identical** versions. Requires that you've authenticated against a gateway first (`hoop login` or `hoop config create --api-key ...`).
+
+**Example:**
+
+```bash
+hoop versions sync
+```
+
+```
+Gateway at https://gateway.example.com reports version 1.75.0
+Installing 1.75.0 for Darwin_arm64 ...
+Active hoop version is now 1.75.0
+Installed at: /Users/you/.hoop/versions/1.75.0/hoop
+Symlink:      /Users/you/.hoop/bin/hoop -> /Users/you/.hoop/versions/1.75.0/hoop
+```
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `-y`, `--yes` | `false` | Assume yes for the interactive PATH-setup prompt |
+| `--skip-path-hint` | `false` | Skip the PATH check and prompt entirely |
+
+---
+
+## hoop versions upgrade
+
+Fetches the latest released version published at [releases.hoop.dev/release/latest.txt](https://releases.hoop.dev/release/latest.txt) and installs it. **Does not** consult the gateway and does **not** require `hoop login` — this is the right command when you just want to track the latest stable hoop release regardless of which gateway you happen to be pointed at.
+
+```bash
+hoop versions upgrade [flags]
+```
+
+**Example:**
+
+```bash
+hoop versions upgrade
+```
+
+```
+Latest released hoop version is 1.75.0 (from https://releases.hoop.dev/release/latest.txt)
+Installing 1.75.0 for Darwin_arm64 ...
+Active hoop version is now 1.75.0
+Installed at: /Users/you/.hoop/versions/1.75.0/hoop
+Symlink:      /Users/you/.hoop/bin/hoop -> /Users/you/.hoop/versions/1.75.0/hoop
+```
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `-y`, `--yes` | `false` | Assume yes for the interactive PATH-setup prompt |
+| `--skip-path-hint` | `false` | Skip the PATH check and prompt entirely |
+
+### sync vs upgrade
+
+| When you want… | Use |
+|---|---|
+| The CLI to match the gateway you're connected to | `hoop versions sync` |
+| The newest published hoop release, regardless of gateway | `hoop versions upgrade` |
+| A specific older or pinned version | `hoop versions install <version>` |
+
+In most day-to-day workflows the two are equivalent — gateway operators usually run the latest release. They diverge when the gateway is intentionally pinned to an older version (e.g. a customer running on `1.74.x` while `1.75.x` is out): `sync` will install `1.74.x` so you stay compatible, while `upgrade` will jump you to `1.75.x`.
+
+---
+
+## PATH setup
+
+For the active version to take effect in your shell, `$HOME/.hoop/bin` needs to be on `PATH` ahead of any Homebrew or system path. The first time you run `hoop versions sync` (or `hoop versions upgrade`, or `hoop versions install --use ...`), the CLI checks `PATH` and offers to append the right export line to your shell rc file.
+
+| Shell | rc file | Line appended |
+|---|---|---|
+| zsh | `~/.zshrc` | `export PATH="$HOME/.hoop/bin:$PATH"` |
+| bash | `~/.bashrc` (or `~/.bash_profile`) | `export PATH="$HOME/.hoop/bin:$PATH"` |
+| fish | `~/.config/fish/config.fish` | `fish_add_path -p "$HOME/.hoop/bin"` |
+
+The append is idempotent — re-running the command won't duplicate the line. Pass `-y` to accept the prompt non-interactively, or `--skip-path-hint` to suppress it (handy in CI).
+
+After the rc file is updated, open a new shell or `source` the file. Verify with:
+
+```bash
+which hoop
+# expected: /Users/you/.hoop/bin/hoop
+```
+
+<Note>
+  If `which hoop` still points at Homebrew (`/opt/homebrew/bin/hoop` or `/usr/local/bin/hoop`), your existing `PATH` puts Homebrew first. Move the hoop export above the Homebrew block in your rc file.
+</Note>
+
+---
+
+## hoop versions install
+
+Direct, explicit-version install. Useful for pinning, testing against an older release, or installing in environments where you don't want to go through the gateway/latest indirection.
+
+```bash
+hoop versions install <version> [--use] [--reinstall]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--use` | `false` | Switch the active version to the newly installed one |
+| `--reinstall` | `false` | Force re-download even if the version is already installed |
+
+**Examples:**
+
+```bash
+# install and switch in one step
+hoop versions install 1.75.0 --use
+
+# install a second version without switching
+hoop versions install 1.74.2
+```
+
+If the version is already installed and `--reinstall` is not passed, the command exits cleanly without downloading anything.
+
+---
+
+## hoop versions list
+
+```bash
+hoop versions list
+```
+
+```
+   VERSION   PLATFORM         INSTALLED AT                PATH
+*  1.75.0    Darwin_arm64     2026-05-20T15:12:30-03:00   /Users/you/.hoop/versions/1.75.0/hoop
+   1.74.2    Darwin_arm64     2026-05-10T09:01:11-03:00   /Users/you/.hoop/versions/1.74.2/hoop
+```
+
+The `*` marks the currently active version (whatever `$HOME/.hoop/bin/hoop` points at).
+
+---
+
+## hoop versions use
+
+```bash
+hoop versions use <version>
+```
+
+Updates the `$HOME/.hoop/bin/hoop` symlink to point at the requested version. Fails if the version isn't installed — install it first with `hoop versions install <version>`, or use the `--use` shortcut shown above.
+
+---
+
+## hoop versions remove
+
+```bash
+hoop versions remove <version> [--force]
+```
+
+Deletes the install directory `$HOME/.hoop/versions/<version>/` and drops it from the store. Removing the active version requires `--force`; the symlink is then unlinked so you don't end up with a dangling path.
+
+```bash
+hoop versions remove 1.74.0
+hoop versions remove 1.75.0 --force
+```
+
+---
+
+## Version-mismatch warning
+
+The CLI watches the `Server` header on every gateway response. When the gateway reports a version different from the locally-built CLI, you'll see a single one-shot warning on stderr per process:
+
+```
+warn: hoop CLI version 1.74.2 differs from gateway version 1.75.0; run `hoop versions sync` to match (set HOOP_DISABLE_VERSION_CHECK=true to silence)
+```
+
+The warning is intentionally non-fatal — older clients still work against newer gateways for everything except brand-new features. To silence it (for example in CI logs or scripts):
+
+```bash
+export HOOP_DISABLE_VERSION_CHECK=true
+```
+
+The warning is also suppressed automatically when:
+
+- The local CLI was built without a release tag (i.e. its own version is `unknown`).
+- You're already running `hoop versions sync` or `hoop versions upgrade`, so the message doesn't appear just before the install banner.
+
+---
+
+## File layout
+
+The version manager only touches files under `$HOME/.hoop/`:
+
+```
+$HOME/.hoop/
+├── config.toml              # api_url, token, tls_ca (managed by `hoop config`)
+├── versions.toml            # tracks installed versions and the active one
+├── bin/
+│   └── hoop                 # symlink → versions/<active>/hoop
+└── versions/
+    ├── 1.74.2/
+    │   └── hoop
+    └── 1.75.0/
+        └── hoop
+```
+
+`versions.toml` is the source of truth for what is installed and which version is active. The `bin/hoop` symlink only mirrors it; if the symlink is missing or broken, the next `hoop versions sync`, `upgrade`, or `use` rebuilds it.
+
+---
+
+## Caveats
+
+### Minimum installable version
+
+```bash
+hoop versions sync
+```
+
+```
+Error: the gateway at https://gateway.example.com is on version 1.73.0, but the `hoop versions sync` command was only introduced in 1.74.0.
+Hoop CLIs older than 1.74.0 don't ship this command, so it can't install a matching CLI for you.
+
+What to do:
+  - recommended: upgrade the gateway to 1.74.0 or newer, then re-run `hoop versions sync`.
+  - manual: download hoop 1.73.0 by hand from https://github.com/hoophq/hoop/releases (or via brew). That CLI won't have `hoop versions sync`, so future version changes will also need to be done by hand.
+```
+
+This is by design — installing a CLI without `hoop versions` would orphan you on a version that can't manage itself.
+
+### Local development gateways
+
+When the gateway reports its version as `unknown`, it's usually a local dev build that was compiled without a release tag injected via `-ldflags`. `hoop versions sync` cannot install an "unknown" release, so it returns:
+
+```
+Error: the gateway at http://localhost:8009 did not report a release version (got "unknown").
+
+This usually means you're connected to a local development build that wasn't stamped with a release tag.
+
+  - If this is your dev gateway, you don't need to sync the CLI.
+  - If this is a real deployment, the gateway image is unstripped — rebuild it with a release tag and retry.
+  - To install the latest published release instead, run `hoop versions upgrade`.
+```
+
+In this case `hoop versions upgrade` is the right escape hatch — it doesn't consult the gateway at all.
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/clients/cli">
+    Full CLI installation, authentication, and configuration guide
+  </Card>
+  <Card title="Releases" icon="box" href="https://github.com/hoophq/hoop/releases">
+    Browse and download specific hoop releases on GitHub
+  </Card>
+</CardGroup>
