@@ -84,6 +84,7 @@
                 ]
               },
               "clients/cli",
+              "clients/cli-upgrade",
               "clients/cli-resources",
               "clients/hsh"
             ]
