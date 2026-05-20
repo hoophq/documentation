@@ -320,6 +320,11 @@ Make sure to include `?sslmode=disable` option in the Postgres connection string
       LOG_LEVEL: 'info' # debug|info|warn|error
       LOG_GRPC: '0' # 0|1|2
 
+      # Override Presidio configuration propagated from the gateway (optional)
+      # MSPRESIDIO_ANALYZER_URL: 'http://user:pass@presidio-analyzer:5001'
+      # MSPRESIDIO_ANONYMIZER_URL: 'http://user:pass@presidio-anonymizer:5002'
+      # DLP_MODE: 'best-effort' # best-effort|strict
+
     # image default configuration
     image:
       repository: hoophq/hoopdev
