@@ -100,9 +100,6 @@ In the **Input Rules** section:
 (?i)(UPDATE|DELETE)\s+\w+\s+(SET|FROM)(?!.*WHERE)
 ```
 
-4. Set **Action** to **Block**
-5. Enter the error message: `Blocked: UPDATE/DELETE requires a WHERE clause`
-
 <Note>
 The `(?i)` makes the pattern case-insensitive, so it catches `update`, `UPDATE`, and `Update`.
 </Note>
@@ -150,10 +147,6 @@ Prevent accidental schema changes in production.
 (?i)^\s*(DROP|TRUNCATE|ALTER)\s+(TABLE|DATABASE|INDEX|SCHEMA)
 ```
 
-**Action:** Block
-
-**Message:** `DDL commands are blocked. Use a migration tool or request elevated access.`
-
 **What it catches:**
 - `DROP TABLE users`
 - `TRUNCATE TABLE orders`
@@ -172,10 +165,6 @@ Block all write operations for analyst or read-only user groups.
 | `(?i)^\s*DELETE\s+FROM` | DELETE statements |
 | `(?i)^\s*(CREATE\|DROP\|ALTER)\s+` | DDL commands |
 
-**Action:** Block
-
-**Message:** `This connection is read-only. Write operations are not permitted.`
-
 <Tip>
 Apply this guardrail only to connections used by read-only groups, not to admin connections.
 </Tip>
@@ -188,10 +177,6 @@ Prevent queries that could return millions of rows.
 ```regex
 (?i)SELECT\s+\*\s+FROM\s+(orders|logs|events|transactions)(?!.*LIMIT)
 ```
-
-**Action:** Block
-
-**Message:** `SELECT * without LIMIT is blocked on large tables. Add a LIMIT clause or select specific columns.`
 
 **What it catches:**
 - `SELECT * FROM orders` (blocked)
@@ -207,10 +192,6 @@ Block queries that might expose passwords or secrets.
 (?i)SELECT\s+.*\bFROM\s+\w*users\w*.*\b(password|secret|token|api_key)\b
 ```
 
-**Action:** Block
-
-**Message:** `Queries selecting credential columns are blocked. Use the appropriate service to manage credentials.`
-
 ### Recipe 5: Require LIMIT on All Queries
 
 Warn users when they forget to add LIMIT.
@@ -219,10 +200,6 @@ Warn users when they forget to add LIMIT.
 ```regex
 (?i)^\s*SELECT\s+(?!.*\bLIMIT\b).*FROM
 ```
-
-**Action:** Warn
-
-**Message:** `Consider adding a LIMIT clause to prevent large result sets.`
 
 <Note>
 Use **Warn** instead of **Block** when you want to educate users without stopping their work.
@@ -236,10 +213,6 @@ Restrict access to sensitive tables like `salaries` or `api_keys`.
 ```regex
 (?i)\b(FROM|JOIN|INTO|UPDATE)\s+(salaries|api_keys|credentials|secrets)\b
 ```
-
-**Action:** Block
-
-**Message:** `Access to this table is restricted. Contact your administrator for access.`
 
 ---
 
