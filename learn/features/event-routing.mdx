@@ -1,0 +1,273 @@
+---
+title: "Event Routing"
+description: "Automatically dispatch a runbook whenever a platform event fires, with full audit and approval coverage."
+---
+
+import { EventRoutingAnimation } from '/snippets/annimations/EventRoutingAnimation.jsx';
+
+<div style={{background: 'linear-gradient(135deg, #111111 0%, #1A1A1A 35%, #2A2A2A 70%, #3A3A3A 100%)', borderRadius: 14, overflow: 'hidden', height: 420}}>
+  <EventRoutingAnimation />
+</div>
+
+## What You'll Accomplish
+
+Event Routing connects platform events to runbooks. When a subscribed event fires, the gateway renders the event payload through the subscription's parameter mapping and dispatches the target runbook automatically.
+
+You can:
+
+- Revoke access automatically when DLP flags sensitive data in a session.
+- Trigger remediation the moment a guardrail rule fires.
+- Page on-call when the AI analyzer rates a session as high risk.
+- Pre-stage evidence collection when a PCI-tagged connection is opened.
+- Replay a failed dispatch from history without waiting for the original event to fire again.
+
+---
+
+## How Event Routing Works
+
+<Steps>
+  <Step title="Event fires inside the gateway">
+    A typed event is emitted at an audit-relevant moment: a session opens or closes, a review is approved or denied, the DLP analyzer flags entities, a guardrail trips, the AI analyzer rates a session, or a PCI-tagged connection is opened.
+  </Step>
+  <Step title="Active subscriptions are matched">
+    The gateway looks up subscriptions for that event type in the org. Only subscriptions with status `active` produce dispatches.
+  </Step>
+  <Step title="Parameter mapping renders the payload">
+    Each runbook parameter is filled from an event payload field using a JSONPath reference (e.g. `$.session_id`, `$.user`). Same-name fields are pre-matched when you create the subscription.
+  </Step>
+  <Step title="Runbook is dispatched and executed">
+    The dispatcher launches the runbook against the subscription's resource role using the rendered parameters.
+  </Step>
+  <Step title="Dispatch is recorded on the subscription">
+    A dispatch row lands in the subscription's history with a status and duration. Failed dispatches can be replayed from the UI.
+  </Step>
+</Steps>
+
+### Event Catalog
+
+| Event | Category | Fires when |
+|---|---|---|
+| `session.started` | Session | A session opens, before any input or output flows |
+| `session.closed` | Session | A session is finalized with `exit_code` and `duration_ms` |
+| `session.guardrail_violation` | Session | At session close, once per guardrail rule that tripped |
+| `session.pci_scope_entered` | Session | At session open against a connection tagged `pci` or `pci-scope` |
+| `session.anomaly_detected` | Session | At session close when the AI analyzer rates risk as `high` |
+| `access.jit_approved` | Access | A review transitions to APPROVED via API, Slack, or MCP |
+| `access.jit_denied` | Access | A review transitions to REJECTED via API, Slack, or MCP |
+| `alert.sensitive_data_detected` | Alert | At session close when DLP flagged one or more entities |
+| `alert.data_masked` | Alert | At session close when the redactor replaced one or more values |
+
+---
+
+## Quick Start
+
+import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+
+<Prerequisites />
+
+- The `experimental.event_routing` feature flag enabled for your org
+- At least one runbook repository configured with runbooks that declare `metadata` parameters
+- A resource role (connection) with an agent assigned
+
+### Step 1: Enable the Feature Flag
+
+1. Go to **Settings > Experimental**.
+2. Toggle `experimental.event_routing` to **On**.
+3. Reload the app — **Event Routing** appears in the sidebar under **Features**.
+
+<Note>
+The flag defaults to off. No subscriptions are evaluated and no UI surface is visible until you enable it.
+</Note>
+
+### Step 2: Review the Event Catalog
+
+1. Go to **Features > Event Routing > Event catalog**.
+2. Find the event you want to subscribe to and click **View schema** to inspect its fields and sample payload.
+3. Note the field names you plan to map to your runbook's parameters.
+
+### Step 3: Create a Subscription
+
+1. Click **Create subscription** in the header.
+2. Fill in the form:
+   - **Name** — shown in audit logs and dispatch history.
+   - **Description** (optional) — when this subscription should fire and why.
+   - **Resource role** — the connection the runbook will run against.
+   - **Runbook** — populated from the runbooks available on the selected role.
+   - **Subscribed event** — one event per subscription.
+   - **Parameter mapping** — for each runbook parameter, select the event field that feeds it. Same-name fields are pre-matched.
+3. Click **Save**.
+
+<Warning>
+Required runbook parameters that have no mapping block the Save button. The mapping table marks them with `Required` until they are filled.
+</Warning>
+
+### Step 4: Verify the Subscription Fires
+
+1. Cause the subscribed event to fire. For `session.started`, open any session against a connection in the subscription's resource role.
+2. Open the subscription detail page at **Features > Event Routing > [subscription name]**.
+3. A new row appears in **Dispatch history** within seconds:
+
+```text
+2026-05-20 15:30:00   session.started   delivered   1 240 ms
+```
+
+---
+
+## Subscription and Dispatch Statuses
+
+### Subscription Status
+
+| Status | Dispatches created |
+|---|---|
+| `active` | Yes |
+| `paused` | No |
+
+Use **Pause** on the detail page to stop dispatching. **Resume** re-enables dispatching immediately.
+
+### Dispatch Status
+
+| Status | Meaning |
+|---|---|
+| `pending` | Queued, not yet picked up |
+| `processing` | The dispatcher is running the runbook |
+| `delivered` | Runbook completed successfully |
+| `failed` | Runbook failed; `last_error` carries the reason |
+
+Failed dispatches can be replayed from the dispatch row using **Replay**. The stored event payload is reused; no new event needs to fire.
+
+---
+
+## Common Recipes
+
+### Recipe 1: Revoke AI Agent Access on PII Detection
+
+**Event:** `alert.sensitive_data_detected`
+
+**Runbook:** `revoke-ai-agent-access.md`
+
+**Parameter mapping:**
+
+| Runbook parameter | Event field |
+|---|---|
+| `agent_user` | `$.user` |
+| `connection_name` | `$.connection` |
+
+Fires whether or not a redaction was applied. Use `alert.data_masked` instead if you only want to react when values were actually replaced.
+
+---
+
+### Recipe 2: Quarantine a Connection on Guardrail Violation
+
+**Event:** `session.guardrail_violation`
+
+**Runbook:** `quarantine-connection.md`
+
+**Parameter mapping:**
+
+| Runbook parameter | Event field |
+|---|---|
+| `connection` | `$.connection` |
+| `triggered_rule` | `$.rule` |
+
+A session that trips multiple rules emits one event per rule, producing one dispatch per rule. Add a `query_excerpt` mapping to pass context to the runbook.
+
+---
+
+### Recipe 3: Page On-Call for High-Risk Sessions
+
+**Event:** `session.anomaly_detected`
+
+**Runbook:** `page-oncall.md`
+
+**Parameter mapping:**
+
+| Runbook parameter | Event field |
+|---|---|
+| `session_id` | `$.session_id` |
+| `risk_summary` | `$.reason` |
+
+Does not fire for `low` or `medium` ratings, or when AI analysis is disabled for the org.
+
+---
+
+## Editing and Managing Subscriptions
+
+- **Edit** — opens the same form used for creation, pre-filled with the current values. The subscribed event is fixed after creation because the parameter mapping depends on the event schema. To change the event, delete the subscription and create a new one.
+- **Pause / Resume** — stops or restarts dispatching.
+- **Replay** — re-runs the stored payload of a failed dispatch through the current subscription configuration. The new dispatch appears at the top of history with its own row.
+- **Delete** — permanently removes the subscription and its dispatch history.
+
+---
+
+## Auditing Dispatch History
+
+<Steps>
+  <Step title="Open the subscription detail page">
+    Go to **Features > Event Routing** and click **Configure** on the subscription.
+  </Step>
+  <Step title="Read the dispatch history table">
+    Each row shows the timestamp, event type, status, and duration.
+  </Step>
+  <Step title="Inspect a failed dispatch">
+    Click any failed dispatch row to view the `last_error` message and replay the dispatch with the original event payload.
+  </Step>
+</Steps>
+
+---
+
+## Troubleshooting
+
+### Sidebar Entry Not Visible After Enabling the Flag
+
+**Check:**
+1. Confirm the flag is **On** for your specific org in **Settings > Experimental** — the flag is per-org.
+2. Reload the app after toggling. The sidebar is rendered on mount, not live-updated.
+3. Confirm you have the admin role. The route is restricted to admins.
+
+### Save Button Stays Disabled on the Form
+
+**Check:**
+1. **Name** is filled in.
+2. A **Resource role** is selected.
+3. A **Runbook** is selected (the dropdown is disabled until a role is chosen).
+4. Exactly one event is selected in the radio list.
+5. Every parameter marked `Required` in the mapping table has a field assigned.
+
+### Dispatches Stay at `pending`
+
+**Check:**
+1. The subscription status is `active`, not `paused`.
+2. The resource role's connection has an agent assigned and the agent is online.
+3. The event routing supervisor is running — it is started as part of the gateway process. If the gateway restarted recently, check the logs for startup errors.
+
+### Dispatches Flip to `failed`
+
+**Check:**
+1. Open the failed dispatch row — `last_error` carries the full error message from the dispatcher.
+2. Common causes: the runbook file no longer exists in the repository, a required parameter could not be resolved from the payload, or the runbook process returned a non-zero exit code.
+3. Fix the underlying cause (update the mapping, push a corrected runbook, restore the file), then use **Replay** to retry with the original event payload.
+
+### Connection Rename Broke a Subscription
+
+**Check:**
+1. Subscriptions store `connection_name` with `ON UPDATE CASCADE` — renames in Hoop propagate to subscriptions automatically.
+2. If a connection was deleted and recreated with the same name, the subscription is now bound to the new connection. Verify the new connection has the correct agent and runbooks configured.
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Runbooks" icon="book-open-check" href="/learn/features/runbooks">
+    Configure the repositories and runbook files that Event Routing dispatches.
+  </Card>
+  <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
+    The rule engine whose violations produce `session.guardrail_violation` events.
+  </Card>
+  <Card title="Live Data Masking" icon="eye-off" href="/learn/features/live-data-masking">
+    The DLP pipeline behind `alert.sensitive_data_detected` and `alert.data_masked`.
+  </Card>
+  <Card title="Access Requests" icon="check-check" href="/learn/features/access-requests/jit">
+    The approval flow that produces `access.jit_approved` and `access.jit_denied`.
+  </Card>
+</CardGroup>

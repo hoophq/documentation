@@ -64,6 +64,7 @@
               "learn/features/workflow-observability",
               "learn/features/guardrails",
               "learn/features/runbooks",
+              "learn/features/event-routing",
               "learn/features/secrets-manager",
               "learn/features/session-recording",
               "learn/features/parallel-mode",
