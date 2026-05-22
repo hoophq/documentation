@@ -508,6 +508,45 @@ analyzer:
   The custom build of Presidio Analyzer with Flair requires more resources than the default official image. We recommend allocating at least 8vCPU and 16GB to the analyzer process.
 </Warning>
 
+### Extensions
+
+Hoop provides a custom Presidio Analyzer image that bundles additional recognizers not available in the official Microsoft image. This image is a thin overlay on the official `mcr.microsoft.com/presidio-analyzer` base — it adds no changes to the upstream NLP pipeline and is safe to use as a drop-in replacement.
+
+The image is published at [docker.io/hoophq/presidio-analyzer](https://hub.docker.com/r/hoophq/presidio-analyzer).
+
+To use it, override the analyzer image in `values.yaml`:
+
+```yaml
+analyzer:
+  imageRepository: hoophq/presidio-analyzer
+  imageTag: 2.2.362-extensions-0.0.1
+```
+
+The extensions tag format encodes the upstream Presidio version (`2.2.362`) and the extensions release (`0.0.1`), making it easy to track what upstream base is in use.
+
+#### Included Recognizers
+
+| Entity Type | Country | Description |
+|---|---|---|
+| `BR_CPF` | Brazil | CPF (Cadastro de Pessoa Física) — Brazilian individual taxpayer identification number |
+
+#### BR_CPF
+
+Detects Brazilian CPF numbers in both formatted and unformatted representations:
+
+| Pattern | Example | Initial Score |
+|---|---|---|
+| Formatted (`XXX.XXX.XXX-XX`) | `123.456.789-09` | 0.6 |
+| Unformatted (11 digits) | `12345678909` | 0.1 |
+
+The recognizer applies **mod-11 checksum validation** on both patterns. When validation passes, the confidence score is promoted to 1.0. Invalid checksums and all-same-digit sequences (e.g. `11111111111`) are rejected.
+
+Context words that boost detection confidence: `cpf`, `documento`, `cadastro`, `pessoa física`, `contribuinte`, `receita federal`.
+
+To use `BR_CPF` as a redaction entity, select it when configuring a data masking resource in Hoop. It is detected and anonymized through the same Analyzer → Anonymizer pipeline as any built-in entity type.
+
+---
+
 ## Troubleshooting
 
 ### HPA Field Conflict on Helm Upgrade
