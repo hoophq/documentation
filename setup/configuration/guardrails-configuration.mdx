@@ -17,6 +17,27 @@ For an introduction to what Guardrails do and common use cases, see [Guardrails 
 
 ---
 
+## Prerequisites
+
+Guardrails are evaluated by the **Microsoft Presidio Analyzer** — patterns and word lists are sent to Presidio as ad-hoc recognizers, and matching happens inside Presidio.
+
+<Warning>
+**Presidio is required.** There is no fallback engine. If a connection has a guardrail assigned and Presidio is not deployed or the gateway cannot reach it, queries on that connection will fail.
+</Warning>
+
+Before configuring guardrails, deploy Presidio and point the gateway at it:
+
+<CardGroup cols={2}>
+  <Card title="Deploy Presidio" icon="dharmachakra" href="/setup/deployment/presidio">
+    Helm chart, sizing, and autoscaling for the Analyzer, Anonymizer, and Envoy Proxy.
+  </Card>
+  <Card title="Microsoft Presidio Integration" icon="shield-check" href="/integrations/ms-presidio">
+    Required gateway environment variables and integration overview.
+  </Card>
+</CardGroup>
+
+---
+
 ## Creating a Guardrail
 
 <Steps>
@@ -73,7 +94,7 @@ For data masking that automatically detects PII, see [Live Data Masking](/learn/
 
 ## Pattern Syntax
 
-Guardrails use **regular expressions** (regex) for pattern matching. Here are the most useful patterns:
+Guardrail patterns are compiled by **Microsoft Presidio**, which uses Python's `re` module. Write patterns using **Python regex syntax** — not JavaScript/ECMAScript and not Go's RE2.
 
 ### Basic Syntax
 
@@ -119,10 +140,14 @@ Guardrails use **regular expressions** (regex) for pattern matching. Here are th
 
 Before deploying a pattern, test it at [regex101.com](https://regex101.com):
 
-1. Select **Flavor: ECMAScript** (JavaScript)
+1. Select **Flavor: Python**
 2. Paste your pattern in the **Regular Expression** field
 3. Enter test queries in the **Test String** field
 4. Verify matches highlight correctly
+
+<Note>
+Inline flags (`(?i)`, `(?m)`, `(?s)`), lookaheads (`(?!...)`), lookbehinds (`(?<=...)`), and word boundaries (`\b`) are all supported by Python's `re`. Avoid JavaScript-only constructs — for example, Python's named groups use `(?P<name>...)`, not `(?<name>...)`.
+</Note>
 
 ---
 
@@ -200,12 +225,16 @@ To set priority:
 
 ## Environment Variables
 
-These environment variables affect guardrails behavior on the gateway:
+Guardrails run inside Microsoft Presidio, so they share the same gateway environment variables as Live Data Masking. Configure these on the gateway — guardrails will not evaluate without them:
 
-| Variable | Description | Default |
+| Variable | Description | Example |
 |----------|-------------|---------|
-| `GUARDRAILS_ENABLED` | Enable/disable guardrails globally | `true` |
-| `GUARDRAILS_LOG_LEVEL` | Logging verbosity (`debug`, `info`, `warn`) | `info` |
+| `DLP_PROVIDER` | Must be set to enable Presidio-backed guardrails | `mspresidio` |
+| `MSPRESIDIO_ANALYZER_URL` | URL of the Presidio Analyzer service | `http://presidio-envoy-lb:3010` |
+| `MSPRESIDIO_ANONYMIZER_URL` | URL of the Presidio Anonymizer service | `http://presidio-envoy-lb:3010` |
+| `DLP_MODE` | `best-effort` or `strict` (shared with Live Data Masking) | `best-effort` |
+
+For deployment details (workers, autoscaling, models), see [Microsoft Presidio Deployment](/setup/deployment/presidio).
 
 ---
 
