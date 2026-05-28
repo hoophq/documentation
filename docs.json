@@ -69,7 +69,8 @@
               "learn/features/session-recording",
               "learn/features/parallel-mode",
               "learn/features/mcp-server",
-              "learn/features/resource-provisioning"
+              "learn/features/resource-provisioning",
+              "learn/features/iam-federation-gcp"
             ]
           },
           {
@@ -87,6 +88,7 @@
               "clients/cli",
               "clients/cli-versions",
               "clients/cli-resources",
+              "clients/cli-federation",
               "clients/hsh"
             ]
           },
