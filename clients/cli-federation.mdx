@@ -190,6 +190,15 @@ Probe Output:
 
 The command exits **0 on success, 1 on any failure** — wire it straight into a CI step.
 
+<Tip>
+  A green `test` result proves Hoop can mint the token and the agent can
+  reach the data plane. To confirm the query is **attributed to the right
+  user in GCP** (the actual point of federation), follow up with
+  [Finding sessions in GCP audit logs](/learn/features/iam-federation-gcp#what-youll-see-in-gcp-audit-logs).
+  Remember that BigQuery Data Access logs are off by default — if you
+  only see `GenerateAccessToken` entries, that's why.
+</Tip>
+
 ### How it composes the request
 
 1. **Policy.** `--file` overrides the persisted policy; without it the saved config is loaded. Server-only fields (`id`, `connection_id`, `has_admin_credentials`, timestamps) are stripped before sending.

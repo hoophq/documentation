@@ -251,11 +251,137 @@ protoPayload.authenticationInfo.serviceAccountDelegationInfo:
 
 The `serviceAccountDelegationInfo` chain is what gives you the full picture: **who** ran the query (the user-SA Alice was mapped to) and **through whom** (the Hoop admin SA). That delegation chain is the audit story IAM federation buys you.
 
+The two log streams live in different audit log tiers, which matters for how you enable and find them:
+
+| Log type | Service | Event | Default? |
+|---|---|---|---|
+| **Admin Activity** | `iamcredentials.googleapis.com` | `GenerateAccessToken` — proves impersonation happened | **On by default**, free |
+| **Data Access** | `bigquery.googleapis.com` | `jobservice.insert`, `jobservice.jobcompleted` — proves the query ran as Alice | **Off by default**, billed per GiB |
+
+### Enable Data Access logs first
+
+<Warning>
+  BigQuery Data Access logs are **disabled by default**. If you set up
+  federation and only see `GenerateAccessToken` events (Hoop minted the
+  token) but not the query itself, this is why. Enable them once at the
+  project level:
+</Warning>
+
+```bash
+# Pull the current IAM policy, add the auditConfigs block, push it back.
+gcloud projects get-iam-policy "$PROJECT_ID" --format=json > /tmp/policy.json
+
+# Edit /tmp/policy.json — add this entry to the top-level "auditConfigs"
+# array (create the array if it doesn't exist):
+#   {
+#     "service": "bigquery.googleapis.com",
+#     "auditLogConfigs": [
+#       { "logType": "ADMIN_READ" },
+#       { "logType": "DATA_READ" },
+#       { "logType": "DATA_WRITE" }
+#     ]
+#   }
+
+gcloud projects set-iam-policy "$PROJECT_ID" /tmp/policy.json
+```
+
+After this every BigQuery job (including Hoop-sourced ones) generates a `protoPayload.serviceName: bigquery.googleapis.com` entry. Data Access logs are billed at standard Cloud Logging rates — typically negligible for query metadata but worth scoping by sink filter if your project runs millions of jobs/day.
+
+### Quick verification with `gcloud logging read`
+
+Right after a `hoop connect my-bq` + `bq query` session as Alice, fetch the two correlated entries:
+
+```bash
+# 1. Hoop's impersonation events from the last hour
+gcloud logging read '
+  protoPayload.serviceName="iamcredentials.googleapis.com"
+  AND protoPayload.methodName="GenerateAccessToken"
+  AND protoPayload.authenticationInfo.principalEmail="hoop-admin@my-proj.iam.gserviceaccount.com"
+  AND timestamp >= "'"$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ)"'"
+' --limit=20 --format=json --project="$PROJECT_ID"
+
+# 2. Alice's BigQuery activity from the last hour
+gcloud logging read '
+  protoPayload.serviceName="bigquery.googleapis.com"
+  AND protoPayload.authenticationInfo.principalEmail="alice@my-proj.iam.gserviceaccount.com"
+  AND timestamp >= "'"$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ)"'"
+' --limit=20 --format=json --project="$PROJECT_ID"
+```
+
+<Note>
+  The `-v-1H` argument is the BSD `date` syntax used on macOS. On Linux
+  use `--date '1 hour ago'` instead:
+  `timestamp >= "$(date -u --date='1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"`.
+</Note>
+
+### Browse in Cloud Logging Explorer
+
+Console → **Logging** → **Logs Explorer**. The canonical filter for "everything that ever went through Hoop federation, regardless of which user" pivots on the delegation chain:
+
+```
+protoPayload.serviceName="bigquery.googleapis.com"
+protoPayload.authenticationInfo.serviceAccountDelegationInfo.firstPartyPrincipal.principalEmail="hoop-admin@my-proj.iam.gserviceaccount.com"
+```
+
+Save it as a custom view — it's the query you'll come back to whenever you need to prove "every BigQuery query in this project went through Hoop" for a compliance audit. Conversely, queries where `principalEmail` is the admin SA itself (with no delegation chain) are the ones that bypassed federation — alert on those if you want to enforce "all access goes through Hoop".
+
+### Long-term audit: sink to BigQuery
+
+For real history and analytics, route the audit logs into a BigQuery dataset and query them with SQL. This is the production-grade pattern for compliance reporting.
+
+```bash
+# 1. Create the destination dataset
+bq --project_id="$PROJECT_ID" mk --dataset \
+  --description="Hoop federation audit sink" \
+  audit_logs
+
+# 2. Create the sink with a filter scoped to Hoop's admin SA
+gcloud logging sinks create hoop-federation-audit \
+  bigquery.googleapis.com/projects/"$PROJECT_ID"/datasets/audit_logs \
+  --log-filter='
+    (protoPayload.serviceName="bigquery.googleapis.com"
+     OR protoPayload.serviceName="iamcredentials.googleapis.com")
+    AND protoPayload.authenticationInfo.serviceAccountDelegationInfo.firstPartyPrincipal.principalEmail="hoop-admin@my-proj.iam.gserviceaccount.com"
+  ' \
+  --project="$PROJECT_ID"
+
+# 3. Grant the sink's auto-generated writer SA permission to write to the dataset
+SINK_WRITER=$(gcloud logging sinks describe hoop-federation-audit \
+  --project="$PROJECT_ID" --format='value(writerIdentity)')
+bq add-iam-policy-binding --member="$SINK_WRITER" \
+  --role="roles/bigquery.dataEditor" "$PROJECT_ID:audit_logs"
+```
+
+After ~15 minutes the sink starts populating daily-partitioned tables. Query Alice's last 24h of Hoop-sourced queries with regular SQL:
+
+```sql
+SELECT
+  timestamp,
+  protoPayload.authenticationInfo.principalEmail AS resolved_principal,
+  protoPayload.serviceData.jobQueryResponse.job.jobConfiguration.query.query AS query_text
+FROM `my-proj.audit_logs.cloudaudit_googleapis_com_data_access_*`
+WHERE protoPayload.serviceName = 'bigquery.googleapis.com'
+  AND protoPayload.authenticationInfo.principalEmail = 'alice@my-proj.iam.gserviceaccount.com'
+  AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+ORDER BY timestamp DESC;
+```
+
+The `_*` wildcard covers Cloud Logging's daily-partitioned sink tables (`cloudaudit_googleapis_com_data_access_20260528`, `..._20260529`, etc.).
+
 ---
 
 ## Common pitfalls
 
 <AccordionGroup>
+  <Accordion title="I see GenerateAccessToken events but no BigQuery query entries">
+    BigQuery **Data Access** logs are off by default. The `GenerateAccessToken`
+    event lives in the always-on **Admin Activity** tier, but the actual query
+    (`jobservice.insert`) lives in Data Access — which has to be opted into.
+    Enable it project-wide with the `auditConfigs` snippet under
+    [Enable Data Access logs first](#enable-data-access-logs-first), then
+    re-run a query. New entries appear in Cloud Logging within seconds.
+  </Accordion>
+
   <Accordion title="403 IAM_SERVICE_ACCOUNT_TOKEN_CREATOR after granting the role">
     GCP IAM grants are eventually consistent. Wait 1–2 minutes after running
     `add-iam-policy-binding`, then retry. If it still fails, double-check the
