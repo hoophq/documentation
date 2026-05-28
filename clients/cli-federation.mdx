@@ -1,0 +1,265 @@
+---
+title: "hoop admin federation"
+description: "Manage per-connection IAM federation from the CLI: get, set, delete, and dry-run policies plus admin credentials."
+---
+
+## Overview
+
+The `hoop admin federation` command group lets you wire short-lived, per-user cloud credentials onto an existing Hoop connection. Each subcommand targets a single connection identified by name or UUID and requires the Admin role.
+
+```
+hoop admin federation <subcommand> [flags]
+```
+
+| Subcommand | Purpose |
+|---|---|
+| `get <conn>` | Show the federation configuration for a connection |
+| `set <conn>` | Create or update the federation configuration |
+| `delete <conn>` | Remove the federation configuration |
+| `test` | Run a dry-run resolve + probe end-to-end without persisting state |
+
+<Note>
+  IAM Federation is currently behind the `experimental.iam_federation` feature
+  flag. Ask your Hoop admin to enable it for your organization before
+  using these commands.
+</Note>
+
+## Prerequisites
+
+These commands operate **on an existing connection**. Before running any of them:
+
+1. **Create the underlying connection** — typically a BigQuery connection. See [Connect to BigQuery](/quickstart/databases/bigquery) for the connection setup itself. You can verify it's reachable with `hoop connect <name>` before adding federation.
+2. **Have the admin credentials file ready** — for GCP, this is the JSON key for the admin service account. See [IAM Federation for GCP](/learn/features/iam-federation-gcp) for how to create and grant it.
+3. **Authenticate the CLI** as an admin user (`hoop login`).
+
+Federation is layered onto a working connection — it never replaces the connection itself.
+
+---
+
+## The federation policy file
+
+`set` and (optionally) `test` take a YAML file describing the policy. The credentials live in a **separate** file passed via `--credentials-file` so the policy stays safe to commit to git.
+
+```yaml
+# federation.yaml — safe to commit
+builtin_provider: gcp_iam
+identity_source_attribute: email
+identity_target_template: "{user.email_local}@my-proj.iam.gserviceaccount.com"
+fallback_policy: deny
+readonly_principal: ""
+token_ttl_seconds: 3600
+extra_config:
+  project_id: my-proj
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `builtin_provider` | yes | The federation provider. Currently `gcp_iam` is the only built-in. |
+| `identity_source_attribute` | no | Which Hoop user attribute to feed into the template. Defaults to `email`. |
+| `identity_target_template` | yes | The cloud-side principal to resolve to. Supported placeholders: `{user.email}`, `{user.email_local}`, `{user.id}`. |
+| `fallback_policy` | no | What to do when resolution fails. Either `deny` (default — abort the session) or `readonly` (use `readonly_principal`). |
+| `readonly_principal` | conditional | Required if `fallback_policy: readonly`. The cloud principal sessions fall back to. |
+| `token_ttl_seconds` | no | Requested lifetime of the minted token. Defaults to 3600. GCP caps at 43200 (12h). |
+| `extra_config` | provider-specific | For `gcp_iam`: `project_id` is required. |
+
+---
+
+## hoop admin federation get
+
+Prints the persisted policy for a connection. Credentials are **never** echoed back — only a `Has Admin Credentials: yes/no` indicator.
+
+```bash
+hoop admin federation get my-bq
+```
+
+```
+Connection:             my-bq
+Hook Source:            builtin
+Provider:               gcp_iam
+Identity Source:        email
+Identity Template:      {user.email_local}@my-proj.iam.gserviceaccount.com
+Fallback Policy:        deny
+Readonly Principal:     -
+Token TTL Seconds:      3600
+Has Admin Credentials:  yes
+Extra Config:           project_id=my-proj
+Created At:             2026-05-25T12:00:00Z
+Updated At:             2026-05-25T12:00:00Z
+```
+
+Add `-o json` to get the raw API response for scripting.
+
+| Flag | Description |
+|---|---|
+| `-o, --output` | Output format. One of: `json`. Omit for the human-readable table. |
+
+---
+
+## hoop admin federation set
+
+Upserts the federation configuration for a connection. **Re-runs preserve the stored credentials** unless you pass `--credentials-file` again, which lets you safely tweak the policy without re-supplying the SA key every time.
+
+### First-time setup
+
+Supply both the policy and the credentials:
+
+```bash
+hoop admin federation set my-bq \
+    --file federation.yaml \
+    --credentials-file ./hoop-admin-sa.json
+```
+
+After Hoop accepts the credentials, **delete the local file** — Hoop encrypts and stores it server-side; the on-disk copy is no longer needed.
+
+### Policy-only update
+
+Omit `--credentials-file` and the stored credentials are kept as-is:
+
+```bash
+hoop admin federation set my-bq --file federation.yaml
+```
+
+This is the everyday path — most edits change the identity template, fallback policy, or `token_ttl_seconds` without touching the SA key.
+
+### Flags
+
+| Flag | Required | Description |
+|---|---|---|
+| `--file` | yes | Path to the federation policy YAML. |
+| `--credentials-file` | first-time only | Path to the admin credentials file (e.g. GCP SA JSON). Omit on updates to keep the stored value. |
+| `-o, --output` | no | `json` for raw response. |
+
+<Tip>
+  Pair `--file federation.yaml` with version control so policy changes
+  flow through the same review process as code. Keep the credentials
+  file out of git (`.gitignore`, secret manager, 1Password, etc.).
+</Tip>
+
+---
+
+## hoop admin federation delete
+
+Removes the federation row from the connection. Subsequent sessions revert to standard credential handling — i.e. whatever `envvar:` / `filesystem:` secrets the connection has are used as-is.
+
+```bash
+hoop admin federation delete my-bq
+```
+
+```
+federation removed for connection "my-bq"
+```
+
+This is destructive but **reversible**: re-run `set` to restore federation. The connection itself is untouched.
+
+---
+
+## hoop admin federation test
+
+Dry-runs federation end-to-end without persisting state. Resolves a candidate policy against a synthetic user and dispatches a one-shot probe (default: `SELECT 1`) to the agent the connection is bound to. Useful for:
+
+- Smoke-testing GCP grants before pasting the admin key into Hoop.
+- Validating a draft policy before promoting it with `set`.
+- CI gates that verify federation still resolves after IAM changes.
+
+```bash
+hoop admin federation test \
+    --connection my-bq \
+    --user-email alice@example.com \
+    --credentials-file ./hoop-admin-sa.json
+```
+
+A green run prints:
+
+```
+Connection:             my-bq
+Status:                 SUCCESS
+Resolved Principal:     alice@my-proj.iam.gserviceaccount.com
+Admin Principal:        hoop-admin@my-proj.iam.gserviceaccount.com
+Token Expires At:       2026-05-25T18:00:00Z
+Injected Env Var Keys:  CLOUDSDK_CORE_PROJECT, HOOP_FEDERATED_PRINCIPAL, HOOP_GCP_ACCESS_TOKEN, HOOP_GCP_TOKEN_EXPIRES_AT
+Superseded Static Envs: GOOGLE_APPLICATION_CREDENTIALS
+Probe Status:           success
+
+Probe Output:
++---+
+| f0_ |
++---+
+| 1 |
++---+
+```
+
+The command exits **0 on success, 1 on any failure** — wire it straight into a CI step.
+
+### How it composes the request
+
+1. **Policy.** `--file` overrides the persisted policy; without it the saved config is loaded. Server-only fields (`id`, `connection_id`, `has_admin_credentials`, timestamps) are stripped before sending.
+2. **Credentials.** Always read fresh from `--credentials-file`. The gateway never echoes the stored ciphertext back, even for testing — so the credentials file is **always required**, even when reusing a persisted policy.
+3. **Connection envelope.** The CLI fetches `agent_id`, `command`, `subtype`, and `envvar:`-typed secrets from `GET /connections/{name}` and forwards them to the test endpoint. `filesystem:`-typed secrets are skipped (a stderr warning lists which ones) because the test endpoint runs a `BareExec` probe that doesn't materialize per-session temp files. A real federated session strips these anyway when superseded, so the dry-run faithfully reflects production.
+
+### Flags
+
+| Flag | Required | Description |
+|---|---|---|
+| `--connection` | yes | Name or UUID of the connection to test against. |
+| `--credentials-file` | yes | Path to the admin credentials file. |
+| `--user-email` | yes | Synthetic user email fed into the identity template. |
+| `--user-id` | no | Synthetic user ID. Defaults to a deterministic UUID derived from `--user-email`. |
+| `--file` | no | Path to a candidate policy YAML. If omitted, the persisted config for the connection is used. |
+| `--test-script` | no | Probe payload (sent to the agent on stdin). Defaults to `SELECT 1`. |
+| `-o, --output` | no | `json` for raw response. |
+
+### Choosing the probe
+
+For BigQuery, the default `SELECT 1` is enough to confirm both token issuance and BigQuery API reachability. For other targets, pass `--test-script` with a real read-only query against the target dataset to catch IAM mistakes that only surface on actual data access (e.g. missing `roles/bigquery.dataViewer`).
+
+```bash
+hoop admin federation test \
+    --connection my-bq \
+    --user-email alice@example.com \
+    --credentials-file ./hoop-admin-sa.json \
+    --test-script "SELECT COUNT(*) FROM \`my-proj.analytics.events\` LIMIT 1"
+```
+
+---
+
+## End-to-end example — wire BigQuery federation in 4 commands
+
+```bash
+# 1. Make sure the connection works at all
+hoop connect my-bq
+
+# 2. Set policy + credentials
+hoop admin federation set my-bq \
+    --file federation.yaml \
+    --credentials-file ./hoop-admin-sa.json
+
+# 3. Confirm a real user resolves and the probe runs
+hoop admin federation test \
+    --connection my-bq \
+    --user-email alice@example.com \
+    --credentials-file ./hoop-admin-sa.json
+
+# 4. Inspect the persisted state
+hoop admin federation get my-bq
+```
+
+After step 2 you can safely delete `./hoop-admin-sa.json` from disk.
+
+---
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success. |
+| `1` | Resolution failed, probe failed, connection or policy not found, validation error, network error — anything non-zero from the server or the CLI itself. |
+
+The `test` verb is the one most likely to be embedded in pipelines; its exit code reliably reflects probe success.
+
+---
+
+## See also
+
+- [IAM Federation for GCP](/learn/features/iam-federation-gcp) — the cloud-side `gcloud` setup that must precede `federation set`.
+- [Connect to BigQuery](/quickstart/databases/bigquery) — creating the BigQuery connection that federation attaches to.
+- [`hoop` CLI overview](/clients/cli) — the wider command set.

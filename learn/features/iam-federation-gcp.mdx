@@ -9,6 +9,24 @@ description: "Grant the gcloud permissions Hoop needs to mint per-user OAuth tok
   configuring the GCP side.
 </Note>
 
+<Note>
+  **Before you start**, you need a working Hoop connection to attach
+  federation to. Federation layers per-user cloud credentials onto an
+  existing connection — it doesn't create one for you.
+
+  1. Create the connection first — for BigQuery, follow
+     [Connect to BigQuery](/quickstart/databases/bigquery). Verify it
+     works end-to-end with `hoop connect <name>` before continuing.
+  2. Complete the GCP IAM setup below to mint the admin service account.
+  3. Wire policy + credentials onto the connection with
+     [`hoop admin federation set`](/clients/cli-federation#hoop-admin-federation-set).
+  4. Validate end-to-end with
+     [`hoop admin federation test`](/clients/cli-federation#hoop-admin-federation-test).
+
+  The rest of this page is **step 2**. The
+  [CLI reference](/clients/cli-federation) covers steps 3 and 4.
+</Note>
+
 ## What this gives you
 
 With IAM Federation enabled, Hoop stops sharing a single Google service-account
