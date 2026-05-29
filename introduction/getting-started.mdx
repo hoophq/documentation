@@ -1,6 +1,6 @@
 ---
 title: "Getting Started"
-description: "Secure gateway access to your infrastructure with AI-powered security"
+description: "The Gateway for AI Acceleration: Layer 7 Control for Humans and Agents"
 ---
 
 import { HeroAnimation } from '/snippets/annimations/HeroAnimation.jsx';
@@ -9,7 +9,7 @@ import { HeroAnimation } from '/snippets/annimations/HeroAnimation.jsx';
   <HeroAnimation />
 </div>
 
-Hoop.dev is an access gateway for databases and servers with AI-powered automations that eliminate cumbersome access policies and break-glass workflows without compromising security. Our platform provides secure, auditable, and easy-to-manage access to your infrastructure.
+Hoop.dev is a layer 7 gateway that sits between engineers, AI agents, service accounts, and your infrastructure. Every query and command passes through at the wire protocol level, where Hoop.dev masks sensitive data, blocks dangerous commands, routes risky operations for human approval, and records every session.
 
 ## The Challenge of Infrastructure Access
 
@@ -18,14 +18,14 @@ Organizations face significant challenges when managing access to critical infra
 - Security risks from overly permissive access policies
 - Productivity bottlenecks from complex approval workflows
 - Compliance headaches due to inadequate audit trails
-- Visibility gaps in understanding who accessed what and when
+- Visibility gaps in understanding what identities accessed what and when
 - Sensitive data exposure risks during access sessions
 
 Hoop.dev addresses these challenges by providing a secure gateway that sits between your users and your infrastructure, delivering zero-config security features that protect your resources while streamlining access for developers.
 
 ## Our Solutions
 
-Hoop.dev offers a range of features to help you secure your infrastructure and streamline access for developers, including:
+Hoop.dev enforces controls inline at the wire protocol for engineers, AI agents, and service accounts.
 
 <CardGroup cols={2}>
   <Card title="Live Data Masking" icon="mask" href="/learn/features/live-data-masking">
@@ -69,22 +69,36 @@ Hoop.dev offers a range of features to help you secure your infrastructure and s
   <br />
   **Learn more** <Icon icon="arrow-right" />
   </Card>
+  <Card title="AI Session Analyzer" icon="brain" href="/learn/features/ai-session-analyzer">
+    AI-powered risk analysis that evaluates commands before execution and applies configured policies automatically. Detect and block risky or destructive operations in real time.
+
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
+  </Card>
+  <Card title="MCP Server" icon="robot" href="/learn/features/mcp-server">
+    Connect AI agents to Hoop.dev with the built-in Model Context Protocol server. Agents run queries and commands without ever handling credentials. Authorization, data masking, guardrails, and review gates apply to every action.
+
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
+  </Card>
 </CardGroup>
 
 ## Common Use Cases
 
 <AccordionGroup>
-  <Accordion title="Database Access Management">
+  <Accordion title="AI Agent Enablement">
+    Agents reach production with inline controls that make access secure and auditable. Agents reach real data through the same gateway engineers use, with PII masked at the wire, destructive operations blocked, and every session recorded.
+  </Accordion>
+  <Accordion title="Improve Engineering Productivity">
     Provide secure, audited access to databases while masking sensitive data. Enable developers to run queries without direct access to production credentials.
   </Accordion>
-  <Accordion title="Secure Server Access Without VPN">
-    Eliminate the need for VPN by providing secure, authenticated access to servers and applications through Hoop.dev's gateway.
+  <Accordion title="Data Masking in Production">
+    Make PII, PHI, PCI, and credentials invisible in database responses, API payloads, and terminal output, so production access doesn't expose sensitive data.
   </Accordion>
-  <Accordion title="Compliance & Auditing">
+  <Accordion title="Compliance Evidence">
     Meet regulatory requirements with comprehensive session recordings, access logs, and data protection features that document who accessed what and when.
-  </Accordion>
-  <Accordion title="Developer Productivity">
-    Streamline access to resources developers need while maintaining security guardrails that protect sensitive systems and data.
   </Accordion>
 </AccordionGroup>
 
