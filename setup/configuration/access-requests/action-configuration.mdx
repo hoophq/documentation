@@ -207,37 +207,6 @@ hoop admin create connection pii-database \
 
 ---
 
-## Combining with Other Features
-
-### Action + Guardrails
-
-Use both for defense in depth:
-
-- **Guardrails:** Automatically block obviously dangerous commands
-- **Action:** Require approval for everything else
-
-Example: Guardrails block `DROP TABLE`, but `DELETE` still requires approval.
-
-### Action + Live Data Masking
-
-Even approved queries show masked results:
-
-- Approver sees the command being run
-- User sees masked results after execution
-- PII is protected even from approved queries
-
-### Action + Access Control
-
-Access Control determines visibility; Action adds approval:
-
-| Access Control | Action | Result |
-|----------------|----------|--------|
-| Not allowed | Any | Connection not visible |
-| Allowed | Disabled | Direct execution |
-| Allowed | Enabled | Each command needs approval |
-
----
-
 ## Monitoring Access Requests
 
 ### Viewing Pending Requests
