@@ -60,7 +60,7 @@ If the SAML Assertion contains an attribute value with the name `groups` it will
 
 Groups define who can access or interact with specific resources:
 
-- For **connection** resources, groups control which users can access a specific connection. This is enforced when the **Access Control feature** is enabled.
+- For **resource roles**, groups control which users can access a specific resource role. This is enforced when the **Access Control feature** is enabled.
 - For **access requests**, groups define who can approve an execution. This is enforced when the **Access Requests feature** is enabled.
 
 <Tip>
@@ -72,7 +72,7 @@ Groups define who can access or interact with specific resources:
 
 - The **admin** group grants full access to all resources.
 
-Assign this role to users responsible for managing the Gateway. All other users are standard, meaning they can access their own resources and interact with connections.
+Assign this role to users responsible for managing the Gateway. All other users are standard, meaning they can access their own resources and interact with resource roles.
 
 - The **auditor** group grants read-only access to session resources.
 

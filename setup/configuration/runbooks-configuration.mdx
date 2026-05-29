@@ -93,7 +93,7 @@ This functionality enables easier integration with any internal workflow by leve
 
 | File Path                                     | Event Trigger | Environment Variables       |  Description   |
 | --------------------------------------------- | ------------- |---------------------------- |  ------------- |
-| `hoop-hooks/session-open.runbook.py`          | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being opened. It may be triggered more than once in case the connection has access requests enabled. |
+| `hoop-hooks/session-open.runbook.py`          | Session Open  | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being opened. It may be triggered more than once in case the resource role has access requests enabled. |
 | `hoop-hooks/session-close.runbook.py`         | Session Close | `HOOP_RUNBOOK_HOOK_PAYLOAD` |  It triggers when a session is being closed. |
 
 The environment variables are available when the runbook script is called, it contains the payload of the event that triggered the runbook.
@@ -165,7 +165,7 @@ print('connection_name: {}'.format(ev['connection_name']))
 
 ## How the template engine works
 
-Runbooks use the [GO text/template](https://pkg.go.dev/text/template) as the template engine. A runbook is a template to be run against a connection, the placeholders are rendered by inputs provided by an HTTP client.
+Runbooks use the [GO text/template](https://pkg.go.dev/text/template) as the template engine. A runbook is a template to be run against a resource role, the placeholders are rendered by inputs provided by an HTTP client.
 
 To define an input, the runbook must be enclosed with `{{ }}` and the input name must start with a dot. - Example - `{{ .myinput }}`
 

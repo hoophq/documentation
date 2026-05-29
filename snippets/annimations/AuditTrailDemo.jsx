@@ -138,7 +138,7 @@ export const AuditTrailDemo = () => {
   function MetaPanel({ visible }) {
     const rows = [
       { label: "AGENT", value: SESSION_META.agent },
-      { label: "CONNECTION", value: SESSION_META.connection },
+      { label: "RESOURCE ROLE", value: SESSION_META.connection },
       { label: "STARTED", value: SESSION_META.started },
       { label: "DURATION", value: SESSION_META.duration },
       { label: "STATUS", value: SESSION_META.status, badge: true },

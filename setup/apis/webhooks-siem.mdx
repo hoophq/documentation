@@ -17,7 +17,7 @@ Place hook scripts in a `hoop-hooks/` directory in your runbooks repository. Hoo
 
 | File | Event | Description |
 |---|---|---|
-| `hoop-hooks/session-open.runbook.py` | Session open | Fires when a session starts. May fire more than once if the connection has reviews enabled. |
+| `hoop-hooks/session-open.runbook.py` | Session open | Fires when a session starts. May fire more than once if the resource role has reviews enabled. |
 | `hoop-hooks/session-close.runbook.py` | Session close | Fires when a session ends. |
 
 ### Enabling Hooks
@@ -111,7 +111,7 @@ hoop login
 hoop admin create plugin webhooks
 ```
 
-Then enable it for a specific connection:
+Then enable it for a specific resource role:
 
 ```bash
 hoop admin create plugin webhooks --overwrite --connection bash-default
@@ -129,7 +129,7 @@ hoop admin webhooks-dashboard
   The dashboard is only available with Svix SaaS and can only be opened by administrators.
 </Info>
 
-To view activity, interact with any connection. The **Message Logs** link shows all connection events.
+To view activity, interact with any resource role. The **Message Logs** link shows all resource role events.
 
 <Frame>
   <img src="/images/learn/webhooks-1.png" />

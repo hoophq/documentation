@@ -100,10 +100,10 @@ DLP_MODE=best-effort
 GCP_PROJECT_ID=your-project-id
 ```
 
-### Step 3: Enable on a Connection
+### Step 3: Enable on a Resource Role
 
-1. Go to **Connections** in the Web App
-2. Select a connection and click **Configure**
+1. Go to **Resources** in the Web App
+2. Select a resource role and click **Configure**
 3. Enable **Live Data Masking**
 4. Click **Save**
 
@@ -175,9 +175,9 @@ Live Data Masking detects these sensitive data types by default:
 
 Add or remove fields from detection. See [Supported Fields](/setup/configuration/live-data-masking/fields) for the complete list.
 
-### Per-Connection Settings
+### Per-Resource-Role Settings
 
-Enable or disable masking on individual connections:
+Enable or disable masking on individual resource roles:
 - Enable on production databases with real customer data
 - Disable on development databases with synthetic data
 
@@ -189,7 +189,7 @@ Enable or disable masking on individual connections:
 
 Developers need to debug production issues but shouldn't see customer PII:
 
-- Enable Live Data Masking on production connections
+- Enable Live Data Masking on production resource roles
 - Developers can run diagnostic queries
 - Customer data is automatically protected
 
@@ -205,7 +205,7 @@ Data analysts need aggregate insights but not individual records:
 
 Support teams need to look up customer records:
 
-- Enable masking on support-facing connections
+- Enable masking on support-facing resource roles
 - They can verify account status without seeing SSNs
 - Audit trail shows who accessed what
 
@@ -213,7 +213,7 @@ Support teams need to look up customer records:
 
 External contractors need database access:
 
-- Create a connection with masking enabled
+- Create a resource role with masking enabled
 - Grant access to contractors
 - Sensitive data is never exposed
 
@@ -224,7 +224,7 @@ External contractors need database access:
 ### Data Not Being Masked
 
 **Check:**
-1. Live Data Masking is enabled on the connection
+1. Live Data Masking is enabled on the resource role
 2. DLP provider is running and accessible
 3. Gateway environment variables are set correctly
 4. The data type is in the [supported fields list](/setup/configuration/live-data-masking/fields)
@@ -290,6 +290,6 @@ Live Data Masking is one layer of a defense-in-depth strategy. Combine with [Acc
     Block queries before they execute
   </Card>
   <Card title="Access Control" icon="lock" href="/learn/features/access-control">
-    Control who can access connections
+    Control who can access resource roles
   </Card>
 </CardGroup>

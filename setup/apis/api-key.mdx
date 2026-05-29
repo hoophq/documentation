@@ -31,7 +31,7 @@ API Keys are managed from **Settings → API Keys** in the Web App. This section
         Give the key a descriptive, org-unique name (for example `ai-agent-sre` or `payments-automation`). The name identifies the key in the list and in audit logs.
     </Step>
     <Step title="Assign groups">
-        Select one or more groups. The key's permissions are the union of those groups. Use `admin` for admin-level access; otherwise assign the groups that own the connections the key should reach.
+        Select one or more groups. The key's permissions are the union of those groups. Use `admin` for admin-level access; otherwise assign the groups that own the resource roles the key should reach.
     </Step>
     <Step title="Save and copy the key">
         Click **Save**. The Gateway displays the full `hpk_…` value once. Copy it immediately into a secrets manager; once you navigate away, it is no longer retrievable.
@@ -106,9 +106,9 @@ Any REST endpoint that accepts a user access token also accepts an `hpk_` key, s
 An API key has exactly the permissions of its assigned groups:
 
 - A key in `admin` can perform any administrative action.
-- A key in a scoped group (for example `engineering`) can only reach that group's connections and resources.
+- A key in a scoped group (for example `engineering`) can only reach that group's resource roles and resources.
 
-Keep the blast radius small. If automation only needs one query against one connection, scope the key to a group limited to that connection rather than using `admin`.
+Keep the blast radius small. If automation only needs one query against one resource role, scope the key to a group limited to that resource role rather than using `admin`.
 
 ## Security Considerations
 

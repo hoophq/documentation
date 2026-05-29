@@ -121,7 +121,7 @@ hoop admin create plugin slack \
 
 We need to go to the Slack plugin page and access the menu → Manage plugins → Slack.
 
-Then, click on settings and add all the channels (separated by commas) you would like to receive access request notifications from that connection.
+Then, click on settings and add all the channels (separated by commas) you would like to receive access request notifications from that resource role.
 
 <Frame>
   <img src="/images/integrations/slack-3.gif" />
@@ -157,9 +157,9 @@ You can copy the ID of other members too on Slack.
 
 ## Usage
 
-To use this integration, access requests must be enabled for a connection. When interacting with it, a message will be sent to the configured Slack channel.
+To use this integration, access requests must be enabled for a resource role. When interacting with it, a message will be sent to the configured Slack channel.
 
-**Associate the connection with the `slack` plugin and configure reviewers**
+**Associate the resource role with the `slack` plugin and configure reviewers**
 
 ```bash
 hoop admin create conn bash \
@@ -170,7 +170,7 @@ hoop admin create conn bash \
     -- bash
 ```
 
-Then, interacting with the connection will send a message to your Slack channel. After it’s approved, it will send a message to the creator.
+Then, interacting with the resource role will send a message to your Slack channel. After it’s approved, it will send a message to the creator.
 
 ```bash
 hoop connect bash

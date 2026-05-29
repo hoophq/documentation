@@ -1,6 +1,6 @@
 ---
 title: "Managing Access"
-description: "Learn how to control and organize access to your connections through user groups and permissions"
+description: "Learn how to control and organize access to your resource roles through user groups and permissions"
 ---
 
 import { SessionAnimation } from '/snippets/annimations/SessionAnimation.jsx';
@@ -9,7 +9,7 @@ import { SessionAnimation } from '/snippets/annimations/SessionAnimation.jsx';
   <SessionAnimation />
 </div>
 
-Hoop.dev provides a comprehensive access management system that allows administrators to control who can access specific connections. This is primarily managed through user groups and connection-specific configurations.
+Hoop.dev provides a comprehensive access management system that allows administrators to control who can access specific resource roles. This is primarily managed through user groups and resource-role-specific configurations.
 
 ## Managing Users and Groups
 
@@ -36,30 +36,30 @@ Groups are the primary way to organize users and control access:
   </Step>
 </Steps>
 
-## Configuring Connection Access
+## Configuring Resource Role Access
 
 <Frame>
-  <img src="/images/clients/webapp/managing-access-connection.png" alt="Connection Access Configuration" />
+  <img src="/images/clients/webapp/managing-access-connection.png" alt="Resource Role Access Configuration" />
 </Frame>
 
-Administrators can set up access controls in the Configuration options of a connection:
+Administrators can set up access controls in the Configuration options of a resource role:
 
 ### Access Requests Configuration
 <Steps>
   <Step title="Enable Access Requests">
-    Enable the Access Requests toggle to require approval for connection access.
+    Enable the Access Requests toggle to require approval for resource role access.
   </Step>
 
   <Step title="Select Groups">
     Select which groups:
-    - Can access the connection
+    - Can access the resource role
     - Need approval before accessing
     - Can approve access requests
   </Step>
 </Steps>
 
 ### Access Modes
-Configure how users interact with the connection:
+Configure how users interact with the resource role:
 
 <CardGroup cols={2}>
   <Card title="Runbooks" icon="book">
@@ -91,7 +91,7 @@ Configure how users interact with the connection:
   </Card>
 
   <Card title="Access Monitoring" icon="eye">
-    Use session monitoring to track and audit connection usage
+    Use session monitoring to track and audit resource role usage
   </Card>
 </CardGroup>
 
@@ -99,7 +99,7 @@ Configure how users interact with the connection:
 
 <CardGroup cols={2}>
   <Card title="Monitoring Sessions" icon="video" href="/clients/webapp/monitoring-sessions">
-    Learn how to track and audit connection usage
+    Learn how to track and audit resource role usage
   </Card>
 
   <Card title="Access Requests" icon="shield-check" href="/learn/features/access-requests/jit">

@@ -55,9 +55,9 @@ In the "Overview" tab, the test with the sent event will be displayed.
   <img src="/images/integrations/teams-3.png" />
 </Frame>
 
-## Connections
+## Resource Roles
 
-Now, you can define which connections will send this event based on the plugin configuration. Update or add a new connection to enable this plugin.
+Now, you can define which resource roles will send this event based on the plugin configuration. Update or add a new resource role to enable this plugin.
 
 ```bash
 hoop admin create conn bash -a <agent-name> --overwrite \
@@ -65,7 +65,7 @@ hoop admin create conn bash -a <agent-name> --overwrite \
   --reviewers admin -- bash
 ```
 
-Interacting with the connection via the webapp or the CLI will trigger an alert indicating that an access request has been created. A message will be sent to the Microsoft Teams channel.
+Interacting with the resource role via the webapp or the CLI will trigger an alert indicating that an access request has been created. A message will be sent to the Microsoft Teams channel.
 
 ```bash
 hoop exec bash -i 'ls -l'

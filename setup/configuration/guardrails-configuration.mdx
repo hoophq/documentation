@@ -22,7 +22,7 @@ For an introduction to what Guardrails do and common use cases, see [Guardrails 
 Guardrails are evaluated by the **Microsoft Presidio Analyzer** — patterns and word lists are sent to Presidio as ad-hoc recognizers, and matching happens inside Presidio.
 
 <Warning>
-**Presidio is required.** There is no fallback engine. If a connection has a guardrail assigned and Presidio is not deployed or the gateway cannot reach it, queries on that connection will fail.
+**Presidio is required.** There is no fallback engine. If a resource role has a guardrail assigned and Presidio is not deployed or the gateway cannot reach it, queries on that resource role will fail.
 </Warning>
 
 Before configuring guardrails, deploy Presidio and point the gateway at it:
@@ -54,8 +54,8 @@ Before configuring guardrails, deploy Presidio and point the gateway at it:
   <Step title="Add Rules">
     Configure Input Rules and/or Output Rules (see below)
   </Step>
-  <Step title="Assign Connections">
-    Select which connections this guardrail applies to
+  <Step title="Assign Resource Roles">
+    Select which resource roles this guardrail applies to
   </Step>
   <Step title="Save">
     Click **Save** to activate the guardrail
@@ -196,21 +196,21 @@ Require Approval uses the same workflow as [Action Access Requests](/learn/featu
 
 ---
 
-## Connection Assignment
+## Resource Role Assignment
 
-Each guardrail can be assigned to multiple connections. You can also have multiple guardrails on a single connection.
+Each guardrail can be assigned to multiple resource roles. You can also have multiple guardrails on a single resource role.
 
 ### Assignment Options
 
 | Option | Description |
 |--------|-------------|
-| **Specific connections** | Select individual connections from the list |
-| **All connections** | Apply to every connection in your organization |
-| **Connection tags** | Apply to connections matching specific tags |
+| **Specific resource roles** | Select individual resource roles from the list |
+| **All resource roles** | Apply to every resource role in your organization |
+| **Resource role tags** | Apply to resource roles matching specific tags |
 
 ### Evaluation Order
 
-When multiple guardrails apply to a connection, they are evaluated in order of priority:
+When multiple guardrails apply to a resource role, they are evaluated in order of priority:
 
 1. **Priority 1** (highest) evaluated first
 2. First matching rule determines the action
@@ -271,7 +271,7 @@ Access audit logs in **Sessions** or export via the API.
     Use Warn mode first to understand impact before blocking
   </Card>
   <Card title="Test in Dev First" icon="flask">
-    Apply guardrails to test connections before production
+    Apply guardrails to test resource roles before production
   </Card>
   <Card title="Be Specific" icon="crosshairs">
     Use precise patterns to avoid false positives
@@ -314,7 +314,7 @@ Access audit logs in **Sessions** or export via the API.
 ### Performance Issues
 
 If queries are slow:
-1. Reduce the number of rules per connection
+1. Reduce the number of rules per resource role
 2. Simplify complex regex patterns
 3. Avoid patterns with excessive backtracking (e.g., `.*.*.*`)
 
@@ -333,6 +333,6 @@ If queries are slow:
     Configure the "Require Approval" action
   </Card>
   <Card title="Access Control" icon="lock" href="/setup/configuration/access-control-configuration">
-    Control who can access which connections
+    Control who can access which resource roles
   </Card>
 </CardGroup>

@@ -19,12 +19,12 @@ The gateway is the central hub of the system. It handles all user-facing traffic
 
 The gateway runs as a single binary and exposes:
 
-- **Web UI** — browser-based interface for managing connections, running queries, reviewing sessions, and approving access requests
+- **Web UI** — browser-based interface for managing resource roles, running queries, reviewing sessions, and approving access requests
 - **REST API** — the same API the web UI uses; available for programmatic access and automation
 - **gRPC server** — the internal transport layer used by agents and native clients to stream data
 - **Protocol proxies** — native protocol listeners (PostgreSQL, SSH, RDP, HTTP) that allow standard tools to connect without any Hoop-specific client
 
-The gateway requires a **PostgreSQL database** for storing connections, sessions, users, and audit data.
+The gateway requires a **PostgreSQL database** for storing resource roles, sessions, users, and audit data.
 
 ### Agent
 
@@ -35,7 +35,7 @@ Agents run in two modes:
 - **Standard mode** — a persistent long-lived process, managed as a system service. Best for databases, internal APIs, container platforms, and jump hosts.
 - **Embedded mode** — runs alongside an application process, sharing its runtime context. Best for ad-hoc tasks, REPL consoles, and single-resource connections.
 
-A single agent can serve multiple connections. See the [Agents](/concepts/agents) page for deployment details.
+A single agent can serve multiple resource roles. See the [Agents](/concepts/agents) page for deployment details.
 
 ### Clients
 
@@ -68,7 +68,7 @@ When a user connects to a resource, the following happens:
 
 1. **Authentication** — the user authenticates via your identity provider (OIDC, SAML, or local auth). The gateway verifies the token and loads the user's identity and group membership.
 
-2. **Authorization** — the gateway checks whether the user has access to the requested connection, based on access control rules and the connection's configured access mode
+2. **Authorization** — the gateway checks whether the user has access to the requested resource role, based on access control rules and the resource role's configured access mode
 
 3. **Policy evaluation** — before the session begins, the gateway runs the request through an ordered plugin chain:
    - **Reviews** — if JIT approval is required, the session is held until approved
@@ -77,7 +77,7 @@ When a user connects to a resource, the following happens:
    - **RBAC** — role-based rules are enforced
    - **Webhooks / Runbook hooks** — external systems are notified
 
-4. **Agent dispatch** — the gateway forwards the session to the agent responsible for that connection. If the agent is offline, the connection fails.
+4. **Agent dispatch** — the gateway forwards the session to the agent responsible for that resource role. If the agent is offline, the connection fails.
 
 5. **Execution** — the agent executes the operation against the target resource using native protocols (SQL, SSH, RDP, HTTP, etc.) and streams results back through the gateway.
 

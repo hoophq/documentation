@@ -14,8 +14,8 @@ import { WorkflowObservabilityAnimation } from '/snippets/annimations/WorkflowOb
 Workflow Observability lets you see exactly what any headless caller (AI agent, script, CI/CD job, or scheduled batch) did in Hoop, with the same identity, audit, and policy story as an interactive user. You can:
 
 - Authenticate automation with **named identities** instead of shared admin credentials
-- **Scope** each caller's permissions to only the connections and groups it needs
-- **Group** the sessions of the same logical run into one workflow, even across multiple commands or connections
+- **Scope** each caller's permissions to only the resource roles and groups it needs
+- **Group** the sessions of the same logical run into one workflow, even across multiple commands or resource roles
 - Keep a complete **audit trail** of who ran what, when, and as part of which task
 
 ---
@@ -81,7 +81,7 @@ Tag each call with a shared correlation value so the sessions of the same run li
   </Tab>
 </Tabs>
 
-Sessions carrying the same value are stored against one workflow run, so you can trace the full path: which commands ran, against which connections, in what order, with what outcome.
+Sessions carrying the same value are stored against one workflow run, so you can trace the full path: which commands ran, against which resource roles, in what order, with what outcome.
 
 <Note>
   The correlation ID is a free-form printable ASCII string up to 255 characters. Use whatever identifier the caller already has: a CI build number, cron run ID, ticket/task ID, agent workflow ID, or a UUID generated at the start of the run.
@@ -99,7 +99,7 @@ Sessions carrying the same value are stored against one workflow run, so you can
     A deploy pipeline uses a scoped API Key to run migrations, seed data, and health checks. Tagging every step with the build ID answers "what did build #842 actually do in prod?" from the audit log.
   </Card>
   <Card title="Scheduled jobs" icon="clock">
-    A nightly export uses an API Key scoped to a single read-only connection. Tagging each run with its cron run ID lets you trace and replay a failed export without guessing which sessions belong to it.
+    A nightly export uses an API Key scoped to a single read-only resource role. Tagging each run with its cron run ID lets you trace and replay a failed export without guessing which sessions belong to it.
   </Card>
   <Card title="AI agents" icon="robot">
     An agent picks up tasks from a queue and issues many tool calls per task. With a named API Key and task-ID tagging, operators can open any task and see exactly what the agent did, under the same masking and guardrails as any other caller.
@@ -124,7 +124,7 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
     Go to **Settings → API Keys** in the Web App and click **Create new API key**.
   </Step>
   <Step title="Name and scope the key">
-    Name the key after the caller (e.g. `nightly-report`, `deploy-pipeline`, `ticket-agent`). Assign groups that grant only the connections this workflow needs; avoid `admin` unless genuinely required.
+    Name the key after the caller (e.g. `nightly-report`, `deploy-pipeline`, `ticket-agent`). Assign groups that grant only the resource roles this workflow needs; avoid `admin` unless genuinely required.
   </Step>
   <Step title="Store the key">
     Copy the `hpk_…` value at creation (it is shown only once) and load it into your workflow's secret store (CI secret, Vault, Kubernetes Secret, etc.).

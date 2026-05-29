@@ -10,11 +10,11 @@ import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
 `hsh` is a small companion CLI that wraps `ssh` and `kubectl` so they
 work against resources behind your Hoop gateway without any workflow
 changes. You keep typing the commands you already know; `hsh` handles
-authentication, finds the right Hoop connection, and routes the call
+authentication, finds the right Hoop resource role, and routes the call
 through the gateway.
 
 <Note>
-  `hsh` is **separate from the `hoop` CLI**. They can be installed side-by-side and don't conflict. Use `hoop` for administrative and automation tasks (managing connections, running `hoop exec`, configuring policies). Use `hsh` for day-to-day terminal work where you want `ssh`/`kubectl` to "just work".
+  `hsh` is **separate from the `hoop` CLI**. They can be installed side-by-side and don't conflict. Use `hoop` for administrative and automation tasks (managing resource roles, running `hoop exec`, configuring policies). Use `hsh` for day-to-day terminal work where you want `ssh`/`kubectl` to "just work".
 </Note>
 
 ## Installation
@@ -110,7 +110,7 @@ through the gateway.
     Restart your shell (or `source` the file you just edited). From now on, plain `ssh` and `kubectl` commands are intercepted by `hsh`.
 
     <Tip>
-      `hsh` only intercepts commands that match a Hoop connection. Anything else falls straight through to your native `ssh`/`kubectl` binary, untouched.
+      `hsh` only intercepts commands that match a Hoop resource role. Anything else falls straight through to your native `ssh`/`kubectl` binary, untouched.
     </Tip>
   </Step>
 </Steps>
@@ -123,19 +123,19 @@ Once the shell plugin is active, the workflow for connecting to a Hoop-managed h
 ssh production-db
 ```
 
-`hsh` recognizes `production-db` as a Hoop connection, mints a short-lived access token, and feeds it to `ssh` via the standard `SSH_ASKPASS` mechanism. You don't see a token, you don't paste anything \u2014 the password prompt is answered for you.
+`hsh` recognizes `production-db` as a Hoop resource role, mints a short-lived access token, and feeds it to `ssh` via the standard `SSH_ASKPASS` mechanism. You don't see a token, you don't paste anything \u2014 the password prompt is answered for you.
 
 <Note>
   Automatic token injection requires **OpenSSH 8.4 or newer** (which honors `SSH_ASKPASS_REQUIRE=force`). On older clients, `hsh` falls back to the legacy flow: it prints the token in a box and you paste it at the password prompt. To disable injection on a single invocation, run `HSH_SSH_ASKPASS=0 ssh <host>`.
 </Note>
 
-If the host doesn't match any Hoop connection (e.g. a personal VPS, your CI runner, GitHub), `ssh` runs unchanged \u2014 `hsh` doesn't get in the way.
+If the host doesn't match any Hoop resource role (e.g. a personal VPS, your CI runner, GitHub), `ssh` runs unchanged \u2014 `hsh` doesn't get in the way.
 
 ### What hsh does behind the scenes
 
 1. Parses your ssh arguments (`user@host`, `-p`, `-l`, `-i`, etc.).
 2. Verifies your `~/.hsh/auth.json` is still valid; if not, exits with a clear "run hsh login" message.
-3. Searches your Hoop connections for one matching the host you typed.
+3. Searches your Hoop resource roles for one matching the host you typed.
 4. Creates a session and asks the gateway for a one-time access token.
 5. Writes a small SSH askpass shim, runs `ssh` with `SSH_ASKPASS` pointing at it, and lets ssh authenticate normally.
 
@@ -148,7 +148,7 @@ kubectl get pods
 kubectl --context my-eks-cluster logs deploy/api
 ```
 
-`hsh` looks at your current `kubectl` context (or `--context=<name>`), finds the matching Hoop connection, requests a short-lived proxy URL + token, and merges them into your kubeconfig before running `kubectl`. The original kubeconfig is restored when the command exits.
+`hsh` looks at your current `kubectl` context (or `--context=<name>`), finds the matching Hoop resource role, requests a short-lived proxy URL + token, and merges them into your kubeconfig before running `kubectl`. The original kubeconfig is restored when the command exits.
 
 If you want a long-lived kubeconfig you can use from any tool (kubens, k9s, lens, etc.), generate one explicitly:
 
@@ -183,7 +183,7 @@ HSH_DEBUG=1 kubectl get pods 2>debug.log
 
 Output goes to **stderr only**, so it never pollutes the program's stdout. Common things to look for:
 
-- **`match: level=null`** \u2014 the host or context didn't match any Hoop connection at any matching level. `hsh` runs the native command unchanged.
+- **`match: level=null`** \u2014 the host or context didn't match any Hoop resource role at any matching level. `hsh` runs the native command unchanged.
 - **`api: fetch failed reason=timeout`** \u2014 the gateway is unreachable. `hsh` falls open to native `ssh`/`kubectl` after \u22483s. Run `hsh status` to confirm the API URL.
 - **`cache: hit expire_at=...`** \u2014 `hsh` reused a cached credential. Run `hsh logout` (clears every cache file) to force a fresh issue.
 

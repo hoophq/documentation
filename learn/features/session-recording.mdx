@@ -1,6 +1,6 @@
 ---
 title: "Session Recording"
-description: "Record and playback terminal sessions and entire databases connections."
+description: "Record and playback terminal sessions and entire database resource roles."
 ---
 
 import { RiskMetricsAnimation } from '/snippets/annimations/RiskMetricsAnimation.jsx';
@@ -23,7 +23,7 @@ You can audit tracks every action made with Hoop.dev. It provides video recordin
 
 ## Key Features
 
-**Complete Session Capture:** Includes precise timestamps, user identity with organizational context, and connection metadata for every session.
+**Complete Session Capture:** Includes precise timestamps, user identity with organizational context, and resource role metadata for every session.
 
 **Full Input/Output Recording:** Records every command entered and response returned, with optional high-definition video playback and structured log export.
 
@@ -37,7 +37,7 @@ You can audit tracks every action made with Hoop.dev. It provides video recordin
 
 **User**: complete user information inside your organization
 
-**Connection**: the connection used in the session
+**Resource Role**: the resource role used in the session
 
 **Input and Output**: every command and its output an user has executed
 
@@ -69,7 +69,7 @@ For detailed configuration instructions and setup guides, see [Session Recording
 ## Getting Started
 
 1. **Connect Resources:** Add your databases, Kubernetes clusters, or infrastructure endpoints to [hoop.dev](http://hoop.dev) using the appropriate connection strings and credentials.
-2. **Enable Session Recording:** Turn on session recording globally or per-connection. Use granular policies to define what gets recorded and for how long.
+2. **Enable Session Recording:** Turn on session recording globally or per-resource-role. Use granular policies to define what gets recorded and for how long.
 3. **Invite Team Members:** Add users and assign access permissions. All activity is automatically tracked and tied to each individual.
 4. **Use Existing Workflows:** Developers can continue using their preferred CLI or web interface. [hoop.dev](http://hoop.dev) captures sessions in the background—no workflow changes needed.
 
