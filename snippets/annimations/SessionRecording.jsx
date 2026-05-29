@@ -109,7 +109,7 @@ export const SessionRecording = () => {
   const MetaPanel = ({ visible }) => {
     const rows = [
       { label: "USER", value: SESSION_META.user, sub: SESSION_META.email },
-      { label: "CONNECTION", value: SESSION_META.connection },
+      { label: "RESOURCE ROLE", value: SESSION_META.connection },
       { label: "STARTED", value: SESSION_META.started },
       { label: "DURATION", value: SESSION_META.duration },
       { label: "STATUS", value: SESSION_META.status, badge: true },

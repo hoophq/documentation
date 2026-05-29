@@ -1,6 +1,6 @@
 ---
 title: "Access Control"
-description: "Control who can access which connections with group-based permissions"
+description: "Control who can access which resource roles with group-based permissions"
 ---
 
 import { ObservabilityAnimation } from '/snippets/annimations/ObservabilityAnimation.jsx';
@@ -11,7 +11,7 @@ import { ObservabilityAnimation } from '/snippets/annimations/ObservabilityAnima
 
 ## What You'll Accomplish
 
-Access Control lets you restrict which users can see and use specific connections. Instead of giving everyone access to everything, you can:
+Access Control lets you restrict which users can see and use specific resource roles. Instead of giving everyone access to everything, you can:
 
 - Limit production database access to senior engineers
 - Give read-only access to analysts
@@ -22,7 +22,7 @@ Access Control lets you restrict which users can see and use specific connection
 
 ## How It Works
 
-Access Control uses **groups** to manage permissions. Users belong to groups, and connections are configured to allow access from specific groups.
+Access Control uses **groups** to manage permissions. Users belong to groups, and resource roles are configured to allow access from specific groups.
 
 <Steps>
   <Step title="User Authenticates">
@@ -32,10 +32,10 @@ Access Control uses **groups** to manage permissions. Users belong to groups, an
     User's group memberships are synced from the identity provider
   </Step>
   <Step title="Access Evaluated">
-    When accessing a connection, Hoop checks if the user's groups are allowed
+    When accessing a resource role, Hoop checks if the user's groups are allowed
   </Step>
   <Step title="Access Granted or Denied">
-    User sees the connection if allowed, or gets an access denied error
+    User sees the resource role if allowed, or gets an access denied error
   </Step>
 </Steps>
 
@@ -57,12 +57,12 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 <Prerequisites />
 
 - Groups configured in your identity provider
-- Admin access to configure connections
+- Admin access to configure resource roles
 
 ### Step 1: Enable Access Control
 
 <Warning>
-Enabling Access Control will hide connections from users who don't have explicit access. Plan your group assignments before enabling.
+Enabling Access Control will hide resource roles from users who don't have explicit access. Plan your group assignments before enabling.
 </Warning>
 
 <Steps>
@@ -78,21 +78,21 @@ Enabling Access Control will hide connections from users who don't have explicit
   </Step>
 </Steps>
 
-### Step 2: Configure Connection Access
+### Step 2: Configure Resource Role Access
 
 <Steps>
-  <Step title="Select a Connection">
-    Find the connection you want to configure and click on it
+  <Step title="Select a Resource Role">
+    Find the resource role you want to configure and click on it
   </Step>
   <Step title="Toggle Access Control">
-    Enable the Access Control toggle for this connection
+    Enable the Access Control toggle for this resource role
 
     <Frame>
-      <img src="/images/learn/features/access-control-activated.png" alt="Enable on connection" />
+      <img src="/images/learn/features/access-control-activated.png" alt="Enable on resource role" />
     </Frame>
   </Step>
   <Step title="Select Allowed Groups">
-    Choose which groups can access this connection
+    Choose which groups can access this resource role
 
     <Frame>
       <img src="/images/learn/features/access-control-add-groups.png" alt="Select groups" />
@@ -106,9 +106,9 @@ Enabling Access Control will hide connections from users who don't have explicit
 ### Step 3: Verify Access
 
 1. Log in as a user in one of the allowed groups
-2. Verify you can see and access the connection
+2. Verify you can see and access the resource role
 3. Log in as a user NOT in the allowed groups
-4. Verify the connection is not visible
+4. Verify the resource role is not visible
 
 ---
 
@@ -137,11 +137,11 @@ Configure your identity provider to include groups in the ID token:
 
 | Role | Description |
 |------|-------------|
-| `admin` | Full access to all connections and settings |
+| `admin` | Full access to all resource roles and settings |
 | `auditor` | Read-only access to sessions and audit logs |
 
 <Note>
-Admin users bypass Access Control and can access all connections. Use admin sparingly.
+Admin users bypass Access Control and can access all resource roles. Use admin sparingly.
 </Note>
 
 ---
@@ -152,7 +152,7 @@ Admin users bypass Access Control and can access all connections. Use admin spar
 
 Restrict production access to senior team members:
 
-| Connection | Allowed Groups |
+| Resource Role | Allowed Groups |
 |------------|----------------|
 | prod-db | `senior-engineers`, `dba` |
 | staging-db | `engineering` |
@@ -162,7 +162,7 @@ Restrict production access to senior team members:
 
 Each team only sees their own resources:
 
-| Connection | Allowed Groups |
+| Resource Role | Allowed Groups |
 |------------|----------------|
 | payments-db | `payments-team` |
 | inventory-db | `inventory-team` |
@@ -172,14 +172,14 @@ Each team only sees their own resources:
 
 Different access levels for different roles:
 
-| Connection | Allowed Groups |
+| Resource Role | Allowed Groups |
 |------------|----------------|
 | prod-db-readwrite | `dba` |
 | prod-db-readonly | `engineering`, `support` |
 | prod-db-analytics | `analytics` |
 
 <Tip>
-Create multiple connections to the same database with different credentials for different access levels.
+Create multiple resource roles to the same database with different credentials for different access levels.
 </Tip>
 
 ### Pattern 4: Contractor Access
@@ -188,7 +188,7 @@ Temporary access for external contractors:
 
 1. Create a `contractors` group
 2. Add contractors to the group
-3. Only allow `contractors` group on specific, limited connections
+3. Only allow `contractors` group on specific, limited resource roles
 4. Remove from group when contract ends
 
 ---
@@ -208,7 +208,7 @@ Access Control works with other Hoop security features:
 
 For a production database:
 
-1. **Access Control:** Only `senior-engineers` can see the connection
+1. **Access Control:** Only `senior-engineers` can see the resource role
 2. **Access Requests:** Require JIT approval before connecting
 3. **Guardrails:** Block `DROP TABLE` and `DELETE` without WHERE
 4. **Live Data Masking:** Redact PII in query results
@@ -218,10 +218,10 @@ For a production database:
 
 ## Troubleshooting
 
-### User Can't See a Connection
+### User Can't See a Resource Role
 
 **Check:**
-1. Access Control is enabled on that connection
+1. Access Control is enabled on that resource role
 2. User's groups are in the allowed list
 3. User has logged out and back in (to sync groups)
 4. Identity provider is sending the `groups` claim
@@ -231,11 +231,11 @@ For a production database:
 2. Find the user and click to view details
 3. Check their group memberships
 
-### User Sees Connection But Can't Connect
+### User Sees Resource Role But Can't Connect
 
 This is likely an Access Request or Guardrail issue, not Access Control. Check:
 1. Is JIT or Action Access Request enabled?
-2. Are there Guardrails blocking the connection?
+2. Are there Guardrails blocking the resource role?
 
 ### Groups Not Syncing from IdP
 
@@ -269,7 +269,7 @@ This is likely an Access Request or Guardrail issue, not Access Control. Check:
 Quarterly, review:
 - [ ] Are all group memberships still appropriate?
 - [ ] Are there users who left but still have access?
-- [ ] Are there connections that should have stricter access?
+- [ ] Are there resource roles that should have stricter access?
 - [ ] Are contractors' access limited to their engagement period?
 
 ---

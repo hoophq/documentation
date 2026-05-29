@@ -20,7 +20,7 @@ Just-in-Time (JIT) Access Requests let you grant temporary access to production 
 - Enable break-glass access for emergencies with full audit trail
 - Reduce standing privileges by requiring approval for every access request
 
-**The key difference from Action Access Requests:** JIT grants time-based access to a connection. Once approved, the user can run any command within that time window. Action Access Requests require approval for each individual command.
+**The key difference from Action Access Requests:** JIT grants time-based access to a resource role. Once approved, the user can run any command within that time window. Action Access Requests require approval for each individual command.
 
 ---
 
@@ -59,18 +59,18 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
 <Prerequisites />
 
-- A connection configured with an agent
+- A resource role configured with an agent
 - At least one user group for approvers (e.g., `admin`, `dba-team`)
 - (Optional) [Slack integration](/integrations/slack) for notifications
 
-### Step 1: Enable JIT Access Requests on a Connection
+### Step 1: Enable JIT Access Requests on a Resource Role
 
 <Steps>
   <Step title="Navigate to Access Requests">
     Go to **Manage > Access Requests** in the Web App
   </Step>
-  <Step title="Select Your Connection">
-    Find the connection you want to protect (e.g., `prod-postgres`) and click **Configure**
+  <Step title="Select Your Resource Role">
+    Find the resource role you want to protect (e.g., `prod-postgres`) and click **Configure**
 
     <Frame>
       <img src="/images/learn/jit-reviews-1.png" alt="Access Requests configuration page" />
@@ -88,7 +88,7 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
     </Warning>
   </Step>
   <Step title="Save Configuration">
-    Click **Save** to enable JIT access requests for this connection
+    Click **Save** to enable JIT access requests for this resource role
   </Step>
 </Steps>
 
@@ -124,7 +124,7 @@ Click the **Approve** button directly in the Slack notification.
 
 1. Go to **Access Requests** in the sidebar
 2. Find the pending request
-3. Review the details (who, what connection, how long)
+3. Review the details (who, what resource role, how long)
 4. Click **Approve** or **Reject**
 
 ### Step 4: Access Granted
@@ -157,7 +157,7 @@ When the duration ends:
 
 ### Access Duration Limits
 
-Control how long users can request access for. Configure this in **Manage > Connections > [connection] > Settings**:
+Control how long users can request access for. Configure this in **Manage > Resources > [resource role] > Settings**:
 
 | Setting | Description |
 |---------|-------------|
@@ -290,7 +290,7 @@ This is expected behavior. Admin users auto-approve their own requests.
 
 **Check:**
 1. The Slack app is installed correctly ([setup guide](/integrations/slack))
-2. The connection has the `slack` plugin enabled
+2. The resource role has the `slack` plugin enabled
 3. The approver has subscribed with `/hoop subscribe`
 4. The notification channel is configured in Slack plugin settings
 
@@ -328,6 +328,6 @@ This is expected behavior. Admin users auto-approve their own requests.
     Audit what happened during approved sessions
   </Card>
   <Card title="Access Control" icon="lock" href="/learn/features/access-control">
-    Configure who can access which connections
+    Configure who can access which resource roles
   </Card>
 </CardGroup>

@@ -1,6 +1,6 @@
 ---
 title: "Access Control Configuration"
-description: "Configure group-based access policies for your connections"
+description: "Configure group-based access policies for your resource roles"
 ---
 
 import { LayeredAccess } from '/snippets/annimations/layeredaccess.jsx';
@@ -9,7 +9,7 @@ import { LayeredAccess } from '/snippets/annimations/layeredaccess.jsx';
   <LayeredAccess />
 </div>
 
-Access Control lets you restrict which users can see and access specific connections based on their group memberships. This page covers detailed configuration options.
+Access Control lets you restrict which users can see and access specific resource roles based on their group memberships. This page covers detailed configuration options.
 
 <Note>
 For an introduction to Access Control concepts, see [Access Control Overview](/learn/features/access-control).
@@ -20,7 +20,7 @@ For an introduction to Access Control concepts, see [Access Control Overview](/l
 ## Enabling Access Control
 
 <Warning>
-Enabling Access Control will immediately hide connections from users who don't have explicit access. Plan your group assignments before enabling.
+Enabling Access Control will immediately hide resource roles from users who don't have explicit access. Plan your group assignments before enabling.
 </Warning>
 
 ### Step 1: Activate Access Control
@@ -36,7 +36,7 @@ Enabling Access Control will immediately hide connections from users who don't h
   <Step title="Review the Warning">
     Read the activation warning carefully. Understand that:
     - Users without group assignments will lose access
-    - You'll need to configure each connection individually
+    - You'll need to configure each resource role individually
     - Changes take effect immediately
 
     <Frame>
@@ -48,23 +48,23 @@ Enabling Access Control will immediately hide connections from users who don't h
   </Step>
 </Steps>
 
-### Step 2: Configure Connections
+### Step 2: Configure Resource Roles
 
-After activation, configure access for each connection:
+After activation, configure access for each resource role:
 
 <Steps>
-  <Step title="Select a Connection">
-    Find the connection in the list and click to configure
+  <Step title="Select a Resource Role">
+    Find the resource role in the list and click to configure
 
     <Frame>
-      <img src="/images/learn/features/access-control-activated.png" alt="Connection list" />
+      <img src="/images/learn/features/access-control-activated.png" alt="Resource role list" />
     </Frame>
   </Step>
   <Step title="Enable Access Control">
-    Toggle the Access Control switch for this connection
+    Toggle the Access Control switch for this resource role
   </Step>
   <Step title="Add Allowed Groups">
-    Select which groups can access this connection
+    Select which groups can access this resource role
 
     <Frame>
       <img src="/images/learn/features/access-control-add-groups.png" alt="Add groups" />
@@ -103,11 +103,11 @@ Groups can be automatically synced when users log in:
 
 | Group | Description | Permissions |
 |-------|-------------|-------------|
-| `admin` | Administrators | Full access to all connections and settings |
+| `admin` | Administrators | Full access to all resource roles and settings |
 | `auditor` | Audit access | Read-only access to sessions and logs |
 
 <Note>
-Admin users bypass Access Control and can access all connections regardless of group configuration.
+Admin users bypass Access Control and can access all resource roles regardless of group configuration.
 </Note>
 
 ### Group Naming Conventions
@@ -125,14 +125,14 @@ Recommended naming patterns:
 
 ## Permission Types
 
-### Connection Visibility
+### Resource Role Visibility
 
-When Access Control is enabled on a connection:
+When Access Control is enabled on a resource role:
 
-| User's Groups | Connection Visibility |
+| User's Groups | Resource Role Visibility |
 |---------------|----------------------|
-| In allowed groups | Connection is visible and accessible |
-| Not in allowed groups | Connection is hidden completely |
+| In allowed groups | Resource role is visible and accessible |
+| Not in allowed groups | Resource role is hidden completely |
 | Admin group | Always visible (bypasses Access Control) |
 
 ### Combining with Access Requests
@@ -144,7 +144,7 @@ Access Control and Access Requests work together:
 | Allowed | Not enabled | Direct access |
 | Allowed | JIT enabled | Must request time-based access |
 | Allowed | Action enabled | Each command needs approval |
-| Not allowed | Any | Connection not visible |
+| Not allowed | Any | Resource role not visible |
 
 ---
 
@@ -155,13 +155,13 @@ Access Control and Access Requests work together:
 Separate access by environment:
 
 ```
-Connection: prod-database
+Resource Role: prod-database
   Allowed Groups: senior-engineers, dba
 
-Connection: staging-database
+Resource Role: staging-database
   Allowed Groups: engineering, qa
 
-Connection: dev-database
+Resource Role: dev-database
   Allowed Groups: engineering, contractors
 ```
 
@@ -170,26 +170,26 @@ Connection: dev-database
 Each team accesses their own resources:
 
 ```
-Connection: payments-db
+Resource Role: payments-db
   Allowed Groups: payments-team
 
-Connection: inventory-db
+Resource Role: inventory-db
   Allowed Groups: inventory-team
 
-Connection: analytics-warehouse
+Resource Role: analytics-warehouse
   Allowed Groups: analytics-team, data-science
 ```
 
 ### Pattern 3: Read/Write Separation
 
-Create separate connections with different access levels:
+Create separate resource roles with different access levels:
 
 ```
-Connection: prod-db-readonly
+Resource Role: prod-db-readonly
   Allowed Groups: engineering, analytics, support
   (Configured with read-only database user)
 
-Connection: prod-db-readwrite
+Resource Role: prod-db-readwrite
   Allowed Groups: dba, senior-engineers
   (Configured with read-write database user)
 ```
@@ -199,7 +199,7 @@ Connection: prod-db-readwrite
 Limited access for external contractors:
 
 ```
-Connection: contractor-db
+Resource Role: contractor-db
   Allowed Groups: contractors
   (Limited database, Live Data Masking enabled)
 ```
@@ -259,14 +259,14 @@ To see what a user can access:
 1. Go to **Manage > Users**
 2. Click on a user
 3. View their group memberships
-4. Cross-reference with connection configurations
+4. Cross-reference with resource role configurations
 
 ### Access Logs
 
 All access attempts are logged:
 
 1. Go to **Sessions**
-2. Filter by user or connection
+2. Filter by user or resource role
 3. See successful connections and denied attempts
 
 ### Exporting Access Report
@@ -282,18 +282,18 @@ hoop admin get connections -o json | \
 
 ## Troubleshooting
 
-### User Can't See a Connection
+### User Can't See a Resource Role
 
 **Checklist:**
 
-1. **Is Access Control enabled on the connection?**
-   - Go to connection settings
+1. **Is Access Control enabled on the resource role?**
+   - Go to resource role settings
    - Check if Access Control toggle is on
 
 2. **Is the user in an allowed group?**
    - Go to **Manage > Users**
    - Check user's group memberships
-   - Verify groups match connection's allowed groups
+   - Verify groups match resource role's allowed groups
 
 3. **Has the user logged out and back in?**
    - Groups sync on login
@@ -312,13 +312,13 @@ hoop admin get user <email>
 hoop admin get connection <name>
 ```
 
-### User Sees Connection But Can't Connect
+### User Sees Resource Role But Can't Connect
 
 This is likely NOT an Access Control issue. Check:
 
 1. **Access Requests:** Is JIT or Action approval required?
 2. **Guardrails:** Are there blocking rules?
-3. **Connection status:** Is the agent online?
+3. **Resource role status:** Is the agent online?
 
 ### Groups Not Syncing from IdP
 
@@ -354,12 +354,12 @@ This is likely NOT an Access Control issue. Check:
 
 ### Before Enabling Access Control
 
-1. [ ] Inventory all connections
+1. [ ] Inventory all resource roles
 2. [ ] Identify who needs access to each
 3. [ ] Create groups in IdP or Hoop
 4. [ ] Assign users to groups
 5. [ ] Document the access policy
-6. [ ] Test with a non-production connection first
+6. [ ] Test with a non-production resource role first
 
 ### Quarterly Access Review
 

@@ -7,10 +7,10 @@ description: "Connect AI agents to Hoop with the built-in Model Context Protocol
 
 Hoop ships a built-in [Model Context Protocol](https://modelcontextprotocol.io) server that exposes the gateway as a set of tools an AI agent can call. Point Claude Code, Cursor, Devin, or any MCP-compatible client at it and the agent inherits the same controls a human user gets:
 
-- Run queries and commands against connections without ever handling credentials
+- Run queries and commands against resource roles without ever handling credentials
 - Trigger and wait for human approvals before sensitive actions execute
 - Inspect schemas, sessions, and AI risk analysis from inside the agent's loop
-- Manage connections, guardrails, data masking, and review rules — gated by admin roles
+- Manage resource roles, guardrails, data masking, and review rules — gated by admin roles
 
 Every tool call goes through the same authorization, data masking, guardrails, and review gates as the rest of Hoop. The MCP server does not bypass any of them.
 
@@ -142,7 +142,7 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 <Prerequisites />
 
 - An MCP-compatible client (Claude Code, Cursor, Devin, or any client that supports streamable HTTP transport with OAuth)
-- A user account in Hoop with access to at least one connection
+- A user account in Hoop with access to at least one resource role
 
 ### Step 1: Add the MCP server to your client
 
@@ -189,7 +189,7 @@ Have the agent call `connections_list` (and optionally `serverinfo_get` for gate
 
 ### Step 4: Run a query
 
-Use `exec` to run a command against a connection. The response is one of three envelopes the agent should handle explicitly:
+Use `exec` to run a command against a resource role. The response is one of three envelopes the agent should handle explicitly:
 
 | `status` | Meaning | What the agent does next |
 |---|---|---|
@@ -202,7 +202,7 @@ Use `exec` to run a command against a connection. The response is one of three e
 
 ## The Approval Flow
 
-When a connection requires review, `exec` returns `status=pending_approval` with a `review_id` and `review_url`. The agent should:
+When a resource role requires review, `exec` returns `status=pending_approval` with a `review_id` and `review_url`. The agent should:
 
 <Steps>
   <Step title="Notify the user">
@@ -307,7 +307,7 @@ The MCP server enforces the same controls as every other Hoop interface:
     Input and output guardrails block or modify content before the agent receives it. Same rules as the CLI.
   </Card>
   <Card title="Reviews" icon="user-check">
-    Connections with review rules cannot be executed without human approval. The agent gets `pending_approval` and must wait.
+    Resource roles with review rules cannot be executed without human approval. The agent gets `pending_approval` and must wait.
   </Card>
   <Card title="Audit" icon="file-lines">
     Every `exec` creates a session row, records the input, and runs AI analysis. Sessions are queryable via `sessions_*` tools and exportable via webhooks/SIEM.
@@ -332,7 +332,7 @@ The MCP server enforces the same controls as every other Hoop interface:
     `connection_databases` → `connection_tables` → `connection_columns` lets the agent ground queries in real schemas instead of guessing.
   </Card>
   <Card title="Pair with review rules" icon="user-check">
-    Configure review rules on sensitive connections so agent-initiated actions are gated by human approval.
+    Configure review rules on sensitive resource roles so agent-initiated actions are gated by human approval.
   </Card>
 </CardGroup>
 

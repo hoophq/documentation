@@ -1,6 +1,6 @@
 ---
 title: "AWS Connect"
-description: "Database Resource Discovery and Automatic Connection Creation."
+description: "Database Resource Discovery and Automatic Resource Role Creation."
 ---
 
 This feature enables you to discover and provision common database roles to your RDS databases in AWS seamlessly.
@@ -215,7 +215,7 @@ This security group is configured with the following properties:
 
 You have the option to manage these security groups directly to customize connectivity settings as needed.
 
-## Roles and Connection Management
+## Roles and Resource Role Management
 
 The provisioner will reset the master database credentials using a random password.
 The user and password are stored in Hoop's database. Subsequent requests for provisioning roles reuse the master credentials stored in Hoop.
@@ -229,15 +229,15 @@ The provisioner will create three static user roles for all existing databases d
 If you run the process multiple times, some database users might be removed and recreated.
 The default behavior is to provision the role if it doesn't exist and change the password if the role already exists.
 
-In the final step of the provisioning process, it creates connections with the credentials of each role.
-Three connections are provisioned as the outcome:
+In the final step of the provisioning process, it creates resource roles with the credentials of each role.
+Three resource roles are provisioned as the outcome:
 
 - `<connection-name-prefix>-ro`
 - `<connection-name-prefix>-rw`
 - `<connection-name-prefix>-ddl`
 
 <Frame>
-  <img src="/images/integrations/aws-connect-4.png" alt="Connection Configuration" />
+  <img src="/images/integrations/aws-connect-4.png" alt="Resource Role Configuration" />
 </Frame>
 
 The database user roles permissions are static and described below:
@@ -452,7 +452,7 @@ print('response status: ', response['status'])
 This integration enables you to delegate the management of secrets to HashiCorp Vault, a robust secrets management solution.
 When enabled, all provisioned roles are securely stored in Vault.
 
-For deployments with connection provisioning enabled, the integration automatically adds the necessary reference secrets provider and secret ID.
+For deployments with resource role provisioning enabled, the integration automatically adds the necessary reference secrets provider and secret ID.
 
 <Note>
     For this integration to function properly, the agent must be configured with the correct Vault credentials.

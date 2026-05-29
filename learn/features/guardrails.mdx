@@ -70,7 +70,7 @@ import Prerequisites from '/snippets/LearnPrerequisites.mdx';
 
 <Prerequisites />
 
-- At least one database connection configured
+- At least one database resource role configured
 - Admin access to create guardrails
 
 ### Step 1: Create a Guardrail
@@ -104,10 +104,10 @@ In the **Input Rules** section:
 The `(?i)` makes the pattern case-insensitive, so it catches `update`, `UPDATE`, and `Update`.
 </Note>
 
-### Step 3: Assign to Connections
+### Step 3: Assign to Resource Roles
 
-1. In the **Connections** section, select which connections this guardrail applies to
-2. Choose your production database connections
+1. In the **Resources** section, select which resource roles this guardrail applies to
+2. Choose your production database resource roles
 3. Click **Save**
 
 ### Step 4: Test the Guardrail
@@ -166,7 +166,7 @@ Block all write operations for analyst or read-only user groups.
 | `(?i)^\s*(CREATE\|DROP\|ALTER)\s+` | DDL commands |
 
 <Tip>
-Apply this guardrail only to connections used by read-only groups, not to admin connections.
+Apply this guardrail only to resource roles used by read-only groups, not to admin resource roles.
 </Tip>
 
 ### Recipe 3: Block SELECT * on Large Tables
@@ -219,17 +219,17 @@ Restrict access to sensitive tables like `salaries` or `api_keys`.
 ## Testing Guardrails Safely
 
 <Warning>
-Always test guardrails before applying them to production connections.
+Always test guardrails before applying them to production resource roles.
 </Warning>
 
 ### Testing Process
 
 <Steps>
-  <Step title="Create a Test Connection">
-    Create a separate connection to the same database (e.g., `prod-db-test`)
+  <Step title="Create a Test Resource Role">
+    Create a separate resource role to the same database (e.g., `prod-db-test`)
   </Step>
   <Step title="Apply the Guardrail">
-    Assign the guardrail only to the test connection
+    Assign the guardrail only to the test resource role
   </Step>
   <Step title="Run Test Queries">
     Test both queries that should be blocked and queries that should pass
@@ -238,7 +238,7 @@ Always test guardrails before applying them to production connections.
     Confirm the guardrail blocks what it should and allows what it should
   </Step>
   <Step title="Apply to Production">
-    Once verified, add production connections to the guardrail
+    Once verified, add production resource roles to the guardrail
   </Step>
 </Steps>
 
@@ -303,9 +303,9 @@ If the guardrail is catching legitimate queries, update the pattern:
 
 For specific users or groups that need to bypass certain rules:
 
-1. Create a new connection without the guardrail
-2. Restrict access to that connection to specific groups
-3. Use this "elevated" connection for exceptional cases
+1. Create a new resource role without the guardrail
+2. Restrict access to that resource role to specific groups
+3. Use this "elevated" resource role for exceptional cases
 
 ---
 
@@ -316,7 +316,7 @@ For specific users or groups that need to bypass certain rules:
 **Check:**
 
 1. **Guardrail is enabled** - Verify the toggle is on in Manage > Guardrails
-2. **Connection is assigned** - Check that the connection is in the guardrail's connection list
+2. **Resource role is assigned** - Check that the resource role is in the guardrail's resource role list
 3. **Pattern syntax is valid** - Test your regex at [regex101.com](https://regex101.com)
 4. **Case sensitivity** - Add `(?i)` at the start for case-insensitive matching
 
@@ -358,13 +358,13 @@ Guardrails add minimal latency (typically 1-5ms per query). If you notice slowdo
 | **Guardrails** | Block queries based on patterns | Prevent dangerous operations |
 | **Live Data Masking** | Redact sensitive data in output | Protect PII in query results |
 | **Access Requests** | Require approval for access | Time-limited or command-level approval |
-| **Access Control** | Control who can access connections | Restrict connection visibility |
+| **Access Control** | Control who can access resource roles | Restrict resource role visibility |
 
 These features work together. For example:
 - Guardrails block `DROP TABLE` commands
 - Live Data Masking redacts SSN in `SELECT` results
 - Access Requests require approval before connecting
-- Access Control limits who sees the connection
+- Access Control limits who sees the resource role
 
 ---
 
@@ -378,7 +378,7 @@ These features work together. For example:
     Automatically redact sensitive data in query results
   </Card>
   <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
-    Require approval for access to sensitive connections
+    Require approval for access to sensitive resource roles
   </Card>
   <Card title="Session Recording" icon="video" href="/learn/features/session-recording">
     Audit all query executions including blocked queries

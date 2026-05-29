@@ -75,21 +75,21 @@ For a step-by-step setup and advanced options, see [Advanced Configuration](#adv
     To create a Jira Template, fill out the following information:
     - **Integration details:** Name, Description, Project Key, and Request Type.
     <Info>For more information about how to get Jira information check [Jira Templates](#jira-templates).</Info>
-    - **Automated Mapping:** Append additional information to created Jira tickets when executing commands in a connection.
+    - **Automated Mapping:** Append additional information to created Jira tickets when executing commands in a resource role.
     <Info>For more information about available hoop.dev fields, check [Automated Mapping](#automated-mapping).</Info>
     - **Manual Prompt:** Request additional information from users when executing commands to be appended to created Jira tickets.
     <Info>For more information, check [Manual Prompt](#manual-prompt).</Info>
     - **Configuration Management Database (CMDB):** Optionally relate CMDBs and hoop.dev services.
   </Step>
-  <Step title="Adding templates to a connection">
+  <Step title="Adding templates to a resource role">
     <Frame>
       <img src="/images/integrations/jira-4.png" />
     </Frame>
-    While creating or configuring a connection, navigate to <code>Advanced Settings</code> and select a Jira Template.
-    <Info>To keep your default workflow, Access Requests must be enabled for this connection. Connections without Access Requests enabled will mark Jira tickets as done after executing a command.</Info>
+    While creating or configuring a resource role, navigate to <code>Advanced Settings</code> and select a Jira Template.
+    <Info>To keep your default workflow, Access Requests must be enabled for this resource role. Resource roles without Access Requests enabled will mark Jira tickets as done after executing a command.</Info>
   </Step>
   <Step title="Executing session">
-    When a command is executed in a connection with a Jira Template, all configured information is checked (and requested, if needed) and appended to the session while a Jira ticket is created to the workflow.
+    When a command is executed in a resource role with a Jira Template, all configured information is checked (and requested, if needed) and appended to the session while a Jira ticket is created to the workflow.
   </Step>
 </Steps>
 
@@ -140,7 +140,7 @@ https://yourcompany.atlassian.net/jira/servicedesk/projects/PROJ/settings/issuet
 
 ### Automated Mapping
 
-Appends additional information to Jira cards when executing commands in a connection.
+Appends additional information to Jira cards when executing commands in a resource role.
 
 | Field         | Values   | Usage                                                      |
 |---------------|----------|------------------------------------------------------------|
@@ -151,13 +151,13 @@ Appends additional information to Jira cards when executing commands in a connec
 | **Description**|`string` | Optional information used to identify a mapping item.      |
 
 **Preset values include:**  
-Session ID, User Email, User ID, User Name, Connection Type, Connection Name, Connection Tags, Session Status, Session Start Date, Session Type, Session Script
+Session ID, User Email, User ID, User Name, Resource Role Type, Resource Role Name, Resource Role Tags, Session Status, Session Start Date, Session Type, Session Script
 
 ---
 
 ### Manual Prompt
 
-Requests manual input from users to get additional information when executing commands in a connection.
+Requests manual input from users to get additional information when executing commands in a resource role.
 
 | Field         | Values   | Usage                                                      |
 |---------------|----------|------------------------------------------------------------|

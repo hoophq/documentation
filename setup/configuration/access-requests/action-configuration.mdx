@@ -1,6 +1,6 @@
 ---
 title: "Action Access Requests Configuration"
-description: "Configure command-level approval workflows for your connections"
+description: "Configure command-level approval workflows for your resource roles"
 ---
 
 Action Access Requests require approval for each command before it executes. This page covers detailed configuration options.
@@ -16,8 +16,8 @@ For an introduction to Action Access Requests, see [Action Access Requests Overv
 ### Via Web App
 
 <Steps>
-  <Step title="Navigate to Connection">
-    Go to **Connections** and select the connection you want to configure
+  <Step title="Navigate to Resource Role">
+    Go to **Resources** and select the resource role you want to configure
   </Step>
   <Step title="Open Configuration">
     Click the **Additional Configuration** tab
@@ -38,7 +38,7 @@ For an introduction to Action Access Requests, see [Action Access Requests Overv
 
 ### Via CLI
 
-Enable Action Access Requests when creating a connection:
+Enable Action Access Requests when creating a resource role:
 
 ```bash
 hoop admin create connection prod-db \
@@ -49,7 +49,7 @@ hoop admin create connection prod-db \
 
 The `--reviewers` flag specifies which groups can approve commands.
 
-**Add reviewers to an existing connection:**
+**Add reviewers to an existing resource role:**
 
 ```bash
 hoop admin create connection prod-db \
@@ -126,7 +126,7 @@ When a request times out:
 To receive and approve requests in Slack:
 
 1. [Configure the Slack integration](/integrations/slack)
-2. Enable the `slack` plugin on your connection:
+2. Enable the `slack` plugin on your resource role:
 
 ```bash
 hoop admin create connection prod-db \
@@ -280,7 +280,7 @@ Every access request is logged with:
 
 **Check Slack:**
 1. Slack app is installed correctly
-2. Connection has `slack` plugin enabled
+2. Resource role has `slack` plugin enabled
 3. Approver has run `/hoop subscribe`
 4. Notification channel is configured
 
@@ -295,7 +295,7 @@ Admin users auto-approve their own requests. This is expected behavior.
 
 **To test the full workflow:**
 - Use a non-admin test account
-- Or create a connection where the admin is NOT in the approvers group
+- Or create a resource role where the admin is NOT in the approvers group
 
 ### Request Times Out Too Quickly
 
@@ -312,7 +312,7 @@ Restart the gateway after changing.
 
 **Check:**
 1. Request hasn't already expired
-2. You're looking at the correct connection
+2. You're looking at the correct resource role
 3. Filter is set to show **Pending** status
 
 ---

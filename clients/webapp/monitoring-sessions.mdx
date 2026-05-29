@@ -1,6 +1,6 @@
 ---
 title: "Monitoring Sessions"
-description: "Learn how to track and audit connection usage through the Sessions interface"
+description: "Learn how to track and audit resource role usage through the Sessions interface"
 ---
 
 import { AuditTrailDemo } from '/snippets/annimations/AuditTrailDemo.jsx';
@@ -9,13 +9,13 @@ import { AuditTrailDemo } from '/snippets/annimations/AuditTrailDemo.jsx';
   <AuditTrailDemo />
 </div>
 
-The Sessions interface provides a comprehensive view of all connection activities across your organization. You can monitor active sessions, review past activities, and investigate specific actions taken by users.
+The Sessions interface provides a comprehensive view of all resource role activities across your organization. You can monitor active sessions, review past activities, and investigate specific actions taken by users.
 
 ## Sessions Overview
 
-The Sessions page displays a list of all connection activities with key information:
+The Sessions page displays a list of all resource role activities with key information:
 - User who initiated the session
-- Connection name and type
+- Resource role name and type
 - Session ID for reference
 - Timestamp and duration
 - Status indicators
@@ -24,8 +24,8 @@ The Sessions page displays a list of all connection activities with key informat
 
 Use the top filters to narrow down sessions:
 - **User**: Filter by specific team members
-- **Connection**: View sessions for particular connections
-- **Type**: Filter by connection type (database, application, etc.)
+- **Resource Role**: View sessions for particular resource roles
+- **Type**: Filter by resource role type (database, application, etc.)
 - **Period**: Select a specific time range
 
 ## Session Details
@@ -36,18 +36,18 @@ Use the top filters to narrow down sessions:
 
 Clicking on a session opens a detailed view that shows:
 
-### Connection Information
+### Resource Role Information
 - Session start and end times
-- Connection type and name
+- Resource role type and name
 - User who initiated the session
 
 ### Activity Log
-For database connections:
+For database resource roles:
 - SQL queries executed
 - Query results
 - Execution timestamps
 
-For application and SSH connections:
+For application and SSH resource roles:
 - Commands executed
 - Command output
 - Terminal sessions
@@ -64,7 +64,7 @@ From the session details view, you can:
 
 <CardGroup cols={2}>
   <Card title="JIT Access Requests" icon="clock">
-    Sessions may require approval before starting if JIT access requests are enabled for the connection
+    Sessions may require approval before starting if JIT access requests are enabled for the resource role
   </Card>
 
   <Card title="Action Access Requests" icon="terminal">
@@ -88,7 +88,7 @@ From the session details view, you can:
   </Card>
   
   <Card title="Performance" icon="chart-line">
-    Monitor session patterns to optimize connection usage
+    Monitor session patterns to optimize resource role usage
   </Card>
 </CardGroup>
 

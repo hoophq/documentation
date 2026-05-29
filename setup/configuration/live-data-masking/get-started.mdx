@@ -56,7 +56,7 @@ Google Cloud Data Loss Prevention (DLP) is still available for existing customer
     | `MSPRESIDIO_ANONYMIZER_URL` | `<host-to-anonymizer:port>` |
   </Step>
   <Step title="Run hoop.dev's Gateway with the new configs">
-    After setting up the environment variables, hoop.dev will use Microsoft Presidio to mask sensitive data in real-time in the data stream of any connection you configure.
+    After setting up the environment variables, hoop.dev will use Microsoft Presidio to mask sensitive data in real-time in the data stream of any resource role you configure.
   </Step>
 </Steps>
 
@@ -64,7 +64,7 @@ Google Cloud Data Loss Prevention (DLP) is still available for existing customer
 
 Create an account at [Google Cloud Data Loss Prevention](https://cloud.google.com/security/products/dlp) and a service account with the permission `roles/dlp.user`.
 
-When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLICATION_CREDENTIALS_JSON` with your GCP DLP credentials in hoop's Gateway. Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in real-time in the data stream of any connection you configure.
+When installing hoop.dev, you need to set the environment variable `GOOGLE_APPLICATION_CREDENTIALS_JSON` with your GCP DLP credentials in hoop's Gateway. Hoop.dev uses Google Cloud's DLP at our protocol layer to mask sensitive data in real-time in the data stream of any resource role you configure.
 
 <Note>
   Google Cloud Data Loss Prevention (DLP) is still available for existing customers but is deprecated for new installations.
@@ -86,9 +86,9 @@ This mode will return an error in case it find any redaction issue
 
 - `DLP_MODE=strict`
 
-## Activate to your connections
+## Activate to your resource roles
 
-Navigate to your Web App instance \> Open the Manage toggle \> click at Live Data Masking \> Activate by connection and to configure which fields you want to set, hit the "Configure" button.
+Navigate to your Web App instance \> Open the Manage toggle \> click at Live Data Masking \> Activate by resource role and to configure which fields you want to set, hit the "Configure" button.
 
 <Frame>
   ![](/images/configure/ai-data-masking-activate-connection.png)

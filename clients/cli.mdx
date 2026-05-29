@@ -153,7 +153,7 @@ Every `hoop exec` call that shares the same correlation value is tagged on the s
 
 ## Programmatic API Access
 
-This authentication method is designed for administrators who need programmatic access to the API for tasks such as managing connections,
+This authentication method is designed for administrators who need programmatic access to the API for tasks such as managing resource roles,
 configuring policies, or executing operations within automation pipelines.
 
 Programmatic access requires static authentication credentials that can be obtained through the following methods:
@@ -228,7 +228,7 @@ hoop config create
 ```
 
 <Note>
-  This flag is optional and used only to interact with connections.
+  This flag is optional and used only to interact with resource roles.
   The `--grpc-url` is obtained automatically from the Api when a user Sign In (issue the `hoop login` command)
 </Note>
 

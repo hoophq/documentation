@@ -342,8 +342,8 @@ export const ActionAccessAnimation = () => {
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{
                         fontFamily: "'Inter', sans-serif", fontSize: 11,
-                        color: "rgba(var(--sand-100-rgb),0.30)", minWidth: 70,
-                      }}>Connection</span>
+                        color: "rgba(var(--sand-100-rgb),0.30)", minWidth: 84,
+                      }}>Resource Role</span>
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
                         color: "rgba(var(--sand-100-rgb),0.50)",
@@ -352,7 +352,7 @@ export const ActionAccessAnimation = () => {
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <span style={{
                         fontFamily: "'Inter', sans-serif", fontSize: 11,
-                        color: "rgba(var(--sand-100-rgb),0.30)", minWidth: 70,
+                        color: "rgba(var(--sand-100-rgb),0.30)", minWidth: 84,
                       }}>Command</span>
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace", fontSize: 11,

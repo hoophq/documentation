@@ -1,6 +1,6 @@
 ---
 title: "JIT Access Requests Configuration"
-description: "Configure time-based access controls for your connections"
+description: "Configure time-based access controls for your resource roles"
 ---
 
 This page covers the configuration options for Just-in-Time Access Requests. For an introduction to how JIT Access Requests work, see [JIT Access Requests](/learn/features/access-requests/jit).
@@ -13,8 +13,8 @@ This page covers the configuration options for Just-in-Time Access Requests. For
   <Step title="Navigate to Access Requests">
     Go to **Manage > Access Requests** in the Web App
   </Step>
-  <Step title="Activate the Connection">
-    Find your connection and toggle it to **Active**
+  <Step title="Activate the Resource Role">
+    Find your resource role and toggle it to **Active**
 
     <Frame>
       <img src="/images/learn/jit-reviews-1.png" alt="Enable JIT access requests" />
@@ -35,7 +35,7 @@ This page covers the configuration options for Just-in-Time Access Requests. For
 
 ### Via CLI
 
-You can also configure access requests when creating a connection:
+You can also configure access requests when creating a resource role:
 
 ```bash
 hoop admin create conn prod-postgres \
@@ -79,7 +79,7 @@ The CLI will wait for approval:
 
 ### Maximum Access Duration
 
-Limit how long users can request access. Configure in **Manage > Connections > [connection] > Settings**.
+Limit how long users can request access. Configure in **Manage > Resources > [resource role] > Settings**.
 
 ### Multiple Approval Groups
 
@@ -102,7 +102,7 @@ To test the full workflow, use a non-admin account.
 To receive and approve requests in Slack:
 
 1. [Configure the Slack integration](/integrations/slack)
-2. Enable the `slack` plugin on your connection:
+2. Enable the `slack` plugin on your resource role:
 
 ```bash
 hoop admin create conn prod-postgres \
@@ -140,6 +140,6 @@ These environment variables affect JIT Access Requests behavior on the gateway:
     Set up Slack for access request notifications
   </Card>
   <Card title="Access Control" icon="lock" href="/setup/configuration/access-control-configuration">
-    Configure who can access which connections
+    Configure who can access which resource roles
   </Card>
 </CardGroup>
