@@ -1,0 +1,34 @@
+<Steps>
+  <Step title="Open Access Request">
+    In the Web App sidebar, under **Discover**, click **Access Request**.
+  </Step>
+  <Step title="Create a new rule">
+    Click **Create new Access Request rule**. If you don't have any rules yet, you're taken straight to the rule form.
+  </Step>
+  <Step title="Set rule information">
+    Give the rule a **Name** and an optional **Description**.
+  </Step>
+  <Step title="Choose the access request type">
+    Select the **Access request type**:
+
+    - **Just-in-Time** — temporary access that expires automatically after a defined time range.
+    - **by Command** — execution-based access with a per-command approval workflow.
+
+    Only resource roles that support the selected type can be added in the next step.
+  </Step>
+  <Step title="Select resource roles">
+    Under **Resource configuration**, choose the **resource roles** this rule applies to. Optionally, use **Attribute configuration** to scope the rule further.
+  </Step>
+  <Step title="Set user groups">
+    - **Required user groups** — the groups that must request access under this rule.
+    - **Approval user groups** — the groups that can approve access for this rule.
+  </Step>
+  <Step title="Tune approval controls (optional)">
+    - **Require all groups approval** — require approval from at least one member of each approval group.
+    - **Approval amount** — the minimum number of approvals required per session.
+    - **Force approval groups** — groups allowed to bypass the other approval rules.
+  </Step>
+  <Step title="Save">
+    Click **Save** to create the rule.
+  </Step>
+</Steps>

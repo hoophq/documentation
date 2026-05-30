@@ -15,27 +15,13 @@ For an introduction to Action Access Requests, see [Action Access Requests Overv
 
 ### Via Web App
 
-<Steps>
-  <Step title="Navigate to Resource Role">
-    Go to **Resources** and select the resource role you want to configure
-  </Step>
-  <Step title="Open Configuration">
-    Click the **Additional Configuration** tab
-  </Step>
-  <Step title="Enable Access Requests">
-    Toggle on **Access Requests**
-  </Step>
-  <Step title="Configure Approvers">
-    Select which groups can approve commands:
-    - Click **Add Group**
-    - Select one or more groups
-    - Groups members will receive approval notifications
-  </Step>
-  <Step title="Save">
-    Click **Save** to apply the configuration
-  </Step>
-</Steps>
+import AccessRequestRuleSetup from '/snippets/access-request-rule-setup.mdx';
 
+Action Access Requests are configured as an Access Request rule of type **by Command**.
+
+<AccessRequestRuleSetup />
+
+{/* TODO(access-requests): verify the per-resource-role --reviewers CLI flow still applies under the new rule-based Access Request model (felipe to confirm). */}
 ### Via CLI
 
 Enable Action Access Requests when creating a resource role:
@@ -204,37 +190,6 @@ hoop admin create connection pii-database \
   --plugin slack \
   -- psql -h pii-db.internal -U readonly_user piidb
 ```
-
----
-
-## Combining with Other Features
-
-### Action + Guardrails
-
-Use both for defense in depth:
-
-- **Guardrails:** Automatically block obviously dangerous commands
-- **Action:** Require approval for everything else
-
-Example: Guardrails block `DROP TABLE`, but `DELETE` still requires approval.
-
-### Action + Live Data Masking
-
-Even approved queries show masked results:
-
-- Approver sees the command being run
-- User sees masked results after execution
-- PII is protected even from approved queries
-
-### Action + Access Control
-
-Access Control determines visibility; Action adds approval:
-
-| Access Control | Action | Result |
-|----------------|----------|--------|
-| Not allowed | Any | Connection not visible |
-| Allowed | Disabled | Direct execution |
-| Allowed | Enabled | Each command needs approval |
 
 ---
 
