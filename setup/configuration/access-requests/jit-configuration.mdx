@@ -9,30 +9,13 @@ This page covers the configuration options for Just-in-Time Access Requests. For
 
 ### Via Web App
 
-<Steps>
-  <Step title="Navigate to Access Requests">
-    Go to **Manage > Access Requests** in the Web App
-  </Step>
-  <Step title="Activate the Resource Role">
-    Find your resource role and toggle it to **Active**
+import AccessRequestRuleSetup from '/snippets/access-request-rule-setup.mdx';
 
-    <Frame>
-      <img src="/images/learn/jit-reviews-1.png" alt="Enable JIT access requests" />
-    </Frame>
-  </Step>
-  <Step title="Configure Approval Groups">
-    Click **Configure** and select the groups that can approve requests
+JIT Access Requests are configured as an Access Request rule of type **Just-in-Time**.
 
-    <Frame>
-      <img src="/images/learn/jit-reviews-2.png" alt="Configure approval groups" />
-    </Frame>
+<AccessRequestRuleSetup />
 
-    <Warning>
-      Selecting multiple groups requires **all groups** to approve before access is granted.
-    </Warning>
-  </Step>
-</Steps>
-
+{/* TODO(access-requests): verify the per-resource-role --reviewers CLI flow still applies under the new rule-based Access Request model (felipe to confirm). */}
 ### Via CLI
 
 You can also configure access requests when creating a resource role:
@@ -114,6 +97,42 @@ hoop admin create conn prod-postgres \
 
 3. Approvers subscribe with `/hoop subscribe` in Slack
 4. Access requests appear as interactive messages
+
+---
+
+## Troubleshooting
+
+### Request stuck in PENDING
+
+**Possible causes:**
+
+1. **No active approvers** — check that the approval groups have members available
+2. **Multiple groups required** — every configured approval group must approve
+3. **Slack notifications not working** — verify the [Slack integration](/integrations/slack) is configured
+
+Check the request in **Access Request** > find your request > see which groups have approved.
+
+### Admin users bypass approval
+
+This is expected — admin users auto-approve their own requests. To test the full workflow, use a non-admin account.
+
+### Access still works after the time limit
+
+**Possible causes:**
+
+1. **Active session** — a session actively in use may not terminate immediately
+2. **Request not expired** — check the request status in **Access Request**
+
+To force expiration, an admin can **Revoke** the access from the Access Request page, which immediately terminates it.
+
+### Approval notification not appearing in Slack
+
+**Check:**
+
+1. The Slack app is installed correctly ([setup guide](/integrations/slack))
+2. The resource role has the `slack` plugin enabled
+3. The approver has subscribed with `/hoop subscribe`
+4. The notification channel is configured in the Slack plugin settings
 
 ---
 

@@ -15,27 +15,13 @@ For an introduction to Action Access Requests, see [Action Access Requests Overv
 
 ### Via Web App
 
-<Steps>
-  <Step title="Navigate to Resource Role">
-    Go to **Resources** and select the resource role you want to configure
-  </Step>
-  <Step title="Open Configuration">
-    Click the **Additional Configuration** tab
-  </Step>
-  <Step title="Enable Access Requests">
-    Toggle on **Access Requests**
-  </Step>
-  <Step title="Configure Approvers">
-    Select which groups can approve commands:
-    - Click **Add Group**
-    - Select one or more groups
-    - Groups members will receive approval notifications
-  </Step>
-  <Step title="Save">
-    Click **Save** to apply the configuration
-  </Step>
-</Steps>
+import AccessRequestRuleSetup from '/snippets/access-request-rule-setup.mdx';
 
+Action Access Requests are configured as an Access Request rule of type **by Command**.
+
+<AccessRequestRuleSetup />
+
+{/* TODO(access-requests): verify the per-resource-role --reviewers CLI flow still applies under the new rule-based Access Request model (felipe to confirm). */}
 ### Via CLI
 
 Enable Action Access Requests when creating a resource role:

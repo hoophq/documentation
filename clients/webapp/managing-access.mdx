@@ -36,30 +36,29 @@ Groups are the primary way to organize users and control access:
   </Step>
 </Steps>
 
-## Configuring Resource Role Access
+## Controlling Resource Access
 
-<Frame>
-  <img src="/images/clients/webapp/managing-access-connection.png" alt="Resource Role Access Configuration" />
-</Frame>
+Use the **Access Control** section to manage which user groups can access each resource role.
 
-Administrators can set up access controls in the Configuration options of a resource role:
-
-### Access Requests Configuration
 <Steps>
-  <Step title="Enable Access Requests">
-    Enable the Access Requests toggle to require approval for resource role access.
+  <Step title="Open Access Control">
+    In the Web App sidebar, under **Discover**, click **Access Control**.
   </Step>
-
-  <Step title="Select Groups">
-    Select which groups:
-    - Can access the resource role
-    - Need approval before accessing
-    - Can approve access requests
+  <Step title="Pick or create a group">
+    Find the user group you want to manage, or click **Create Group** to add one.
+  </Step>
+  <Step title="Assign resource roles">
+    Click **Configure** next to the group and select the **resource roles** that group can access.
   </Step>
 </Steps>
 
-### Access Modes
-Configure how users interact with the resource role:
+<Note>
+Access Control governs which groups can **reach** a resource role. To require **approval** before access — time-based or per-command — set up an [Access Request rule](/learn/features/access-requests/jit) instead.
+</Note>
+
+## Access Modes
+
+Access modes are configured **per resource role**, in that resource role's own configuration (when you [create](/clients/webapp/creating-resource-roles) or edit it) — not in the Access Control section. They control how users interact with the resource role:
 
 <CardGroup cols={2}>
   <Card title="Runbooks" icon="book">
