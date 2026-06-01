@@ -318,10 +318,5 @@
       "github": "https://github.com/hoophq",
       "linkedin": "https://www.linkedin.com/company/hoopdev"
     }
-  },
-  "integrations": {
-    "segment": {
-      "key": "043Lv52mAcoGOHWVq7n3bxZAVvocyqx0"
-    }
   }
 }
