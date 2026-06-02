@@ -203,6 +203,7 @@
                   "setup/configuration/runbooks-configuration",
                   "setup/configuration/mcp-server-configuration",
                   "setup/configuration/resource-provisioning-configuration",
+                  "setup/configuration/iam-federation-gcp-configuration",
                   "setup/configuration/secrets-manager-configuration",
                   "setup/configuration/rds-iam-auth",
                   "setup/configuration/env-vars",
