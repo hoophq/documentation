@@ -27,7 +27,7 @@ This service currently supports Microsoft Presidio for data classification and P
 Google Cloud Data Loss Prevention (DLP) is still available for existing customers but is deprecated for new installations.
 
 <Info>
-  You must be on an enterprise plan to have access to the Live Data Masking feature.
+  You must be on an Enterprise plan to have full access to the Live Data Masking feature.
 </Info>
 
 ### Microsoft Presidio
@@ -86,13 +86,98 @@ This mode will return an error in case it find any redaction issue
 
 - `DLP_MODE=strict`
 
-## Activate to your resource roles
+<Tip>
+  Start with `best-effort` to avoid blocking legitimate queries while you tune which fields are masked, then move to `strict` once detection is dialed in.
+</Tip>
 
-Navigate to your Web App instance \> Open the Manage toggle \> click at Live Data Masking \> Activate by resource role and to configure which fields you want to set, hit the "Configure" button.
+## Activate on your resource roles
 
-<Frame>
-  ![](/images/configure/ai-data-masking-activate-connection.png)
-</Frame>
+In the Web App, open the **Discover** section in the main sidebar and select **AI Data Masking**. From there, activate masking on each resource role you want to protect, and use the **Configure** button to choose which fields are masked.
+
+A set of default, most-used fields is enabled automatically, so masking works as soon as you activate a resource role. You can add or remove fields at any time.
+
+## Detected data types
+
+Once activated, Live Data Masking detects a wide range of sensitive data out of the box, grouped into the categories below.
+
+{/* TODO(live-data-masking): the "Masked As" tokens below were carried over from earlier docs and have not been verified against actual Presidio/GCP DLP output. Confirm the real redaction labels (or replace with provider-accurate values) before treating this table as authoritative. */}
+
+### Personal Information
+| Type | Example | Masked As |
+|------|---------|-----------|
+| Person Name | John Smith | [PERSON] |
+| Email Address | john@example.com | [EMAIL] |
+| Phone Number | 555-123-4567 | [PHONE] |
+| Physical Address | 123 Main St | [ADDRESS] |
+
+### Government IDs
+| Type | Example | Masked As |
+|------|---------|-----------|
+| SSN (US) | 123-45-6789 | [SSN] |
+| Passport Number | AB1234567 | [PASSPORT] |
+| Driver's License | D1234567 | [LICENSE] |
+
+### Financial Data
+| Type | Example | Masked As |
+|------|---------|-----------|
+| Credit Card | 4111-1111-1111-1111 | [CREDIT_CARD] |
+| Bank Account | 123456789012 | [BANK_ACCOUNT] |
+| IBAN | GB82WEST12345698765432 | [IBAN] |
+
+### Credentials
+| Type | Example | Masked As |
+|------|---------|-----------|
+| API Key | sk_live_abc123... | [API_KEY] |
+| Password | password123 | [PASSWORD] |
+| AWS Key | AKIA... | [AWS_KEY] |
+
+### Health Information
+| Type | Example | Masked As |
+|------|---------|-----------|
+| Medical Record | MRN-12345 | [MEDICAL_RECORD] |
+| Health Plan ID | HPL-98765 | [HEALTH_ID] |
+
+For the complete, provider-specific list, see [Supported Fields](/setup/configuration/live-data-masking/fields).
+
+## Troubleshooting
+
+### Data Not Being Masked
+
+**Check:**
+1. Live Data Masking is enabled on the resource role
+2. DLP provider is running and accessible
+3. Gateway environment variables are set correctly
+4. The data type is in the [supported fields list](/setup/configuration/live-data-masking/fields)
+
+**Test the DLP provider directly:**
+```bash
+curl -X POST http://presidio-analyzer:5001/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "John Smith, SSN 123-45-6789", "language": "en"}'
+```
+
+### Too Much Data Being Masked
+
+If legitimate data is being masked incorrectly:
+
+1. Check which field type is triggering
+2. Disable that specific field type in configuration
+3. Or use [Guardrails](/learn/features/guardrails) for more precise control
+
+### Performance Impact
+
+Live Data Masking adds latency to query results:
+
+| Result Size | Typical Latency |
+|-------------|-----------------|
+| < 100 rows | 50-100ms |
+| 100-1000 rows | 100-500ms |
+| > 1000 rows | 500ms+ |
+
+**To reduce latency:**
+- Use `LIMIT` clauses in queries
+- Select only needed columns (avoid `SELECT *`)
+- Consider disabling masking for high-volume analytics
 
 ## How it works
 
