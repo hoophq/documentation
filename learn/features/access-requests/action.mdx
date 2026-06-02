@@ -72,25 +72,21 @@ Command: UPDATE users SET status = 'inactive' WHERE id = 123
 
 ### 1. Production Database Changes
 
-All write operations on production require approval:
+Every write operation on production is reviewed before it runs:
 
-```bash
-# This will wait for approval
-hoop exec prod-db -i "UPDATE orders SET status = 'shipped' WHERE id = 123"
-```
-
-The DBA reviews the exact UPDATE statement before it runs.
+- A developer submits a command that updates production data
+- The request pauses and notifies the DBA group for approval
+- The DBA reviews the exact statement before it executes
+- The command only runs once it's approved
 
 ### 2. Dangerous Commands
 
-Block risky operations unless approved:
+High-risk operations are caught before they can cause damage:
 
-```bash
-# This will definitely need approval
-hoop exec prod-db -i "DELETE FROM logs WHERE created_at < '2024-01-01'"
-```
-
-Security team can verify the WHERE clause is correct.
+- An engineer submits a destructive command, such as a bulk delete
+- The request is held and routed to the security team
+- The security team verifies the scope and conditions are correct
+- The command is approved or denied based on what they see
 
 ### 3. Junior Developer Oversight
 
