@@ -4,12 +4,6 @@ description: "Grant the gcloud permissions Hoop needs to mint per-user OAuth tok
 ---
 
 <Note>
-  IAM Federation is currently behind the `experimental.iam_federation` feature
-  flag. Ask your Hoop admin to enable it for your organization before
-  configuring the GCP side.
-</Note>
-
-<Note>
   **Before you start**, you need a working Hoop connection to attach
   federation to. Federation layers per-user cloud credentials onto an
   existing connection — it doesn't create one for you.
@@ -426,7 +420,7 @@ The `_*` wildcard covers Cloud Logging's daily-partitioned sink tables (`cloudau
 
   <Accordion title="Identity template renders to an empty principal">
     `fallback_policy: deny` aborts the session with a clear error. Pick
-    `fallback_policy: readonly` with a `readonly_principal` if you want a
-    safe-by-default identity for users who don't yet have their own SA.
+    `fallback_policy: static` if you'd rather the session fall back to the
+    connection's existing static credentials instead of failing.
   </Accordion>
 </AccordionGroup>
