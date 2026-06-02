@@ -3,12 +3,6 @@ title: "IAM Federation for GCP"
 description: "Mint per-user OAuth tokens for BigQuery and other GCP resources instead of sharing a single service-account key."
 ---
 
-<Note>
-  IAM Federation is currently behind the `experimental.iam_federation` feature
-  flag. Ask your Hoop admin to enable it for your organization before
-  configuring the GCP side.
-</Note>
-
 ## What this gives you
 
 With IAM Federation enabled, Hoop stops sharing a single Google service-account key with every user. Instead, each user's activity against GCP is attributed to **their own principal** — so a `bq query` Alice runs through Hoop shows up in Cloud Logging as Alice, not as a shared admin service account.

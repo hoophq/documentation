@@ -27,12 +27,6 @@ For an overview of what IAM Federation does and the audit trail it produces, see
 
 ## Prerequisites
 
-<Note>
-  IAM Federation is currently behind the `experimental.iam_federation` feature
-  flag. Ask your Hoop admin to enable it for your organization before
-  configuring the GCP side.
-</Note>
-
 ```bash
 # Use your real project id.
 export PROJECT_ID="my-proj"
@@ -116,7 +110,7 @@ Pair this with a federation policy that maps each Hoop user to their SA via a te
 ```yaml
 # federation.yaml
 builtin_provider: gcp_iam
-identity_target_template: "{user.email_local}@my-proj.iam.gserviceaccount.com"
+identity_target_template: "{user.email}@my-proj.iam.gserviceaccount.com"
 fallback_policy: deny
 token_ttl_seconds: 3600
 extra_config:
@@ -124,21 +118,28 @@ extra_config:
 ```
 
 <Tip>
-  The `{user.email_local}` placeholder expands to the part of the Hoop user's
-  email before the `@` (e.g. `alice@example.com` → `alice`). The SA names you
-  created in `gcloud` must match this expansion. If you'd rather namespace
-  Hoop-managed SAs with a prefix (e.g. `hoop-alice`), include the prefix
-  both in your `gcloud iam service-accounts create` command and in the
-  template: `"hoop-{user.email_local}@..."`.
+  The `{user.email}` placeholder expands to the **local part** of the Hoop
+  user's email — everything before the last `@` (e.g. `alice@example.com` →
+  `alice`). The SA names you created in `gcloud` must match this expansion. If
+  you'd rather namespace Hoop-managed SAs with a prefix (e.g. `hoop-alice`),
+  include the prefix both in your `gcloud iam service-accounts create` command
+  and in the template: `"hoop-{user.email}@..."`.
 </Tip>
 
 <Warning>
   GCP service-account names must be 6–30 lowercase letters, digits, and
   hyphens; they must start with a letter and end with a letter or digit.
-  If your users have dots or plus signs in their email local parts
-  (`first.last@example.com`), `{user.email_local}` will render an illegal
-  SA name and federation will fail with a clear preflight error. Use a
-  shorter handle attribute, or use Pattern B with a literal shared SA.
+  `{user.email}` renders the email local part verbatim, so two cases fail
+  Hoop's preflight with a clear error before any GCP call:
+
+  - **Illegal characters** — dots or plus signs in the local part
+    (`first.last@example.com` → `first.last`) can't appear in an SA name.
+  - **Too short** — a local part under 6 characters (`al@acme.com` → `al`)
+    is below GCP's minimum.
+
+  Fix either by adding a literal prefix to pad/namespace the name (e.g.
+  `"hoop-{user.email}@..."`), mapping users to a longer/cleaner handle, or
+  using Pattern B with a literal shared SA.
 </Warning>
 
 ### Pattern B — Project-wide grant (simpler)
@@ -403,7 +404,7 @@ The `_*` wildcard covers Cloud Logging's daily-partitioned sink tables (`cloudau
 
   <Accordion title="Identity template renders to an empty principal">
     `fallback_policy: deny` aborts the session with a clear error. Pick
-    `fallback_policy: readonly` with a `readonly_principal` if you want a
-    safe-by-default identity for users who don't yet have their own SA.
+    `fallback_policy: static` if you'd rather the session fall back to the
+    connection's existing static credentials instead of failing.
   </Accordion>
 </AccordionGroup>
