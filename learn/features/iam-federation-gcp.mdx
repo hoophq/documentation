@@ -1,426 +1,71 @@
 ---
 title: "IAM Federation for GCP"
-description: "Grant the gcloud permissions Hoop needs to mint per-user OAuth tokens for BigQuery and other GCP resources."
+description: "Mint per-user OAuth tokens for BigQuery and other GCP resources instead of sharing a single service-account key."
 ---
-
-<Note>
-  **Before you start**, you need a working Hoop connection to attach
-  federation to. Federation layers per-user cloud credentials onto an
-  existing connection — it doesn't create one for you.
-
-  1. Create the connection first — for BigQuery, follow
-     [Connect to BigQuery](/quickstart/databases/bigquery). Verify it
-     works end-to-end with `hoop connect <name>` before continuing.
-  2. Complete the GCP IAM setup below to mint the admin service account.
-  3. Wire policy + credentials onto the connection with
-     [`hoop admin federation set`](/clients/cli-federation#hoop-admin-federation-set).
-  4. Validate end-to-end with
-     [`hoop admin federation test`](/clients/cli-federation#hoop-admin-federation-test).
-
-  The rest of this page is **step 2**. The
-  [CLI reference](/clients/cli-federation) covers steps 3 and 4.
-</Note>
 
 ## What this gives you
 
-With IAM Federation enabled, Hoop stops sharing a single Google service-account
-key with every user. Instead, when Alice runs `hoop connect my-bq`, the gateway:
+With IAM Federation enabled, Hoop stops sharing a single Google service-account key with every user. Instead, each user's activity against GCP is attributed to **their own principal** — so a `bq query` Alice runs through Hoop shows up in Cloud Logging as Alice, not as a shared admin service account.
 
-1. Reads the connection's federation policy (identity template, project id, fallback rules).
-2. Asks Google's `iamcredentials` API to mint an OAuth access token **as Alice's principal**, using the admin service account it has stored for your organization.
-3. Hands that short-lived token to the agent. Every subsequent `bq query` shows up in Cloud Logging attributed to Alice — not to the shared admin service account.
+This buys you:
+
+- **Per-user attribution** — every GCP operation is tied to the individual who ran it
+- **No shared keys** — users never hold a long-lived service-account key; Hoop mints short-lived tokens at session time
+- **A clean audit trail** — GCP's delegation chain records both *who* ran each query and *through whom* (the Hoop admin service account)
+
+## How It Works
+
+When a user runs `hoop connect my-bq`, the gateway:
+
+<Steps>
+  <Step title="Reads the federation policy">
+    The connection's federation policy defines the identity template, project id, and fallback rules that map the Hoop user to a GCP principal.
+  </Step>
+  <Step title="Mints a token as the user's principal">
+    The gateway asks Google's `iamcredentials` API to mint a short-lived OAuth access token **as the user's target principal**, using the admin service account stored for your organization.
+  </Step>
+  <Step title="Hands the token to the agent">
+    The agent uses that short-lived token for the session. Every subsequent operation is attributed to the user's principal — not the shared admin account.
+  </Step>
+</Steps>
 
 For this to work, two things must be true on the GCP side:
 
-- The **admin service account** must be allowed to impersonate **each user's target principal**. This is the `roles/iam.serviceAccountTokenCreator` grant.
+- The **admin service account** must be allowed to impersonate **each user's target principal** (the `roles/iam.serviceAccountTokenCreator` grant).
 - Each **target principal** must have whatever data-plane roles it needs (e.g. `roles/bigquery.user` for BigQuery).
 
-This page is about the **first** part: granting Token Creator. The second part is standard IAM you probably already know how to do.
+## The Audit Trail
 
----
-
-## Prerequisites
-
-```bash
-# Use your real project id.
-export PROJECT_ID="my-proj"
-
-# Pick a name for the admin service account Hoop will hold the key to.
-export ADMIN_SA="hoop-admin"
-export ADMIN_EMAIL="${ADMIN_SA}@${PROJECT_ID}.iam.gserviceaccount.com"
-
-gcloud config set project "$PROJECT_ID"
-```
-
-Enable the API Hoop calls into:
-
-```bash
-gcloud services enable iamcredentials.googleapis.com
-```
-
-Without this, every federated session fails at the `GenerateAccessToken` call with `PERMISSION_DENIED: IAM Service Account Credentials API has not been used`.
-
----
-
-## Step 1 — Create the admin service account
-
-The admin SA is the only identity Hoop's gateway authenticates with. It never reads user data directly; it only mints tokens for the user principals.
-
-```bash
-gcloud iam service-accounts create "$ADMIN_SA" \
-  --display-name="Hoop Federation Admin"
-
-# Export the JSON key — this is what you'll paste into Hoop.
-gcloud iam service-accounts keys create ./hoop-admin-sa.json \
-  --iam-account="$ADMIN_EMAIL"
-```
-
-You'll feed `hoop-admin-sa.json` to:
-
-```bash
-hoop admin federation set my-bq \
-    --file federation.yaml \
-    --credentials-file ./hoop-admin-sa.json
-```
-
-After Hoop has accepted the key, **delete the local file** — Hoop encrypts it at rest and the gateway is now the only place it needs to live.
-
----
-
-## Step 2 — Grant Token Creator (pick one pattern)
-
-You have two patterns depending on how granular you want your GCP audit trail.
-
-### Pattern A — Per-user grant (recommended)
-
-Create one GCP service account per Hoop user, then let the admin SA impersonate **only** those specific accounts. Cleanest audit trail, smallest blast radius if the admin key ever leaks.
-
-```bash
-# Repeat per user — example: alice
-USER_SA_NAME="alice"
-USER_EMAIL="${USER_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-
-# Create the per-user service account
-gcloud iam service-accounts create "$USER_SA_NAME" \
-  --display-name="Hoop user: alice"
-
-# Let the admin SA impersonate this user-SA
-gcloud iam service-accounts add-iam-policy-binding "$USER_EMAIL" \
-  --member="serviceAccount:${ADMIN_EMAIL}" \
-  --role="roles/iam.serviceAccountTokenCreator"
-
-# Grant the user-SA the data access it actually needs (BigQuery in this example)
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:${USER_EMAIL}" \
-  --role="roles/bigquery.user"
-
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:${USER_EMAIL}" \
-  --role="roles/bigquery.dataViewer"
-```
-
-Pair this with a federation policy that maps each Hoop user to their SA via a template:
+Federation's payoff is the delegation chain GCP records on every operation. A BigQuery job run through Hoop carries a `serviceAccountDelegationInfo` chain showing **who** ran the query (the user's principal) and **through whom** (the Hoop admin service account):
 
 ```yaml
-# federation.yaml
-builtin_provider: gcp_iam
-identity_target_template: "{user.email}@my-proj.iam.gserviceaccount.com"
-fallback_policy: deny
-token_ttl_seconds: 3600
-extra_config:
-  project_id: my-proj
-```
-
-<Tip>
-  The `{user.email}` placeholder expands to the **local part** of the Hoop
-  user's email — everything before the last `@` (e.g. `alice@example.com` →
-  `alice`). The SA names you created in `gcloud` must match this expansion. If
-  you'd rather namespace Hoop-managed SAs with a prefix (e.g. `hoop-alice`),
-  include the prefix both in your `gcloud iam service-accounts create` command
-  and in the template: `"hoop-{user.email}@..."`.
-</Tip>
-
-<Warning>
-  GCP service-account names must be 6–30 lowercase letters, digits, and
-  hyphens; they must start with a letter and end with a letter or digit.
-  `{user.email}` renders the email local part verbatim, so two cases fail
-  Hoop's preflight with a clear error before any GCP call:
-
-  - **Illegal characters** — dots or plus signs in the local part
-    (`first.last@example.com` → `first.last`) can't appear in an SA name.
-  - **Too short** — a local part under 6 characters (`al@acme.com` → `al`)
-    is below GCP's minimum.
-
-  Fix either by adding a literal prefix to pad/namespace the name (e.g.
-  `"hoop-{user.email}@..."`), mapping users to a longer/cleaner handle, or
-  using Pattern B with a literal shared SA.
-</Warning>
-
-### Pattern B — Project-wide grant (simpler)
-
-Grant the admin SA `serviceAccountTokenCreator` at the project level once. It can then impersonate **any** SA in the project. Faster to set up, but a compromised admin key reaches every SA in the project.
-
-```bash
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:${ADMIN_EMAIL}" \
-  --role="roles/iam.serviceAccountTokenCreator"
-```
-
-You still need to create the target service accounts and grant them their data-plane roles — only the impersonation grant is collapsed.
-
----
-
-## Step 3 — Verify the grant before saving in Hoop
-
-Before pasting the admin key into Hoop, prove the impersonation actually works from a regular shell. Hoop does exactly this call on every session-open, so a green light here means a green light in Hoop.
-
-```bash
-# Auth as the admin SA
-gcloud auth activate-service-account --key-file=./hoop-admin-sa.json
-
-# Try to mint a token AS one of your target user-SAs
-gcloud auth print-access-token \
-  --impersonate-service-account="alice@${PROJECT_ID}.iam.gserviceaccount.com" \
-  --scopes=https://www.googleapis.com/auth/cloud-platform
-```
-
-What you'll see:
-
-| Output | Meaning | Fix |
-|---|---|---|
-| A long `ya29.…` token | All grants correct. Ready to feed `hoop-admin-sa.json` to Hoop. | — |
-| `403: The caller does not have permission` | Admin SA is missing `roles/iam.serviceAccountTokenCreator` on the target. | Re-run step 2. |
-| `404: Service account … does not exist` | Typo in the target email or the user-SA was never created. | Re-check `gcloud iam service-accounts list`. |
-| `400: Invalid form of account ID` | The identity template would produce an illegal SA name (dots, plus signs, too short). | Adjust the template — see the warning under Pattern A. |
-
----
-
-## Step 4 — Test end-to-end from Hoop
-
-Once the gcloud check passes, do the same test from inside Hoop. This both verifies impersonation and runs a real `SELECT 1` through the agent — catching agent-side problems too.
-
-```bash
-hoop admin federation test \
-    --connection my-bq \
-    --user-email alice@example.com \
-    --credentials-file ./hoop-admin-sa.json
-```
-
-A green result looks like:
-
-```
-Connection:             my-bq
-Status:                 SUCCESS
-Resolved Principal:     alice@my-proj.iam.gserviceaccount.com
-Admin Principal:        hoop-admin@my-proj.iam.gserviceaccount.com
-Token Expires At:       2026-05-25T18:00:00Z
-Injected Env Var Keys:  CLOUDSDK_CORE_PROJECT, HOOP_FEDERATED_PRINCIPAL, HOOP_GCP_ACCESS_TOKEN, HOOP_GCP_TOKEN_EXPIRES_AT
-Superseded Static Envs: GOOGLE_APPLICATION_CREDENTIALS
-Probe Status:           success
-
-Probe Output:
-+---+
-| f0_ |
-+---+
-| 1 |
-+---+
-```
-
-`Superseded Static Envs: GOOGLE_APPLICATION_CREDENTIALS` is the signal that the legacy SA key file on the connection is being correctly **ignored** in favor of the federated token. You don't need to manually remove it from the connection — Hoop strips it server-side on every federated session.
-
----
-
-## What you'll see in GCP audit logs
-
-After federation is wired up, every BigQuery query produced through Hoop generates two correlated log entries:
-
-```yaml
-# 1. The impersonation event (in Cloud Logging, IAM service)
-protoPayload.serviceName: iamcredentials.googleapis.com
-protoPayload.methodName: GenerateAccessToken
-protoPayload.authenticationInfo.principalEmail: hoop-admin@my-proj.iam.gserviceaccount.com
-protoPayload.request.name: projects/-/serviceAccounts/alice@my-proj.iam.gserviceaccount.com
-
-# 2. The actual BigQuery job (in Cloud Logging, BigQuery service)
-protoPayload.serviceName: bigquery.googleapis.com
-protoPayload.methodName: jobservice.insert
 protoPayload.authenticationInfo.principalEmail: alice@my-proj.iam.gserviceaccount.com
 protoPayload.authenticationInfo.serviceAccountDelegationInfo:
   - firstPartyPrincipal:
       principalEmail: hoop-admin@my-proj.iam.gserviceaccount.com
 ```
 
-The `serviceAccountDelegationInfo` chain is what gives you the full picture: **who** ran the query (the user-SA Alice was mapped to) and **through whom** (the Hoop admin SA). That delegation chain is the audit story IAM federation buys you.
-
-The two log streams live in different audit log tiers, which matters for how you enable and find them:
-
-| Log type | Service | Event | Default? |
-|---|---|---|---|
-| **Admin Activity** | `iamcredentials.googleapis.com` | `GenerateAccessToken` — proves impersonation happened | **On by default**, free |
-| **Data Access** | `bigquery.googleapis.com` | `jobservice.insert`, `jobservice.jobcompleted` — proves the query ran as Alice | **Off by default**, billed per GiB |
-
-### Enable Data Access logs first
-
-<Warning>
-  BigQuery Data Access logs are **disabled by default**. If you set up
-  federation and only see `GenerateAccessToken` events (Hoop minted the
-  token) but not the query itself, this is why. Enable them once at the
-  project level:
-</Warning>
-
-```bash
-# Pull the current IAM policy, add the auditConfigs block, push it back.
-gcloud projects get-iam-policy "$PROJECT_ID" --format=json > /tmp/policy.json
-
-# Edit /tmp/policy.json — add this entry to the top-level "auditConfigs"
-# array (create the array if it doesn't exist):
-#   {
-#     "service": "bigquery.googleapis.com",
-#     "auditLogConfigs": [
-#       { "logType": "ADMIN_READ" },
-#       { "logType": "DATA_READ" },
-#       { "logType": "DATA_WRITE" }
-#     ]
-#   }
-
-gcloud projects set-iam-policy "$PROJECT_ID" /tmp/policy.json
-```
-
-After this every BigQuery job (including Hoop-sourced ones) generates a `protoPayload.serviceName: bigquery.googleapis.com` entry. Data Access logs are billed at standard Cloud Logging rates — typically negligible for query metadata but worth scoping by sink filter if your project runs millions of jobs/day.
-
-### Quick verification with `gcloud logging read`
-
-Right after a `hoop connect my-bq` + `bq query` session as Alice, fetch the two correlated entries:
-
-```bash
-# 1. Hoop's impersonation events from the last hour
-gcloud logging read '
-  protoPayload.serviceName="iamcredentials.googleapis.com"
-  AND protoPayload.methodName="GenerateAccessToken"
-  AND protoPayload.authenticationInfo.principalEmail="hoop-admin@my-proj.iam.gserviceaccount.com"
-  AND timestamp >= "'"$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ)"'"
-' --limit=20 --format=json --project="$PROJECT_ID"
-
-# 2. Alice's BigQuery activity from the last hour
-gcloud logging read '
-  protoPayload.serviceName="bigquery.googleapis.com"
-  AND protoPayload.authenticationInfo.principalEmail="alice@my-proj.iam.gserviceaccount.com"
-  AND timestamp >= "'"$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ)"'"
-' --limit=20 --format=json --project="$PROJECT_ID"
-```
-
-<Note>
-  The `-v-1H` argument is the BSD `date` syntax used on macOS. On Linux
-  use `--date '1 hour ago'` instead:
-  `timestamp >= "$(date -u --date='1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"`.
-</Note>
-
-### Browse in Cloud Logging Explorer
-
-Console → **Logging** → **Logs Explorer**. The canonical filter for "everything that ever went through Hoop federation, regardless of which user" pivots on the delegation chain:
-
-```
-protoPayload.serviceName="bigquery.googleapis.com"
-protoPayload.authenticationInfo.serviceAccountDelegationInfo.firstPartyPrincipal.principalEmail="hoop-admin@my-proj.iam.gserviceaccount.com"
-```
-
-Save it as a custom view — it's the query you'll come back to whenever you need to prove "every BigQuery query in this project went through Hoop" for a compliance audit. Conversely, queries where `principalEmail` is the admin SA itself (with no delegation chain) are the ones that bypassed federation — alert on those if you want to enforce "all access goes through Hoop".
-
-### Long-term audit: sink to BigQuery
-
-For real history and analytics, route the audit logs into a BigQuery dataset and query them with SQL. This is the production-grade pattern for compliance reporting.
-
-```bash
-# 1. Create the destination dataset
-bq --project_id="$PROJECT_ID" mk --dataset \
-  --description="Hoop federation audit sink" \
-  audit_logs
-
-# 2. Create the sink with a filter scoped to Hoop's admin SA
-gcloud logging sinks create hoop-federation-audit \
-  bigquery.googleapis.com/projects/"$PROJECT_ID"/datasets/audit_logs \
-  --log-filter='
-    (protoPayload.serviceName="bigquery.googleapis.com"
-     OR protoPayload.serviceName="iamcredentials.googleapis.com")
-    AND protoPayload.authenticationInfo.serviceAccountDelegationInfo.firstPartyPrincipal.principalEmail="hoop-admin@my-proj.iam.gserviceaccount.com"
-  ' \
-  --project="$PROJECT_ID"
-
-# 3. Grant the sink's auto-generated writer SA permission to write to the dataset
-SINK_WRITER=$(gcloud logging sinks describe hoop-federation-audit \
-  --project="$PROJECT_ID" --format='value(writerIdentity)')
-bq add-iam-policy-binding --member="$SINK_WRITER" \
-  --role="roles/bigquery.dataEditor" "$PROJECT_ID:audit_logs"
-```
-
-After ~15 minutes the sink starts populating daily-partitioned tables. Query Alice's last 24h of Hoop-sourced queries with regular SQL:
-
-```sql
-SELECT
-  timestamp,
-  protoPayload.authenticationInfo.principalEmail AS resolved_principal,
-  protoPayload.serviceData.jobQueryResponse.job.jobConfiguration.query.query AS query_text
-FROM `my-proj.audit_logs.cloudaudit_googleapis_com_data_access_*`
-WHERE protoPayload.serviceName = 'bigquery.googleapis.com'
-  AND protoPayload.authenticationInfo.principalEmail = 'alice@my-proj.iam.gserviceaccount.com'
-  AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
-ORDER BY timestamp DESC;
-```
-
-The `_*` wildcard covers Cloud Logging's daily-partitioned sink tables (`cloudaudit_googleapis_com_data_access_20260528`, `..._20260529`, etc.).
+That chain is the audit story IAM Federation buys you: you can prove every query in a project went through Hoop, and flag any that bypassed it. Enabling, querying, and sinking these logs is covered in the configuration guide.
 
 ---
 
-## Common pitfalls
+<Note>
+Ready to set it up? The [IAM Federation for GCP configuration guide](/setup/configuration/iam-federation-gcp-configuration) walks through the GCP IAM setup (admin service account, Token Creator grants, verification), wiring the policy onto a connection, and enabling the audit logs.
+</Note>
 
-<AccordionGroup>
-  <Accordion title="I see GenerateAccessToken events but no BigQuery query entries">
-    BigQuery **Data Access** logs are off by default. The `GenerateAccessToken`
-    event lives in the always-on **Admin Activity** tier, but the actual query
-    (`jobservice.insert`) lives in Data Access — which has to be opted into.
-    Enable it project-wide with the `auditConfigs` snippet under
-    [Enable Data Access logs first](#enable-data-access-logs-first), then
-    re-run a query. New entries appear in Cloud Logging within seconds.
-  </Accordion>
+## Next Steps
 
-  <Accordion title="403 IAM_SERVICE_ACCOUNT_TOKEN_CREATOR after granting the role">
-    GCP IAM grants are eventually consistent. Wait 1–2 minutes after running
-    `add-iam-policy-binding`, then retry. If it still fails, double-check the
-    grant is on the **target** SA (the per-user one), not on the admin SA:
-
-    ```bash
-    gcloud iam service-accounts get-iam-policy \
-        alice@${PROJECT_ID}.iam.gserviceaccount.com
-    ```
-
-    You should see your admin SA listed with `roles/iam.serviceAccountTokenCreator`.
-  </Accordion>
-
-  <Accordion title="BigQuery returns Access Denied even though impersonation works">
-    Impersonation produces the token, but the **target** principal also needs
-    BigQuery roles. Verify with:
-
-    ```bash
-    gcloud projects get-iam-policy "$PROJECT_ID" \
-      --flatten="bindings[].members" \
-      --filter="bindings.members:alice@${PROJECT_ID}.iam.gserviceaccount.com" \
-      --format="table(bindings.role)"
-    ```
-
-    You should see `roles/bigquery.user` and `roles/bigquery.dataViewer` (or finer-grained equivalents).
-  </Accordion>
-
-  <Accordion title="warning: both HOOP_GCP_ACCESS_TOKEN and GOOGLE_APPLICATION_CREDENTIALS are set">
-    Harmless on older gateway versions. On current versions the gateway
-    strips `GOOGLE_APPLICATION_CREDENTIALS` from the federated session, so
-    this warning never fires from a normal session — if you see it now,
-    your agent is being driven by an older gateway that hasn't been
-    updated yet.
-  </Accordion>
-
-  <Accordion title="Identity template renders to an empty principal">
-    `fallback_policy: deny` aborts the session with a clear error. Pick
-    `fallback_policy: static` if you'd rather the session fall back to the
-    connection's existing static credentials instead of failing.
-  </Accordion>
-</AccordionGroup>
+<CardGroup cols={2}>
+  <Card title="Configuration Guide" icon="gear" href="/setup/configuration/iam-federation-gcp-configuration">
+    Grant Token Creator and wire federation onto a connection
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/clients/cli-federation">
+    `hoop admin federation set` and `test` flag reference
+  </Card>
+  <Card title="Connect to BigQuery" icon="google" href="/quickstart/databases/bigquery">
+    Create the connection federation attaches to
+  </Card>
+  <Card title="Session Recording" icon="film" href="/learn/features/session-recording">
+    Audit every federated session inside Hoop
+  </Card>
+</CardGroup>

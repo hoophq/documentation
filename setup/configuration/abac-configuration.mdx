@@ -1,0 +1,60 @@
+---
+title: "ABAC Configuration"
+description: "Create attributes and scope feature policies by attribute instead of listing every resource role"
+---
+
+<Note>
+For an introduction to Attribute-Based Access Control concepts, see the [ABAC overview](/learn/features/abac).
+</Note>
+
+## Prerequisites
+
+- Admin access to manage attributes and the feature policies you want to scope
+- One or more resource roles to assign attributes to
+
+## Step 1: Open Attributes
+
+In the sidebar, go to **Settings > Attributes**.
+
+## Step 2: Create an Attribute
+
+1. Click **Create a new Attribute**
+2. Define a **Name** (and any other required fields on the form)
+3. Choose which **resource roles** this attribute applies to—this is the set of roles that will match when you scope rules by this attribute
+4. Save your changes
+
+## Step 3: Scope a Policy by Attribute
+
+When you create or edit a rule in a supported feature, you can attach it to an attribute instead of selecting many resource roles individually.
+
+1. Open the feature you need (for example, Guardrails, Live Data Masking, Access Control, or Access Requests)
+2. Create a new rule or policy, or edit an existing one
+3. Fill in the rest of the form the way you usually would (patterns, actions, approvals, and so on—whatever that screen asks for)
+4. In the scope or assignment section, choose **attribute-based** scope (or the equivalent label) and pick the attribute you created
+5. Save your changes
+
+One attribute then covers every resource role it applies to—you do not need to add each role by hand.
+
+## Step 4: Verify
+
+1. Run a query or command from a resource role that should match the rule
+2. Run one from a resource role that should not match
+3. Confirm the outcome (for example, blocked vs allowed) matches what you expect
+
+## Troubleshooting
+
+### I don't see attribute-based options in a feature
+
+**Check:**
+
+1. Your role can manage that feature
+2. The feature version you use includes attribute-based scope (options appear in the rule or policy screen when available)
+3. Attributes exist and are assigned to the resource roles you expect
+
+### A policy didn't apply to a resource role
+
+**Check:**
+
+1. The resource role has the attribute you used in the rule
+2. No conflicting rule with a narrower resource role selection is overriding your expectation
+3. Filters on the Resources or Resource Roles lists show the attribute you think you set

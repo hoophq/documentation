@@ -3,11 +3,13 @@ title: "Access Control Configuration"
 description: "Configure group-based access policies for your resource roles"
 ---
 
+{/* Hero animation temporarily removed (kept for future use):
 import { LayeredAccess } from '/snippets/annimations/layeredaccess.jsx';
 
 <div style={{height: 400, overflow: 'hidden', borderRadius: 14}}>
   <LayeredAccess />
 </div>
+*/}
 
 Access Control lets you restrict which users can see and access specific resource roles based on their group memberships. This page covers detailed configuration options.
 
@@ -20,60 +22,42 @@ For an introduction to Access Control concepts, see [Access Control Overview](/l
 ## Enabling Access Control
 
 <Warning>
-Enabling Access Control will immediately hide resource roles from users who don't have explicit access. Plan your group assignments before enabling.
+Access Control restricts resource roles to the groups you assign. Plan your group assignments so users who need access aren't unintentionally locked out.
 </Warning>
 
-### Step 1: Activate Access Control
+Access Control is configured by creating **access control groups**. Each group has a name, the resource roles it can access, and the attributes it applies to. You can either create these groups directly in the Web App or sync them from your identity provider.
+
+### Step 1: Open Access Control
+
+In the Web App, open the **Discover** section in the sidebar and select **Access Control**.
+
+### Step 2: Create an Access Control Group
+
+Click to create a new access control group and fill in:
 
 <Steps>
-  <Step title="Navigate to Access Control">
-    Go to **Manage > Access Control** in the sidebar
-
-    <Frame>
-      <img src="/images/learn/features/access-control-app.png" alt="Access Control menu" />
-    </Frame>
+  <Step title="Set group information">
+    Enter a **Name** to identify the group (for example, `engineering-team`).
   </Step>
-  <Step title="Review the Warning">
-    Read the activation warning carefully. Understand that:
-    - Users without group assignments will lose access
-    - You'll need to configure each resource role individually
-    - Changes take effect immediately
-
-    <Frame>
-      <img src="/images/learn/features/access-control-confirm.png" alt="Activation warning" />
-    </Frame>
+  <Step title="Resource Role configuration">
+    Under **Resource Roles**, select which resource roles this group should have access to. You can add as many resource roles to a group as you need.
   </Step>
-  <Step title="Click Activate">
-    Click **Activate** to enable Access Control for your organization
-  </Step>
-</Steps>
-
-### Step 2: Configure Resource Roles
-
-After activation, configure access for each resource role:
-
-<Steps>
-  <Step title="Select a Resource Role">
-    Find the resource role in the list and click to configure
-
-    <Frame>
-      <img src="/images/learn/features/access-control-activated.png" alt="Resource role list" />
-    </Frame>
-  </Step>
-  <Step title="Enable Access Control">
-    Toggle the Access Control switch for this resource role
-  </Step>
-  <Step title="Add Allowed Groups">
-    Select which groups can access this resource role
-
-    <Frame>
-      <img src="/images/learn/features/access-control-add-groups.png" alt="Add groups" />
-    </Frame>
+  <Step title="Attribute configuration">
+    Under **Attributes**, select which attributes this group should have access to. See [ABAC](/learn/features/abac) for how attributes refine access.
   </Step>
   <Step title="Save">
-    Click **Save** to apply the configuration
+    Click **Save** to create the group and apply the configuration.
   </Step>
 </Steps>
+
+### Step 3: Verify Access
+
+After creating a group, confirm the policy behaves as expected:
+
+1. Log in as a user in the group
+2. Verify you can see and access the assigned resource roles
+3. Log in as a user **not** in the group
+4. Verify those resource roles are not visible
 
 ---
 
@@ -83,13 +67,9 @@ After activation, configure access for each resource role:
 
 Groups can be created in two ways:
 
-**Option A: Manual Creation (in Hoop)**
+**Option A: In the Web App**
 
-1. Go to **Manage > Users & Groups**
-2. Click the **Groups** tab
-3. Click **Create Group**
-4. Enter a group name (e.g., `prod-access`, `analytics-team`)
-5. Add users to the group
+Create access control groups directly in **Discover > Access Control**, as described in [Enabling Access Control](#enabling-access-control). Each group defines its name, the resource roles it can access, and its attributes.
 
 **Option B: Sync from Identity Provider**
 
@@ -354,20 +334,20 @@ This is likely NOT an Access Control issue. Check:
 
 ### Before Enabling Access Control
 
-1. [ ] Inventory all resource roles
-2. [ ] Identify who needs access to each
-3. [ ] Create groups in IdP or Hoop
-4. [ ] Assign users to groups
-5. [ ] Document the access policy
-6. [ ] Test with a non-production resource role first
+1. Inventory all resource roles
+2. Identify who needs access to each
+3. Create groups in IdP or Hoop
+4. Assign users to groups
+5. Document the access policy
+6. Test with a non-production resource role first
 
 ### Quarterly Access Review
 
-1. [ ] Export current access configuration
-2. [ ] Review with team leads
-3. [ ] Remove departed employees
-4. [ ] Verify contractor access is time-limited
-5. [ ] Update documentation
+1. Export current access configuration
+2. Review with team leads
+3. Remove departed employees
+4. Verify contractor access is time-limited
+5. Update documentation
 
 ---
 

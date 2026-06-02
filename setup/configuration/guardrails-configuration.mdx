@@ -42,7 +42,7 @@ Before configuring guardrails, deploy Presidio and point the gateway at it:
 
 <Steps>
   <Step title="Navigate to Guardrails">
-    Go to **Manage > Guardrails** in the sidebar
+    In the Web App, open the **Discover** section in the sidebar and select **Guardrails**
   </Step>
   <Step title="Create New Guardrail">
     Click **Create New Guardrail** in the top-right corner
@@ -136,6 +136,29 @@ Guardrail patterns are compiled by **Microsoft Presidio**, which uses Python's `
 (?i)SELECT\s+(?!.*\bLIMIT\b).*FROM
 ```
 
+**Enforce read-only access** (create separate rules for each):
+
+| Pattern | Blocks |
+|---------|--------|
+| `(?i)^\s*INSERT\s+INTO` | INSERT statements |
+| `(?i)^\s*UPDATE\s+` | UPDATE statements |
+| `(?i)^\s*DELETE\s+FROM` | DELETE statements |
+| `(?i)^\s*(CREATE|DROP|ALTER)\s+` | DDL commands |
+
+<Tip>
+Apply read-only patterns only to resource roles used by read-only groups, not to admin resource roles.
+</Tip>
+
+**Prevent credential access** — block queries that might expose passwords or secrets:
+```regex
+(?i)SELECT\s+.*\bFROM\s+\w*users\w*.*\b(password|secret|token|api_key)\b
+```
+
+**Block specific table access** — restrict sensitive tables like `salaries` or `api_keys`:
+```regex
+(?i)\b(FROM|JOIN|INTO|UPDATE)\s+(salaries|api_keys|credentials|secrets)\b
+```
+
 ### Testing Patterns
 
 Before deploying a pattern, test it at [regex101.com](https://regex101.com):
@@ -217,7 +240,7 @@ When multiple guardrails apply to a resource role, they are evaluated in order o
 3. If no rules match, query is allowed
 
 To set priority:
-1. Go to **Manage > Guardrails**
+1. Open **Discover > Guardrails** in the sidebar
 2. Drag guardrails to reorder them
 3. Higher position = higher priority
 
@@ -235,6 +258,64 @@ Guardrails run inside Microsoft Presidio, so they share the same gateway environ
 | `DLP_MODE` | `best-effort` or `strict` (shared with Live Data Masking) | `best-effort` |
 
 For deployment details (workers, autoscaling, models), see [Microsoft Presidio Deployment](/setup/deployment/presidio).
+
+---
+
+## Testing Guardrails Safely
+
+<Warning>
+Always test guardrails before applying them to production resource roles.
+</Warning>
+
+### Testing Process
+
+<Steps>
+  <Step title="Create a Test Resource Role">
+    Create a separate resource role to the same database (e.g., `prod-db-test`)
+  </Step>
+  <Step title="Apply the Guardrail">
+    Assign the guardrail only to the test resource role
+  </Step>
+  <Step title="Run Test Queries">
+    Test both queries that should be blocked and queries that should pass
+  </Step>
+  <Step title="Verify Results">
+    Confirm the guardrail blocks what it should and allows what it should
+  </Step>
+  <Step title="Apply to Production">
+    Once verified, add production resource roles to the guardrail
+  </Step>
+</Steps>
+
+### Worked Example
+
+Try running a query that should be blocked:
+
+```bash
+hoop exec prod-db -i "UPDATE users SET status = 'inactive'"
+```
+
+Expected output:
+
+```
+Error: Guardrail violation
+Rule: block-unsafe-updates
+Message: Blocked: UPDATE/DELETE requires a WHERE clause
+```
+
+Now run a query that should pass:
+
+```bash
+hoop exec prod-db -i "UPDATE users SET status = 'inactive' WHERE id = 123"
+```
+
+This query executes normally because it includes a WHERE clause.
+
+For each guardrail, test:
+
+1. **Should block:** A query that matches the pattern exactly
+2. **Should allow:** A similar query that doesn't match
+3. **Edge cases:** Queries with different casing, extra whitespace, or variations
 
 ---
 
@@ -261,6 +342,41 @@ All guardrail evaluations are logged:
 - **Approval requests** - Logged with request status
 
 Access audit logs in **Sessions** or export via the API.
+
+---
+
+## Emergency Bypass
+
+If a legitimate query is blocked and needs to run immediately:
+
+### Option 1: Temporarily Disable the Guardrail
+
+1. Open **Discover > Guardrails** in the sidebar
+2. Find the blocking guardrail
+3. Toggle it to **Disabled**
+4. Run your query
+5. Re-enable the guardrail immediately after
+
+<Warning>
+Document any emergency bypass in your incident log. Re-enable the guardrail as soon as possible.
+</Warning>
+
+### Option 2: Refine the Pattern
+
+If the guardrail is catching legitimate queries, update the pattern:
+
+1. Open **Discover > Guardrails** and select the guardrail
+2. Edit the rule that's causing issues
+3. Refine the regex to be more specific
+4. Save and test
+
+### Option 3: Add an Exception
+
+For specific users or groups that need to bypass certain rules:
+
+1. Create a new resource role without the guardrail
+2. Restrict access to that resource role to specific groups
+3. Use this "elevated" resource role for exceptional cases
 
 ---
 
@@ -299,6 +415,14 @@ Access audit logs in **Sessions** or export via the API.
 1. Test the pattern at [regex101.com](https://regex101.com) with the exact query
 2. Verify case sensitivity (add `(?i)` if needed)
 3. Check for leading/trailing whitespace in the query
+
+**Common pattern mistakes:**
+
+| Problem | Bad Pattern | Fixed Pattern |
+|---------|-------------|---------------|
+| Missing case-insensitive | `DROP TABLE` | `(?i)DROP TABLE` |
+| Missing word boundaries | `DELETE` | `\bDELETE\b` |
+| Anchoring too strict | `^DROP` | `^\s*DROP` (allows leading whitespace) |
 
 ### Too Many False Positives
 

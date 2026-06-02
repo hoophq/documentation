@@ -50,88 +50,12 @@ Access Control uses **groups** to manage permissions. Users belong to groups, an
 
 ---
 
-## Quick Start
+## Groups and Roles
 
-import Prerequisites from '/snippets/LearnPrerequisites.mdx';
+Access is granted to **groups**, not individual users. Groups come from two places:
 
-<Prerequisites />
-
-- Groups configured in your identity provider
-- Admin access to configure resource roles
-
-### Step 1: Enable Access Control
-
-<Warning>
-Enabling Access Control will hide resource roles from users who don't have explicit access. Plan your group assignments before enabling.
-</Warning>
-
-<Steps>
-  <Step title="Navigate to Access Control">
-    Go to **Manage > Access Control** in the sidebar
-  </Step>
-  <Step title="Activate Access Control">
-    Click **Activate** to enable the feature
-
-    <Frame>
-      <img src="/images/learn/features/access-control-confirm.png" alt="Activate Access Control" />
-    </Frame>
-  </Step>
-</Steps>
-
-### Step 2: Configure Resource Role Access
-
-<Steps>
-  <Step title="Select a Resource Role">
-    Find the resource role you want to configure and click on it
-  </Step>
-  <Step title="Toggle Access Control">
-    Enable the Access Control toggle for this resource role
-
-    <Frame>
-      <img src="/images/learn/features/access-control-activated.png" alt="Enable on resource role" />
-    </Frame>
-  </Step>
-  <Step title="Select Allowed Groups">
-    Choose which groups can access this resource role
-
-    <Frame>
-      <img src="/images/learn/features/access-control-add-groups.png" alt="Select groups" />
-    </Frame>
-  </Step>
-  <Step title="Save">
-    Click **Save** to apply the changes
-  </Step>
-</Steps>
-
-### Step 3: Verify Access
-
-1. Log in as a user in one of the allowed groups
-2. Verify you can see and access the resource role
-3. Log in as a user NOT in the allowed groups
-4. Verify the resource role is not visible
-
----
-
-## Managing Groups
-
-### Creating Groups
-
-Groups are typically managed in your identity provider (Okta, Auth0, Azure AD, etc.). When users log in, their group memberships are synced to Hoop.
-
-**In Hoop, you can also create groups manually:**
-
-1. Go to **Manage > Users & Groups**
-2. Click **Create Group**
-3. Enter a group name (e.g., `prod-access`)
-4. Add users to the group
-
-### Syncing Groups from Identity Provider
-
-Configure your identity provider to include groups in the ID token:
-
-1. Add a `groups` claim to your OIDC configuration
-2. Map your IdP groups to Hoop groups
-3. See [Identity Provider Configuration](/setup/configuration/idp/get-started) for detailed setup
+- **Synced from your identity provider** — when users log in, their group memberships (Okta, Auth0, Azure AD, etc.) are synced to Hoop automatically.
+- **Created in Hoop** — you can also manage groups directly in the Web App.
 
 ### Built-in Roles
 
@@ -216,37 +140,6 @@ For a production database:
 
 ---
 
-## Troubleshooting
-
-### User Can't See a Resource Role
-
-**Check:**
-1. Access Control is enabled on that resource role
-2. User's groups are in the allowed list
-3. User has logged out and back in (to sync groups)
-4. Identity provider is sending the `groups` claim
-
-**Debug group membership:**
-1. Go to **Manage > Users**
-2. Find the user and click to view details
-3. Check their group memberships
-
-### User Sees Resource Role But Can't Connect
-
-This is likely an Access Request or Guardrail issue, not Access Control. Check:
-1. Is JIT or Action Access Request enabled?
-2. Are there Guardrails blocking the resource role?
-
-### Groups Not Syncing from IdP
-
-**Check:**
-1. `groups` claim is configured in your IdP
-2. The OIDC scope includes `groups`
-3. Gateway environment variables are correct
-4. See [Identity Provider Configuration](/setup/configuration/idp/get-started)
-
----
-
 ## Best Practices
 
 <CardGroup cols={2}>
@@ -267,12 +160,16 @@ This is likely an Access Request or Guardrail issue, not Access Control. Check:
 ### Access Review Checklist
 
 Quarterly, review:
-- [ ] Are all group memberships still appropriate?
-- [ ] Are there users who left but still have access?
-- [ ] Are there resource roles that should have stricter access?
-- [ ] Are contractors' access limited to their engagement period?
+- Are all group memberships still appropriate?
+- Are there users who left but still have access?
+- Are there resource roles that should have stricter access?
+- Are contractors' access limited to their engagement period?
 
 ---
+
+<Note>
+Ready to set it up? The [Access Control configuration guide](/setup/configuration/access-control-configuration) walks through enabling Access Control, configuring resource roles, managing groups, and syncing groups from your identity provider.
+</Note>
 
 ## Next Steps
 

@@ -194,11 +194,16 @@
                       "setup/configuration/live-data-masking/fields"
                     ]
                   },
+                  "setup/configuration/ai-session-analyzer-configuration",
                   "setup/configuration/access-requests/action-configuration",
                   "setup/configuration/access-requests/jit-configuration",
                   "setup/configuration/access-control-configuration",
+                  "setup/configuration/abac-configuration",
                   "setup/configuration/guardrails-configuration",
                   "setup/configuration/runbooks-configuration",
+                  "setup/configuration/mcp-server-configuration",
+                  "setup/configuration/resource-provisioning-configuration",
+                  "setup/configuration/iam-federation-gcp-configuration",
                   "setup/configuration/secrets-manager-configuration",
                   "setup/configuration/rds-iam-auth",
                   "setup/configuration/env-vars",
