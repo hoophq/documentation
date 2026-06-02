@@ -1,21 +1,74 @@
 ---
-title: "Runbooks"
+title: "Runbooks Configuration"
 ---
 
-This page explains the available options to configure Runbooks with your git server.
+This page covers how to connect a Git repository, create Runbooks rules, and use the template engine to build parameterized runbooks.
 
 <Note>
-  This guide provides step-by-step instructions for configuring Runbooks using the command line. Currently, the Webapp supports configuration exclusively with SSH private keys with limited options.
+For an introduction to what Runbooks are and how they work, see the [Runbooks overview](/learn/features/runbooks).
 </Note>
 
-To start, make sure to install the hoop command line and login to your gateway instance:
+Runbooks are configured in the Web App under **Discover > Runbooks Setup**, which has two tabs:
+
+- **Runbooks Rules** — define which runbooks are available to which resource roles and groups
+- **Configurations** — connect the Git repository (or repositories) that store your runbooks
+
+You can also configure the Git repository from the command line, which exposes additional options such as hooks.
+
+## Configure a Git Repository (Web App)
+
+In **Discover > Runbooks Setup**, open the **Configurations** tab and add a repository under **Git Repositories**.
+
+<Steps>
+  <Step title="Repository privacy type">
+    Choose **Public** or **Private** depending on the repository you're connecting.
+  </Step>
+  <Step title="Repository credentials">
+    For private repositories, select how Hoop authenticates:
+    - **HTTP** — provide the HTTP **Git URL** and a username/token with read access
+    - **SSH** — provide the SSH **Git URL** and an **SSH Key**, with optional **SSH User**, **SSH Key Password**, and **SSH Known Hosts File**
+  </Step>
+  <Step title="Save">
+    Save the configuration. Hoop clones the repository and makes its runbook files available.
+  </Step>
+</Steps>
+
+<Info>
+  We recommend setting **SSH Known Hosts** to prevent [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) attacks when cloning repositories. If it isn't set, Hoop attempts to obtain the known hosts by running `ssh-keyscan`.
+</Info>
+
+## Create a Runbooks Rule (Web App)
+
+In **Discover > Runbooks Setup**, open the **Runbooks Rules** tab and click **Create Runbooks Rule**:
+
+<Steps>
+  <Step title="Name">
+    A short identifier for the rule.
+  </Step>
+  <Step title="Description (optional)">
+    Explain what this rule grants access to.
+  </Step>
+  <Step title="Resource Roles">
+    Select which resource roles this rule applies to.
+  </Step>
+  <Step title="User Groups">
+    Select which user groups the rule applies to.
+  </Step>
+  <Step title="Runbooks (optional)">
+    Select which runbooks or paths are available for this rule. Leave empty to make all runbooks in the repository available.
+  </Step>
+</Steps>
+
+## Configure via CLI
+
+The command line exposes the full set of repository options (including hooks). To start, install the hoop command line and login to your gateway instance:
 
 ```sh
 hoop config create --api-url https://<API_URL>
 hoop login
 ```
 
-## Public Repositories
+### Public Repositories
 
 To configure any public repositories
 
@@ -28,7 +81,7 @@ hoop admin create plugin runbooks --overwrite \
 
 - `GIT_URL` (required) - the GIT URL of the repository (http or ssh)
 
-## Basic Credentials
+### Basic Credentials (HTTP)
 
 It uses username and password to clone a repository via HTTP.
 
@@ -48,7 +101,7 @@ hoop admin create plugin runbooks --overwrite \
   GitHub users could use [personal tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 </Tip>
 
-## SSH Private Keys
+### SSH Private Keys
 
 It uses a private key to clone the repository via SSH.
 
@@ -74,7 +127,7 @@ hoop admin create plugin runbooks --overwrite \
   We recommend using the option `GIT_SSH_KNOWN_HOSTS` to prevent [MITM](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) when cloning repositories. It will try to obtain the known hosts issuing the command `ssh-keyscan` in case this configuration is not set.
 </Info>
 
-## Testing
+### Testing the Integration
 
 To test the integration, issue the command below, it will return the last commit from the directory. When you add a **runbook** file it will show in the **items** attribute.
 
@@ -446,3 +499,151 @@ import os
 if __name__ == '__main__':
     print(os.environ['CUSTOMER_ID'])
 ```
+
+## Example Runbooks
+
+### SQL: Customer Lookup
+
+```sql
+-- runbooks/sql/customer-lookup.runbook.sql
+SELECT
+    customer_id,
+    name,
+    email,
+    status,
+    created_at
+FROM customers
+WHERE customer_id = {{ .customer_id
+    | description "Customer ID"
+    | required "Customer ID is required"
+    | type "number"
+    | squote }}
+```
+
+### SQL: Update Order Status
+
+```sql
+-- runbooks/sql/update-order-status.runbook.sql
+UPDATE orders
+SET
+    status = {{ .new_status
+        | description "New order status"
+        | type "select"
+        | options "pending" "processing" "shipped" "delivered"
+        | required "Status is required"
+        | squote }},
+    updated_at = NOW()
+WHERE order_id = {{ .order_id
+    | description "Order ID to update"
+    | required "Order ID is required"
+    | type "number" }}
+```
+
+### Bash: Service Restart
+
+```bash
+# runbooks/ops/restart-service.runbook.sh
+#!/bin/bash
+SERVICE_NAME={{ .service
+    | description "Service to restart"
+    | type "select"
+    | options "nginx" "postgres" "redis" "myapp"
+    | required "Service name is required" }}
+
+echo "Restarting $SERVICE_NAME..."
+sudo systemctl restart $SERVICE_NAME
+sudo systemctl status $SERVICE_NAME
+```
+
+### Python: Data Export
+
+```python
+# runbooks/data/export-report.runbook.py
+# {{ .start_date | description "Start date (YYYY-MM-DD)" | required "Start date required" | asenv "START_DATE" }}
+# {{ .end_date | description "End date (YYYY-MM-DD)" | required "End date required" | asenv "END_DATE" }}
+# {{ .format | description "Export format" | type "select" | options "csv" "json" | default "csv" | asenv "FORMAT" }}
+
+import os
+import pandas as pd
+
+start = os.environ['START_DATE']
+end = os.environ['END_DATE']
+fmt = os.environ['FORMAT']
+
+# Your export logic here
+print(f"Exporting data from {start} to {end} as {fmt}")
+```
+
+### Kubernetes: Scale Deployment
+
+```bash
+# runbooks/k8s/scale-deployment.runbook.sh
+# {{ .namespace | description "Kubernetes namespace" | default "default" | asenv "NAMESPACE" }}
+# {{ .deployment | description "Deployment name" | required "Deployment required" | asenv "DEPLOYMENT" }}
+# {{ .replicas | description "Number of replicas" | type "number" | required "Replicas required" | asenv "REPLICAS" }}
+
+kubectl scale deployment/$DEPLOYMENT \
+    --replicas=$REPLICAS \
+    --namespace=$NAMESPACE
+
+kubectl rollout status deployment/$DEPLOYMENT --namespace=$NAMESPACE
+```
+
+## File Organization
+
+Recommended repository structure:
+
+```
+runbooks/
+├── sql/
+│   ├── customer-lookup.runbook.sql
+│   ├── order-update.runbook.sql
+│   └── report-generation.runbook.sql
+├── ops/
+│   ├── restart-service.runbook.sh
+│   ├── check-logs.runbook.sh
+│   └── deploy.runbook.sh
+├── k8s/
+│   ├── scale-deployment.runbook.sh
+│   └── rollback.runbook.sh
+└── data/
+    ├── export-report.runbook.py
+    └── cleanup-old-data.runbook.sql
+```
+
+### Naming Convention
+
+Files must end with `.runbook.<extension>`:
+- `.runbook.sql` - SQL queries
+- `.runbook.sh` - Bash scripts
+- `.runbook.py` - Python scripts
+- `.runbook.rb` - Ruby scripts
+
+## Troubleshooting
+
+### Runbook Not Appearing
+
+**Check:**
+1. File ends with `.runbook.<ext>`
+2. Git repository is configured correctly
+3. Hoop can access the repository (check credentials)
+4. Run `hoop admin get runbooks` to verify sync
+
+### Template Parsing Error
+
+**Check:**
+1. All `{{ }}` brackets are balanced
+2. Function names are spelled correctly
+3. Pipes `|` are used correctly
+
+**Test locally:**
+```bash
+hoop runbooks lint path/to/your.runbook.sql
+```
+
+### Parameter Validation Failing
+
+If a parameter fails validation:
+1. Check the `pattern` regex is correct
+2. Test the regex at [regex101.com](https://regex101.com)
+3. Ensure `required` values are provided
