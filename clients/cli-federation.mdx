@@ -46,7 +46,6 @@ builtin_provider: gcp_iam
 identity_source_attribute: email
 identity_target_template: "{user.email}@my-proj.iam.gserviceaccount.com"
 fallback_policy: deny
-readonly_principal: ""
 token_ttl_seconds: 3600
 extra_config:
   project_id: my-proj
@@ -57,8 +56,7 @@ extra_config:
 | `builtin_provider` | yes | The federation provider. Currently `gcp_iam` is the only built-in. |
 | `identity_source_attribute` | no | Which Hoop user attribute to feed into the template. Defaults to `email`. |
 | `identity_target_template` | yes | The cloud-side principal to resolve to. Supported placeholders: `{user.email}` (the **local part** of the user's email — everything before the last `@`, e.g. `alice@example.com` → `alice`) and `{user.id}`. |
-| `fallback_policy` | no | What to do when resolution fails. Either `deny` (default — abort the session) or `readonly` (use `readonly_principal`). |
-| `readonly_principal` | conditional | Required if `fallback_policy: readonly`. The cloud principal sessions fall back to. |
+| `fallback_policy` | no | What to do when resolution fails. Either `deny` (default — abort the session) or `static` (skip federation and let the session run on the connection's existing static credentials). |
 | `token_ttl_seconds` | no | Requested lifetime of the minted token. Defaults to 3600. GCP caps at 43200 (12h). |
 | `extra_config` | provider-specific | For `gcp_iam`: `project_id` is required. |
 
@@ -79,7 +77,6 @@ Provider:               gcp_iam
 Identity Source:        email
 Identity Template:      {user.email}@my-proj.iam.gserviceaccount.com
 Fallback Policy:        deny
-Readonly Principal:     -
 Token TTL Seconds:      3600
 Has Admin Credentials:  yes
 Extra Config:           project_id=my-proj
