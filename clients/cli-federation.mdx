@@ -19,9 +19,9 @@ hoop admin federation <subcommand> [flags]
 | `test` | Run a dry-run resolve + probe end-to-end without persisting state |
 
 <Note>
-  IAM Federation is currently behind the `experimental.iam_federation` feature
-  flag. Ask your Hoop admin to enable it for your organization before
-  using these commands.
+  Federation activates per connection: once you `set` a federation config on a
+  connection, sessions on that connection resolve per-user credentials at
+  open time. Connections without a federation config are unaffected.
 </Note>
 
 ## Prerequisites
