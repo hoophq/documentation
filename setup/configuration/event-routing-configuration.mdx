@@ -1,0 +1,119 @@
+---
+title: "Event Routing Configuration"
+description: "Enable Event Routing, create subscriptions that dispatch runbooks on platform events, and audit dispatch history."
+---
+
+<Note>
+For an introduction to what Event Routing does and the full event catalog, see the [Event Routing overview](/learn/features/event-routing).
+</Note>
+
+## Prerequisites
+
+- Either [create an account in our managed instance](https://use.hoop.dev) or [deploy your own hoop.dev instance](/setup/deployment/overview)
+- Admin access to your hoop.dev instance
+- The `experimental.event_routing` feature flag enabled for your org — enabled by default since version 1.85.0 (see Step 1 to verify or enable it on earlier versions)
+- At least one runbook repository configured with runbooks that declare `metadata` parameters
+- A resource role (connection) with an agent assigned
+
+## Step 1: Enable the Feature Flag
+
+Since version 1.85.0, `experimental.event_routing` is **enabled by default** — you can likely skip straight to Step 2. To verify it, or to enable it on an earlier version:
+
+1. Go to **Organization > Settings > Experimental**.
+2. Toggle `experimental.event_routing` to **On**.
+3. Reload the app — **Event Routing** appears in the sidebar under **Discover**.
+
+<Note>
+The flag is per-org. On versions before 1.85.0 it defaults to off — no subscriptions are evaluated and no UI surface is visible until you enable it.
+</Note>
+
+## Step 2: Review the Event Catalog
+
+1. Go to **Discover > Event Routing > Event catalog**.
+2. Find the event you want to subscribe to and click **View schema** to inspect its fields and sample payload.
+3. Note the field names you plan to map to your runbook's parameters.
+
+## Step 3: Create a Subscription
+
+1. Click **Create subscription** in the header.
+2. Fill in the form:
+   - **Name** — shown in audit logs and dispatch history.
+   - **Description** (optional) — when this subscription should fire and why.
+   - **Resource role** — the connection the runbook will run against.
+   - **Runbook** — populated from the runbooks available on the selected role.
+   - **Subscribed event** — one event per subscription.
+   - **Parameter mapping** — for each runbook parameter, select the event field that feeds it. Same-name fields are pre-matched.
+3. Click **Save**.
+
+<Warning>
+Required runbook parameters that have no mapping block the Save button. The mapping table marks them with `Required` until they are filled.
+</Warning>
+
+## Step 4: Verify the Subscription Fires
+
+1. Cause the subscribed event to fire. For `session.started`, open any session against a connection in the subscription's resource role.
+2. Open the subscription detail page at **Discover > Event Routing > [subscription name]**.
+3. A new row appears in **Dispatch history** within seconds:
+
+```text
+2026-05-20 15:30:00   session.started   delivered   1 240 ms
+```
+
+## Editing and Managing Subscriptions
+
+- **Edit** — opens the same form used for creation, pre-filled with the current values. The subscribed event is fixed after creation because the parameter mapping depends on the event schema. To change the event, delete the subscription and create a new one.
+- **Pause / Resume** — stops or restarts dispatching.
+- **Replay** — re-runs the stored payload of a failed dispatch through the current subscription configuration. The new dispatch appears at the top of history with its own row.
+- **Delete** — permanently removes the subscription and its dispatch history.
+
+## Auditing Dispatch History
+
+<Steps>
+  <Step title="Open the subscription detail page">
+    Go to **Discover > Event Routing** and click **Configure** on the subscription.
+  </Step>
+  <Step title="Read the dispatch history table">
+    Each row shows the timestamp, event type, status, and duration.
+  </Step>
+  <Step title="Inspect a failed dispatch">
+    Click any failed dispatch row to view the `last_error` message and replay the dispatch with the original event payload.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Sidebar Entry Not Visible After Enabling the Flag
+
+**Check:**
+1. Confirm the flag is **On** for your specific org in **Organization > Settings > Experimental** — the flag is per-org.
+2. Reload the app after toggling. The sidebar is rendered on mount, not live-updated.
+3. Confirm you have the admin role. The route is restricted to admins.
+
+### Save Button Stays Disabled on the Form
+
+**Check:**
+1. **Name** is filled in.
+2. A **Resource role** is selected.
+3. A **Runbook** is selected (the dropdown is disabled until a role is chosen).
+4. Exactly one event is selected in the radio list.
+5. Every parameter marked `Required` in the mapping table has a field assigned.
+
+### Dispatches Stay at `pending`
+
+**Check:**
+1. The subscription status is `active`, not `paused`.
+2. The resource role's connection has an agent assigned and the agent is online.
+3. The event routing supervisor is running — it is started as part of the gateway process. If the gateway restarted recently, check the logs for startup errors.
+
+### Dispatches Flip to `failed`
+
+**Check:**
+1. Open the failed dispatch row — `last_error` carries the full error message from the dispatcher.
+2. Common causes: the runbook file no longer exists in the repository, a required parameter could not be resolved from the payload, or the runbook process returned a non-zero exit code.
+3. Fix the underlying cause (update the mapping, push a corrected runbook, restore the file), then use **Replay** to retry with the original event payload.
+
+### Connection Rename Broke a Subscription
+
+**Check:**
+1. Subscriptions store `connection_name` with `ON UPDATE CASCADE` — renames in Hoop propagate to subscriptions automatically.
+2. If a connection was deleted and recreated with the same name, the subscription is now bound to the new connection. Verify the new connection has the correct agent and runbooks configured.
