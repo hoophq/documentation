@@ -307,6 +307,69 @@ injects `HOOP_GCP_ACCESS_TOKEN`, `CLOUDSDK_CORE_PROJECT`, and
   session after Step 4 instead.
 </Note>
 
+## Project scope and cross-project queries
+
+The **Project ID** you set on the connection (`extra_config.project_id`, injected
+into the session as `CLOUDSDK_CORE_PROJECT`) is **not** a data boundary — it is
+only the **default billing/job project**: the project where BigQuery *runs and
+bills* each query, and the one that unqualified table names resolve against.
+
+It does **not** limit which data a user can read. The minted token authenticates
+as the user (with the `https://www.googleapis.com/auth/cloud-platform` scope by
+default), so a session can query **any project the user already has IAM access
+to** — governed entirely by the user's own grants, not by the connection's
+project.
+
+This matters for both providers:
+
+- **One OAuth client covers everything.** For `gcp_oauth`, the project where you
+  registered the OAuth client is just the app's home — it has no bearing on data
+  access. Reuse the same `client_id` / `client_secret` across all your BigQuery
+  connections.
+- **One connection can read across projects.** You don't need a connection per
+  data project — only the *billing* project is pinned. Use a separate connection
+  only when you want jobs billed to a different project.
+
+### Querying a dataset in another project
+
+Fully-qualify the table with the other project's ID — `` `project.dataset.table` ``
+(BigQuery Standard SQL; the connection runs with `--use_legacy_sql=false`). The
+job still bills to the connection's `project_id`; the reference points wherever
+the data lives.
+
+Say the connection is pinned to `analytics-prod` and the data is in
+`raw-data-project`:
+
+```sql
+SELECT *
+FROM `raw-data-project.events.logs`
+LIMIT 100;
+```
+
+Cross-project join (billed to `analytics-prod`, reading from two other projects):
+
+```sql
+SELECT u.id, e.event_name
+FROM `raw-data-project.events.logs` AS e
+JOIN `customer-project.crm.users` AS u
+  ON u.id = e.user_id
+WHERE e.event_date = CURRENT_DATE();
+```
+
+For this to work, the user's identity (their Google account for `gcp_oauth`, or
+their target service account for `gcp_iam`) needs:
+
+- `roles/bigquery.jobUser` on the **billing project** (`analytics-prod`) to create
+  the job, and
+- `roles/bigquery.dataViewer` (or finer) on the **data** datasets in
+  `raw-data-project` / `customer-project` to read them.
+
+<Tip>
+  Unqualified names like `` `events.logs` `` resolve against the connection's
+  `project_id`. Qualify with a project prefix whenever the data lives elsewhere —
+  backticks are required because project IDs contain hyphens.
+</Tip>
+
 ## The Audit Trail
 
 Both providers attribute every operation to the individual, but the shape of
