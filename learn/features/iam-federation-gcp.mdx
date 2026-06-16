@@ -5,37 +5,36 @@ description: "Mint per-user OAuth tokens for BigQuery and other GCP resources in
 
 ## What this gives you
 
-With IAM Federation enabled, Hoop stops sharing a single Google service-account key with every user. Instead, each user's activity against GCP is attributed to **their own principal** — so a `bq query` Alice runs through Hoop shows up in Cloud Logging as Alice, not as a shared admin service account.
+IAM Federation stops Hoop from sharing one Google service-account key across your team. Each user's GCP activity runs under their own principal, so a `bq query` Alice runs through Hoop shows up in Cloud Logging as Alice.
 
-This buys you:
+You get:
 
-- **Per-user attribution** — every GCP operation is tied to the individual who ran it
-- **No shared keys** — users never hold a long-lived service-account key; Hoop mints short-lived tokens at session time
-- **A clean audit trail** — GCP records *who* ran each query (and, for `gcp_iam`, *through whom*)
+- **Per-user attribution.** Every GCP operation ties to the person who ran it.
+- **No shared keys.** Users never hold a long-lived service-account key. Hoop mints short-lived tokens at session time.
+- **A clean audit trail.** GCP records who ran each query, and for `gcp_iam`, through whom.
 
 ## Two ways to federate
 
-Hoop ships two built-in GCP providers. They achieve the same goal — per-user attribution with no shared static key — but differ in what you provision on the GCP side and whose identity ends up in the audit log.
+Hoop ships two built-in GCP providers. Both deliver per-user attribution with no shared static key. They differ in what you provision on the GCP side and whose identity lands in the audit log.
 
 | | `gcp_iam` | `gcp_oauth` |
 |---|---|---|
-| **Identity in GCP audit log** | A per-user **service account** (e.g. `alice@proj.iam.gserviceaccount.com`) | The user's **real Google account** (e.g. `alice@acme.com`) |
-| **What you provision** | One admin SA + one SA per user (or a shared SA) | One OAuth **client** (app registration) — **zero service accounts** |
+| **Identity in GCP audit log** | A per-user service account (e.g. `alice@proj.iam.gserviceaccount.com`) | The user's real Google account (e.g. `alice@acme.com`) |
+| **What you provision** | One admin SA plus one SA per user (or a shared SA) | One OAuth client (app registration), zero service accounts |
 | **Admin credential Hoop stores** | Admin SA JSON key | OAuth `client_id` / `client_secret` |
-| **How a token is minted** | Admin SA impersonates the user SA via `iamcredentials.GenerateAccessToken` | Each user consents once; Hoop exchanges their **refresh token** for an access token |
-| **Per-user setup** | Admin grants `serviceAccountTokenCreator` + data roles to each SA | Each user clicks **Connect Google account** once; data roles go on their real Google identity |
+| **How a token is minted** | Admin SA impersonates the user SA via `iamcredentials.GenerateAccessToken` | Each user consents once; Hoop exchanges their refresh token for an access token |
+| **Per-user setup** | Admin grants `serviceAccountTokenCreator` plus data roles to each SA | Each user clicks **Connect Google account** once; data roles go on their real Google identity |
 | **Web UI support** | Configurable in the connection form | Configurable in the connection form; each user clicks **Connect Google account** in the web client |
 
 <Tip>
-  Choose **`gcp_iam`** when you want Hoop-managed service-account identities and
-  a delegation chain proving every query went *through* Hoop. Choose
-  **`gcp_oauth`** when you want the GCP audit log to show the **actual human's
-  email** and prefer to provision **no service accounts at all**.
+  Choose `gcp_iam` for Hoop-managed service-account identities and a delegation
+  chain that proves every query went through Hoop. Choose `gcp_oauth` to show the
+  real human email in the GCP audit log and provision no service accounts.
 </Tip>
 
 ## How It Works
 
-When a user runs `hoop connect my-bq`, the gateway reads the connection's federation policy and mints a short-lived token for that user, then hands it to the agent for the session. The minting step depends on the provider:
+A user runs `hoop connect my-bq`. The gateway reads the connection's federation policy, mints a short-lived token for that user, and hands it to the agent for the session. The minting step depends on the provider:
 
 <Tabs>
   <Tab title="gcp_iam (service-account impersonation)">
@@ -44,52 +43,52 @@ When a user runs `hoop connect my-bq`, the gateway reads the connection's federa
         The policy defines the identity template, project id, and fallback rules that map the Hoop user to a GCP service account.
       </Step>
       <Step title="Mints a token as the user's principal">
-        The gateway asks Google's `iamcredentials` API to mint a short-lived OAuth access token **as the user's target service account**, using the admin service account stored for your organization.
+        The gateway asks Google's `iamcredentials` API to mint a short-lived OAuth access token as the user's target service account, using the admin service account stored for your organization.
       </Step>
       <Step title="Hands the token to the agent">
-        The agent uses that short-lived token for the session. Every subsequent operation is attributed to the user's service account — not the shared admin account.
+        The agent uses that short-lived token for the session. Every operation after that runs as the user's service account, not the shared admin account.
       </Step>
     </Steps>
 
-    For this to work, two things must be true on the GCP side:
+    Two things must be true on the GCP side:
 
-    - The **admin service account** must be allowed to impersonate **each user's target principal** (the `roles/iam.serviceAccountTokenCreator` grant).
-    - Each **target principal** must have whatever data-plane roles it needs (e.g. `roles/bigquery.user` for BigQuery).
+    - The admin service account must be able to impersonate each user's target principal (the `roles/iam.serviceAccountTokenCreator` grant).
+    - Each target principal holds the data-plane roles it needs (e.g. `roles/bigquery.user` for BigQuery).
   </Tab>
   <Tab title="gcp_oauth (per-user OAuth)">
     <Steps>
       <Step title="Each user consents once">
-        The user opens the connection's consent URL and approves Google's OAuth screen with their own corporate Google account. Hoop stores their **refresh token** encrypted at rest, keyed to that user and connection.
+        The user opens the connection's consent URL and approves Google's OAuth screen with their own corporate Google account. Hoop stores their refresh token encrypted at rest, keyed to that user and connection.
       </Step>
       <Step title="Mints a token as the user">
-        At session-open the gateway exchanges that refresh token for a fresh, short-lived **user** access token. No service account is involved.
+        At session open, the gateway exchanges that refresh token for a fresh, short-lived user access token. No service account is involved.
       </Step>
       <Step title="Hands the token to the agent">
-        The agent uses the token for the session. Every operation is attributed to the user's real Google identity.
+        The agent uses the token for the session. Every operation runs as the user's real Google identity.
       </Step>
     </Steps>
 
-    For this to work on the GCP side:
+    On the GCP side:
 
-    - You register **one OAuth client** (Web application) — no service accounts.
-    - Each user's **own Google account** must hold the data-plane roles it needs (e.g. `roles/bigquery.user`).
+    - You register one OAuth client (Web application). No service accounts.
+    - Each user's Google account holds the data-plane roles it needs (e.g. `roles/bigquery.user`).
   </Tab>
 </Tabs>
 
 ## Configure per-user OAuth (`gcp_oauth`)
 
-This walkthrough sets up the no-service-account mode. For the service-account
-(`gcp_iam`) setup — admin SA, Token Creator grants, and the connection form —
-see the [configuration guide](/setup/configuration/iam-federation-gcp-configuration).
+This walkthrough sets up the no-service-account mode. For the `gcp_iam` setup
+(admin SA, Token Creator grants, and the connection form), see the
+[configuration guide](/setup/configuration/iam-federation-gcp-configuration).
 
 <Note>
-  `gcp_oauth` is fully supported in the web UI: an admin configures it on the
-  connection form (Step 3), and each user connects their own Google account from
-  the web client (Step 4). The equivalent `hoop admin federation` CLI flow is
-  shown alongside each step for automation.
+  `gcp_oauth` works in the web UI. An admin configures it on the connection form
+  (Step 3), and each user connects their own Google account from the web client
+  (Step 4). Each step also shows the `hoop admin federation` CLI flow for
+  automation.
 </Note>
 
-### Step 1 — Create an OAuth client in GCP (no service accounts)
+### Step 1: Create an OAuth client in GCP (no service accounts)
 
 In the [GCP Console](https://console.cloud.google.com/) for the project that
 holds your BigQuery data:
@@ -103,8 +102,8 @@ holds your BigQuery data:
     </Frame>
   </Step>
   <Step title="Choose OAuth client ID">
-    From the dropdown, pick **OAuth client ID** (not API key) — this is what
-    requests user consent so Hoop can act as each user.
+    From the dropdown, pick **OAuth client ID** (not API key). It requests user
+    consent so Hoop can act as each user.
 
     <Frame>
       <img src="/images/configure/iam-federation/gcp-oauth/02-create-oauth-client-id.png" alt="Create credentials dropdown showing API key and OAuth client ID options, with OAuth client ID selected" />
@@ -121,7 +120,7 @@ holds your BigQuery data:
 
     Replace `GATEWAYURI.com` with your gateway host (local dev:
     `http://localhost:8009/api/federation/oauth/callback`). The URI must match
-    **exactly**. Click **Create**.
+    exactly. Click **Create**.
 
     <Frame>
       <img src="/images/configure/iam-federation/gcp-oauth/03-oauth-client-form.png" alt="Create OAuth client ID form with Web application type, a name, and the authorized redirect URI pointing at /api/federation/oauth/callback" />
@@ -133,7 +132,7 @@ holds your BigQuery data:
     e.g. BigQuery). Add your users as test users, or publish the app.
   </Step>
   <Step title="Copy the Client ID and Client secret (or download the JSON)">
-    After creating the client, Google shows the **Client ID** and **Client
+    After you create the client, Google shows the **Client ID** and **Client
     secret**. Copy them, or click **Download JSON**.
 
     <Frame>
@@ -143,8 +142,8 @@ holds your BigQuery data:
 </Steps>
 
 The downloaded file wraps everything under a `"web"` key with extra fields Hoop
-doesn't need. Hoop only needs the **client_id** and **client_secret** — pull
-those two values into a minimal JSON object:
+doesn't use. Hoop needs only `client_id` and `client_secret`. Pull those two
+values into a minimal JSON object:
 
 ```json
 {
@@ -156,15 +155,15 @@ those two values into a minimal JSON object:
 You'll paste this in Step 3 (or save it as `oauth-client.json` for the CLI flow).
 
 <Warning>
-  While the consent screen is in **Testing** mode, Google expires refresh
-  tokens after **7 days**, so federated sessions break weekly until each user
-  re-consents. **Publish the app** to remove that cap.
+  In **Testing** mode, Google expires refresh tokens after 7 days, so federated
+  sessions break weekly until each user re-consents. Publish the app to remove
+  that cap.
 </Warning>
 
-### Step 2 — Grant data roles to each user's Google account
+### Step 2: Grant data roles to each user's Google account
 
-There are no service accounts to grant. Give each user's **real Google
-identity** the data-plane roles it needs — for BigQuery:
+There are no service accounts to grant. Give each user's Google identity the
+data-plane roles it needs. For BigQuery:
 
 ```bash
 export PROJECT_ID="my-proj"
@@ -178,7 +177,7 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --role="roles/bigquery.dataViewer"
 ```
 
-### Step 3 — Wire federation onto the connection (admin, one-time)
+### Step 3: Wire federation onto the connection (admin, one-time)
 
 <Tabs>
   <Tab title="Web UI">
@@ -204,14 +203,13 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
         }
         ```
 
-        The client secret is only used by the gateway to exchange tokens — it
-        never reaches end-user sessions.
+        The gateway uses the client secret only to exchange tokens. It never
+        reaches end-user sessions.
       </Step>
       <Step title="Set the project and save">
         Enter your **GCP Project ID** (e.g. `my-proj`) and **Save** the
         connection. Selecting `gcp_oauth` forces the fallback method to **Deny
-        the session**, so a session never silently runs without a per-user
-        token.
+        the session**, so a session won't run without a per-user token.
       </Step>
     </Steps>
   </Tab>
@@ -225,13 +223,13 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     token_ttl_seconds: 3600        # informational; Google controls the real token lifetime
     extra_config:
       project_id: my-proj
-      # optional — defaults to cloud-platform:
+      # optional, defaults to cloud-platform:
       # scopes:
       #   - https://www.googleapis.com/auth/bigquery
     ```
 
-    Apply it, passing the **OAuth client JSON** from Step 1 as the admin
-    credential (it replaces the service-account key that `gcp_iam` uses):
+    Apply it, passing the OAuth client JSON from Step 1 as the admin credential.
+    It replaces the service-account key that `gcp_iam` uses:
 
     ```bash
     hoop admin federation set my-bq \
@@ -243,27 +241,26 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   </Tab>
 </Tabs>
 
-### Step 4 — Each user connects their Google account (one-time)
+### Step 4: Each user connects their Google account (one-time)
 
-Each user grants Hoop a refresh token once, by approving the Google consent
-screen **with the corporate Google account that should be attributed**.
+Each user grants Hoop a refresh token once by approving the Google consent
+screen with the Google account that should be attributed.
 
 <Tabs>
   <Tab title="Web client">
-    When a user opens the federated connection in the web client and isn't
-    connected yet, a **Connect your Google account** prompt appears in the
-    editor. (If they run a query first, the run is blocked and the same
-    **Connect Google account** action is shown inline.) Clicking it redirects to
-    Google's consent screen and returns to the same page on approval —
-    Hoop shows a "Google account connected" confirmation and the prompt
-    disappears.
+    Open the federated connection in the web client. If you haven't connected
+    yet, a **Connect your Google account** prompt appears in the editor. (Run a
+    query first and the run is blocked with the same **Connect Google account**
+    action inline.) Click it to reach Google's consent screen. After you
+    approve, Hoop returns you to the same page, shows a "Google account
+    connected" confirmation, and clears the prompt.
 
-    Admins can also connect/disconnect from the connection's **Federation
+    Admins can also connect or disconnect from the connection's **Federation
     setup** section in the connection form.
   </Tab>
   <Tab title="CLI / API">
-    Ask Hoop for the consent URL (this uses the user's own Hoop token, not an
-    admin token), then open it in a browser:
+    Ask Hoop for the consent URL (it uses the user's own Hoop token, not an admin
+    token), then open it in a browser:
 
     ```bash
     # The user's Hoop access token (from `hoop login`)
@@ -274,17 +271,17 @@ screen **with the corporate Google account that should be attributed**.
     # → {"url":"https://accounts.google.com/o/oauth2/auth?...&state=..."}
     ```
 
-    Open the returned `url`, approve consent, and Google redirects back to the
+    Open the returned `url` and approve consent. Google redirects back to the
     gateway, which stores the encrypted refresh token and returns the browser to
     the app with `?federation_oauth=success`.
   </Tab>
 </Tabs>
 
 <Warning>
-  Approve the consent screen with the **same identity you use in Hoop**. Hoop
-  records the consented Google account as the session's principal, so it is
-  what shows up in every BigQuery audit entry — connecting a different Google
-  account would misattribute that user's activity.
+  Approve the consent screen with the same identity you use in Hoop. Hoop records
+  the consented Google account as the session's principal, so it appears in every
+  BigQuery audit entry. Connecting a different Google account misattributes that
+  user's activity.
 </Warning>
 
 To revoke (disconnect the Google account for a connection), use the
@@ -301,43 +298,42 @@ injects `HOOP_GCP_ACCESS_TOKEN`, `CLOUDSDK_CORE_PROJECT`, and
 `GOOGLE_APPLICATION_CREDENTIALS`).
 
 <Note>
-  **Test as user** does not apply to `gcp_oauth` (the connection form hides it
-  for this provider): a dry-run can't consent on the user's behalf, so there is
-  nothing to validate ahead of time. Validate the setup by running a real
-  session after Step 4 instead.
+  **Test as user** doesn't apply to `gcp_oauth`, and the connection form hides it
+  for this provider. A dry run can't consent on the user's behalf, so there's
+  nothing to validate ahead of time. Validate by running a real session after
+  Step 4.
 </Note>
 
 ## Project scope and cross-project queries
 
-The **Project ID** you set on the connection (`extra_config.project_id`, injected
-into the session as `CLOUDSDK_CORE_PROJECT`) is **not** a data boundary — it is
-only the **default billing/job project**: the project where BigQuery *runs and
-bills* each query, and the one that unqualified table names resolve against.
+The Project ID you set on the connection (`extra_config.project_id`, injected
+into the session as `CLOUDSDK_CORE_PROJECT`) is not a data boundary. It sets the
+default billing and job project: where BigQuery runs and bills each query, and
+what unqualified table names resolve against.
 
-It does **not** limit which data a user can read. The minted token authenticates
-as the user (with the `https://www.googleapis.com/auth/cloud-platform` scope by
-default), so a session can query **any project the user already has IAM access
-to** — governed entirely by the user's own grants, not by the connection's
-project.
+It does not limit which data a user can read. The minted token authenticates as
+the user (with the `https://www.googleapis.com/auth/cloud-platform` scope by
+default), so a session can query any project the user already has IAM access to.
+The user's own grants govern that, not the connection's project.
 
-This matters for both providers:
+Two things follow:
 
-- **One OAuth client covers everything.** For `gcp_oauth`, the project where you
-  registered the OAuth client is just the app's home — it has no bearing on data
-  access. Reuse the same `client_id` / `client_secret` across all your BigQuery
-  connections.
-- **One connection can read across projects.** You don't need a connection per
-  data project — only the *billing* project is pinned. Use a separate connection
-  only when you want jobs billed to a different project.
+- **One OAuth client covers every connection.** For `gcp_oauth`, the project
+  where you registered the OAuth client is just the app's home and has no bearing
+  on data access. Reuse the same `client_id` / `client_secret` across your
+  BigQuery connections.
+- **One connection reads across projects.** You don't need a connection per data
+  project. Only the billing project is pinned. Add a separate connection when you
+  want jobs billed to a different project.
 
 ### Querying a dataset in another project
 
-Fully-qualify the table with the other project's ID — `` `project.dataset.table` ``
+Qualify the table with the other project's ID: `` `project.dataset.table` ``
 (BigQuery Standard SQL; the connection runs with `--use_legacy_sql=false`). The
-job still bills to the connection's `project_id`; the reference points wherever
+job still bills to the connection's `project_id`. The reference points wherever
 the data lives.
 
-Say the connection is pinned to `analytics-prod` and the data is in
+The connection below is pinned to `analytics-prod`; the data lives in
 `raw-data-project`:
 
 ```sql
@@ -356,27 +352,27 @@ JOIN `customer-project.crm.users` AS u
 WHERE e.event_date = CURRENT_DATE();
 ```
 
-For this to work, the user's identity (their Google account for `gcp_oauth`, or
-their target service account for `gcp_iam`) needs:
+The user's identity (their Google account for `gcp_oauth`, or their target
+service account for `gcp_iam`) needs:
 
-- `roles/bigquery.jobUser` on the **billing project** (`analytics-prod`) to create
+- `roles/bigquery.jobUser` on the billing project (`analytics-prod`) to create
   the job, and
-- `roles/bigquery.dataViewer` (or finer) on the **data** datasets in
+- `roles/bigquery.dataViewer` (or finer) on the data datasets in
   `raw-data-project` / `customer-project` to read them.
 
 <Tip>
   Unqualified names like `` `events.logs` `` resolve against the connection's
-  `project_id`. Qualify with a project prefix whenever the data lives elsewhere —
-  backticks are required because project IDs contain hyphens.
+  `project_id`. Qualify with a project prefix when the data lives elsewhere.
+  Backticks are required because project IDs contain hyphens.
 </Tip>
 
 ## The Audit Trail
 
-Both providers attribute every operation to the individual, but the shape of
-the audit record differs.
+Both providers attribute every operation to the individual. The shape of the
+audit record differs.
 
-**`gcp_iam`** records a `serviceAccountDelegationInfo` chain showing **who** ran
-the query (the user's service account) and **through whom** (the Hoop admin SA):
+`gcp_iam` records a `serviceAccountDelegationInfo` chain showing who ran the
+query (the user's service account) and through whom (the Hoop admin SA):
 
 ```yaml
 protoPayload.authenticationInfo.principalEmail: alice@my-proj.iam.gserviceaccount.com
@@ -385,12 +381,12 @@ protoPayload.authenticationInfo.serviceAccountDelegationInfo:
       principalEmail: hoop-admin@my-proj.iam.gserviceaccount.com
 ```
 
-That chain lets you prove every query in a project went through Hoop and flag
-any that bypassed it. Enabling, querying, and sinking these logs is covered in
-the configuration guide.
+That chain proves every query in a project went through Hoop and flags any that
+bypassed it. The configuration guide covers enabling, querying, and sinking these
+logs.
 
-**`gcp_oauth`** records the user's **real Google account** directly as the
-principal, with no delegation chain — the human *is* the caller:
+`gcp_oauth` records the user's Google account as the principal, with no
+delegation chain. The human is the caller:
 
 ```yaml
 protoPayload.authenticationInfo.principalEmail: alice@acme.com
@@ -399,7 +395,7 @@ protoPayload.authenticationInfo.principalEmail: alice@acme.com
 ---
 
 <Note>
-Ready to set it up? For `gcp_iam`, the [IAM Federation for GCP configuration guide](/setup/configuration/iam-federation-gcp-configuration) walks through the GCP IAM setup (admin service account, Token Creator grants, verification), wiring the policy onto a connection, and enabling the audit logs. For `gcp_oauth`, follow [Configure per-user OAuth](#configure-per-user-oauth-gcp-oauth) above.
+For `gcp_iam`, the [IAM Federation for GCP configuration guide](/setup/configuration/iam-federation-gcp-configuration) covers the GCP IAM setup (admin service account, Token Creator grants, verification), wiring the policy onto a connection, and enabling the audit logs. For `gcp_oauth`, follow [Configure per-user OAuth](#configure-per-user-oauth-gcp-oauth) above.
 </Note>
 
 ## Next Steps
