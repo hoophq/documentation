@@ -210,6 +210,14 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
         Enter your **GCP Project ID** (e.g. `my-proj`) and **Save** the
         connection. Selecting `gcp_oauth` forces the fallback method to **Deny
         the session**, so a session won't run without a per-user token.
+
+        <Frame>
+          <img src="/images/configure/iam-federation/gcp-oauth/06-hoop-gcp-oauth-setup.png" alt="Hoop connection form Federation setup panel after selecting GCP OAuth, showing the OAuth client credentials (JSON) field with the client_id and client_secret pasted, the GCP Project ID field, a Connect your Google account callout, and an Output preview listing HOOP_GCP_ACCESS_TOKEN, CLOUDSDK_CORE_PROJECT, and HOOP_FEDERATED_PRINCIPAL" />
+        </Frame>
+
+        The **Connect your Google account** callout reminds you to save first;
+        every user (including you, as the admin) connects their own account from
+        this same screen before running a session — that's Step 4.
       </Step>
     </Steps>
   </Tab>
@@ -249,11 +257,20 @@ screen with the Google account that should be attributed.
 <Tabs>
   <Tab title="Web client">
     Open the federated connection in the web client. If you haven't connected
-    yet, a **Connect your Google account** prompt appears in the editor. (Run a
+    yet, a **Connect your Google account** prompt appears in the editor. Run a
     query first and the run is blocked with the same **Connect Google account**
-    action inline.) Click it to reach Google's consent screen. After you
-    approve, Hoop returns you to the same page, shows a "Google account
-    connected" confirmation, and clears the prompt.
+    action inline ("This resource runs queries as you. Connect your Google
+    account once to authorize access, then run again.").
+
+    <Frame>
+      <img src="/images/configure/iam-federation/gcp-oauth/07-web-terminal-connect-google.png" alt="Hoop web terminal running a bq query against a gcp_oauth connection, with a Connect your Google account callout explaining the resource runs queries as you and a Connect Google account button" />
+    </Frame>
+
+    Click it to reach Google's consent screen. **Approve with the same Google
+    account you use to sign in to Hoop** — Hoop attributes the session to the
+    consented identity, so it must match your Hoop user. After you approve, Hoop
+    returns you to the same page, shows a "Google account connected"
+    confirmation, and clears the prompt; rerun the query and it executes as you.
 
     Admins can also connect or disconnect from the connection's **Federation
     setup** section in the connection form.
