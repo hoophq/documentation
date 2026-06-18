@@ -1,0 +1,175 @@
+---
+title: "SSH"
+description: "Use standard SSH clients to access Hoop resources with certificate-based authentication."
+---
+
+Hoop exposes an SSH server in the gateway that accepts certificate-based authentication, allowing users to access Hoop resources through the standard SSH protocol — no Hoop CLI required. This is ideal for administrators who want to integrate Hoop's audit, guardrails, and data masking capabilities into existing bastion server workflows, or replace their bastion entirely with Hoop as a jump host.
+
+<Frame>
+  <img src="/images/integrations/ssh-high-level-diagram.png" alt="SSH Integration High-Level Diagram" />
+</Frame>
+
+## How It Works
+
+The Hoop gateway exposes an SSH server that validates incoming connections via SSH certificate extensions. Access is granted or denied based on the following extensions in the certificate:
+
+| Extension | Description |
+|-----------|-------------|
+| `permit-pty` | Allows the client to allocate a pseudo-TTY for interactive sessions |
+| `permit-port-forwarding` | Allows the client to perform port-forwarding |
+
+Hoop uses the standard SSH protocol as a secure authenticated transport layer and forwards the underlying protocols internally over gRPC.
+
+## Certificate Attributes
+
+The certificate is also validated against Hoop user attributes to identify the connecting user. Configure which certificate field maps to which Hoop user attribute:
+
+**Certificate attribute** (source):
+
+| Attribute | Description |
+|-----------|-------------|
+| `principal` | The certificate's principal list is used to look up a known Hoop user |
+| `key_id` | The certificate's key ID is used to look up a known Hoop user |
+
+**Hoop user attribute** (target):
+
+| Attribute | Description |
+|-----------|-------------|
+| `user_id` | Match the certificate attribute value against the user's internal ID |
+| `subject` | Match the certificate attribute value against the user's subject |
+| `email` | Match the certificate attribute value against the user's email |
+
+## Client Usage
+
+Clients connect to Hoop resources by specifying a **Resource Role** name as the SSH command argument. The following resource role types are supported:
+
+- `custom` — interactive terminal and ad-hoc command execution
+- `mysql` — port-forward to a MySQL database
+- `postgres` — port-forward to a PostgreSQL database
+
+### Terminal Access
+
+When the resource role is configured with a shell or REPL entrypoint, the SSH client opens an interactive terminal session. The user cannot escape the command defined in the resource role — the session is fully governed by Hoop policies.
+
+<Frame>
+  <img src="/images/integrations/ssh-pty.png" alt="SSH Interactive Terminal Session" />
+</Frame>
+
+Use the `-t` flag to request a pseudo-TTY allocation:
+
+```sh
+ssh -t -i ./certs/alice alice@127.0.0.1 -p 12222 mybash-resource
+```
+
+### Ad-Hoc Command Execution
+
+Over the same resource role you can run one-off commands without opening an interactive session:
+
+<Frame>
+  <img src="/images/integrations/ssh-ad-hoc.jpg" alt="SSH Ad-Hoc Command Execution" />
+</Frame>
+
+```sh
+# Runs `ls -l` inside the resource role
+ssh -i ./certs/alice alice@127.0.0.1 -p 12222 mybash-resource ls -l
+```
+
+### Piping Standard Input
+
+For tools that accept complex input (e.g., `psql`, `python`), you can pipe stdin directly through SSH:
+
+<Frame>
+  <img src="/images/integrations/ssh-ad-hoc-stdin.png" alt="SSH Ad-Hoc Stdin Execution" />
+</Frame>
+
+```sh
+echo -e 'SELECT NOW()' | ssh -i ./certs/alice alice@127.0.0.1 -p 12222 psql
+```
+
+You can also target a resource role that runs a script directly:
+
+```sh
+ssh -i ./certs/alice alice@127.0.0.1 -p 12222 myscript
+```
+
+### Database Port Forwarding
+
+Port-forward a database resource role to your local machine and connect with any IDE or CLI tool:
+
+<Frame>
+  <img src="/images/integrations/ssh-port-fwd-postgres.png" alt="SSH Port Forwarding to PostgreSQL" />
+</Frame>
+
+```sh
+# Forwards the Hoop resource role `postgres-demo` to localhost:5432
+ssh -i certs/alice -N -L 5432:postgres-demo:5432 alice@hoopwork -p 12222
+```
+
+Once forwarded, connect normally:
+
+```sh
+psql -h localhost -p 5432 -U myuser mydb
+```
+
+## Running as a Jump Host
+
+You can configure a standard `sshd` server to forward specific users through Hoop, extending your existing bastion with Hoop's capabilities rather than replacing it.
+
+### sshd Configuration
+
+Add the following directives to your `sshd_config` on the bastion server:
+
+```conf
+# Allow port-forwarding to reach Hoop resources
+AllowTcpForwarding yes
+
+# Restrict forwarding targets to the Hoop gateway only
+PermitOpen <hoop-gateway-host>:<port>
+
+# Trust the same CA used by the Hoop gateway
+TrustedUserCAKeys /path/to/ca.pub
+
+# Use the same host key as the Hoop gateway to avoid known_hosts conflicts
+HostKey /path/to/host/key
+```
+
+<Note>
+  The bastion and Hoop gateway must share the same CA key (`TrustedUserCAKeys`) and host key (`HostKey`) so that clients do not encounter host verification errors when jumping between them.
+</Note>
+
+### Client SSH Config
+
+Configure the SSH client to proxy through the bastion into the Hoop gateway:
+
+```conf
+Host hoop-bastion
+    HostName bastion.company.org
+    Port 22
+    User alice
+    IdentityFile ./certs/alice
+    IdentitiesOnly yes
+    PreferredAuthentications publickey
+    UserKnownHostsFile /dev/null
+    StrictHostKeyChecking no
+
+Host hoop-alice
+    HostName hoopgateway.company.org
+    Port 12222
+    User alice
+    IdentityFile ./certs/alice
+    IdentitiesOnly yes
+    PreferredAuthentications publickey
+    UserKnownHostsFile /dev/null
+    StrictHostKeyChecking no
+    ProxyJump hoop-bastion
+```
+
+With this configuration, users can access Hoop resources through the bastion transparently:
+
+```sh
+# Open an interactive terminal via the bastion
+ssh -t hoop-alice mybash-resource
+
+# Port-forward a MySQL database via the bastion
+ssh -N -L 3307:mysqldemo:3307 hoop-alice
+```

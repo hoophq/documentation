@@ -253,7 +253,8 @@
               "integrations/siem",
               "integrations/svix",
               "integrations/aws",
-              "integrations/ms-presidio"
+              "integrations/ms-presidio",
+              "integrations/ssh"
             ]
           }
         ]
