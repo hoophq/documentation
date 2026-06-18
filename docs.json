@@ -70,7 +70,8 @@
               "learn/features/parallel-mode",
               "learn/features/mcp-server",
               "learn/features/resource-provisioning",
-              "learn/features/iam-federation-gcp"
+              "learn/features/iam-federation-gcp",
+              "learn/features/ssh"
             ]
           },
           {
@@ -253,8 +254,7 @@
               "integrations/siem",
               "integrations/svix",
               "integrations/aws",
-              "integrations/ms-presidio",
-              "integrations/ssh"
+              "integrations/ms-presidio"
             ]
           }
         ]
