@@ -1,0 +1,63 @@
+---
+title: "1.44.2"
+description: "Native SSH client access support, improved role configuration management, and enhanced deployment flexibility with gateway URL integration."
+---
+
+### TL;DR
+- **New Features:** Native client access for SSH connections with comprehensive credential support.
+- **Improvements:** Enhanced role edit flow with proper environment variable handling and improved context management.
+- **Infrastructure:** Added Hoop gateway URL support in Helm charts and CloudFormation templates for better deployment configuration.
+- **Bug Fixes:** Resolved uppercase environment variable mapping and improved OracleDB connection error handling.
+
+---
+
+### New Features
+**Enhanced connection capabilities and native access.**
+
+- **SSH native client access**
+  Added comprehensive SSH connection support with native client access capabilities, including proper credential field handling for seamless SSH connectivity through Hoop.
+  [PR #1079](https://github.com/hoophq/hoop/pull/1079)
+
+---
+
+### Improvements
+**Better configuration management and user experience.**
+
+- **Enhanced role configuration setup**
+  Improved role edit flow with proper environment variable handling, including environment row handling for better context management and updated credential extraction using uppercase keys for network, SSH, and HTTP credentials.
+  [PR #1134](https://github.com/hoophq/hoop/pull/1134)
+
+- **Improved sidebar layout and UI consistency**
+  Refined sidebar layout for better user experience and updated environment key checks to use more efficient validation methods.
+  [PR #1134](https://github.com/hoophq/hoop/pull/1134)
+
+---
+
+### Infrastructure Updates
+**Enhanced deployment flexibility and configuration options.**
+
+- **Gateway URL integration for deployments**
+  Added Hoop gateway URL configuration support in both Helm charts and CloudFormation templates, providing better deployment flexibility and consistent gateway configuration across different deployment methods.
+  [PR #1121](https://github.com/hoophq/hoop/pull/1121)
+
+---
+
+### Bug Fixes
+**Resolved configuration and connection issues.**
+
+- **Fixed environment variable mapping in role configuration**
+  Resolved uppercase environment variable mapping issues in the role edit flow, ensuring proper credential extraction and configuration handling across different credential types.
+  [PR #1134](https://github.com/hoophq/hoop/pull/1134)
+
+- **Enhanced OracleDB connection error handling**
+  Improved error handling for OracleDB connection tests, providing better debugging information and more reliable connection validation.
+  [PR #1130](https://github.com/hoophq/hoop/pull/1130)
+
+- **Refined resource naming conventions**
+  Removed database suffix in resource name placeholders for cleaner and more consistent resource naming across the platform.
+  [PR #1134](https://github.com/hoophq/hoop/pull/1134)
+
+---
+
+The theme for this release is **native access, refined configuration, and deployment flexibility.**
+See you in the next update!
