@@ -1,0 +1,72 @@
+id: mcp
+name: MCP
+description: Proxy MCP to ensure sensitive data won't leak.
+category: ai-and-llms
+icon-name: mcp
+tags:
+  - ai
+  - llm
+  - security
+  - proxy
+  - mcp
+overview:
+  description: MCP has never been safer. Use all Hoop features in front of MCP and gain the safety of ensuring sensitive data won’t be leaked to LLMs. Create Guardrails and Data Masking rules on top of a centralized API Key and distribute it to everyone in your organization through Hoop.
+setupGuide:
+  accessMethods:
+    webapp: false
+    cli: false
+    native: true
+    runbooks: false
+resourceConfiguration:
+  type: httpproxy
+  subtype: mcp
+features:
+  tlsTerminationProxy:
+    native: true
+    oneOff: false
+  audit:
+    native: true
+    oneOff: false
+  dataMaskingGoogleDLP:
+    native: false
+    oneOff: false
+  dataMaskingMSPresidio:
+    native: true
+    oneOff: false
+  guardrails:
+    native: true
+    oneOff: false
+  credentialsOffload:
+    native: true
+    oneOff: false
+  interactiveAccess:
+    native: false
+    oneOff: false
+documentationConfig:
+  path: quickstart/ai-and-llms/mcp
+customMarkupContent: |-
+  Once an AI model connects through MCP, it is no longer making suggestions. It is reading production data, calling live tools, and operating inside the same execution path as your engineers.
+
+  The default response has been to restrict MCP servers to a sandbox, strip out production context, and accept reduced usefulness.
+
+  That tradeoff is no longer necessary.
+
+  The MCP connection type routes Model Context Protocol traffic through hoop.dev before it reaches your infrastructure. With it, you can give any MCP client production access while maintaining the controls your security and compliance teams require:
+
+  - Sensitive data is masked before the model sees it. PII, credentials, and secrets in tool results are redacted in real time. The model works with the schema and structure, not the raw values.
+  - Credentials are never handed to the model. MCP clients authenticate through hoop.dev's SSO integration, and backend credentials are retrieved just-in-time so they never reach the model or its context window.
+  - Every call is logged at the command level. More granular than session-level access records, hoop.dev captures each individual tool call with full context in a structured, searchable audit trail.
+  - Guardrails block or gate actions outside approved patterns. Calls that fall outside policy can be blocked outright or routed through an approval workflow, without changing how the MCP client is invoked.
+
+  The result is that connected models interrogate real schemas, surface actual data anomalies, and act against live infrastructure without your credentials or PII leaving the controlled environment.
+
+additionalInformation: |-
+  ### MCP is only as useful as the context you give it
+
+  Unproxied access for coding assistants to production resources has three primary risks: what commands a model can execute, what sensitive data a model can see, and what it can send.
+
+  Hoop.dev elegantly solves all three risks with controls embedded into the application protocols. Guardrails filter and block dangerous actions. Dynamic data masking ensures the model never sees or sends sensitive data outside of the boundary. Every action taken over MCP is logged with full context, and the evidence is made immediately exportable via webhooks.
+
+  With hoop.dev, you can confidently give MCP the context and access it needs to be valuable without jeopardizing your security posture or uptime.
+
+  [Talk to our team](https://dub.sh/G85aUr8) if you want to discuss your setup before deploying.

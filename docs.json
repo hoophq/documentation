@@ -113,7 +113,8 @@
               {
                 "group": "AI and LLMs",
                 "pages": [
-                  "quickstart/ai-and-llms/claude-code"
+                  "quickstart/ai-and-llms/claude-code",
+                  "quickstart/ai-and-llms/mcp"
                 ]
               },
               {
