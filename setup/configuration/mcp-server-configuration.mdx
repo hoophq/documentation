@@ -27,8 +27,11 @@ Two authentication methods are supported — a **Bearer token** (always availabl
 ## Add the MCP Server to Your Client
 
 Configure your MCP client to point at your gateway. The exact format varies by client.
+Refer to the client's (e.g., Claude Code, Cursor, Devin) documentation for details.
 
-**With OAuth enabled** (the client negotiates the token automatically):
+### Oauth Enabled
+
+In this mode, the client negotiates the token automatically
 
 ```json
 {
@@ -42,22 +45,40 @@ Configure your MCP client to point at your gateway. The exact format varies by c
 
 On first connect, the client opens a browser window to complete the OAuth flow against your IdP (Google, Okta, Azure, etc., depending on your gateway configuration).
 
-**With a Bearer token** (works without OAuth being enabled):
+### Bearer Token
 
-```json
-{
-  "mcpServers": {
-    "hoop": {
-      "url": "https://<your-gateway>/api/mcp",
-      "headers": {
-        "Authorization": "Bearer <your-token>"
+You add the bearer token manually to the client configuration. The token is obtained by running `hoop login` and copying the value of the `HOOP_TOKEN` environment variable.
+
+<Steps>
+  <Step title="Expose the required environment variables">
+    ```sh
+    export HOOP_URL=$(hoop config view api_url)
+    export HOOP_TOKEN=$(hoop config view token)
+    ```
+  </Step>
+  <Step title="Configure the Bearer token in your client">
+    
+    The example below shows a JSON configuration file.
+
+    ```json
+      {
+        "mcpServers": {
+          "hooplocal": {
+            "type": "http",
+            "url": "${HOOP_URL}/api/mcp",
+            "headers": {
+              "Authorization": "Bearer ${HOOP_TOKEN}"
+            }
+          }
+        }
       }
-    }
-  }
-}
-```
+    ```
 
-Use the token from `hoop login` or any valid Hoop API token.
+    <Note>
+      Once the token expires, you can refresh it by running `hoop login` again and updating the `HOOP_TOKEN` environment variable.
+    </Note>
+  </Step>
+</Steps>
 
 ## Enabling OAuth via the CLI
 
