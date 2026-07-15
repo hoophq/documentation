@@ -197,6 +197,7 @@
                     ]
                   },
                   "setup/configuration/ai-session-analyzer-configuration",
+                  "setup/configuration/ai-session-analyzer-configuration-http-proxy",
                   "setup/configuration/access-requests/action-configuration",
                   "setup/configuration/access-requests/jit-configuration",
                   "setup/configuration/access-control-configuration",
