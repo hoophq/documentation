@@ -1,0 +1,183 @@
+---
+title: "Guardrails for HTTP Proxy"
+description: "Route traffic from a Python service (httpx, bearer tokens) through Hoop to an HTTPS backend, with access control, method restriction, path filtering, header inspection, and payload inspection."
+---
+
+This guide walks through putting Hoop between a Python service and an HTTPS
+backend so that every request is authenticated, inspected, and audited — the
+client keeps its bearer-token workflow while the real backend credential
+never leaves the gateway.
+
+<Note>
+For guardrail rule syntax and general configuration options, see [Guardrails Configuration](/setup/configuration/guardrails-configuration).
+</Note>
+
+## Prerequisites
+
+- A running Hoop instance (docker-compose works) with admin access.
+- An enterprise or trial license installed. The OSS license caps guardrails at
+  one rule with one input and one output entry, which cannot express the full
+  policy below.
+- MS Presidio running and configured as the DLP provider
+  (`DLP_PROVIDER=mspresidio`, `MS_PRESIDIO_ANALYZER_URL`,
+  `MS_PRESIDIO_ANONYMIZER_URL`). Guardrail rules on HTTP proxy connections are
+  evaluated by the Presidio analyzer as ad-hoc recognizers; without Presidio
+  they do not run. Evaluation fails closed: if Presidio is unreachable,
+  requests block.
+- Use the **HTTP Proxy** connection type, not TCP. A TCP resource tunnels
+  opaque bytes: the TLS session runs end to end between the client and the
+  backend, so Hoop cannot read methods, paths, headers, or payloads. With an
+  HTTP Proxy connection the client speaks plain HTTP to Hoop and the agent
+  makes the HTTPS request upstream, so every control below applies.
+
+## 1. Enable the gateway HTTP proxy listener
+
+Web UI → Settings → Proxies. Set a listen address for the HTTP proxy server,
+for example `0.0.0.0:18888`, and expose that port in docker-compose.
+
+Credential issuance fails with "Listening address is not configured" until
+this is set.
+
+## 2. Create the connection
+
+Web UI → Connections → New → HTTP Proxy.
+
+| Env var | Value | Purpose |
+|---|---|---|
+| `REMOTE_URL` | `https://api.backend.example.com` | The fixed upstream destination |
+| `HEADER_AUTHORIZATION` | `Bearer <backend-token>` | Injected into every upstream request; the Python app stops holding this credential |
+
+Enable the **Connect** access mode on the connection.
+
+## 3. Restrict who can use it (access verification)
+
+Enable the `access_control` plugin and bind the connection to the allowed
+user groups. Users outside those groups cannot mint credentials for the
+connection or connect to it. Each connection points at exactly one
+destination, so authorizing a user to the connection authorizes them to that
+endpoint.
+
+## 4. Create and attach the guardrail
+
+Via the Web UI (Guardrails → New) or with curl:
+
+```bash
+curl -X POST "$HOOP_API/api/guardrails" \
+  -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @- <<'EOF'
+{
+  "name": "python-client-readonly-policy",
+  "description": "GET only, blocked admin paths, no debug headers, no secrets in payloads",
+  "connection_ids": ["<httpproxy-connection-id>"],
+  "input": {
+    "rules": [
+      {
+        "type": "pattern_match",
+        "pattern_regex": "\\A(POST|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE|CONNECT)\\s",
+        "words": [],
+        "message": "Only GET requests are permitted on this connection"
+      },
+      {
+        "type": "pattern_match",
+        "pattern_regex": "\\AGET\\s+/(admin|internal|debug)(/|\\s|\\?)",
+        "words": [],
+        "message": "This API path is blocked by policy"
+      },
+      {
+        "type": "pattern_match",
+        "pattern_regex": "(?mi)^X-Debug-Mode:",
+        "words": [],
+        "message": "Debug headers are not allowed"
+      },
+      {
+        "type": "deny_words_list",
+        "words": ["BEGIN RSA PRIVATE KEY", "aws_secret_access_key"],
+        "pattern_regex": "",
+        "message": "Request contains blocked sensitive content"
+      }
+    ]
+  },
+  "output": {
+    "rules": [
+      {
+        "type": "pattern_match",
+        "pattern_regex": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+        "words": [],
+        "message": "Response blocked: contains SSN-formatted data"
+      }
+    ]
+  }
+}
+EOF
+```
+
+Get the connection ID from `GET /api/connections/<name>` or the UI.
+
+### How matching works
+
+Input rules run against one text blob built as: request line first
+(`GET /path HTTP/1.1`), then each header on its own line, then a blank line
+and the body. Output rules run against the decompressed response body.
+
+- Regexes are evaluated by the MS Presidio analyzer, so the flavor is
+  Python `re`, not Go.
+- `\A` anchors to the start of the whole blob, i.e. the request line. Method
+  and path rules anchored this way cannot false-positive on body content.
+- `(?m)^` matches line starts anywhere, including body lines. Acceptable for
+  header rules; know the tradeoff.
+- Python `re` supports lookaheads, so path allowlists work. Block any GET
+  outside an approved set: `\AGET (?!/v1/reports|/v1/status)`.
+- In JSON, `\A` is written `\\A`.
+- A guardrail hit closes the proxy session with the rule's `message`. The next
+  request opens a new session. It is not a per-request 405.
+
+## 5. Issue the proxy token
+
+```bash
+curl -X POST "$HOOP_API/api/connections/backend-api/credentials" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"access_duration_seconds": 86400}'
+```
+
+The response returns `hostname`, `port`, and a `proxy_token` (prefix
+`httpproxy...`). Omit `access_duration_seconds` for a non-expiring credential;
+bounded credentials cap at 48h. The token is stable per user+connection pair.
+Revoke it with `POST /api/connections/<name>/credentials/<id>/revoke`. The
+same flow exists in the UI as "Open in Native Client".
+
+## 6. Point the Python client at Hoop
+
+```python
+client = httpx.Client(
+    base_url="http://gateway-host:18888",       # was: https://api.backend.example.com
+    headers={"Authorization": proxy_token},     # was: the backend bearer token
+)
+resp = client.get("/v1/reports")                # paths unchanged
+```
+
+Two config values change. No code changes, no local `hoop connect` process,
+no proxy env vars. The gateway strips the `Authorization` header before
+forwarding and the agent injects the real backend credential upstream.
+
+## 7. Verify
+
+- `client.get("/v1/reports")` returns 200; the response body passes guardrails
+  and data masking.
+- `client.post("/v1/reports", json={})` fails with "Only GET requests are
+  permitted on this connection". The next GET works again.
+- `client.get("/admin/users")` fails on the path rule.
+- Web UI → Sessions shows every request audited under the user who minted the
+  token, with guardrail hits recorded.
+
+## Why not `HTTP_PROXY` / `HTTPS_PROXY`
+
+Standard proxy env vars cannot work here. httpx issues a `CONNECT` request
+and carries TLS end to end to the destination, so the proxy sees only
+ciphertext. Inspecting HTTPS through env-var proxying requires MITM with a CA
+installed on every client, which Hoop does not do. Hoop inverts the model:
+the destination and credentials live server-side, and traffic crosses the
+agent in plaintext where policy runs. If the goal is fleet-wide egress
+interception across arbitrary destinations, that is a secure-web-gateway
+product, not Hoop.

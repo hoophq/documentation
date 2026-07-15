@@ -202,6 +202,7 @@
                   "setup/configuration/access-control-configuration",
                   "setup/configuration/abac-configuration",
                   "setup/configuration/guardrails-configuration",
+                  "setup/configuration/guardrails-http",
                   "setup/configuration/runbooks-configuration",
                   "setup/configuration/event-routing-configuration",
                   "setup/configuration/mcp-server-configuration",
