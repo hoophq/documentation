@@ -39,7 +39,7 @@ every connection reachable by name, e.g. `psql -h pg-prod.hoop`.
     ```
 
     <Note>
-      Homebrew installs the `hsh` CLI only. If you also want the [Hoop Tunnel](/clients/hsh-tunnel) daemon, install from the release archive instead — see the [tunnel installation steps](/clients/hsh-tunnel#installation).
+      The formula also installs the `hsh-tunneld` daemon for the [Hoop Tunnel](/clients/hsh-tunnel). To use the tunnel, register the daemon as a system service once: `sudo hsh-tunneld install` — see the [tunnel installation steps](/clients/hsh-tunnel#installation).
     </Note>
   </Tab>
   <Tab title="Linux">

@@ -93,9 +93,11 @@ the tunnel start at boot and stay up in the background.
     group membership to take effect.
 
     <Note>
-      If you installed `hsh` via Homebrew, the formula only installs
-      the CLI. Download the release archive as shown above to get the
-      `hsh-tunneld` daemon.
+      If you installed `hsh` via Homebrew, both binaries are already on
+      your PATH — skip the download and just register the service:
+      `sudo hsh-tunneld install`. The manual step is needed because the
+      daemon runs as a system-wide LaunchDaemon (root), which
+      `brew services` doesn't manage.
     </Note>
   </Tab>
 </Tabs>
