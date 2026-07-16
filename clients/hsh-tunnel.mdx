@@ -49,12 +49,20 @@ Linux and `/etc/resolver` on macOS.
 
 ### Which connections are tunnelable?
 
-Only TCP-based connection types: **PostgreSQL, MySQL, SQL Server,
-MongoDB, Oracle, and raw TCP**.
+TCP-based connection types — **PostgreSQL, MySQL, SQL Server, MongoDB,
+Oracle, and raw TCP** — plus
+[**HTTP proxy**](/quickstart/web-applications/http-proxy) connections.
+
+HTTP proxy connections are served on port **80** only: your client
+speaks plain HTTP to the tunnel (`curl http://api-prod.hoop/path`) and
+the Hoop agent terminates TLS to the connection's upstream. Because the
+traffic crosses the agent in cleartext, guardrails and data masking
+still apply. `https://<name>.hoop` can never work — the tunnel has no
+certificate for `*.hoop` — so connections to port 443 are rejected.
 
 Everything else is intentionally excluded from the tunnel's resolver —
-SSH, Kubernetes, HTTP-proxy, RDP, SSM, and command-line connections all
-need protocol-specific clients. Use the
+SSH, Kubernetes, RDP, SSM, and command-line connections all need
+protocol-specific clients. Use the
 [`hsh` shell plugins](/clients/hsh) for SSH and Kubernetes, and the
 `hoop` CLI or the Web App for the rest.
 
@@ -192,6 +200,9 @@ sudo hsh-tunneld status
 ## Limitations
 
 - **TCP only.** No UDP.
+- **HTTP proxy connections are plain HTTP on port 80.** The agent
+  terminates TLS to the upstream; `https://<name>.hoop` is not
+  supported.
 - **`ping` is not a valid connectivity test.** Use
   `nc -z pg-prod.hoop 5432` or the actual database client instead.
 - **Connections requiring access review** fail fast on the tunnel —
