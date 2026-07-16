@@ -1,0 +1,235 @@
+---
+title: "Hoop Tunnel"
+description: "Reach any Hoop-managed database or TCP service by name — psql -h pg-prod.hoop — with authentication, review, and audit still enforced by the gateway."
+---
+
+Hoop Tunnel makes your Hoop connections reachable as local hostnames
+under the `.hoop` domain. Once it's running, connecting to a production
+database is just:
+
+```bash
+psql -h pg-prod.hoop -U readonly
+mysql -h mysql-staging.hoop -u app -p
+```
+
+No proxies to start, no ports to remember, no tokens to paste. Any TCP
+client — `psql`, `mysql`, DBeaver, DataGrip, your application code —
+works unmodified.
+
+<Note>
+  Everything the gateway already enforces still applies. Each TCP flow
+  through the tunnel is an ordinary Hoop client session: authentication,
+  access control, session recording, data masking, and webhooks all work
+  exactly as they do with `hoop connect`.
+</Note>
+
+## How it works
+
+The tunnel is powered by `hsh-tunneld`, a small daemon bundled with the
+[`hsh` CLI](/clients/hsh). It creates a virtual network interface on
+your machine, answers DNS for `*.hoop` names, and forwards each TCP
+connection to the Hoop gateway over gRPC — the same transport the
+`hoop` CLI uses.
+
+```
+  your app                   hsh-tunneld                    hoop gateway
+  ─────────                  ────────────                   ────────────
+  psql -h pg-prod.hoop  ──▶  virtual interface + DNS
+                             each TCP flow        ──gRPC──▶ ordinary client
+                                                            session
+                                                                 │
+                                                                 ▼
+                                                            hoop agent → database
+```
+
+Every connection gets a pair of stable virtual addresses (IPv6 and
+IPv4 — the resolver answers both `AAAA` and `A`), and host DNS routing
+for `.hoop` is configured automatically — via `systemd-resolved` on
+Linux and `/etc/resolver` on macOS.
+
+### Which connections are tunnelable?
+
+Only TCP-based connection types: **PostgreSQL, MySQL, SQL Server,
+MongoDB, Oracle, and raw TCP**.
+
+Everything else is intentionally excluded from the tunnel's resolver —
+SSH, Kubernetes, HTTP-proxy, RDP, SSM, and command-line connections all
+need protocol-specific clients. Use the
+[`hsh` shell plugins](/clients/hsh) for SSH and Kubernetes, and the
+`hoop` CLI or the Web App for the rest.
+
+## Installation
+
+The daemon ships inside the `hsh` release archives from [GitHub
+Releases](https://github.com/hoophq/hsh/releases/latest) — there is
+nothing separate to download. Registration as a system service makes
+the tunnel start at boot and stay up in the background.
+
+<Tabs>
+  <Tab title="Linux">
+    ```bash
+    tar xzf hsh-linux-x64.tar.gz            # or hsh-linux-arm64.tar.gz
+    cd hsh-*/
+    sudo install -m 0755 hsh /usr/local/bin/   # the CLI
+    ./install.sh                                # registers the systemd service
+    ```
+
+    The install script registers `hsh-tunneld` as a systemd unit and
+    adds you to the `hsh` group, which gates access to the daemon's
+    control socket. Log out and back in (or run `newgrp hsh`) for the
+    group membership to take effect.
+  </Tab>
+  <Tab title="MacOS">
+    ```bash
+    tar xzf hsh-darwin-arm64.tar.gz         # or hsh-darwin-x64.tar.gz
+    cd hsh-*/
+    sudo install -m 0755 hsh /usr/local/bin/   # the CLI
+    sudo ./hsh-tunneld install                 # registers the LaunchDaemon
+    ```
+
+    `hsh-tunneld install` registers the daemon as a system-wide
+    LaunchDaemon and adds you to the `hsh` group, which gates access to
+    the daemon's control socket. Open a new terminal session for the
+    group membership to take effect.
+
+    <Note>
+      If you installed `hsh` via Homebrew, the formula only installs
+      the CLI. Download the release archive as shown above to get the
+      `hsh-tunneld` daemon.
+    </Note>
+  </Tab>
+</Tabs>
+
+Windows support is not yet available.
+
+<Note>
+  The daemon requires root: it opens a TUN device and configures host
+  DNS routing. Installation is the only step that needs `sudo` — all
+  day-to-day `hsh tunnel` commands are unprivileged.
+</Note>
+
+## Getting started
+
+<Steps>
+  <Step title="Authenticate">
+    ```bash
+    hsh login
+    ```
+
+    When the daemon is installed and reachable, `hsh login` also
+    authenticates it in the same step, and the tunnel comes up
+    automatically as soon as the daemon holds a valid token. If the
+    daemon leg fails, `hsh login` prints a warning — run
+    `hsh tunnel login` to authenticate the daemon explicitly. To skip
+    the daemon entirely, use `hsh login --no-tunnel`.
+
+    <Tip>
+      If the daemon points at the wrong gateway, set it first:
+      `hsh tunnel config set api-url https://your-company.hoop.dev`.
+    </Tip>
+  </Step>
+
+  <Step title="See what's reachable">
+    ```bash
+    hsh tunnel connections
+    ```
+
+    ```
+    Tunneled connections
+
+      pg-prod.hoop        postgres  port  5432  fd5a:1b2c:3d4e::a1b2:c3d4
+      mysql-staging.hoop  mysql     port  3306  fd5a:1b2c:3d4e::e5f6:0708
+
+      Use: psql -h <name>.hoop  /  mysql -h <name>.hoop -u … -p
+    ```
+  </Step>
+
+  <Step title="Connect">
+    ```bash
+    psql -h pg-prod.hoop -U readonly
+    ```
+
+    Use the `.hoop` hostname anywhere a regular hostname works — CLI
+    clients, GUI tools like DBeaver or TablePlus, ORMs, and local
+    development configs.
+  </Step>
+</Steps>
+
+## Command reference
+
+| Command | What it does |
+|---|---|
+| `hsh tunnel status` | Show daemon state, auth state, and the last error (if any). |
+| `hsh tunnel connections` (alias `ls`) | List the `*.hoop` hostnames currently served. |
+| `hsh tunnel refresh` | Re-fetch the connection list from the gateway now. |
+| `hsh tunnel up` | Bring the tunnel online (reuses the daemon's existing login). |
+| `hsh tunnel down` | Take the tunnel offline without logging out. |
+| `hsh tunnel login [--no-browser] [--timeout <s>]` | Authenticate the daemon (OIDC browser flow or local-auth prompt). |
+| `hsh tunnel logout` | Clear the daemon's token and tear the tunnel down. |
+| `hsh tunnel config get` | Show daemon configuration. |
+| `hsh tunnel config set <key> <value>` | Update `api-url`, `grpc-url`, or `log-level`. |
+| `hsh tunnel daemon-path` | Print the resolved daemon binary, socket, and token paths (debug helper). |
+
+`hsh tunnel up` and `down` pause and resume traffic routing without
+touching authentication — useful when you want `*.hoop` traffic stopped
+temporarily without re-running a login flow afterwards.
+
+The daemon *process* itself is owned by the operating system's service
+manager, not by `hsh`. To start, stop, or inspect the service, use the
+platform tools:
+
+```bash
+# Linux
+sudo systemctl status hsh-tunneld
+sudo journalctl -u hsh-tunneld -n 50
+
+# Any platform
+sudo hsh-tunneld status
+```
+
+## Limitations
+
+- **TCP only.** No UDP.
+- **`ping` is not a valid connectivity test.** Use
+  `nc -z pg-prod.hoop 5432` or the actual database client instead.
+- **Connections requiring access review** fail fast on the tunnel —
+  there is no per-TCP-connection approval prompt. Run
+  `hoop connect <name>` once to request access out-of-band, then use
+  the tunnel.
+- **Linux and macOS.** Windows is not yet supported.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="hsh tunnel status says 'Tunnel daemon socket not found'">
+    The daemon isn't installed or isn't running. Install it following
+    the [installation steps](#installation) above, or start the
+    existing service: `sudo systemctl start hsh-tunneld` on Linux,
+    `sudo hsh-tunneld start` on macOS.
+  </Accordion>
+  <Accordion title="Status shows 'authenticated' but connections fail with 401">
+    The daemon holds a token the gateway no longer accepts.
+    `hsh tunnel status` detects this and prints the fix — run
+    `hsh tunnel login` to re-authenticate the daemon.
+  </Accordion>
+  <Accordion title="A connection is missing from `hsh tunnel connections`">
+    Only TCP-based connection types are tunnelable (see above). If it
+    is one and still doesn't show up, run `hsh tunnel refresh` to
+    re-fetch the list, and confirm your user has access to that
+    connection in the Web App.
+  </Accordion>
+  <Accordion title="Names don't resolve (`could not translate host name`)">
+    Host DNS routing is configured automatically on bring-up. Check
+    `hsh tunnel status` shows the daemon running, then verify the
+    resolver wiring: on Linux, `resolvectl status` should list a `~hoop`
+    routing domain on the TUN interface; on macOS,
+    `cat /etc/resolver/hoop` should exist. Restarting the service
+    (`sudo systemctl restart hsh-tunneld`) re-applies the DNS setup.
+  </Accordion>
+  <Accordion title="Cannot read the control token / permission denied">
+    The daemon's IPC control token is readable by members of the `hsh`
+    group. The installer adds you to it, but group membership only
+    takes effect on a new login session — log out and back in (or run
+    `newgrp hsh`).
+  </Accordion>
+</AccordionGroup>
