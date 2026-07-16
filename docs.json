@@ -90,7 +90,8 @@
               "clients/cli-versions",
               "clients/cli-resources",
               "clients/cli-federation",
-              "clients/hsh"
+              "clients/hsh",
+              "clients/hsh-tunnel"
             ]
           },
           {
