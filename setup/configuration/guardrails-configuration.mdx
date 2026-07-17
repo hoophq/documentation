@@ -109,17 +109,23 @@ Guardrail patterns are compiled by **Microsoft Presidio**, which uses Python's `
 | `.*` | Any characters | `SELECT.*FROM` matches anything between |
 | `(?!...)` | Negative lookahead | `(?!.*WHERE)` means "not followed by WHERE" |
 
+<Warning>
+Two defaults break most SQL rules: `.` does not cross line breaks (a lookahead like `(?!.*WHERE)` only inspects the first line of a multi-line query), and `^` only matches the start of the payload (it misses the UPDATE in `SELECT 1; UPDATE ...`). Start patterns with `(?is)` and scope them by statement with `[^;]*` instead of `.*`. See [SQL Guardrail Recipes](/setup/configuration/guardrails-sql-recipes) for the full explanation.
+</Warning>
+
 ### Common Patterns
 
 **Block UPDATE without WHERE:**
 ```regex
-(?i)^\s*UPDATE\s+\w+\s+SET\s+(?!.*WHERE)
+(?is)\bupdate\b(?![^;]*\bwhere\b)[^;]*(?:;|$)
 ```
 
 **Block DELETE without WHERE:**
 ```regex
-(?i)^\s*DELETE\s+FROM\s+\w+(?!.*WHERE)
+(?is)\bdelete\b(?![^;]*\bwhere\b)[^;]*(?:;|$)
 ```
+
+Both patterns work on multi-line queries and on scripts with multiple statements: `[^;]*` in the lookahead crosses line breaks and stops at the statement boundary.
 
 **Block all DDL:**
 ```regex
@@ -133,8 +139,12 @@ Guardrail patterns are compiled by **Microsoft Presidio**, which uses Python's `
 
 **Require LIMIT clause:**
 ```regex
-(?i)SELECT\s+(?!.*\bLIMIT\b).*FROM
+(?is)\bselect\b(?![^;]*\blimit\b)[^;]*(?:;|$)
 ```
+
+<Note>
+This is a textual check: a `LIMIT` inside a subquery also satisfies it, even though the outer query stays unbounded. No regex can tell the two apart. See [What regex cannot catch](/setup/configuration/guardrails-sql-recipes#what-regex-cannot-catch) for layered alternatives.
+</Note>
 
 **Enforce read-only access** (create separate rules for each):
 
@@ -423,6 +433,8 @@ For specific users or groups that need to bypass certain rules:
 | Missing case-insensitive | `DROP TABLE` | `(?i)DROP TABLE` |
 | Missing word boundaries | `DELETE` | `\bDELETE\b` |
 | Anchoring too strict | `^DROP` | `^\s*DROP` (allows leading whitespace) |
+| Lookahead blind to later lines | `(?i)UPDATE\s+(?!.*WHERE)` | `(?is)\bupdate\b(?![^;]*\bwhere\b)` (`[^;]*` crosses line breaks) |
+| Anchor misses later statements | `(?i)^\s*UPDATE` | `(?is)\bupdate\b` scoped with `[^;]*(?:;|$)` |
 
 ### Too Many False Positives
 
@@ -447,6 +459,9 @@ If queries are slow:
 ## Related
 
 <CardGroup cols={2}>
+  <Card title="SQL Guardrail Recipes" icon="database" href="/setup/configuration/guardrails-sql-recipes">
+    Tested patterns for tautologies, subqueries, CTEs, joins, and missing WHERE clauses
+  </Card>
   <Card title="Guardrails Overview" icon="shield" href="/learn/features/guardrails">
     Learn what guardrails do and see common recipes
   </Card>

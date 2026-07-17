@@ -1,0 +1,233 @@
+---
+title: "SQL Guardrail Recipes"
+description: "Tested regex recipes for complex SQL: tautologies, subqueries, CTEs, joins, and missing WHERE clauses"
+---
+
+Simple patterns catch simple mistakes. Real queries span multiple lines, hide writes behind CTEs, and scope deletes with subqueries. This page gives you **tested patterns for those harder cases**, plus safe queries to verify each rule before it reaches production.
+
+Every pattern here was validated against Python's `re` module, the engine that evaluates guardrails, using both queries that must be blocked and legitimate queries that must pass.
+
+<Note>
+For rule creation, actions, and pattern syntax basics, see [Guardrails Configuration](/setup/configuration/guardrails-configuration).
+</Note>
+
+---
+
+## Two pitfalls that break most SQL rules
+
+Real queries span multiple lines. Real scripts contain more than one statement. These two regex details cause most false positives and false negatives:
+
+**1. `.` does not cross line breaks.** Without the `s` flag, a lookahead like `(?!.*\bWHERE\b)` only inspects the first line. This rule blocks a multi-line UPDATE **even though it has a WHERE clause**:
+
+```sql
+UPDATE users
+SET active = false
+WHERE id = 123;  -- blocked anyway: the lookahead never sees line 3
+```
+
+Fix: scope the lookahead by statement with `[^;]*` instead of `.*`. It crosses line breaks and stops at the statement boundary.
+
+**2. `^` only matches the start of the payload.** Without the `m` flag, a rule anchored on `^UPDATE` misses the UPDATE in `SELECT 1; UPDATE t SET a = 1;`. Prefer `\b` word boundaries plus per-statement scoping over anchors.
+
+The recipes below apply both fixes. They share a common shape: `(?is)` at the start (case-insensitive, dot crosses lines) and `[^;]*` to stay inside one statement.
+
+---
+
+## Recipes
+
+Each recipe is one input rule with the **Block** action, unless noted. Rule names follow the `block-*` convention; use them as-is or rename to match your setup.
+
+### block-tautology-where
+
+Blocks statements where the WHERE clause exists but does not restrict anything: `WHERE 1=1`, `WHERE TRUE`, `WHERE '1'='1'`.
+
+```regex
+(?is)\bwhere\s+\(*\s*(?:1\s*=\s*1|'1'\s*=\s*'1'|true)\s*\)*\s*(?:;|$|\breturning\b)
+```
+
+| Query | Result |
+|-------|--------|
+| `UPDATE users SET active = false WHERE 1 = 1;` | Blocked |
+| `SELECT * FROM users WHERE TRUE;` | Blocked |
+| `UPDATE t SET a = 1 WHERE (1=1) RETURNING id;` | Blocked |
+| `UPDATE users SET active = false WHERE id = 10;` | Allowed |
+| `SELECT * FROM users WHERE 1=1 AND tenant_id = 5;` | Allowed |
+| `SELECT * FROM flags WHERE enabled = true;` | Allowed |
+
+The pattern only matches when the tautology is the **last or only condition**, followed by `;`, end of input, or `RETURNING`. That keeps the common query-builder idiom `WHERE 1=1 AND <real condition>` working. To block that idiom too, remove the `;|$` alternatives.
+
+### block-write-with-subquery
+
+Blocks UPDATE and DELETE statements whose scope comes from a subquery: `IN (SELECT ...)`, `EXISTS (SELECT ...)`, `= (SELECT ...)`. These writes are hard to review because the affected rows are invisible until execution.
+
+```regex
+(?is)\b(?:update|delete)\b[^;]*\bwhere\b[^;]*\(\s*select\b
+```
+
+| Query | Result |
+|-------|--------|
+| `UPDATE users SET active = false WHERE id IN (SELECT id FROM temp_users);` | Blocked |
+| `UPDATE users SET active = false WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.user_id = users.id);` | Blocked |
+| `DELETE FROM users WHERE id = (SELECT max(id) FROM audit);` | Blocked |
+| `SELECT * FROM customers WHERE id IN (SELECT customer_id FROM orders LIMIT 10);` | Allowed |
+| `UPDATE users SET active = false WHERE id = 10;` | Allowed |
+
+Reads with subqueries stay allowed. Column names like `updated_at` do not trigger the rule: `\b` requires the exact word.
+
+### block-cte-write
+
+Blocks writes hidden behind a CTE: `WITH ... UPDATE`, `WITH ... DELETE`, `WITH ... INSERT`, `WITH ... MERGE`. A rule that only inspects the first keyword of a query sees `WITH` and lets the write through.
+
+```regex
+(?is)(?:^|;)\s*with\b[^;]*\b(?:update|delete|insert|merge)\b
+```
+
+| Query | Result |
+|-------|--------|
+| `WITH recent AS (SELECT * FROM orders) UPDATE orders SET processed = true FROM recent WHERE orders.id = recent.id;` | Blocked |
+| `SELECT 1; WITH x AS (SELECT id FROM t) DELETE FROM t USING x WHERE t.id = x.id;` | Blocked |
+| `WITH recent AS (SELECT * FROM orders) SELECT * FROM recent;` | Allowed |
+| `WITH x AS (SELECT last_update FROM t) SELECT * FROM x;` | Allowed |
+
+Read-only CTEs pass. The rule requires `WITH` at the start of a statement, so table hints like `WITH (NOLOCK)` in the middle of a query do not trigger it.
+
+### block-excessive-joins
+
+Matches statements with **3 or more JOINs**. Regex cannot parse query structure, but it can count occurrences. Adjust `{2}` to N-1 for a different threshold.
+
+```regex
+(?is)\bjoin\b(?:[^;]*\bjoin\b){2}
+```
+
+| Query | Result |
+|-------|--------|
+| `SELECT * FROM a JOIN b ON ... JOIN c ON ... LEFT JOIN (SELECT ...) x ON ...;` | Matched (4 joins) |
+| `SELECT * FROM a JOIN b ON a.id = b.id LEFT JOIN c ON b.id = c.id;` | Allowed (2 joins) |
+| `SELECT ... 2 joins ...; SELECT ... 2 joins ...;` | Allowed (per statement) |
+
+<Tip>
+Use **Require Approval** instead of Block for this rule. A complex join is not always wrong, but it usually deserves a second pair of eyes. See [Actions](/setup/configuration/guardrails-configuration#actions).
+</Tip>
+
+### block-write-without-where
+
+Blocks UPDATE and DELETE statements that have no WHERE clause at all. This is the corrected, multi-line-safe version of the classic rule.
+
+```regex
+(?is)\b(?:update|delete)\b(?![^;]*\bwhere\b)[^;]*(?:;|$)
+```
+
+| Query | Result |
+|-------|--------|
+| `UPDATE users SET active = false;` | Blocked |
+| `DELETE FROM tmp_sessions` (no trailing `;`) | Blocked |
+| `SELECT 1; UPDATE t SET a = 1;` | Blocked (second statement) |
+| Multi-line `UPDATE ... WHERE id = 123;` | Allowed |
+| `UPDATE t SET a = 1 WHERE b IN (SELECT id FROM x);` | Allowed |
+
+This rule and `block-tautology-where` are complementary and never overlap: `UPDATE ... WHERE 1=1;` triggers the tautology rule, not this one. Assign both to the same resource role for full coverage.
+
+---
+
+## Test before you deploy
+
+Never test a blocking rule with a query that would be destructive if the block fails. A typo in the pattern, or a guardrail assigned to the wrong resource role, means the query runs.
+
+The test queries below are safe on any database, including production:
+
+- **"Must block" queries** never reach the database when the rule works. They also reference tables that do not exist (`gr_test_zz`, `gr_tmp_zz`, `gr_orders_zz`), so even if the rule fails, Postgres returns `relation does not exist` and nothing changes. For an extra layer, wrap writes in `BEGIN; ...; ROLLBACK;` (neither keyword triggers these rules).
+- **"Must pass" queries** execute for real. They only read Postgres catalogs (`pg_tables`, `pg_class`) with a `LIMIT`, and the single write targets a temp table created in the same payload, discarded when the session ends. On a read-only resource role, the temp table control fails on permissions, which is harmless.
+
+With all 5 rules active on the same resource role, each blocking query below triggers **only its own rule**, so the error message tells you which rule fired.
+
+**block-tautology-where**
+```sql
+-- must block:
+UPDATE gr_test_zz SET active = false WHERE 1 = 1;
+-- must pass:
+SELECT * FROM pg_tables WHERE 1=1 AND schemaname = 'public';
+```
+
+**block-write-with-subquery**
+```sql
+-- must block:
+UPDATE gr_test_zz SET active = false WHERE id IN (SELECT id FROM gr_tmp_zz);
+-- must pass:
+SELECT * FROM pg_tables WHERE tablename IN (SELECT tablename FROM pg_tables LIMIT 5);
+```
+
+**block-cte-write**
+```sql
+-- must block:
+WITH recent AS (SELECT * FROM gr_orders_zz) UPDATE gr_orders_zz SET processed = true FROM recent WHERE gr_orders_zz.id = recent.id;
+-- must pass:
+WITH t AS (SELECT tablename FROM pg_tables) SELECT * FROM t LIMIT 5;
+```
+
+**block-excessive-joins**
+```sql
+-- must block (4 joins):
+SELECT * FROM pg_class a JOIN pg_namespace b ON a.relnamespace = b.oid JOIN pg_attribute c ON c.attrelid = a.oid LEFT JOIN (SELECT oid FROM pg_type) d ON d.oid = c.atttypid LIMIT 1;
+-- must pass (1 join):
+SELECT a.relname FROM pg_class a JOIN pg_namespace b ON a.relnamespace = b.oid LIMIT 5;
+```
+
+**block-write-without-where**
+```sql
+-- must block:
+UPDATE gr_test_zz SET active = false;
+-- must pass (single payload, temp table):
+CREATE TEMP TABLE gr_test_ok (id int, active bool); INSERT INTO gr_test_ok VALUES (1, true); UPDATE gr_test_ok SET active = false WHERE id = 1;
+```
+
+Two extra checks worth running:
+
+1. An `UPDATE ... WHERE id = 1` split across several lines must **pass** `block-write-without-where`. Multi-line queries are the main source of false positives in older rule styles.
+2. `UPDATE ... WHERE 1 = 1;` must trigger `block-tautology-where`, **not** `block-write-without-where`.
+
+---
+
+## What regex cannot catch
+
+**A `LIMIT` that only exists in a subquery is not detectable with regex.** Consider:
+
+```sql
+SELECT *
+FROM customers
+WHERE id IN (
+  SELECT customer_id FROM orders LIMIT 10
+);
+-- the outer SELECT is still unbounded
+```
+
+Two reasons no pattern can catch this reliably:
+
+1. Deciding whether the `LIMIT` belongs to the outer query or the subquery requires parsing nested parentheses. That is grammar, and regex does not parse structure.
+2. A "SELECT without LIMIT" rule does not help either: the word `LIMIT` **is present** in the text, so any textual check considers the query bounded.
+
+The same limit applies to string literals and comments: a guardrail sees plain text, so `SET note = 'where true'` can trip a tautology rule, and `/* where */` can satisfy an absence check. Rare in practice, but real. A guardrail is a textual safety belt, not a SQL parser.
+
+For unbounded reads, layer your defenses instead:
+
+- **Require Approval**: route mass-read verbs on production resource roles through [approval](/setup/configuration/guardrails-configuration#require-approval). The approver sees the query structure that regex cannot.
+- **Database-level controls**: give the resource role's database user a `statement_timeout`, a read-only role, or views with built-in limits on sensitive tables. The guardrail blocks the text; the database limits the actual cost.
+- **[Runbooks](/learn/features/runbooks)**: parameterized queries for day-to-day operations. Users fill in parameters instead of writing free-form SQL.
+
+---
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Guardrails Configuration" icon="gear" href="/setup/configuration/guardrails-configuration">
+    Rule creation, actions, pattern syntax, and troubleshooting
+  </Card>
+  <Card title="Guardrails Overview" icon="shield" href="/learn/features/guardrails">
+    What guardrails do and how they fit with other features
+  </Card>
+  <Card title="Action Access Requests" icon="clock" href="/setup/configuration/access-requests/action-configuration">
+    Configure the Require Approval action
+  </Card>
+  <Card title="Runbooks" icon="book" href="/learn/features/runbooks">
+    Parameterized queries instead of free-form SQL
+  </Card>
+</CardGroup>
