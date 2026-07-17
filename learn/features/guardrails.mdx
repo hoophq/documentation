@@ -82,7 +82,7 @@ These features work together. For example:
 ---
 
 <Note>
-Ready to set it up? The [Guardrails configuration guide](/setup/configuration/guardrails-configuration) covers prerequisites, creating rules, pattern syntax, actions, recipes, testing, and troubleshooting.
+Ready to set it up? The [Guardrails configuration guide](/setup/configuration/guardrails-configuration) covers prerequisites, creating rules, pattern syntax, actions, testing, and troubleshooting. For complex SQL (multi-line queries, subqueries, CTEs), see the [SQL Guardrail Recipes](/setup/configuration/guardrails-sql-recipes).
 </Note>
 
 ## Next Steps
@@ -90,6 +90,9 @@ Ready to set it up? The [Guardrails configuration guide](/setup/configuration/gu
 <CardGroup cols={2}>
   <Card title="Guardrails Configuration" icon="gear" href="/setup/configuration/guardrails-configuration">
     Detailed configuration options and rule syntax
+  </Card>
+  <Card title="SQL Guardrail Recipes" icon="database" href="/setup/configuration/guardrails-sql-recipes">
+    Tested patterns for subqueries, CTEs, joins, and missing WHERE clauses
   </Card>
   <Card title="Live Data Masking" icon="mask" href="/learn/features/live-data-masking">
     Automatically redact sensitive data in query results
