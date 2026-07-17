@@ -153,7 +153,7 @@ This is a textual check: a `LIMIT` inside a subquery also satisfies it, even tho
 | `(?i)^\s*INSERT\s+INTO` | INSERT statements |
 | `(?i)^\s*UPDATE\s+` | UPDATE statements |
 | `(?i)^\s*DELETE\s+FROM` | DELETE statements |
-| `(?i)^\s*(CREATE|DROP|ALTER)\s+` | DDL commands |
+| `(?i)^\s*(CREATE\|DROP\|ALTER)\s+` | DDL commands |
 
 <Tip>
 Apply read-only patterns only to resource roles used by read-only groups, not to admin resource roles.
@@ -434,7 +434,7 @@ For specific users or groups that need to bypass certain rules:
 | Missing word boundaries | `DELETE` | `\bDELETE\b` |
 | Anchoring too strict | `^DROP` | `^\s*DROP` (allows leading whitespace) |
 | Lookahead blind to later lines | `(?i)UPDATE\s+(?!.*WHERE)` | `(?is)\bupdate\b(?![^;]*\bwhere\b)` (`[^;]*` crosses line breaks) |
-| Anchor misses later statements | `(?i)^\s*UPDATE` | `(?is)\bupdate\b` scoped with `[^;]*(?:;|$)` |
+| Anchor misses later statements | `(?i)^\s*UPDATE` | `(?is)\bupdate\b` scoped with `[^;]*` to the statement end |
 
 ### Too Many False Positives
 
