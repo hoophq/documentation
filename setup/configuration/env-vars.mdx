@@ -46,9 +46,9 @@ All fields below are not required but can give you some extra configuration opti
 
 | Environment                         | Default Value           | Description  |
 | ----------------------------------- | ----------------------- |------------- |
-| ADMIN_USERNAME                      | admin                   | Changes the name of the group to act as the `admin` role |
-| AUDITOR_USERNAME                    | auditor                 | Changes the name of the group to act as the `auditor` role |
-| API_KEY                             |                         | When this environment is set, it enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
+| ADMIN_USERNAME (DEPRECATED)         | admin                   | Changes the name of the group to act as the `admin` role |
+| AUDITOR_USERNAME (DEPRECATED)       | auditor                 | Changes the name of the group to act as the `auditor` role |
+| API_KEY (DEPRECATED)                |                         | When this environment is set, it enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
 | ANALYTICS_TRACKING                  | enabled                 | Disable the analytics tracking by setting it to `disabled` |
 | DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
 | DLP_MODE                            | `best-effort`           | The redact mode policy: `best-effort` or `strict`. The former makes a best effort to redact the content and the later will return an error in case of any redaction issue.  |
@@ -75,3 +75,8 @@ All fields below are not required but can give you some extra configuration opti
 | WEBAPP_USERS_MANAGEMENT             | `on`                    | Enable the users management in the Webapp. It allows to create, edit and delete users. |
 | WEBHOOK_APPKEY                      |                         | The application key to send messages to the Svix Webhook provider. |
 | WEBHOOK_APPURL                      |                         | The Svix Server URL for self hosted setups. |
+
+<Warning>
+  `ADMIN_USERNAME`, `AUDITOR_USERNAME` and `API_KEY` are deprecated and will be removed in upcoming releases.
+  These roles and credentials can now be managed directly via the Webapp or the API.
+</Warning>
