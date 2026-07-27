@@ -289,6 +289,7 @@
           {
             "group": "Releases",
             "pages": [
+              "changelog/1.121.0",
               "changelog/1.119.4",
               "changelog/1.43.1",
               "changelog/1.43.0",
