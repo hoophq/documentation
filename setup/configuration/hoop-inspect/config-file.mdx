@@ -1,0 +1,603 @@
+---
+title: "Config File"
+description: "Every section of the hoop-inspect config file, and what startup refuses"
+---
+
+One file is the whole configuration. The relay reads it at startup, resolves every listener, and then tells you what it resolved.
+
+YAML and JSON both work, and the file extension picks the parser: `.yaml` and `.yml` go through the YAML front end, anything else is read as JSON. Decoding is **strict**, so a mistyped key fails startup instead of disabling a control without telling you.
+
+<Note>
+New to hoop-inspect? Start with [Get Started](/setup/configuration/hoop-inspect/get-started), which builds a working config one step at a time.
+</Note>
+
+---
+
+## Shape of the file
+
+Top-level `policy` and `mask` are **defaults**. Each listener is one upstream and inherits those defaults unless it overrides them.
+
+```yaml config.yaml
+log_level: info
+
+admin:
+  listen: 127.0.0.1:19000   # /healthz /stats /config /events /api/*
+
+audit:
+  file: "-"                 # stdout as JSON lines; a path appends to that file
+  async_queue_size: 1024    # a slow sink must not block a user's query
+  memory_buffer: 256        # last N events, readable at GET /events
+  query_sessions: 500       # backs GET /api/sessions
+  fail_closed: false        # true refuses a statement whose audit write failed
+
+pii:                        # omit the section to disable detection entirely
+  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
+
+policy:                     # inherited by every listener
+  enforce: true             # false is observe-only: inspect and audit, deny nothing
+  rules:
+    - name: no-cpf-in-query
+      type: pii
+      entities: [BR_CPF]
+      message: do not put a taxpayer id in a query; it lands in the database's own logs
+
+mask:                       # inherited by every listener
+  enabled: true
+  rules:
+    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+    - {name: ssn, entity: US_SSN, strategy: partial, keep_last: 4}
+
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+    connection: appdb
+    policy:
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on appdb
+    mask:
+      rules:                # REPLACES the default list rather than extending it
+        - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
+        - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+
+  - name: httpbin
+    protocol: http
+    listen: 0.0.0.0:18080
+    upstream: httpbin:8080
+    connection: httpbin
+    policy:
+      opa:
+        url: http://opa:8181/v1/data/hoop/inspect
+        fail_open: false
+      rules:
+        - name: no-admin-api
+          type: http_resource
+          resources: ["/admin/**"]
+          message: the admin API is not reachable through this proxy
+        - name: no-upstream-5xx
+          type: http_status   # response-side, so ext_authz cannot ask it
+          statuses: ["5xx"]
+          message: upstream failure suppressed by policy
+```
+
+---
+
+## Top-level sections
+
+| Key | Purpose |
+|---|---|
+| `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
+| `admin` | Health, stats and the audit query API. Disabled when `listen` is empty. |
+| `audit` | Where events go and what a failed write means. |
+| `pii` | The detector engine. Omit it and detection is off. |
+| `policy` | Default rules, OPA endpoint and enforcement for every lane. |
+| `mask` | Default response rewriting for every lane. |
+| `listeners` | One entry per upstream. |
+
+Keys starting `x-` are dropped before validation, so a YAML anchor block does not need a matching config field. See [sharing rules between lanes](#sharing-a-rule-block-between-lanes).
+
+---
+
+## Listeners
+
+Each listener is one Envoy cluster's worth of traffic with its own enforcement stack.
+
+| Field | Meaning |
+|---|---|
+| `name` | Identifies the lane in logs and in `/config`. Defaults to `connection`. |
+| `protocol` | `postgres` or `http`. Selects the codec. |
+| `listen` | Bind address, or a filesystem path when `network: unix`. |
+| `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
+| `upstream` | The real backend, `host:port`. |
+| `connection` | Operator-facing resource name recorded in audit and exposed to policy. The physical `upstream` may change under it. |
+| `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
+| `identity_header` | Names an HTTP header carrying the authenticated subject. |
+| `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
+| `max_conns` | Bounds concurrency. Zero is unlimited. |
+| `policy` | Overrides the top-level default for this lane. |
+| `mask` | Overrides the top-level default for this lane. |
+
+<Warning>
+`identity_header` trusts a header, which is safe only when nothing but your proxy can reach the listener. Bind it to loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
+</Warning>
+
+<Note>
+Leave `idle_timeout_sec` unset for interactive sessions. `psql` idles between keystrokes, and a short value disconnects a developer mid-thought.
+</Note>
+
+### Transport
+
+Each lane binds a TCP port or a unix socket. One field decides it, per listener, and **TCP is the default**: omit `network` and you get a port.
+
+```yaml
+listeners:
+  - name: appdb-tcp
+    listen: 127.0.0.1:15432         # network omitted -> tcp
+
+  - name: appdb-uds
+    network: unix                   # the only line that changes it
+    listen: /run/hoop-inspect/pg.sock
+```
+
+`network` accepts `tcp` or `unix`. Anything else fails startup, naming the lane:
+
+```
+Error: invalid config:
+  - appdb: network must be tcp or unix, got "udp"
+```
+
+Lanes in one process can differ, so you can move one lane to a socket without touching the other. Nothing above the transport changes: policy, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is.
+
+#### Choosing between them
+
+Both carry the same traffic. They differ in who can reach the lane and what it costs to set up.
+
+| | Unix socket | TCP port |
+|---|---|---|
+| Reachable by | whoever can open the file | anything that can route to the host |
+| Narrowing it | directory and file permissions | a NetworkPolicy, which narrows without removing |
+| Setup cost | both processes mount one directory and agree on uids | none |
+| Restart quirk | a stale file after SIGKILL, which the relay reclaims | none |
+| Fits | a sidecar beside one workload in one pod | separate hosts, or a laptop |
+
+A socket gives the tighter boundary: no port exists, so reachability stops being a network question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
+
+Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` to a scraper, and moving it to a socket means exec-ing into the container to read either.
+
+#### Which transport is running
+
+Three places say it, and they agree because they read the same resolved config.
+
+The startup log, one line per lane:
+
+```json
+{"msg":"hoop-inspect listening","listener":"appdb","network":"unix",
+ "listen":"/run/hoop-inspect/pg.sock","protocol":"postgres"}
+```
+
+`GET /stats`, whose `addr` is whatever the listener bound. A path means unix, a `host:port` means TCP. This is the post-bind address, so it reflects what happened rather than what you asked for:
+
+```json
+{"listeners": [
+  {"name": "appdb",   "addr": "/run/hoop-inspect/pg.sock",   "active": 0, "total": 9},
+  {"name": "httpbin", "addr": "/run/hoop-inspect/http.sock", "active": 0, "total": 7}
+]}
+```
+
+The filesystem, where the leading `s` marks a socket:
+
+```bash
+ls -l /run/hoop-inspect/
+# srwxrwxr-x 1 10001 envoy 0 pg.sock
+```
+
+#### Two permission traps
+
+Both cost real time, and neither produces a useful error on its own.
+
+**Creating the socket.** The relay needs write permission on the directory. A volume that mounts root-owned against a non-root image gives:
+
+```
+listen unix /run/hoop-inspect/pg.sock: bind: permission denied
+```
+
+**Connecting to it.** `connect()` on a unix socket requires **write** permission on the socket file, not read. Go creates a listening socket at `0777 &^ umask`, and the usual 022 clears exactly the group-write bit a peer needs. Envoy then fails with nothing useful in either log: `flags=UF` and an `upstream_cx_connect_fail` counter, while the cluster still reports healthy because the endpoint resolved.
+
+Run the relay with the peer's gid and `umask 0002` so its sockets come out group-writable. [`deploy/docker-compose/envoy-stack/uds/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/uds) does exactly this and is worth reading before you write your own.
+
+#### Stale sockets after an unclean exit
+
+Go unlinks the socket when the listener closes, so an orderly shutdown leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process.
+
+The relay reclaims it. At startup it dials the path, and a socket nothing answers on gets unlinked with a warning:
+
+```json
+{"level":"WARN","msg":"removed a stale socket file left by an unclean shutdown",
+ "listener":"appdb","listen":"/run/hoop-inspect/pg.sock"}
+```
+
+A socket that does answer is left alone and the bind fails, naming the conflict, because two relays sharing one socket would split a client's connections between them at random:
+
+```
+hoopinspect/proxy: /run/hoop-inspect/pg.sock is a live socket;
+another relay is already listening on it
+```
+
+
+### How a listener inherits
+
+| Field | Merge | Why |
+|---|---|---|
+| `policy.rules` | concatenate, listener first | Every rule denies and the first match wins, so concatenating cannot change the allow/deny outcome. Order only picks which message the user reads. |
+| `policy.opa` | replace | One lane has one decision endpoint. |
+| `policy.enforce` | replace | A lane rolling out behind an enforcing default has to be able to say observe-only. |
+| `mask` | replace | A rule owns an entity type, and two concatenated lists leave two rules competing for one entity. |
+
+Reading the file will not tell you which rules a lane ended up with, because inheritance happens at startup. Ask the running process:
+
+```bash
+curl -s localhost:19000/config | python3 -m json.tool
+```
+
+```json
+{"lanes": [
+  {"name": "appdb", "protocol": "postgres", "listen": "0.0.0.0:15432",
+   "upstream": "appdb:5432", "enforcing": true,
+   "rules": ["no-destructive-sql", "no-cpf-in-query"], "masking": true},
+  {"name": "httpbin", "protocol": "http", "listen": "0.0.0.0:18080",
+   "upstream": "httpbin:8080", "enforcing": true,
+   "rules": ["no-admin-api", "no-internal-ids", "no-upstream-5xx",
+             "no-cpf-in-query"], "masking": true}
+], "version": "0.1.0"}
+```
+
+Both lanes inherited `no-cpf-in-query`. Neither inherited the other's rules. Rule names only: a `pattern_regex` can encode business logic, and this endpoint already sits beside a read interface to the audit trail.
+
+---
+
+## Policy rules
+
+Every rule **denies**, and the first match wins. A rule set is an ordered deny list, not an allow list.
+
+| `type` | Denies when | Fields |
+|---|---|---|
+| `operation` | The classified SQL verb is listed | `operations` |
+| `table` | The statement references a listed table | `tables`, `require_table_match` |
+| `pattern_match` | An RE2 regex matches the statement text | `pattern_regex` |
+| `deny_words_list` | The text contains any word, case-insensitively | `words` |
+| `http_resource` | The normalized request path matches | `resources`, `methods` |
+| `http_status` | The response status matches | `statuses`, `methods` |
+| `pii` | The detector finds a listed entity in the statement | `entities` |
+
+Every rule also takes `name` and `message`. `message` is what the user reads on denial, delivered in the protocol's own error frame. Leave it empty and the rule falls back to a generated string naming only the rule and operation; write one.
+
+An HTTP rule never matches a SQL statement and vice versa, so one mixed rule set cannot deny the wrong protocol.
+
+### operation, not deny_words_list
+
+`operation` comes from a lexer that strips comments and string literals before looking for a verb, so `SELECT 'DROP TABLE customers'` classifies as a `select`. A word list denies that harmless query.
+
+```yaml
+- name: no-destructive-sql
+  type: operation
+  operations: [drop, delete, truncate]
+  message: destructive statements are not permitted on appdb
+```
+
+Valid SQL operations: `select`, `insert`, `update`, `delete`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `show`, `set`, `begin`, `commit`, `rollback`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
+
+### http_resource matches a normalized path
+
+`/anything/users/12345/orders/98765` normalizes to `/anything/users/*/orders/*`, so one rule replaces a regex per endpoint. A trailing `/**` matches any deeper path.
+
+```yaml
+- name: no-admin-api
+  type: http_resource
+  resources: ["/admin/**"]
+  message: the admin API is not reachable through this proxy
+```
+
+Short slugs survive normalization intact: merging `/users/alice` with `/users/settings` would widen every rule written against either, with no signal that it happened. The normalizer errs toward keeping segments, so a policy comes out too narrow rather than too broad.
+
+### http_status is the rule ext_authz cannot express
+
+`ext_authz` decides before Envoy calls the upstream, so no Envoy configuration can read a response status. This one reads it:
+
+```yaml
+- name: no-upstream-5xx
+  type: http_status
+  statuses: ["5xx"]     # exact codes ("404") and classes ("4xx") both work
+  message: upstream failure suppressed by policy
+```
+
+### pii is a guardrail, not masking
+
+Masking rewrites the response. A national ID in a `WHERE` clause has already landed in the database's own query log, slow-query log and `EXPLAIN` output, and no amount of response masking undoes that. Deny it on the way in:
+
+```yaml
+- name: no-cpf-in-query
+  type: pii
+  entities: [BR_CPF]
+  message: do not put a taxpayer id in a query; it lands in the database's own logs
+```
+
+The denial message never quotes the value it found. A message quoting the identifier it denied has published that identifier.
+
+### table matching is best effort
+
+`tables` comes from a lexer, not a SQL grammar. Empty means "could not determine" and never "touches nothing":
+
+```yaml
+- name: no-payroll
+  type: table
+  tables: [salaries]
+  require_table_match: true    # also deny when tables could not be determined
+  message: the payroll tables are not reachable through this proxy
+```
+
+Set `require_table_match: true` on rules protecting something critical, and accept the false positives.
+
+---
+
+## OPA
+
+A lane can consult an OPA Data API endpoint after its local rules pass, so a statement the local set already forbids costs no network round trip.
+
+```yaml
+policy:
+  opa:
+    url: http://opa:8181/v1/data/hoop/inspect
+    timeout_sec: 2
+    fail_open: false
+```
+
+The relay does not own policy; it owns the input document:
+
+```json
+{"input": {
+  "protocol": "http",
+  "direction": "client",
+  "operation": "delete",
+  "tables": ["/users/*"],
+  "http": {"method": "DELETE", "path": "/users/42", "resource": "/users/*"},
+  "context": {"user": "alice"}
+}}
+```
+
+Your Rego may answer `{"allow": bool}`, `{"denied": bool}`, or a bare boolean, with an optional `message` and `rule`.
+
+<Warning>
+OPA **fails closed**. An unreachable endpoint, a 500, or an undefined decision denies the statement. Set `fail_open: true` only where availability outranks enforcement.
+</Warning>
+
+---
+
+## Masking
+
+Masking runs on responses only. Requests are never rewritten: changing the statement the upstream executes is a correctness change wearing a privacy label.
+
+```yaml
+mask:
+  enabled: true
+  rules:
+    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+    - {name: cards, entity: CREDIT_CARD, strategy: partial, keep_last: 4}
+    - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
+```
+
+| Field | Meaning |
+|---|---|
+| `entity` | The entity type to rewrite wherever it appears. Required unless `columns` is set. |
+| `columns` | Result-set column names to mask outright, compared case-insensitively. |
+| `strategy` | `redact`, `mask`, `partial` or `hash`. Empty means `redact`. |
+| `keep_last` | Tail length for `partial`. Default 4. |
+| `mask_char` | Replacement rune for `mask` and `partial`. Default `*`. |
+
+| Strategy | `4111111111111111` becomes |
+|---|---|
+| `redact` | `[REDACTED:CREDIT_CARD]` |
+| `mask` | `****************` |
+| `partial` | `************1111` |
+| `hash` | `sha256:<first 16 hex>`. Equal inputs give equal outputs, so a masked column still works as a join key |
+
+### Entity rules versus column rules
+
+An **entity rule** masks by detection and applies anywhere, including inside an opaque HTTP body. A **column rule** masks by position: it works only where the protocol names its values, and there it beats detection outright, because the column does not care what the value looks like.
+
+The difference is observable. The seeded value `123-45-6789` is one the detector refuses, rejecting sequential digit runs as obvious test fixtures:
+
+```
+postgres  SELECT ssn FROM customers   →  ***-**-6789   column rule caught it
+HTTP      POST {"x":"123-45-6789"}    →  123-45-6789   no detection, no column
+```
+
+A validating detector cuts false positives on ordinary numeric ids and declines the placeholders. A column rule covers the gap wherever the protocol gives you a name to key on.
+
+### Naming your entities
+
+`pii.entities` is required and there is no all-entities default:
+
+```yaml
+pii:
+  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
+  # ignored: []      # entity types to drop from the engine's output
+  # threshold: 0.0   # minimum detection confidence
+  # allow_list: []   # literal values never reported
+```
+
+Turning on every recognizer rewrites ordinary numeric columns:
+
+```
+{"order_id":457555462,"customer_id":123456781}
+  → both masked as US_SSN
+```
+
+Nine digits in a legal range is a valid SSN as far as any detector can tell, because SSNs carry no checksum. Card, CPF and IBAN carry real checksums (Luhn, mod-11, ISO 7064), so those three leave lookalike ids alone.
+
+<Note>
+Masking needs a codec that can carry it. HTTP declares its body length in a header the relay corrects; Postgres rebuilds its length-prefixed row frames around the new values. A protocol offering neither gets its `mask` section **refused at startup**. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
+</Note>
+
+---
+
+## Audit
+
+| Field | Default | Meaning |
+|---|---|---|
+| `file` | none | JSON lines destination. `"-"` is stdout, which a container deployment wants. |
+| `redact_statements` | `false` | Replace statement text with a stable fingerprint. |
+| `max_statement_bytes` | `8192` | Truncate recorded statements. |
+| `async_queue_size` | `0` | Bounded async queue so a slow disk does not block a query. Zero writes synchronously. |
+| `memory_buffer` | `0` | Keep the last N events readable at `GET /events`. |
+| `query_sessions` | `0` | Sessions retained for the query API. Zero disables `/api/*`. |
+| `fail_closed` | `false` | Deny a statement whose audit record could not be written. |
+
+Six event kinds reach the sink: `session_start`, `statement`, `violation`, `masked`, `error`, `session_end`. A denial writes `violation` instead of `statement`, so a security team can select denials without scanning every statement anyone ever ran.
+
+<Warning>
+`fail_closed: false` is the default and it is the uncomfortable one. A dropped audit write lets the statement proceed and logs the error. Set it to `true` where proving who did what matters more than staying up.
+</Warning>
+
+The relay records what was masked, never the values:
+
+```json
+{"kind":"session_end","timestamp":"2026-07-30T18:53:34Z","session_id":"98203ccc…",
+ "principal":"anonymous","protocol":"postgres","connection":"appdb",
+ "duration_ns":11098606,"statement_count":2}
+```
+
+<Warning>
+The admin listener serves a read interface to every statement every user ran, with no authentication and no CORS of its own. Bind it to loopback or put it behind whatever already gates audit access, and never expose it on a data port.
+</Warning>
+
+---
+
+## Upstream TLS
+
+The hop from the relay to the backend can be encrypted, and it costs you no inspection.
+
+```yaml
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+    upstream_tls:
+      ca_file: /etc/hoop-inspect/certs/appdb.crt   # omit to use the host trust store
+      server_name: appdb                           # defaults to the upstream host
+      # cert_file / key_file    for mTLS
+      # insecure_skip_verify    logs a warning; do not ship it
+```
+
+The relay is the TLS **client** on that hop, so it decrypts on read and the gate inspects plaintext the same way it does without TLS. Verify it from a client session:
+
+```sql
+SELECT ssl, version FROM pg_stat_ssl WHERE pid = pg_backend_pid();
+```
+
+```
+ ssl | version
+-----+---------
+ t   | TLSv1.3
+```
+
+Three behaviors on a Postgres lane surprise people:
+
+- **Postgres negotiates in-band.** The server expects an 8-byte `SSLRequest` and a one-byte reply before any handshake. The relay speaks that exchange, so `upstream_tls` works the way the field name implies.
+- **A refusal is an error, never a downgrade.** If the server declines TLS, the connection fails with a message naming the likely cause. Sending credentials in the clear because the server said no is the outcome you were preventing.
+- **Channel binding is dropped from the server's offer.** With TLS terminating at the relay, `SCRAM-SHA-256-PLUS` cannot work. The relay removes that one mechanism, leaving plain `SCRAM-SHA-256`, which authenticates the same password against the same verifier.
+
+### The client leg is a different hop
+
+`upstream_tls` covers the relay-to-backend hop only. The relay terminates **no** downstream TLS: if the client negotiates TLS all the way through, there is no plaintext at the gate and inspection is impossible. Terminating that leg belongs to Envoy.
+
+| Leg | Encrypted by |
+|---|---|
+| client → Envoy | Envoy. An HTTPS listener does it already; a Postgres lane needs `postgres_proxy` with a `starttls` transport socket |
+| Envoy → relay | nothing, by design. These are the bytes the gate parses |
+| relay → backend | the relay, via `upstream_tls` above |
+
+Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/setup/configuration/hoop-inspect/get-started#terminating-client-tls) for the Envoy config.
+
+---
+
+## Sharing a rule block between lanes
+
+This is the reason to prefer YAML. Anchors let several listeners reference one block:
+
+```yaml
+x-readonly: &readonly
+  - name: no-writes
+    type: operation
+    operations: [insert, update, delete, drop, truncate]
+    message: this credential is read-only
+
+policy:
+  enforce: true   # without this every lane below is observe-only
+
+listeners:
+  - {name: replica-a, protocol: postgres, listen: 0.0.0.0:15432, upstream: a:5432, policy: {rules: *readonly}}
+  - {name: replica-b, protocol: postgres, listen: 0.0.0.0:15433, upstream: b:5432, policy: {rules: *readonly}}
+```
+
+---
+
+## Validate before you deploy
+
+Nothing needs to be running:
+
+```bash
+hoop start inspect --config config.yaml --validate
+```
+
+```
+config OK: 2 listener(s)
+  appdb            postgres  enforcing 2 rule(s) + masking
+  httpbin          http      enforcing 4 rule(s) + masking
+```
+
+Validation builds every lane, so it catches what a syntax check cannot, and it reports every problem in one run rather than one per restart.
+
+### What startup refuses
+
+**A key typo, in YAML or JSON:**
+
+```
+Error: parse config: json: unknown field "logLevel"
+```
+
+**A bad regex, naming the lane and the rule:**
+
+```
+Error: invalid config:
+  - appdb: policy: invalid rules: broken: bad pattern: error parsing regexp: missing closing ]: `[unclosed`
+```
+
+**A `pii` rule naming an entity absent from `pii.entities`:**
+
+```
+Error: invalid config:
+  - appdb: rule "no-cpf" names entity "BR_CPF", which the detector is not
+    configured to find; add it to pii.entities or the rule will never match
+```
+
+That last check matters more than it looks. Without it the rule loads, evaluates, and matches nothing, so a guardrail looks live while allowing through everything it was written to stop.
+
+**`mask.enabled` on a protocol whose codec can carry neither masking mechanism**, naming the lane, plus empty rule lists, duplicate listen addresses, missing upstreams and an `opa` block with no URL.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
+    Configure Envoy, run the relay, and watch a denial land in psql.
+  </Card>
+  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
+    How a request flows through the relay, and where each config knob takes effect.
+  </Card>
+</CardGroup>
