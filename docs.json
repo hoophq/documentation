@@ -206,6 +206,14 @@
                   "setup/configuration/guardrails-configuration",
                   "setup/configuration/guardrails-sql-recipes",
                   "setup/configuration/guardrails-http",
+                  {
+                    "group": "hoop-inspect",
+                    "pages": [
+                      "setup/configuration/hoop-inspect/get-started",
+                      "setup/configuration/hoop-inspect/config-file",
+                      "setup/configuration/hoop-inspect/components"
+                    ]
+                  },
                   "setup/configuration/runbooks-configuration",
                   "setup/configuration/event-routing-configuration",
                   "setup/configuration/mcp-server-configuration",

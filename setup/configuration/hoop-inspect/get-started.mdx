@@ -1,0 +1,288 @@
+---
+title: "Get Started"
+description: "Run the hoop-inspect relay from the CLI and put it behind your Envoy"
+---
+
+`hoop-inspect` is an inspecting relay. It decodes the wire protocol between a client and a database or an API, evaluates every statement against policy, records an audit trail, and masks sensitive values in the response.
+
+It routes nothing and terminates no client TLS. You run it behind something that already owns the network path and identity, which in most enterprises means Envoy.
+
+```mermaid
+flowchart LR
+    C["client<br/>psql · curl"] -->|TLS| E["envoy<br/>terminates TLS"]
+    E -.->|ext_authz| O["OPA<br/>can alice reach it?"]
+    E --> H["hoop-inspect<br/>is this DELETE allowed?"]
+    H --> U["postgres · HTTP API"]
+```
+
+Envoy answers reachability. `hoop-inspect` answers what the statement does, and what comes back.
+
+<Note>
+This runs with no gateway, no agent, and no control-plane database. One config file is the whole setup.
+</Note>
+
+---
+
+## Prerequisites
+
+- The `hoop` CLI installed. See [CLI installation](/clients/cli).
+- An Envoy you can add a cluster to, or any proxy that can forward plaintext to a local port.
+- A backend to protect: PostgreSQL or an HTTP service.
+
+---
+
+## Step 1: Write a config file
+
+One listener is one upstream. Start with a single Postgres lane and nothing else:
+
+```yaml config.yaml
+log_level: info
+
+admin:
+  listen: 127.0.0.1:19000     # /healthz, /stats, /config, /api/*
+
+audit:
+  file: "-"                   # JSON lines on stdout
+
+policy:
+  enforce: true               # false is observe-only: inspect and audit, deny nothing
+
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 127.0.0.1:15432   # where Envoy sends bytes
+    upstream: appdb:5432      # the real database
+    connection: appdb         # the name audit rows and policy key on
+    policy:
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on appdb
+```
+
+<Warning>
+`policy.enforce` defaults to **false**. Without it every lane inspects and audits but denies nothing, so a misconfigured rule cannot take production down on first deploy. Set it to `true` when you want the rules to bite.
+</Warning>
+
+---
+
+## Step 2: Validate before you deploy
+
+Nothing needs to be running. The validator builds every lane and reports every problem in one run:
+
+```bash
+hoop start inspect --config config.yaml --validate
+```
+
+```
+config OK: 1 listener(s)
+  appdb            postgres  enforcing 1 rule(s)
+```
+
+Each line is the **resolved** lane, so the rule count includes anything it inherited. A lane with an `opa` block reads `+ opa`, one with masking reads `+ masking`, and one with `enforce: false` reads `observe-only`.
+
+---
+
+## Step 3: Run it
+
+```bash
+hoop start inspect --config config.yaml
+```
+
+`--config` also reads `HOOP_INSPECT_CONFIG`, which is the shape a Kubernetes deployment wants: mount the ConfigMap, set the variable, pass no arguments.
+
+Check it came up:
+
+```bash
+curl -s localhost:19000/healthz     # ok
+curl -s localhost:19000/config | python3 -m json.tool
+```
+
+---
+
+## Step 4: Point Envoy at it
+
+`hoop-inspect` is an ordinary upstream. There is no ext_proc, no WASM, no custom Envoy filter to install. You change the cluster your listener already routes to.
+
+<Tabs>
+  <Tab title="Postgres (TCP)">
+    Envoy has no pgwire parser, so this lane is plain `tcp_proxy`. Every byte reaches the relay unexamined, which is the reason the relay earns its place here.
+
+    ```yaml envoy.yaml
+    static_resources:
+      listeners:
+        - name: postgres_ingress
+          address:
+            socket_address: { address: 0.0.0.0, port_value: 5432 }
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.tcp_proxy
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                    stat_prefix: ingress_pg
+                    cluster: hoop_inspect_pg
+
+      clusters:
+        - name: hoop_inspect_pg
+          type: STRICT_DNS
+          connect_timeout: 5s
+          load_assignment:
+            cluster_name: hoop_inspect_pg
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address: { address: hoop-inspect, port_value: 15432 }
+    ```
+  </Tab>
+  <Tab title="HTTP">
+    On HTTP you keep your existing `ext_authz` filter. Only the route's cluster changes: it points at the relay instead of at the service.
+
+    ```yaml envoy.yaml
+    route_config:
+      name: local_route
+      virtual_hosts:
+        - name: inspect
+          domains: ["*"]
+          routes:
+            - match: { prefix: "/" }
+              route:
+                cluster: hoop_inspect_http     # was: the service cluster
+                timeout: 60s
+
+    http_filters:
+      # Unchanged. OPA still answers reachability before anything is forwarded.
+      - name: envoy.filters.http.ext_authz
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+          transport_api_version: V3
+          failure_mode_allow: false
+          grpc_service:
+            envoy_grpc: { cluster_name: opa }
+            timeout: 2s
+
+      - name: envoy.filters.http.router
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    ```
+
+    Add the matching cluster pointing at the relay's HTTP listener, the same shape as the Postgres one.
+  </Tab>
+</Tabs>
+
+<Warning>
+Nothing terminates client TLS between the client and the relay. On a Postgres lane the client must connect with `PGSSLMODE=disable`, or there is no plaintext to parse and inspection is impossible. Envoy terminating TLS on that listener is the production answer. The hop from the relay **to** the database is a separate matter and can be encrypted: see [upstream TLS](/setup/configuration/hoop-inspect/config-file#upstream-tls).
+</Warning>
+
+---
+
+## Step 5: Watch it work
+
+With the lane above in place, a destructive statement never reaches the database:
+
+```bash
+PGSSLMODE=disable psql -h envoy -p 5432 -U appuser -d appdb \
+  -c 'DELETE FROM customers WHERE id = 1;'
+```
+
+```
+FATAL:  destructive statements are not permitted on appdb
+```
+
+That is a real pgwire `ErrorResponse` carrying the message you wrote in `config.yaml`, so the developer reads it in psql instead of watching a socket drop. Envoy forwarded the same bytes as opaque TCP and consulted nobody.
+
+Read what the relay recorded:
+
+```bash
+curl -s localhost:19000/stats                  | python3 -m json.tool
+curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
+```
+
+```json
+{"sessions": [
+  {"id": "98203ccc…", "principal": "anonymous", "protocol": "postgres",
+   "connection": "appdb", "duration_ms": 11,
+   "statement_count": 2, "denied_count": 1, "masked_count": 0, "verdict": "denied"}
+]}
+```
+
+---
+
+## Step 6: Add masking
+
+Masking runs on responses. Turn on detection by naming the entity types your data holds, then say how each is rewritten:
+
+```yaml config.yaml
+pii:
+  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
+
+mask:
+  enabled: true
+  rules:
+    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+    - {name: ssn,    entity: US_SSN, strategy: partial, keep_last: 4}
+```
+
+The same query now comes back rewritten:
+
+```
+     name     |          email           |     ssn     |          iban
+--------------+--------------------------+-------------+------------------------
+ Ada Lovelace | [REDACTED:EMAIL_ADDRESS] | ***-**-6789 | ******************5432
+ Grace Hopper | [REDACTED:EMAIL_ADDRESS] | ***-**-4321 | ******************3000
+```
+
+<Warning>
+`pii.entities` is required and there is no all-entities default. Turning on all 45 recognizers rewrites ordinary numeric columns: nine digits in a legal range is a valid `US_SSN` as far as any detector can tell, and it fires on about a third of random nine-digit business ids. Name the types your data contains.
+</Warning>
+
+---
+
+## Run the whole thing on your laptop
+
+The repository ships a compose stack that runs all of this end to end: Envoy terminating TLS, OPA answering reachability, the relay behind both, a seeded Postgres and an HTTP service behind that. Needs `docker`, `curl`, `openssl` and `python3`.
+
+```bash
+git clone https://github.com/hoophq/hoop
+cd hoop/deploy/docker-compose/envoy-stack
+
+./run.sh       # cert, sidecar image, compose up. First run takes a minute.
+./demo.sh      # walks every lane and prints the audit trail
+./run.sh down  # tear down, including volumes
+```
+
+| Port | Serves |
+|---|---|
+| 8443 | Envoy HTTPS, to the HTTP lane |
+| 5433 | Envoy TCP, to the Postgres lane |
+| 19000 | relay admin: `/healthz`, `/stats`, `/config`, `/events`, `/api/*` |
+| 9901 | Envoy admin |
+
+Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already.
+
+---
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules` |
+| Masking leaves a value alone | The detector may refuse it. Add a column rule, or widen `pii.entities`. |
+| The relay refuses to start | It prints every config problem at once, each naming its lane |
+| psql says SSL is required | Set `PGSSLMODE=disable`. Nothing terminates TLS on the client leg. |
+| Envoy returns 503 with `flags=UF` | Envoy cannot reach the relay. Check the cluster address and that the lane is listening. |
+| Everything is allowed | `policy.enforce` defaults to false. `/config` reports `enforcing` per lane. |
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+    Every section, every rule type, inheritance between lanes, and what startup refuses.
+  </Card>
+  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
+    How a request flows through the relay, multi-lane and unix-socket deployments, Kubernetes.
+  </Card>
+</CardGroup>
