@@ -27,8 +27,8 @@ flowchart TB
     OPA["opa :9191<br/>ext_authz · authz.rego<br/>tier 1: reachability"]
 
     subgraph si["hoop-inspect process"]
-      LH["lane httpbin<br/>http.sock · http codec"]
-      LP["lane appdb<br/>pg.sock · postgres codec"]
+      LH["lane httpbin<br/>http codec"]
+      LP["lane appdb<br/>postgres codec"]
       ADM["admin :19000<br/>/healthz /stats /config /api"]
     end
 
@@ -38,8 +38,8 @@ flowchart TB
     C -- TLS --> L8443
     C -- TCP --> L5432
     L8443 -. "gRPC, fails closed" .-> OPA
-    L8443 -- "unix socket" --> LH --> H
-    L5432 -- "unix socket" --> LP -- "TLS (pgwire StartTLS)" --> D
+    L8443 -- "socket or port" --> LH --> H
+    L5432 -- "socket or port" --> LP -- "TLS (pgwire StartTLS)" --> D
 ```
 
 Envoy sees less on each lane going down the table.
@@ -71,12 +71,12 @@ Envoy is not blind here, and an argument that says otherwise loses a technical r
 `hoop-inspect` serves one listener per Envoy cluster. Each listener resolves its own rules, its own masking and its own OPA endpoint.
 
 ```
-envoy :8443 ──cluster hoop_inspect_http──> http.sock  lane "httpbin"   http
-envoy :5432 ──cluster hoop_inspect_pg────> pg.sock    lane "appdb"     postgres
-                                                      └─ one process
+envoy :8443 ──cluster hoop_inspect_http──> lane "httpbin"   http
+envoy :5432 ──cluster hoop_inspect_pg────> lane "appdb"     postgres
+                                           └─ one process
 ```
 
-Each lane binds a unix socket here. Swap either for a `host:port` and nothing above the transport changes, because the gate reads a `net.Conn` and never asks what kind it is.
+Each lane binds a unix socket or a TCP port, set per listener. Nothing above the transport changes, because the gate reads a `net.Conn` and never asks what kind it is.
 
 Most sidecars run one lane. A per-user pod fronting both a database and an API runs two in one process instead of two containers. The relay resolves the merge between top-level defaults and a lane's overrides once at startup, and reports every broken lane in one run.
 
@@ -363,9 +363,9 @@ The query endpoints accept filters: `principal`, `connection`, `protocol`, `sinc
 
 ## Deploying it
 
-### The recommended shape: Envoy over a unix socket
+### Envoy over a unix socket
 
-A TCP listener on 15432 is reachable by anything that can route to the pod. A NetworkPolicy narrows that; it does not remove it. With a socket there is no port, so reachability stops being a network question and becomes a filesystem one, which is the argument for a sidecar sharing a namespace with one workload.
+A TCP listener on 15432 is reachable by anything that can route to the pod. A NetworkPolicy narrows that; it does not remove it. With a socket there is no port, so reachability stops being a network question and becomes a filesystem one, which is the argument for a sidecar sharing a namespace with one workload. The cost is the setup below. Where it does not fit, [a TCP port](#envoy-over-a-tcp-port) carries the same traffic.
 
 Three pieces have to agree: the lane, the Envoy cluster, and the directory both mount.
 
@@ -448,9 +448,32 @@ That is the whole list. On a TCP deployment the same command also shows `:::1543
 
 Go unlinks the socket when the listener closes, so SIGTERM leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process. The relay reclaims it at startup by dialing the path: a socket nothing answers on gets unlinked with a warning, and one that answers is left alone while the bind fails, naming the conflict. Two relays sharing a socket would split a client's connections between them at random.
 
-### When a socket does not fit
+### Envoy over a TCP port
 
-Sockets need both processes to mount one directory and agree on uids. That is cheap in a pod spec and awkward where the relay and its peer sit on different hosts. Drop `network` from the lane, give `listen` a `host:port`, and use a `STRICT_DNS` cluster. Bind loopback where the two share a network namespace: a `0.0.0.0` bind is reachable by anything that can route to the host.
+Sockets need both processes to mount one directory and agree on uids. That is cheap in a pod spec and awkward where the relay and its peer sit on different hosts. Drop `network` from the lane, give `listen` a `host:port`, and point a `STRICT_DNS` cluster at it:
+
+```yaml config.yaml
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 127.0.0.1:15432    # network omitted -> tcp
+    upstream: appdb:5432
+```
+
+```yaml envoy.yaml
+- name: hoop_inspect_pg
+  type: STRICT_DNS
+  connect_timeout: 5s
+  load_assignment:
+    cluster_name: hoop_inspect_pg
+    endpoints:
+      - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address: { address: hoop-inspect, port_value: 15432 }
+```
+
+Bind loopback where the two share a network namespace. A `0.0.0.0` bind is reachable by anything that can route to the host, and the relay authenticates nobody: it assumes whatever reaches it already passed identity.
 
 ### As a sidecar container
 
@@ -509,7 +532,7 @@ Read these before writing a policy against the relay.
 - **A response statement carries no verb.** For database codecs a server-direction statement reports `unknown`, because the operation belongs to the request the audit trail already recorded. Key a response-side SQL rule on the result, not on the operation.
 - **PII detection is neither sound nor complete.** A checksum-verified identifier holds up. Everything else is a pattern. Detecting a name column needs NER, which this does not wire, and a caller can split a value across two responses. Masking raises the cost of accidental exposure without replacing "do not grant access to that table".
 - **HTTP/1.x only for stream decoding.** HTTP/2 and HTTP/3 framing belongs to whatever terminated the connection.
-- **Plaintext downstream only.** A client negotiating TLS end to end past the relay leaves nothing to parse. Terminating that leg is Envoy's job. The upstream leg may be TLS.
+- **Plaintext at the relay.** A client negotiating TLS end to end past the relay leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, and `postgres_proxy` with a `starttls` socket covers Postgres. The upstream leg may be TLS, which the relay originates itself.
 - **Statements are not transactions.** Each one gets its own verdict, and no cross-statement session state exists.
 - **No SSH lane.** No SSH codec ships. Envoy ships no SSH filter at any fidelity either, so every service reached over SSH sits unpoliced by the Envoy and OPA layer.
 

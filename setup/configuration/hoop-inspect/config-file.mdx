@@ -152,9 +152,19 @@ Error: invalid config:
 
 Lanes in one process can differ, so you can move one lane to a socket without touching the other. Nothing above the transport changes: policy, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is.
 
-<Note>
-**Prefer a socket.** A TCP listener on 15432 is reachable by anything that can route to the host, and a NetworkPolicy narrows that without removing it. A unix socket opens no port at all, so reachability becomes a filesystem question, which is the point of a sidecar sharing a namespace with one workload. The cost is coordination: both processes need the same directory and their uids have to agree. That is cheap in a pod spec and awkward on a laptop.
-</Note>
+#### Choosing between them
+
+Both carry the same traffic. They differ in who can reach the lane and what it costs to set up.
+
+| | Unix socket | TCP port |
+|---|---|---|
+| Reachable by | whoever can open the file | anything that can route to the host |
+| Narrowing it | directory and file permissions | a NetworkPolicy, which narrows without removing |
+| Setup cost | both processes mount one directory and agree on uids | none |
+| Restart quirk | a stale file after SIGKILL, which the relay reclaims | none |
+| Fits | a sidecar beside one workload in one pod | separate hosts, or a laptop |
+
+A socket gives the tighter boundary: no port exists, so reachability stops being a network question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
 
 Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` to a scraper, and moving it to a socket means exec-ing into the container to read either.
 
@@ -501,9 +511,17 @@ Three behaviors on a Postgres lane surprise people:
 - **A refusal is an error, never a downgrade.** If the server declines TLS, the connection fails with a message naming the likely cause. Sending credentials in the clear because the server said no is the outcome you were preventing.
 - **Channel binding is dropped from the server's offer.** With TLS terminating at the relay, `SCRAM-SHA-256-PLUS` cannot work. The relay removes that one mechanism, leaving plain `SCRAM-SHA-256`, which authenticates the same password against the same verifier.
 
-<Warning>
-The client's leg is a different hop. Nothing terminates downstream TLS at the relay: if the client negotiates TLS end to end, there is no plaintext to parse and inspection is impossible. Terminating that leg is Envoy's job.
-</Warning>
+### The client leg is a different hop
+
+`upstream_tls` covers the relay-to-backend hop only. The relay terminates **no** downstream TLS: if the client negotiates TLS all the way through, there is no plaintext at the gate and inspection is impossible. Terminating that leg belongs to Envoy.
+
+| Leg | Encrypted by |
+|---|---|
+| client → Envoy | Envoy. An HTTPS listener does it already; a Postgres lane needs `postgres_proxy` with a `starttls` transport socket |
+| Envoy → relay | nothing, by design. These are the bytes the gate parses |
+| relay → backend | the relay, via `upstream_tls` above |
+
+Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/setup/configuration/hoop-inspect/get-started#terminating-client-tls) for the Envoy config.
 
 ---
 
