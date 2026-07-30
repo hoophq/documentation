@@ -207,7 +207,7 @@
                   "setup/configuration/guardrails-sql-recipes",
                   "setup/configuration/guardrails-http",
                   {
-                    "group": "hoop-inspect",
+                    "group": "Hoop Inspector Sidecar",
                     "pages": [
                       "setup/configuration/hoop-inspect/get-started",
                       "setup/configuration/hoop-inspect/config-file",
