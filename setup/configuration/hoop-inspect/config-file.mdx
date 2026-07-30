@@ -111,7 +111,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `name` | Identifies the lane in logs and in `/config`. Defaults to `connection`. |
 | `protocol` | `postgres` or `http`. Selects the codec. |
 | `listen` | Bind address, or a filesystem path when `network: unix`. |
-| `network` | `tcp` (default) or `unix`. |
+| `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
 | `upstream` | The real backend, `host:port`. |
 | `connection` | Operator-facing resource name recorded in audit and exposed to policy. The physical `upstream` may change under it. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
@@ -128,6 +128,95 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 <Note>
 Leave `idle_timeout_sec` unset for interactive sessions. `psql` idles between keystrokes, and a short value disconnects a developer mid-thought.
 </Note>
+
+### Transport
+
+Each lane binds a TCP port or a unix socket. One field decides it, per listener, and **TCP is the default**: omit `network` and you get a port.
+
+```yaml
+listeners:
+  - name: appdb-tcp
+    listen: 127.0.0.1:15432         # network omitted -> tcp
+
+  - name: appdb-uds
+    network: unix                   # the only line that changes it
+    listen: /run/hoop-inspect/pg.sock
+```
+
+`network` accepts `tcp` or `unix`. Anything else fails startup, naming the lane:
+
+```
+Error: invalid config:
+  - appdb: network must be tcp or unix, got "udp"
+```
+
+Lanes in one process can differ, so you can move one lane to a socket without touching the other. Nothing above the transport changes: policy, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is.
+
+<Note>
+**Prefer a socket.** A TCP listener on 15432 is reachable by anything that can route to the host, and a NetworkPolicy narrows that without removing it. A unix socket opens no port at all, so reachability becomes a filesystem question, which is the point of a sidecar sharing a namespace with one workload. The cost is coordination: both processes need the same directory and their uids have to agree. That is cheap in a pod spec and awkward on a laptop.
+</Note>
+
+Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` to a scraper, and moving it to a socket means exec-ing into the container to read either.
+
+#### Which transport is running
+
+Three places say it, and they agree because they read the same resolved config.
+
+The startup log, one line per lane:
+
+```json
+{"msg":"hoop-inspect listening","listener":"appdb","network":"unix",
+ "listen":"/run/hoop-inspect/pg.sock","protocol":"postgres"}
+```
+
+`GET /stats`, whose `addr` is whatever the listener bound. A path means unix, a `host:port` means TCP. This is the post-bind address, so it reflects what happened rather than what you asked for:
+
+```json
+{"listeners": [
+  {"name": "appdb",   "addr": "/run/hoop-inspect/pg.sock",   "active": 0, "total": 9},
+  {"name": "httpbin", "addr": "/run/hoop-inspect/http.sock", "active": 0, "total": 7}
+]}
+```
+
+The filesystem, where the leading `s` marks a socket:
+
+```bash
+ls -l /run/hoop-inspect/
+# srwxrwxr-x 1 10001 envoy 0 pg.sock
+```
+
+#### Two permission traps
+
+Both cost real time, and neither produces a useful error on its own.
+
+**Creating the socket.** The relay needs write permission on the directory. A volume that mounts root-owned against a non-root image gives:
+
+```
+listen unix /run/hoop-inspect/pg.sock: bind: permission denied
+```
+
+**Connecting to it.** `connect()` on a unix socket requires **write** permission on the socket file, not read. Go creates a listening socket at `0777 &^ umask`, and the usual 022 clears exactly the group-write bit a peer needs. Envoy then fails with nothing useful in either log: `flags=UF` and an `upstream_cx_connect_fail` counter, while the cluster still reports healthy because the endpoint resolved.
+
+Run the relay with the peer's gid and `umask 0002` so its sockets come out group-writable. [`deploy/docker-compose/envoy-stack/uds/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/uds) does exactly this and is worth reading before you write your own.
+
+#### Stale sockets after an unclean exit
+
+Go unlinks the socket when the listener closes, so an orderly shutdown leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process.
+
+The relay reclaims it. At startup it dials the path, and a socket nothing answers on gets unlinked with a warning:
+
+```json
+{"level":"WARN","msg":"removed a stale socket file left by an unclean shutdown",
+ "listener":"appdb","listen":"/run/hoop-inspect/pg.sock"}
+```
+
+A socket that does answer is left alone and the bind fails, naming the conflict, because two relays sharing one socket would split a client's connections between them at random:
+
+```
+hoopinspect/proxy: /run/hoop-inspect/pg.sock is a live socket;
+another relay is already listening on it
+```
+
 
 ### How a listener inherits
 
