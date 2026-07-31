@@ -1562,6 +1562,69 @@
       "customMarkupContent": "Once an AI model connects through MCP, it is no longer making suggestions. It is reading production data, calling live tools, and operating inside the same execution path as your engineers.\n\nThe default response has been to restrict MCP servers to a sandbox, strip out production context, and accept reduced usefulness.\n\nThat tradeoff is no longer necessary.\n\nThe MCP connection type routes Model Context Protocol traffic through hoop.dev before it reaches your infrastructure. With it, you can give any MCP client production access while maintaining the controls your security and compliance teams require:\n\n- Sensitive data is masked before the model sees it. PII, credentials, and secrets in tool results are redacted in real time. The model works with the schema and structure, not the raw values.\n- Credentials are never handed to the model. MCP clients authenticate through hoop.dev's SSO integration, and backend credentials are retrieved just-in-time so they never reach the model or its context window.\n- Every call is logged at the command level. More granular than session-level access records, hoop.dev captures each individual tool call with full context in a structured, searchable audit trail.\n- Guardrails block or gate actions outside approved patterns. Calls that fall outside policy can be blocked outright or routed through an approval workflow, without changing how the MCP client is invoked.\n\nThe result is that connected models interrogate real schemas, surface actual data anomalies, and act against live infrastructure without your credentials or PII leaving the controlled environment."
     },
     {
+      "id": "mcpproxy",
+      "name": "MCP Gateway",
+      "description": "Protocol-aware MCP proxy with tool-level policy and audit.",
+      "category": "ai-and-llms",
+      "icon-name": "mcp",
+      "tags": [
+        "ai",
+        "llm",
+        "security",
+        "proxy",
+        "mcp"
+      ],
+      "overview": {
+        "description": "Hoop parses every JSON-RPC message, so you control the tool call instead of the byte stream. Allow or deny individual tools, hold sensitive calls for review, catch a server that rewrites a tool description mid-session, and read an audit trail that names the tool instead of dumping an HTTP blob."
+      },
+      "setupGuide": {
+        "accessMethods": {
+          "webapp": false,
+          "cli": false,
+          "native": true,
+          "runbooks": false
+        }
+      },
+      "resourceConfiguration": {
+        "type": "httpproxy",
+        "subtype": "mcpproxy"
+      },
+      "features": {
+        "tlsTerminationProxy": {
+          "native": true,
+          "oneOff": false
+        },
+        "audit": {
+          "native": true,
+          "oneOff": false
+        },
+        "dataMaskingGoogleDLP": {
+          "native": false,
+          "oneOff": false
+        },
+        "dataMaskingMSPresidio": {
+          "native": true,
+          "oneOff": false
+        },
+        "guardrails": {
+          "native": true,
+          "oneOff": false
+        },
+        "credentialsOffload": {
+          "native": true,
+          "oneOff": false
+        },
+        "interactiveAccess": {
+          "native": false,
+          "oneOff": false
+        }
+      },
+      "documentationConfig": {
+        "path": "quickstart/ai-and-llms/mcp-gateway"
+      },
+      "customMarkupContent": "The `mcp` connection type relays Model Context Protocol traffic as opaque HTTP. That covers data masking in transit. It cannot tell a model calling `delete_issue` from the same words appearing inside a tool result.\n\nThe MCP Gateway parses every JSON-RPC message in both directions, which makes a class of controls expressible that a byte relay cannot offer:\n\n- **Tool-level allow and deny lists.** Hoop strips denied tools from `tools/list` before the model sees them, so it never attempts a call you would have blocked.\n- **Approval holds on individual tool calls.** A matched `tools/call` parks for human review while the rest of the session keeps working.\n- **Rug-pull detection.** Hoop fingerprints each tool's name, description and input schema, then kills or flags the session when a server rewrites one mid-conversation.\n- **Sampling and elicitation gating.** Hoop denies both by default, so a compromised server cannot drive your LLM or phish your users through its own dialogs.\n- **Budgets.** Cap calls per session, per-tool rates, and result size.\n- **Structured audit.** Session review names the tool that ran, its argument digest, how long it took and which rule blocked it, in place of request and response blobs.\n\nGuardrails and data masking still apply, and they now run on the free-text fields MCP has: tool-call arguments, tool descriptions and result text leaves. Masking cannot corrupt the JSON-RPC envelope, and guardrails no longer match against protocol framing, which removes a common source of false positives.\n\nHoop proxies remote MCP servers and local `stdio` servers. A stdio server runs either on the agent, so you can offer an `npx`-style server as a shared connection without hosting it yourself, or on each user's own machine, for servers that need their working tree and their credentials."
+    },
+    {
       "id": "mssql",
       "name": "Microsoft SQL Server",
       "description": "A relational database management system developed by Microsoft, offering comprehensive data management and business intelligence capabilities.",

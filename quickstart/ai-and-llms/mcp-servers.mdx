@@ -1,0 +1,208 @@
+---
+title: "MCP Server Catalog"
+description: "Every MCP server hoop can proxy, how each one authenticates, and how to configure a server that is not in the list."
+category: "ai-and-llms"
+---
+
+The **MCP Gateway** connection type ships with a catalog of publicly hosted MCP
+servers. Pick one in the connection form and hoop fills in its endpoint,
+transport and authentication mode. You supply the credential.
+
+Three authentication modes exist, and the mode decides what the form asks you
+for.
+
+| Mode | What you do | Where the credential lives |
+|---|---|---|
+| `none` | Nothing. Save the connection. | — |
+| `static` | Paste an API key or personal access token issued by the provider. | A header on the connection, named by the provider |
+| `oauth` | Click **Authorize with MCP** and complete the browser login. | `HEADER_AUTHORIZATION`, set by hoop |
+
+<Note>
+  This page is about the credential **hoop** uses to reach the MCP server. It
+  is not the token you put in your MCP client — that one proves who *you* are
+  to hoop, and is covered in
+  [Connecting an MCP Client](/quickstart/ai-and-llms/mcp-connect).
+
+  Either way the credential is stored on the connection and never reaches the
+  model or its context window. Users authenticate to hoop with their own
+  identity.
+</Note>
+
+## Configure a static-token server
+
+Static-auth providers issue you a long-lived key: a Stripe secret key, a GitHub
+personal access token, a Datadog API key. Configure one in four steps.
+
+<Steps>
+  <Step title="Create the connection">
+    Go to **Resources → New**, choose **MCP Gateway**, and give the role a name.
+  </Step>
+
+  <Step title="Pick the server">
+    Select it from the **MCP Server** dropdown. Hoop fills in the endpoint and
+    transport, then switches the authorization panel to a single token field
+    labelled with the header that provider expects.
+  </Step>
+
+  <Step title="Paste the token">
+    Paste the key the provider issued you. Choose **Secrets Manager** as the
+    credential source to have hoop fetch it from AWS Secrets Manager or
+    HashiCorp Vault instead of storing it on the connection.
+  </Step>
+
+  <Step title="Set a tool policy (optional)">
+    Deny destructive tools, or hold them for review. Tool-level control is why
+    you route MCP through a gateway, so set the policy before you hand the
+    connection out.
+  </Step>
+</Steps>
+
+<Warning>
+  The header name must match what the provider documents. Context7 requires
+  `CONTEXT7_API_KEY` and Google Maps requires `X-Goog-Api-Key`. Send a token
+  under the wrong name and the server sees an unauthenticated request, then
+  answers with an authorization error that gives you no hint. Hoop uses the
+  documented name when you pick a catalog server. You supply the name for a
+  custom server.
+</Warning>
+
+## The catalog
+
+Thirty-two servers, grouped by how they authenticate. Send a static token under
+the header named in the **Header** column.
+
+| Server | Description | Transport | Auth | Header |
+|---|---|---|---|---|
+| `atlassian` | Jira, Confluence, and Compass (official) | `sse` | oauth | — |
+| `aws-knowledge` | AWS documentation and knowledge base | `streamable-http` | none | — |
+| `box` | Box content management (official) | `streamable-http` | oauth | — |
+| `canva` | Canva design tools (official) | `streamable-http` | oauth | — |
+| `cloudflare` | Cloudflare account tooling (official) | `streamable-http` | oauth | — |
+| `cloudflare-docs` | Cloudflare documentation search (official) | `sse` | none | — |
+| `context7` | Library documentation lookup | `streamable-http` | static | `CONTEXT7_API_KEY` |
+| `datadog` | Datadog observability (official) | `streamable-http` | static | `Authorization` |
+| `excalidraw` | Excalidraw diagram generation | `streamable-http` | none | — |
+| `github` | GitHub repositories, issues, PRs (official) | `streamable-http` | static | `Authorization` |
+| `gitlab` | GitLab projects and merge requests (official) | `streamable-http` | static | `Authorization` |
+| `google-maps` | Google Maps places and directions | `streamable-http` | static | `X-Goog-Api-Key` |
+| `granola` | Granola meeting notes | `streamable-http` | oauth | — |
+| `hubspot` | HubSpot CRM (official) | `streamable-http` | oauth | — |
+| `huggingface` | Hugging Face models, datasets, Spaces (official) | `streamable-http` | none | — |
+| `jam` | Jam bug reports and recordings (official) | `streamable-http` | oauth | — |
+| `kiwi` | Kiwi.com flight search | `streamable-http` | none | — |
+| `linear` | Linear issues, projects, comments (official) | `streamable-http` | oauth | — |
+| `mcp-spec` | Model Context Protocol specification search | `streamable-http` | none | — |
+| `mermaid` | Mermaid chart rendering | `streamable-http` | oauth | — |
+| `monday` | monday.com work management (official) | `sse` | oauth | — |
+| `neon` | Neon serverless Postgres (official) | `streamable-http` | oauth | — |
+| `notion` | Notion workspaces (official) | `streamable-http` | oauth | — |
+| `paypal` | PayPal payments (official) | `streamable-http` | oauth | — |
+| `replicate` | Replicate model inference (official) | `sse` | static | `Authorization` |
+| `semgrep` | Semgrep static analysis (official) | `streamable-http` | none | — |
+| `sentry` | Sentry error tracking (official) | `streamable-http` | oauth | — |
+| `slack` | Slack messaging (official) | `streamable-http` | oauth | — |
+| `square` | Square commerce (official) | `sse` | oauth | — |
+| `stripe` | Stripe payments (official) | `streamable-http` | static | `Authorization` |
+| `vercel` | Vercel deployments (official) | `streamable-http` | oauth | — |
+| `wix` | Wix site management (official) | `streamable-http` | oauth | — |
+
+<Note>
+  Providers change endpoints and authentication requirements. If a connection
+  that used to work starts failing, check the provider's own MCP documentation
+  before assuming the connection is misconfigured.
+</Note>
+
+## Custom and self-hosted servers
+
+Choose **Custom / self-hosted** in the dropdown to configure a server the
+catalog does not know: an internal MCP server, a provider added since this
+release, or a local `stdio` server.
+
+### Remote server with a static credential
+
+Set the transport to **Streamable HTTP** (or **HTTP + SSE** for older servers)
+and enter the endpoint URL. Then add the credential as a header under
+**Headers**, using the header name the server documents:
+
+| Header | Value |
+|---|---|
+| `Authorization` | `Bearer <token>` |
+| `X-Api-Key` | `<token>` |
+
+Hoop stores each header row on the connection as `HEADER_<name>` and sends it
+on every request to the MCP server, preserving the name you typed. Both
+`X-Api-Key` and `CUSTOM_API_KEY` reach the server unchanged.
+
+### Remote server with OAuth
+
+If your server implements the MCP authorization profile (RFC 9728 discovery,
+RFC 7591 dynamic client registration, PKCE), click **Authorize with MCP**. Hoop
+runs the flow as an OAuth client and writes the resulting token into the
+connection's `Authorization` header.
+
+If the provider does not support dynamic client registration, supply a
+pre-registered **Client ID** and **Client Secret**. Whitelist this redirect URI
+with the provider:
+
+```
+https://<your-hoop-gateway>/api/mcp-oauth/callback
+```
+
+### Local stdio server
+
+A stdio server is launched from a command instead of reached at a URL. Two
+transports do this, and they differ in one thing: which machine runs it.
+
+Set the transport to **Stdio (local server run by the agent)** for a server
+that should be the same for everyone, or **Stdio (server runs on the user's
+machine)** for one that is only useful next to the person using it.
+
+```
+npx -y @modelcontextprotocol/server-filesystem /data
+```
+
+Secrets the child needs also go in **Headers**. For a stdio server the agent
+turns them into environment variables in the child process instead of HTTP
+headers.
+
+| | Agent stdio | Client stdio |
+|---|---|---|
+| Runs on | The agent host | Each user's own machine |
+| Sees | The agent's filesystem and network | The user's working tree, SSH agent, logged-in CLIs |
+| Processes | One, shared | One per connected user |
+| Runtime installed on | The agent image | Each user's machine |
+| Reached at | The gateway's MCP endpoint | `http://127.0.0.1:8081/mcp`, via `hoop connect` |
+
+<Warning>
+  An agent stdio server runs on the **agent**, not on your laptop. The command
+  must be installed and on the agent's `PATH`, and it sees the agent's
+  filesystem and network. The default agent image ships without Node or
+  Python, so an `npx`-based server needs an agent host or custom image that
+  provides the runtime.
+</Warning>
+
+<Note>
+  Client stdio moves only the process. Tool policy, guardrails, masking and
+  audit still run in the agent, so a filesystem or git server can act as the
+  user without escaping inspection. Users reach it through `hoop connect` —
+  see [Connecting an MCP Client](/quickstart/ai-and-llms/mcp-connect).
+</Note>
+
+## Tool policy
+
+Every server above supports the same controls. Tool-level control is why you
+route MCP through hoop instead of pointing the client at the server.
+
+| Setting | Effect |
+|---|---|
+| **Allowed tools** | Only matching tools are exposed. Empty means all. |
+| **Denied tools** | Matching tools are removed from `tools/list` before the model sees them. Deny wins over allow. |
+| **Tools requiring approval** | Matching calls are held for human review. |
+| **Max tool calls per session** | Caps calls before the session is cut off. |
+| **Max result size** | Truncates oversized tool results. |
+| **When a tool changes mid-session** | Kills the session or records an alert when a server rewrites a tool's description or schema, known as a rug pull. |
+| **Block sampling requests** | Stops the server driving your LLM through `sampling/createMessage`. |
+| **Block elicitation requests** | Stops the server prompting your users with its own dialogs. |
+
+Patterns are comma-separated and accept `*` as a wildcard, so `delete_*, admin_*`
+denies any tool whose name starts with either prefix.

@@ -1,0 +1,342 @@
+---
+title: "Connecting an MCP Client"
+description: "Point Claude Code, Cursor or any MCP client at an MCP Gateway connection: the endpoint, the token, and both ways to run a stdio server."
+category: "ai-and-llms"
+---
+
+An MCP Gateway connection is reached over HTTP. Your client needs two things:
+an **endpoint URL** and an **Authorization header**. Where the endpoint lives
+depends on one connection setting, so start there.
+
+## Two tokens, two different jobs
+
+Almost every MCP setup problem is these two being confused. They are unrelated.
+
+| | Proxy token | Upstream credential |
+|---|---|---|
+| Proves | *You* are allowed to use this hoop connection | *Hoop* is allowed to use the MCP server |
+| Set by | Each user, in their MCP client config | An admin, once, on the connection |
+| Looks like | `mcpproxy-a1b2c3…` | A Stripe key, a GitHub PAT, an OAuth token |
+| Travels | Your client → hoop | Hoop → the MCP server |
+| Seen by the model | Never | Never |
+
+This page is about the **proxy token**. For the upstream credential, see
+[MCP Server Catalog](/quickstart/ai-and-llms/mcp-servers).
+
+<Note>
+  Neither token reaches the model or its context window. Your client sends the
+  proxy token to hoop; hoop authenticates you, applies tool policy and masking,
+  then talks to the MCP server with the connection's own credential.
+</Note>
+
+## Which endpoint do I use?
+
+<CardGroup cols={2}>
+  <Card title="Gateway endpoint" icon="cloud">
+    For `streamable-http`, `sse` and `stdio` connections. A shared URL on your
+    hoop gateway. Nothing to install.
+  </Card>
+  <Card title="Local endpoint" icon="laptop">
+    For `client-stdio` connections. `hoop connect` opens a port on your own
+    machine and runs the MCP server there.
+  </Card>
+</CardGroup>
+
+Ask your admin which transport the connection uses, or open the connection in
+the web app and read the **Transport** field.
+
+---
+
+# Path A — Gateway endpoint
+
+Use this for remote servers (`streamable-http`, `sse`) and for agent-run
+`stdio` servers. Nothing is installed on your machine.
+
+<Steps>
+  <Step title="Open the connection">
+    In the web app, go to **Resources**, pick the MCP Gateway connection, and
+    click **Connect**.
+  </Step>
+
+  <Step title="Copy the endpoint and token">
+    The modal shows an **MCP endpoint** ending in `/mcp` and an
+    **Authorization header** value beginning `mcpproxy-`. It also renders a
+    ready-to-paste config block for Claude Code, Cursor and Devin.
+  </Step>
+
+  <Step title="Add it to your client">
+    Paste the block for your client, or use the commands below.
+
+    **Claude Code**
+
+    ```bash
+    claude mcp add --transport http hoop \
+      https://hoop.acme.com/mcp \
+      --header "Authorization: mcpproxy-YOUR-TOKEN"
+    ```
+
+    Or in `.mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "hoop": {
+          "type": "http",
+          "url": "https://hoop.acme.com/mcp",
+          "headers": {
+            "Authorization": "mcpproxy-YOUR-TOKEN"
+          }
+        }
+      }
+    }
+    ```
+
+    **Cursor** — `~/.cursor/mcp.json` for every project, or `.cursor/mcp.json`
+    for one:
+
+    ```json
+    {
+      "mcpServers": {
+        "hoop": {
+          "url": "https://hoop.acme.com/mcp",
+          "headers": {
+            "Authorization": "mcpproxy-YOUR-TOKEN"
+          }
+        }
+      }
+    }
+    ```
+
+    **Devin** — `.devin/mcp_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "hoop": {
+          "transport": "http",
+          "url": "https://hoop.acme.com/mcp",
+          "headers": {
+            "Authorization": "mcpproxy-YOUR-TOKEN"
+          }
+        }
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Restart the client and verify">
+    Restart your MCP client, then ask it to list its tools. Denied tools are
+    absent by design: hoop removes them from the catalog before the model sees
+    them, so the model never attempts a call you would have blocked.
+  </Step>
+</Steps>
+
+<Warning>
+  Claude Code treats an entry that has a `url` but no `"type"` as a stdio
+  server and silently skips it. Cursor infers the transport from `url` and
+  needs no discriminator. Devin uses `"transport"`. Copy the block for your
+  client rather than adapting another one.
+</Warning>
+
+---
+
+# Path B — Local endpoint (`client-stdio`)
+
+Use this when the connection's transport is `client-stdio`. The MCP server
+runs on **your** machine, so it sees your working tree, your SSH agent and
+your logged-in CLIs. Every tool call is still inspected by hoop first.
+
+Here is what actually happens:
+
+```
+Your MCP client
+ └─> hoop connect      a local port on your machine
+      └─> hoop gateway
+           └─> agent   policy, guardrails, masking, audit
+                └─> back to hoop connect
+                     └─> the MCP server, on your machine
+```
+
+The request leaves your machine, gets inspected, and comes back. That round
+trip is the point: the server runs locally, but nothing skips policy.
+
+<Steps>
+  <Step title="Install the hoop CLI">
+    ```bash
+    brew install hoophq/brew/hoop
+    ```
+
+    Other platforms are covered in the [CLI documentation](/clients/cli).
+  </Step>
+
+  <Step title="Install the MCP server's runtime">
+    The command the admin configured runs on your machine, so its runtime must
+    be there. An `npx`-based server needs Node; a `uvx`-based one needs Python
+    and `uv`. Ask your admin what the command is, or read it from the
+    connection page.
+  </Step>
+
+  <Step title="Log in and connect">
+    ```bash
+    hoop login
+    hoop connect my-mcp-connection
+    ```
+
+    The CLI prints the endpoint to use:
+
+    ```
+    ---------------------mcp-connection-------------------
+         endpoint=http://127.0.0.1:8081/mcp
+    ------------------------------------------------------
+    ready to accept connections!
+    ```
+
+    Leave this running. Closing it ends the session and stops the MCP server
+    process. Pass `--port 9000` if 8081 is taken.
+  </Step>
+
+  <Step title="Point your client at the local endpoint">
+    Same config as Path A with one difference: the URL is the local one the
+    CLI printed. No `Authorization` header is needed — `hoop connect` already
+    authenticated you.
+
+    ```json
+    {
+      "mcpServers": {
+        "hoop": {
+          "type": "http",
+          "url": "http://127.0.0.1:8081/mcp"
+        }
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Use it">
+    Restart your MCP client. The first tool call starts the MCP server on your
+    machine; hoop stops it when you end the session. Nothing runs until you
+    actually use the connection.
+  </Step>
+</Steps>
+
+<Warning>
+  Use the endpoint the CLI printed, not the one in the web app's Connect
+  modal. A `client-stdio` connection is only reachable through your own
+  `hoop connect` session — that is the whole point of the transport.
+</Warning>
+
+<Note>
+  Each user gets their own MCP server process. Two people on the same
+  connection never share state, and neither sees the other's files.
+</Note>
+
+---
+
+## Configuring the upstream credential
+
+Everything above is how *you* reach hoop. This is how *hoop* reaches the MCP
+server, and it is an admin task done once per connection.
+
+### Static token
+
+The provider issues a long-lived key — a Stripe secret key, a GitHub PAT, a
+Datadog API key — and hoop sends it on every request.
+
+<Steps>
+  <Step title="Create the connection">
+    **Resources → New → MCP Gateway**. Name the role.
+  </Step>
+
+  <Step title="Pick the server">
+    Choose it from the **MCP Server** dropdown. Hoop fills in the endpoint and
+    transport, then shows one token field labelled with the header that
+    provider expects.
+  </Step>
+
+  <Step title="Paste the key">
+    Paste the credential. Select **Secrets Manager** as the source to have
+    hoop fetch it from AWS Secrets Manager or HashiCorp Vault at connection
+    time instead of storing it.
+  </Step>
+
+  <Step title="Set a tool policy">
+    Deny destructive tools or hold them for review before you hand the
+    connection out. Tool-level control is the reason to route MCP through a
+    gateway.
+  </Step>
+</Steps>
+
+<Warning>
+  The header name must be exactly what the provider documents. Context7 wants
+  `CONTEXT7_API_KEY`; Google Maps wants `X-Goog-Api-Key`. A token under the
+  wrong name is an unauthenticated request, and the error the server returns
+  will not tell you that. Hoop uses the documented name for catalog servers;
+  you supply it for a custom server.
+</Warning>
+
+### OAuth
+
+Use this when the server implements the MCP authorization profile: RFC 9728
+discovery, RFC 7591 dynamic client registration, and PKCE.
+
+<Steps>
+  <Step title="Choose the server and click Authorize with MCP">
+    Hoop discovers the provider's authorization server, registers itself as a
+    client, and opens the provider's login in a browser.
+  </Step>
+
+  <Step title="Complete the login">
+    Approve the scopes the provider asks for. Hoop writes the resulting token
+    into the connection's `Authorization` header.
+  </Step>
+
+  <Step title="If the provider has no dynamic registration">
+    Register hoop manually with the provider, then supply the **Client ID** and
+    **Client Secret** in the form. Whitelist this redirect URI:
+
+    ```
+    https://your-hoop-gateway/api/mcp-oauth/callback
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Hoop brokers the OAuth flow and freezes the resulting token onto the
+  connection. Token refresh and per-user grants are not yet wired, so a
+  connection whose token expires needs re-authorizing. The agent refuses
+  `MCP_AUTH=oauth` at runtime rather than running an unauthenticated backend
+  silently.
+</Note>
+
+### No authentication
+
+Some servers need none. Leave the authorization panel empty and save. A
+`stdio` or `client-stdio` server usually falls here: it authenticates through
+its own environment, not an HTTP header.
+
+For a stdio server, secrets go in **Headers** and hoop turns them into
+environment variables in the child process rather than HTTP headers.
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| Client shows no tools | Tool policy denied them. Denied tools are removed from the catalog by design. |
+| `401` / `invalid proxy token` | The proxy token is wrong or expired. Re-copy it from the Connect modal. |
+| `connection refused` on 127.0.0.1 | `hoop connect` is not running, or is on a different port. |
+| Claude Code ignores the server | The `.mcp.json` entry has a `url` but no `"type": "http"`. |
+| Tool call fails with an auth error from the provider | The upstream credential is missing, expired, or under the wrong header name. |
+| `client-stdio` fails to start the server | The command's runtime is not installed on your machine, or not on your `PATH`. |
+
+## See also
+
+<CardGroup cols={2}>
+  <Card title="MCP Gateway" href="/quickstart/ai-and-llms/mcp-gateway">
+    What the gateway inspects and how to choose a transport.
+  </Card>
+  <Card title="MCP Server Catalog" href="/quickstart/ai-and-llms/mcp-servers">
+    Every server hoop can proxy and how each one authenticates.
+  </Card>
+</CardGroup>
