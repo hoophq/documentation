@@ -18,9 +18,14 @@ for.
 | `oauth` | Click **Authorize with MCP** and complete the browser login. | `HEADER_AUTHORIZATION`, set by hoop |
 
 <Note>
-  Whichever mode a server uses, the credential is stored on the connection and
-  never reaches the model or its context window. Users of the connection
-  authenticate to hoop with their own identity.
+  This page is about the credential **hoop** uses to reach the MCP server. It
+  is not the token you put in your MCP client — that one proves who *you* are
+  to hoop, and is covered in
+  [Connecting an MCP Client](/quickstart/ai-and-llms/mcp-connect).
+
+  Either way the credential is stored on the connection and never reaches the
+  model or its context window. Users authenticate to hoop with their own
+  identity.
 </Note>
 
 ## Configure a static-token server
@@ -145,8 +150,12 @@ https://<your-hoop-gateway>/api/mcp-oauth/callback
 
 ### Local stdio server
 
-Set the transport to **Stdio** and enter the command. The agent runs it as a
-child process and speaks MCP over its stdin and stdout.
+A stdio server is launched from a command instead of reached at a URL. Two
+transports do this, and they differ in one thing: which machine runs it.
+
+Set the transport to **Stdio (local server run by the agent)** for a server
+that should be the same for everyone, or **Stdio (server runs on the user's
+machine)** for one that is only useful next to the person using it.
 
 ```
 npx -y @modelcontextprotocol/server-filesystem /data
@@ -156,13 +165,28 @@ Secrets the child needs also go in **Headers**. For a stdio server the agent
 turns them into environment variables in the child process instead of HTTP
 headers.
 
+| | Agent stdio | Client stdio |
+|---|---|---|
+| Runs on | The agent host | Each user's own machine |
+| Sees | The agent's filesystem and network | The user's working tree, SSH agent, logged-in CLIs |
+| Processes | One, shared | One per connected user |
+| Runtime installed on | The agent image | Each user's machine |
+| Reached at | The gateway's MCP endpoint | `http://127.0.0.1:8081/mcp`, via `hoop connect` |
+
 <Warning>
-  A stdio server runs on the **agent**, not on your laptop. The command must be
-  installed and on the agent's `PATH`, and it sees the agent's filesystem and
-  network. The default agent image ships without Node or Python, so an
-  `npx`-based server needs an agent host or custom image that provides the
-  runtime.
+  An agent stdio server runs on the **agent**, not on your laptop. The command
+  must be installed and on the agent's `PATH`, and it sees the agent's
+  filesystem and network. The default agent image ships without Node or
+  Python, so an `npx`-based server needs an agent host or custom image that
+  provides the runtime.
 </Warning>
+
+<Note>
+  Client stdio moves only the process. Tool policy, guardrails, masking and
+  audit still run in the agent, so a filesystem or git server can act as the
+  user without escaping inspection. Users reach it through `hoop connect` —
+  see [Connecting an MCP Client](/quickstart/ai-and-llms/mcp-connect).
+</Note>
 
 ## Tool policy
 

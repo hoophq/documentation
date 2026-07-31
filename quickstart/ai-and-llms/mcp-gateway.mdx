@@ -22,7 +22,7 @@ The MCP Gateway parses every JSON-RPC message in both directions, which makes a 
 
 Guardrails and data masking still apply, and they now run on the free-text fields MCP has: tool-call arguments, tool descriptions and result text leaves. Masking cannot corrupt the JSON-RPC envelope, and guardrails no longer match against protocol framing, which removes a common source of false positives.
 
-Hoop proxies remote MCP servers and local `stdio` servers. The agent runs a stdio server as a child process with full process-group lifecycle, so you can offer an `npx`-style server as a connection without hosting it yourself.
+Hoop proxies remote MCP servers and local `stdio` servers. A stdio server runs either on the agent, so you can offer an `npx`-style server as a shared connection without hosting it yourself, or on each user's own machine, for servers that need their working tree and their credentials.
 
 <ConnectionTemplate config={{
   "id": "mcpproxy",
@@ -101,5 +101,18 @@ Both types can run side by side against the same upstream server, so you can mov
 - `streamable-http` is the current remote MCP protocol. Set the server URL.
 - `sse` is the legacy HTTP+SSE protocol, still used by some hosted servers.
 - `stdio` is a local server the agent spawns as a child process. Supply the command and any environment the child needs.
+- `client-stdio` is the same command, run on the machine of whoever connects. Inspection still happens in the agent; only the process moves.
+
+Both stdio transports take a command instead of a URL. They differ in one thing: which machine runs it.
+
+| | `stdio` | `client-stdio` |
+|---|---|---|
+| Runs on | The agent host | Each user's own machine |
+| Sees | The agent's filesystem and network | The user's working tree, SSH agent, logged-in CLIs |
+| Started by | The agent, shared by all users | `hoop connect`, one process per user |
+| Runtime must be installed on | The agent image | Each user's machine |
+| Client points at | The gateway's MCP endpoint | `http://127.0.0.1:8081/mcp` |
+
+Choose `stdio` for a server that is the same for everyone: a hosted API wrapper, a shared database tool. Choose `client-stdio` for a server that is only useful next to the user: filesystem, git, or anything that should act as that person rather than as a shared service account.
 
 [Talk to our team](https://dub.sh/G85aUr8) if you want to discuss your setup before deploying.
