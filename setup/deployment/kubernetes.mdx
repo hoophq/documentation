@@ -475,6 +475,59 @@ config:
   (...)
 ```
 
+### Using an Existing Secret
+
+The `config` section is rendered by the chart into a Secret named `hoop-config`.
+When sensitive values are managed outside the chart — External Secrets Operator, Sealed Secrets,
+Vault Agent, terraform or plain `kubectl` — reference that Secret with the `existingSecret` attribute
+instead of writing the values in your `values.yaml`.
+
+```yaml
+existingSecret: 'hoop-gateway-credentials'
+```
+
+The chart only references the Secret, it never creates or manages it. The Secret must exist in the
+same namespace as the release and every key becomes an environment variable in the gateway container,
+so the key names must match the [environment variables](/setup/configuration/env-vars).
+
+```sh
+kubectl create secret generic hoop-gateway-credentials -n hoopdev \
+  --from-literal=POSTGRES_DB_URI='postgres://hoopuser:<passwd>@<db-host>:5432/hoopdb' \
+  --from-literal=IDP_CLIENT_SECRET='<client-secret>'
+```
+
+<Note>
+  The Secret is loaded after `hoop-config`, which means any key defined in it overrides the same
+  attribute set in the `config` section.
+</Note>
+
+The attributes `POSTGRES_DB_URI` and `API_URL` are validated when the chart is installed, thus they
+must be set even when their real values come from the Secret. Use a placeholder value in this case:
+
+```yaml
+config:
+  POSTGRES_DB_URI: 'from-secret'
+  API_URL: 'from-secret'
+
+existingSecret: 'hoop-gateway-credentials'
+```
+
+<Tip>
+  Prefer a placeholder that is not a valid connection string, like `from-secret`. The gateway refuses
+  to start with it, which surfaces a missing or misnamed key in the Secret immediately, instead of
+  starting with the wrong configuration.
+</Tip>
+
+<Warning>
+  Updating the referenced Secret does not restart the gateway, the environment variables are only
+  resolved when the container starts. Roll out the deployment after changing it:
+  `kubectl rollout restart deployment/hoopgateway -n hoopdev`
+</Warning>
+
+The Secret is loaded into the gateway container only. When the
+[default agent sidecar](#default-agent-sidecar) is enabled, it keeps reading its configuration from
+`hoop-config`.
+
 ### TLS Configuration
 
 Starting with version **1.45+**,we are transitioning to expose native protocols directly on the Gateway, eliminating the need to forward ports locally through the Hoop Command Line.
