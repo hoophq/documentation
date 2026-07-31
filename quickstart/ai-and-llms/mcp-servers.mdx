@@ -5,11 +5,11 @@ category: "ai-and-llms"
 ---
 
 The **MCP Gateway** connection type ships with a catalog of publicly hosted MCP
-servers. Picking one in the connection form fills in its endpoint, transport
-and authentication mode, so the only thing left is the credential.
+servers. Pick one in the connection form and hoop fills in its endpoint,
+transport and authentication mode. You supply the credential.
 
-Servers fall into three authentication modes, and the mode decides what the
-form asks you for.
+Three authentication modes exist, and the mode decides what the form asks you
+for.
 
 | Mode | What you do | Where the credential lives |
 |---|---|---|
@@ -23,10 +23,10 @@ form asks you for.
   authenticate to hoop with their own identity.
 </Note>
 
-## Configuring a static-token server
+## Configure a static-token server
 
 Static-auth providers issue you a long-lived key: a Stripe secret key, a GitHub
-personal access token, a Datadog API key. Configure one like this:
+personal access token, a Datadog API key. Configure one in four steps.
 
 <Steps>
   <Step title="Create the connection">
@@ -34,37 +34,37 @@ personal access token, a Datadog API key. Configure one like this:
   </Step>
 
   <Step title="Pick the server">
-    Select it from the **MCP Server** dropdown. The endpoint and transport fill
-    in automatically, and the authorization panel switches to a single token
-    field labelled with the header that provider expects.
+    Select it from the **MCP Server** dropdown. Hoop fills in the endpoint and
+    transport, then switches the authorization panel to a single token field
+    labelled with the header that provider expects.
   </Step>
 
   <Step title="Paste the token">
-    Paste the key issued by the provider. Use **Secrets Manager** as the
-    credential source if you would rather hoop fetch it from AWS Secrets
-    Manager or HashiCorp Vault than store it directly.
+    Paste the key the provider issued you. Choose **Secrets Manager** as the
+    credential source to have hoop fetch it from AWS Secrets Manager or
+    HashiCorp Vault instead of storing it on the connection.
   </Step>
 
   <Step title="Set a tool policy (optional)">
-    Deny destructive tools, or hold them for review. This is the reason to run
-    MCP through a gateway rather than pointing a client at the server, so it is
-    worth doing before you hand the connection out.
+    Deny destructive tools, or hold them for review. Tool-level control is why
+    you route MCP through a gateway, so set the policy before you hand the
+    connection out.
   </Step>
 </Steps>
 
 <Warning>
-  The header name matters exactly. Context7 requires `CONTEXT7_API_KEY` and
-  Google Maps requires `X-Goog-Api-Key` — a token sent under the wrong header
-  name is an unauthenticated request, and the server answers with an
-  authorization error rather than a hint. When you pick a catalog server, hoop
-  uses the name that server documents. When you configure a custom server, you
-  supply the name yourself.
+  The header name must match what the provider documents. Context7 requires
+  `CONTEXT7_API_KEY` and Google Maps requires `X-Goog-Api-Key`. Send a token
+  under the wrong name and the server sees an unauthenticated request, then
+  answers with an authorization error that gives you no hint. Hoop uses the
+  documented name when you pick a catalog server. You supply the name for a
+  custom server.
 </Warning>
 
 ## The catalog
 
-Thirty-two servers, grouped by how they authenticate. The **Header** column is
-the header name a static token must be sent under.
+Thirty-two servers, grouped by how they authenticate. Send a static token under
+the header named in the **Header** column.
 
 | Server | Description | Transport | Auth | Header |
 |---|---|---|---|---|
@@ -124,16 +124,16 @@ and enter the endpoint URL. Then add the credential as a header under
 | `Authorization` | `Bearer <token>` |
 | `X-Api-Key` | `<token>` |
 
-Header rows are stored on the connection as `HEADER_<name>` and sent on every
-request to the MCP server. The name is preserved exactly as you type it, so
-both `X-Api-Key` and `CUSTOM_API_KEY` reach the server unchanged.
+Hoop stores each header row on the connection as `HEADER_<name>` and sends it
+on every request to the MCP server, preserving the name you typed. Both
+`X-Api-Key` and `CUSTOM_API_KEY` reach the server unchanged.
 
 ### Remote server with OAuth
 
 If your server implements the MCP authorization profile (RFC 9728 discovery,
 RFC 7591 dynamic client registration, PKCE), click **Authorize with MCP**. Hoop
-performs the flow as an OAuth client, and the resulting token is frozen into
-the connection's `Authorization` header.
+runs the flow as an OAuth client and writes the resulting token into the
+connection's `Authorization` header.
 
 If the provider does not support dynamic client registration, supply a
 pre-registered **Client ID** and **Client Secret**. Whitelist this redirect URI
@@ -152,8 +152,9 @@ child process and speaks MCP over its stdin and stdout.
 npx -y @modelcontextprotocol/server-filesystem /data
 ```
 
-Secrets the child needs go in **Headers** as well, but for a stdio server they
-become environment variables in the child process rather than HTTP headers.
+Secrets the child needs also go in **Headers**. For a stdio server the agent
+turns them into environment variables in the child process instead of HTTP
+headers.
 
 <Warning>
   A stdio server runs on the **agent**, not on your laptop. The command must be
@@ -165,8 +166,8 @@ become environment variables in the child process rather than HTTP headers.
 
 ## Tool policy
 
-Every server above supports the same controls, which is the reason to route MCP
-through hoop rather than configuring the client directly:
+Every server above supports the same controls. Tool-level control is why you
+route MCP through hoop instead of pointing the client at the server.
 
 | Setting | Effect |
 |---|---|
@@ -175,9 +176,9 @@ through hoop rather than configuring the client directly:
 | **Tools requiring approval** | Matching calls are held for human review. |
 | **Max tool calls per session** | Caps calls before the session is cut off. |
 | **Max result size** | Truncates oversized tool results. |
-| **When a tool changes mid-session** | Kills the session or records an alert when a server rewrites a tool's description or schema — a rug pull. |
+| **When a tool changes mid-session** | Kills the session or records an alert when a server rewrites a tool's description or schema, known as a rug pull. |
 | **Block sampling requests** | Stops the server driving your LLM through `sampling/createMessage`. |
 | **Block elicitation requests** | Stops the server prompting your users with its own dialogs. |
 
 Patterns are comma-separated and accept `*` as a wildcard, so `delete_*, admin_*`
-denies every tool whose name starts with either prefix.
+denies any tool whose name starts with either prefix.

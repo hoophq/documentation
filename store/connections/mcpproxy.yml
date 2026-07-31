@@ -10,7 +10,7 @@ tags:
   - proxy
   - mcp
 overview:
-  description: Every JSON-RPC message is parsed, so control happens at the tool call rather than the byte stream. Allow or deny individual tools, hold sensitive calls for review, detect tools whose description changes mid-session, and get an audit trail that names the tool instead of dumping an HTTP blob.
+  description: Hoop parses every JSON-RPC message, so you control the tool call instead of the byte stream. Allow or deny individual tools, hold sensitive calls for review, catch a server that rewrites a tool description mid-session, and read an audit trail that names the tool instead of dumping an HTTP blob.
 setupGuide:
   accessMethods:
     webapp: false
@@ -45,34 +45,34 @@ features:
 documentationConfig:
   path: quickstart/ai-and-llms/mcp-gateway
 customMarkupContent: |-
-  The `mcp` connection type relays Model Context Protocol traffic as opaque HTTP. That is enough to mask data in transit, but it cannot tell the difference between a model calling `delete_issue` and the same words appearing inside a tool result.
+  The `mcp` connection type relays Model Context Protocol traffic as opaque HTTP. That covers data masking in transit. It cannot tell a model calling `delete_issue` from the same words appearing inside a tool result.
 
-  The MCP Gateway parses every JSON-RPC message in both directions. That single change makes a class of controls expressible that a byte relay cannot offer:
+  The MCP Gateway parses every JSON-RPC message in both directions, which makes a class of controls expressible that a byte relay cannot offer:
 
-  - **Tool-level allow and deny lists.** Denied tools are stripped from `tools/list` before the model ever sees them, so it does not attempt a call it cannot make.
-  - **Approval holds on individual tool calls.** A matched `tools/call` parks for human review; the rest of the session keeps working.
-  - **Rug-pull detection.** Hoop fingerprints each tool's name, description and input schema. If a server silently rewrites a tool mid-session, the session is killed or flagged.
-  - **Sampling and elicitation gating.** A compromised server cannot drive your LLM or phish your users through elicitation dialogs; both are denied by default.
+  - **Tool-level allow and deny lists.** Hoop strips denied tools from `tools/list` before the model sees them, so it never attempts a call you would have blocked.
+  - **Approval holds on individual tool calls.** A matched `tools/call` parks for human review while the rest of the session keeps working.
+  - **Rug-pull detection.** Hoop fingerprints each tool's name, description and input schema, then kills or flags the session when a server rewrites one mid-conversation.
+  - **Sampling and elicitation gating.** Hoop denies both by default, so a compromised server cannot drive your LLM or phish your users through its own dialogs.
   - **Budgets.** Cap calls per session, per-tool rates, and result size.
-  - **Structured audit.** Session review shows which tool ran, with what argument digest, how long it took and which rule blocked it, instead of request and response blobs.
+  - **Structured audit.** Session review names the tool that ran, its argument digest, how long it took and which rule blocked it, in place of request and response blobs.
 
-  Guardrails and data masking still apply, but they now run on exactly the free-text fields MCP has: tool-call arguments, tool descriptions and result text leaves. Masking cannot corrupt the JSON-RPC envelope, and guardrails stop matching against protocol framing, which removes a common source of false positives.
+  Guardrails and data masking still apply, and they now run on the free-text fields MCP has: tool-call arguments, tool descriptions and result text leaves. Masking cannot corrupt the JSON-RPC envelope, and guardrails no longer match against protocol framing, which removes a common source of false positives.
 
-  Both remote MCP servers and local `stdio` servers are supported. A stdio server runs as a child process under agent control with full process-group lifecycle, so an `npx`-style server is a first-class connection rather than something you have to host yourself.
+  Hoop proxies remote MCP servers and local `stdio` servers. The agent runs a stdio server as a child process with full process-group lifecycle, so you can offer an `npx`-style server as a connection without hosting it yourself.
 
 additionalInformation: |-
   ### Choosing between MCP and MCP Gateway
 
-  The `MCP` connection type is a byte-level HTTP relay. It is the right choice when you only need TLS termination, session recording and data masking in front of a remote MCP endpoint.
+  The `MCP` connection type is a byte-level HTTP relay. Choose it when you need TLS termination, session recording and data masking in front of a remote MCP endpoint.
 
-  The `MCP Gateway` connection type parses the protocol. Choose it when you need any control that names a tool: allow and deny lists, per-tool approvals, rug-pull detection, budgets, or an audit trail a reviewer can read.
+  The `MCP Gateway` connection type parses the protocol. Choose it when you need control that names a tool: allow and deny lists, per-tool approvals, rug-pull detection, budgets, or an audit trail a reviewer can read.
 
   Both types can run side by side against the same upstream server, so you can move one connection at a time.
 
   ### Transports
 
-  - `streamable-http` — the current remote MCP protocol. Set the server URL.
-  - `sse` — the legacy HTTP+SSE protocol, still used by some hosted servers.
-  - `stdio` — a local server the agent spawns as a child process. Supply the command and any environment the child needs.
+  - `streamable-http` is the current remote MCP protocol. Set the server URL.
+  - `sse` is the legacy HTTP+SSE protocol, still used by some hosted servers.
+  - `stdio` is a local server the agent spawns as a child process. Supply the command and any environment the child needs.
 
   [Talk to our team](https://dub.sh/G85aUr8) if you want to discuss your setup before deploying.
