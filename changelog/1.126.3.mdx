@@ -1,0 +1,85 @@
+---
+title: "1.126.3"
+description: "Native MSSQL guardrails, license-based feature control, a redesigned Jira Templates page, MCP static OAuth login, and a new setup progress checklist — plus data masking and deployment refinements."
+---
+
+### TL;DR
+- **New Features:** Native MSSQL guardrails, license-based feature entitlements, MCP static OAuth login, a setup progress checklist, and redesigned Jira, Slack, and Webhooks pages.
+- **Improvements:** Clearer Live Data Masking thresholds and Access Request rules that can apply to every user.
+- **Bug Fixes:** Consistent notifications and MSSQL guardrails that use your configured DLP provider.
+
+---
+
+### New Features
+**More control over access, integrations, and setup.**
+
+- **Native guardrails for MSSQL**
+  MSSQL connections now enforce configured input guardrail rules natively end to end, blocking violating statements while keeping the same connection usable.
+  [PR #1630](https://github.com/hoophq/hoop/pull/1630)
+
+- **License-based feature control**
+  Your license can now specify exactly which features are enabled, and the app hides menu items and blocks routes for anything not included — an empty list keeps everything on.
+  [PR #1631](https://github.com/hoophq/hoop/pull/1631)
+
+- **Per-user OAuth login for MCP with pre-registered clients**
+  MCP connections can now authenticate with identity providers that don't support dynamic client registration, such as JumpCloud, Okta, and Azure AD, by configuring a pre-registered OAuth client.
+  [PR #1646](https://github.com/hoophq/hoop/pull/1646)
+
+- **Setup progress checklist in the sidebar**
+  Admins now see a configuration checklist in the sidebar showing exactly what's left to set up, with direct links to each step, alongside a new lighter sidebar look.
+  [PR #1642](https://github.com/hoophq/hoop/pull/1642)
+
+- **Redesigned Jira Templates setup**
+  Jira integration and Jira Templates now live on a single, redesigned setup page where you configure the connection to your Jira instance and build issue templates — including a searchable Jira Assets picker for CMDB rules — all in one place.
+  [PR #1634](https://github.com/hoophq/hoop/pull/1634)
+
+- **Redesigned Slack and Webhooks pages**
+  The Slack and Webhooks integration pages have been rebuilt with per-connection enable toggles, channel configuration, and token setup on dedicated, admin-only pages.
+  [PR #1633](https://github.com/hoophq/hoop/pull/1633)
+
+- **Deploy the gateway with an existing secret**
+  The gateway Helm chart now lets you reference an existing secret when deploying, giving you more control over how credentials are supplied.
+  [PR #1660](https://github.com/hoophq/hoop/pull/1660)
+
+---
+
+### Improvements
+**Clearer defaults and more flexible rules.**
+
+- **Clearer Live Data Masking confidence threshold**
+  New Live Data Masking rules now start with the advertised 85% confidence threshold pre-filled instead of silently applying none, and the field help text now explains what the value does and what leaving it empty means.
+  [PR #1644](https://github.com/hoophq/hoop/pull/1644)
+
+- **Access Request rules for all user groups**
+  Access Request rules can now apply to every user group by leaving the user groups field empty, so all users go through review, with clearer field descriptions on the rule form.
+  [PR #1654](https://github.com/hoophq/hoop/pull/1654)
+
+---
+
+### Bug Fixes
+**Consistent notifications and correct guardrail enforcement.**
+
+- **Consistent notifications everywhere**
+  Notifications now appear consistently in the top-right corner with a single visual style across the whole platform, instead of varying in position and design depending on the page.
+  [PR #1638](https://github.com/hoophq/hoop/pull/1638)
+
+- **MSSQL guardrails honor your DLP provider**
+  Native MSSQL guardrails now use your configured DLP provider and Presidio endpoints, so advanced lookahead patterns are enforced correctly instead of falling back to the local engine, while no-provider deployments continue to work as before.
+  [PR #1659](https://github.com/hoophq/hoop/pull/1659)
+
+- **Reliable OCR deployment**
+  Resolved an issue with the OCR image deployment.
+  [PR #1657](https://github.com/hoophq/hoop/pull/1657)
+
+---
+
+### Infrastructure
+**New building blocks for protocol-aware inspection.**
+
+- **Protocol-aware inspection sidecar**
+  A new inspection component turns raw Postgres and HTTP traffic into structured statements and allow-or-deny verdicts, with normalized resources, response-side masking strategies, and built-in PII and secret detection across many entity types.
+  [PR #1651](https://github.com/hoophq/hoop/pull/1651)
+
+---
+
+Less friction, tighter control, faster connections.
