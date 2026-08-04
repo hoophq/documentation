@@ -1,0 +1,179 @@
+---
+title: 'Container Images'
+description: 'Choose the Hoop gateway and agent images for your deployment'
+---
+
+Hoop publishes separate gateway and agent images. They are not interchangeable: the gateway runs the control plane, while agents connect to the gateway and reach your protected resources.
+
+Use the same Hoop release for the gateway and its agents. In production, select an explicit release tag and pin the image by digest when you need immutable bytes.
+
+## Choose an image line
+
+| Goal | Gateway | Agent | Recommendation |
+| --- | --- | --- | --- |
+| Broadest compatibility | `hoophq/hoop` | `hoophq/hoopdev` | The default. Use it when agents need the bundled database, cloud, and shell tooling. |
+| Smallest runtime and lowest dependency surface | `hoophq/hoop` | `hoophq/hoopdev-minimal` | Use it for native database, HTTP, and TCP proxy connections, or as a base for your own agent image. |
+| AGPL/SSPL-free image repositories | `hoophq/hoop-ng` | `hoophq/hoopdev-ng` | Use the `-ng` Helm charts when your software policy requires the clean-only image line. |
+| Realtime PII protection for RDP | `hoophq/hoop` | `hoophq/hoop-agent-ocr` | Use only for agents that run the RDP PII guard. Choose the CPU or GPU tag. |
+
+<Note>
+`minimal` and `-ng` solve different problems. The minimal agent removes bundled client toolchains to reduce image size and vulnerability surface. The `-ng` line keeps a broad toolkit but excludes AGPL/SSPL components and uses repositories with clean-only history.
+</Note>
+
+## Gateway images
+
+### `hoophq/hoop`
+
+The standard gateway image runs the Hoop API, web application, gateway listeners, and database migrations. It can also run an agent, but production deployments normally use a separate agent image.
+
+**Use it when:** you are using the standard Docker Compose or Helm deployment. This is the default gateway image.
+
+### `hoophq/hoop-ng`
+
+The clean-line gateway is a manifest-for-manifest copy of the standard gateway published in a dedicated clean-only repository. The gateway contents are already AGPL/SSPL-free; the separate repository provides a bright-line image history for compliance controls.
+
+**Use it when:** your policy requires the entire deployment to pull from clean-only repositories. Pair it with `hoophq/hoopdev-ng` through the `hoop-ng` Helm chart.
+
+## Agent images
+
+### `hoophq/hoopdev`
+
+The compatibility-first agent includes the Hoop agent and a broad runtime toolkit, including:
+
+- PostgreSQL, MySQL, MongoDB, Microsoft SQL Server, Oracle, ODBC, and Redis clients
+- `kubectl`, AWS CLI and Session Manager Plugin, and Google Cloud CLI
+- Node.js, npm, Python, OpenSSH, and common shell utilities
+- both modern `mongosh` and the legacy MongoDB 5 `mongo` shell
+
+The legacy `mongo` shell depends on end-of-life OpenSSL 1.1 and is retained only to avoid breaking existing customers.
+
+**Use it when:** you need the widest out-of-the-box compatibility, use exec-based connections, or are not yet sure which external clients your connections require. It remains the Helm and Docker Compose default.
+
+### `hoophq/hoopdev-minimal`
+
+The minimal agent contains the Hoop agent plus only its required runtime packages. It does not include database or cloud CLIs, Node.js, Python, OpenSSH, OCR, or development headers.
+
+These connection types work without adding another binary because the agent handles them in process:
+
+- native PostgreSQL, MySQL, Microsoft SQL Server, MongoDB, and Oracle proxy connections
+- HTTP proxy connections
+- TCP proxy connections
+
+Exec-based sessions and connections that launch an external client require a custom image. Examples include `bash`, `python`, `clickhouse-client`, `kubectl`, `aws`, `gcloud`, and `bq`.
+
+**Use it when:** you only use the in-process connection types above, or you want a lean base and will install exactly the clients your deployment needs. If you need most of the bundled toolkit, use `hoophq/hoopdev` instead.
+
+Opt into the stock minimal image in the agent Helm chart:
+
+```yaml
+image:
+  minimal: true
+```
+
+An explicit `image.repository` takes precedence over `image.minimal`. To add selected tools, derive your own image and restore the unprivileged runtime user:
+
+```dockerfile
+FROM hoophq/hoopdev-minimal:<release>
+
+USER root
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+USER hoop
+```
+
+Then select it in the agent chart:
+
+```yaml
+image:
+  repository: registry.example.com/hoop-agent
+  tag: <your-tag>
+```
+
+### `hoophq/hoopdev-ng`
+
+The clean-line agent has the same role and broad client coverage as `hoophq/hoopdev`, but it excludes the SSPL-licensed legacy MongoDB 5 `mongo` shell and its OpenSSL 1.1 dependency. It includes modern `mongosh` and uses the clean train's updated tool versions.
+
+**Use it when:** you need bundled database and cloud clients but cannot accept AGPL/SSPL components. Confirm that no connection or script still invokes the legacy `mongo` command before switching; use `mongosh` instead.
+
+The clean Helm charts wrap the standard charts, so their values must be nested under the dependency name. Do not pass an existing standard-chart values file unchanged. Move every existing gateway setting under `hoop-chart` and every existing agent setting under `hoopagent-chart`:
+
+```yaml
+# clean-gateway-values.yaml
+hoop-chart:
+  config:
+    POSTGRES_DB_URI: <database-uri>
+    API_URL: https://hoop.example.com
+  # Move the rest of your existing gateway values here.
+
+# clean-agent-values.yaml
+hoopagent-chart:
+  config:
+    HOOP_KEY: <agent-key>
+  # Move the rest of your existing agent values here.
+```
+
+If the old values explicitly set an image repository, remove that override or change it to `hoophq/hoop-ng` for the gateway and `hoophq/hoopdev-ng` for the agent. Then install the clean chart artifacts:
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+
+helm upgrade --install hoop \
+  --namespace <existing-namespace> \
+  https://releases.hoop.dev/release/$VERSION/hoop-ng-chart-$VERSION.tgz \
+  -f clean-gateway-values.yaml
+
+helm upgrade --install hoopagent \
+  --namespace <existing-namespace> \
+  https://releases.hoop.dev/release/$VERSION/hoopagent-ng-chart-$VERSION.tgz \
+  -f clean-agent-values.yaml
+```
+
+Use the namespace that contains the existing `hoop` and `hoopagent` releases. For a new deployment, choose the target namespace and add `--create-namespace`. The installed Helm release names remain unchanged, so the commands perform an in-place upgrade only when the release name and namespace both match and after the values are nested and the rendered manifests are reviewed. Top-level values from the standard charts are ignored if they are passed to the wrapper charts without this migration.
+
+### `hoophq/hoop-agent-ocr`
+
+This specialized agent bundles a RapidOCR service for realtime RDP PII detection. OCR runs on loopback inside the same container, so screen pixels do not leave the agent boundary for recognition. A Presidio analyzer is still required for PII classification.
+
+| Tag | Architecture | Use it when |
+| --- | --- | --- |
+| `:<release>` | `linux/amd64`, `linux/arm64` | CPU inference is sufficient. |
+| `:<release>-gpu` | `linux/amd64` | The pod has a supported NVIDIA GPU, container runtime, and Kubernetes device plugin. |
+
+The image defaults to the all-in-one `hoop-default-agent.sh` launcher, which requires direct database access and replaces `HOOP_KEY` with credentials for a local gateway. A standalone agent must override that command and provide all three of these settings:
+
+- `HOOP_KEY` — the agent DSN for the gateway's gRPC endpoint
+- `HOOP_GATEWAY_URL` — the gateway HTTP/WS URL required to start the RDP agent
+- `MSPRESIDIO_ANALYZER_URL` — the Presidio analyzer URL; the standard Helm service listens on port `3000`
+
+The current stock agent Helm chart does not expose a container-command override. Changing only `image.repository` to the OCR image will run the wrong launcher and fail without `POSTGRES_DB_URI`. Use a custom Kubernetes workload or Docker Compose service that explicitly runs the standalone agent:
+
+```yaml
+services:
+  agent:
+    image: hoophq/hoop-agent-ocr:<release> # or <release>-gpu
+    command: ["hoop", "start", "agent"]
+    environment:
+      HOOP_KEY: ${HOOP_KEY}
+      HOOP_GATEWAY_URL: https://hoop.example.com
+      MSPRESIDIO_ANALYZER_URL: http://presidio-analyzer:3000
+```
+
+For Kubernetes, set the same `command` and environment variables in the container specification and source `HOOP_KEY` from a Secret.
+
+**Use it when:** the RDP PII guard is enabled for the organization. Do not use it for ordinary agents; its OCR models and runtime add significant image and memory overhead. See [Deploy Presidio](/setup/deployment/presidio) for the analyzer deployment.
+
+## Tags and update policy
+
+| Tag | Behavior | Production guidance |
+| --- | --- | --- |
+| `:<release>` | Identifies a Hoop release, such as `:1.126.3`. | Recommended baseline. Keep the gateway and agent on the same release. |
+| `:latest` | Moves whenever a new release is published. | Use for evaluation or when your deployment process intentionally tracks releases. |
+| `@sha256:<digest>` | Identifies exact image bytes. | Use when reproducibility or admission policy requires immutability. |
+| `hoopdev-minimal:<release>-<YYYYMMDD>` | Captures a weekly OS-patched minimal image. | Use when you want a dated patch snapshot; pin its digest for strict immutability. |
+
+`hoophq/hoopdev-minimal:latest` is rebuilt weekly between Hoop releases to pick up current Ubuntu security patches. Its plain `:<release>` tag is updated by the release workflow, not by the weekly rebuild. Application dependency fixes still require a new Hoop release.
+
+## Internal build image
+
+`hoophq/agent-tools` is the build base used to produce `hoophq/hoopdev` and `hoophq/hoopdev-ng`. It does not contain the released Hoop agent binary and is not a supported deployment image. Do not configure it as a gateway or agent container.

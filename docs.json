@@ -183,6 +183,7 @@
                 "group": "Deployment",
                 "pages": [
                   "setup/deployment/overview",
+                  "setup/deployment/container-images",
                   "setup/deployment/docker-compose",
                   "setup/deployment/kubernetes",
                   "setup/deployment/presidio",
