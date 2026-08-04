@@ -59,6 +59,7 @@ This installs a system service (`hoop-agent`) that starts automatically on login
 | Variable | Description | Default |
 |---|---|---|
 | `HOOP_KEY` | Agent authentication DSN (required) | — |
+| `HOOP_GATEWAY_URL` | Gateway HTTP/HTTPS base URL. When set, `hoop start agent` also starts the Rust agent used by RDP and connects it to the gateway's `/api/ws` endpoint. Required for the RDP PII guard. | — |
 | `LOG_LEVEL` | Log level: `debug`, `info`, `warn`, `error` | `info` |
 | `LOG_ENCODING` | Log format: `json`, `console`, `human`, `verbose` | auto |
 | `HOOP_TLSCA` | Path to a custom TLS CA certificate | — |

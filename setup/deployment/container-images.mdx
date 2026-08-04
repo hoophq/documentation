@@ -140,13 +140,13 @@ This specialized agent bundles a RapidOCR service for realtime RDP PII detection
 | `:<release>` | `linux/amd64`, `linux/arm64` | CPU inference is sufficient. |
 | `:<release>-gpu` | `linux/amd64` | The pod has a supported NVIDIA GPU, container runtime, and Kubernetes device plugin. |
 
-The image defaults to the all-in-one `hoop-default-agent.sh` launcher, which requires direct database access and replaces `HOOP_KEY` with credentials for a local gateway. A standalone agent must override that command and provide all three of these settings:
+The image defaults to the all-in-one `hoop-default-agent.sh` launcher, which requires direct database access and replaces `HOOP_KEY` with credentials for a local gateway. A standalone agent must replace the image's default arguments while preserving its ENTRYPOINT, which starts and supervises OCR, and provide all three of these settings:
 
 - `HOOP_KEY` — the agent DSN for the gateway's gRPC endpoint
-- `HOOP_GATEWAY_URL` — the gateway HTTP/WS URL required to start the RDP agent
-- `MSPRESIDIO_ANALYZER_URL` — the Presidio analyzer URL; the standard Helm service listens on port `3000`
+- [`HOOP_GATEWAY_URL`](/concepts/agents#configuration-reference) — the gateway HTTP/HTTPS base URL required to start the RDP agent
+- `MSPRESIDIO_ANALYZER_URL` — the Presidio analyzer endpoint. With the standard Presidio Helm deployment, use `http://presidio-envoy-lb:3010`. The Docker Compose example below talks directly to its analyzer service on port `3000`.
 
-The current stock agent Helm chart does not expose a container-command override. Changing only `image.repository` to the OCR image will run the wrong launcher and fail without `POSTGRES_DB_URI`. Use a custom Kubernetes workload or Docker Compose service that explicitly runs the standalone agent:
+The current stock agent Helm chart does not expose a container `args` override. Changing only `image.repository` to the OCR image will run the wrong launcher and fail without `POSTGRES_DB_URI`. Use a custom Kubernetes workload or Docker Compose service that preserves the image ENTRYPOINT and replaces only its default arguments:
 
 ```yaml
 services:
@@ -159,7 +159,7 @@ services:
       MSPRESIDIO_ANALYZER_URL: http://presidio-analyzer:3000
 ```
 
-For Kubernetes, set the same `command` and environment variables in the container specification and source `HOOP_KEY` from a Secret.
+For Kubernetes, keep the image ENTRYPOINT and set `args: ["hoop", "start", "agent"]`. Source `HOOP_KEY` from a Secret, set `HOOP_GATEWAY_URL` to the gateway's HTTP/HTTPS base URL, and, with the standard Presidio Helm deployment, set `MSPRESIDIO_ANALYZER_URL=http://presidio-envoy-lb:3010`. Do not set `command`: Kubernetes uses it to replace the ENTRYPOINT, which would bypass OCR startup.
 
 **Use it when:** the RDP PII guard is enabled for the organization. Do not use it for ordinary agents; its OCR models and runtime add significant image and memory overhead. See [Deploy Presidio](/setup/deployment/presidio) for the analyzer deployment.
 
@@ -170,7 +170,7 @@ For Kubernetes, set the same `command` and environment variables in the containe
 | `:<release>` | Identifies a Hoop release, such as `:1.126.3`. | Recommended baseline. Keep the gateway and agent on the same release. |
 | `:latest` | Moves whenever a new release is published. | Use for evaluation or when your deployment process intentionally tracks releases. |
 | `@sha256:<digest>` | Identifies exact image bytes. | Use when reproducibility or admission policy requires immutability. |
-| `hoopdev-minimal:<release>-<YYYYMMDD>` | Captures a weekly OS-patched minimal image. | Use when you want a dated patch snapshot; pin its digest for strict immutability. |
+| `:<release>-<YYYYMMDD>` | Captures a weekly OS-patched `hoophq/hoopdev-minimal` image. | Use when you want a dated patch snapshot; pin its digest for strict immutability. |
 
 `hoophq/hoopdev-minimal:latest` is rebuilt weekly between Hoop releases to pick up current Ubuntu security patches. Its plain `:<release>` tag is updated by the release workflow, not by the weekly rebuild. Application dependency fixes still require a new Hoop release.
 
