@@ -1,0 +1,388 @@
+---
+title: "Risk Analysis"
+description: "Classify statements with a language model and block on the risk it reports"
+---
+
+An `ai_analysis` rule sends a statement to a language model and denies on the risk that comes back. It runs on both lanes: SQL on a `postgres` listener, request bodies on an `http` one.
+
+It is the only rule type that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-three-cost-controls) before you enable it anywhere real.
+
+<Note>
+This runs entirely in the sidecar. There is no gateway call and no control plane: the relay holds the provider credential and reads one YAML file, same as every other feature here.
+</Note>
+
+---
+
+## A working config
+
+```yaml config.yaml
+pii:
+  entities: [EMAIL_ADDRESS, US_SSN, BR_CPF]
+
+analyzer:
+  provider: vertex                 # vertex | anthropic | openai
+  model: claude-sonnet-4-5@20250929
+  extra: {project: my-gcp-project, region: global}
+  # credentials_file omitted: Application Default Credentials.
+  timeout_sec: 10
+  fail_open: true                  # the default, deliberately
+  send: redacted                   # raw | redacted | refuse
+  max_input_bytes: 8192
+  cache: {size: 4096, ttl_sec: 900}
+  max_calls: 500
+
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+    policy:
+      rules:
+        - name: risky-writes
+          type: ai_analysis
+          trigger: {operations: [update, delete]}
+          high: block
+          medium: warn
+          low: allow
+          message: refused by risk analysis
+
+  - name: api
+    protocol: http
+    listen: 0.0.0.0:18080
+    upstream: internal-api:8080
+    http:                          # required, see below
+      capture_body: true
+      max_body_bytes: 8192
+      headers: [Content-Type]
+    policy:
+      rules:
+        - name: risky-payloads
+          type: ai_analysis
+          trigger: {resources: ["/orders/**", "/admin/**"]}
+          high: block
+          medium: warn
+```
+
+---
+
+## Where it runs in the chain
+
+Three evaluators compose in ascending order of cost, and the chain stops at the first denial:
+
+```
+Statement ──> local rules  ──>  OPA  ──>  analyzer
+              free              ~2ms      ~100ms-2s, costs money
+```
+
+A `DELETE` that a `type: operation` rule already refuses never reaches a model. That ordering is not an optimization you can turn off; it is what makes the feature affordable.
+
+---
+
+## The three cost controls
+
+An ORM issues the same statement shape thousands of times in one session. Without these, that is thousands of API calls.
+
+<Steps>
+  <Step title="trigger narrows what is classified">
+    Only statements naming these operations, tables or resources are sent. Everything else allows for free.
+
+    An **empty trigger classifies nothing** and is a startup error. The failure mode of the opposite default is an invoice.
+  </Step>
+  <Step title="The cache keys on the statement shape">
+    `WHERE id = 1` and `WHERE id = 2` are one verdict: literals are stripped from SQL, and HTTP resources are already normalized by the codec, so `/users/12345/orders` and `/users/67890/orders` share an entry.
+
+    This is also more correct than caching on bytes. The shape is what is risky, not the parameter.
+  </Step>
+  <Step title="max_calls is a backstop">
+    A process-lifetime budget. Past it, statements fall through to the local rules and OPA — the same outcome as a lane with no analyzer, which is what a spent budget means.
+  </Step>
+</Steps>
+
+Watch the hit rate before you enable a blocking action:
+
+```bash
+curl -s localhost:19000/stats | python3 -m json.tool
+```
+
+<Tip>
+Trigger on `operations` for anything load-bearing. `tables` is best effort — a statement whose tables the lexer could not determine does **not** match a table trigger.
+</Tip>
+
+---
+
+## Actions
+
+| Action | Effect |
+|---|---|
+| `allow` | Forward. The verdict is still recorded. |
+| `warn` | Forward and record the risk. Observe-only, one tier at a time. |
+| `block` | Deny, with the model's own title in the protocol's error frame. |
+
+A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
+
+A blocked statement reaches the user the same way every other denial does:
+
+```
+FATAL:  unbounded delete against the customer ledger
+```
+
+<Warning>
+`require_review` is **refused at startup**. Holding a statement for human approval needs a review backend this build does not have, and a config that looks like it holds statements for approval while quietly forwarding them is worse than one that fails.
+</Warning>
+
+---
+
+## Requests only
+
+The analyzer classifies `FromClient` statements and ignores responses. By the time a response comes back the write has already run, so a verdict cannot prevent anything — and read-side exposure is [masking](/setup/configuration/hoop-inspect/config-file#masking)'s job, which is cheaper and already running.
+
+---
+
+## Why this one fails open
+
+Every other evaluator in hoop-inspect fails **closed**. This one defaults to `fail_open: true`, and the difference is what it depends on.
+
+OPA is a service you run, usually on the same host. A language model is a third-party API over the public internet. Fail closed there and a vendor outage refuses every `UPDATE` on the lane: you have turned "we could not score this statement" into "the database is down", which is a bigger incident than the one you were guarding against.
+
+Failing open is not failing silently. The verdict still carries the error, so it reaches the audit trail and `/stats` counts it. And the local rules and OPA both ran and both allowed — a silent analyzer means "guarded by everything except the optional expensive layer", not "unguarded".
+
+<Note>
+Set `fail_open: false` where the classification is a compliance requirement, and accept that a provider outage then stops traffic.
+</Note>
+
+---
+
+## What leaves the process
+
+`send` decides, using the same detector that powers masking:
+
+| `send` | Behavior |
+|---|---|
+| `raw` | The statement as written. |
+| `redacted` | Detected entities are named; their values are withheld. |
+| `refuse` | A statement containing a detected entity is denied locally. No call is made. |
+
+`redacted` and `refuse` are refused at startup without a `pii` section, because a mode that cannot do what its name says is worse than one that is off.
+
+<Warning>
+A relay whose job is keeping taxpayer IDs out of a database's own query log must not post them to a model vendor. If you run PII detection, run `send: redacted`.
+</Warning>
+
+HTTP headers never reach the model, even ones a lane allowlists for policy. An allowlist that is safe for a local rule is not automatically safe to hand a third party.
+
+---
+
+## Writing your own prompt
+
+What counts as risky depends on what you are protecting, so the guidance is replaceable at two levels.
+
+<Warning>
+`analyzer.prompt` is **process-wide**. It reaches every `ai_analysis` rule on every lane, database and HTTP alike. Keep it protocol-neutral; guidance reading "you are classifying SQL against a customer database" follows an HTTP statement to the model and has it reasoning about `DROP` while it looks at a JSON body.
+</Warning>
+
+Protocol- and lane-specific wording belongs on a rule, which wins:
+
+```yaml
+analyzer:
+  prompt: |
+    You are classifying traffic to a regulated production environment
+    holding customer financial records. Anything reading or modifying
+    customer data is at least medium risk.
+
+listeners:
+  - name: appdb
+    policy:
+      rules:
+        - name: risky-writes
+          type: ai_analysis
+          trigger: {operations: [update]}
+          high: block
+          prompt: |
+            You are classifying SQL against the customer ledger. An UPDATE
+            with no WHERE clause is always high risk, and so is any schema
+            change.
+```
+
+Precedence is **rule → analyzer → built-in**. Setting neither is fine: the built-in guidance carries separate high-risk examples for SQL and for HTTP.
+
+### The part you cannot replace
+
+A prompt replaces the **guidance**. Two instructions are appended after whatever you write and cannot be removed:
+
+<AccordionGroup>
+  <Accordion title="Report the verdict by calling exactly one risk tool">
+    The risk level *is* which tool the model chose. That is what makes it a three-value enum instead of a parsing problem. Without this instruction the model answers in prose, nothing maps to a level, and every statement fails classification — which under `fail_open: true` means allowing everything.
+  </Accordion>
+  <Accordion title="Never quote a literal value from the statement">
+    The verdict is written to an audit record, and audit redaction covers statement text but not verdict metadata. A title repeating the identifier it objected to has published that identifier, through a channel that bypasses your `redact_statements` setting.
+  </Accordion>
+</AccordionGroup>
+
+Both failures are silent — the classifier keeps answering, just worse and leakier — which is exactly why they are not a config surface.
+
+Changing a prompt invalidates cached verdicts for the rules it applies to, so a reworded prompt takes effect on the next statement rather than after the cache TTL.
+
+---
+
+## The HTTP lane needs `capture_body`
+
+The HTTP codec exposes nothing by default: no bodies, no headers. Without a body the analyzer sees `POST /orders` and nothing else, which tells a model nothing.
+
+```yaml
+  - name: api
+    protocol: http
+    http:
+      capture_body: true
+      max_body_bytes: 8192
+      headers: [Content-Type]
+```
+
+A request with no body is **skipped rather than classified**, so a forgotten `capture_body` shows up as an analyzer that never fires rather than as an error. If an HTTP rule seems inert, check this first.
+
+<Warning>
+`authorization`, `cookie` and `proxy-authorization` cannot be allowlisted and are refused at startup. A lane exposing them to policy has put a bearer token into every decision log and audit record.
+</Warning>
+
+---
+
+## Providers
+
+<Tabs>
+  <Tab title="Google Vertex">
+    ```yaml
+    analyzer:
+      provider: vertex
+      model: claude-sonnet-4-5@20250929
+      extra:
+        project: my-gcp-project
+        region: global          # or a region like us-east5
+      # credentials_file omitted -> Application Default Credentials
+    ```
+
+    Vertex authenticates with a GCP OAuth bearer minted from a service account and refreshed automatically. `--validate` mints one token, so a bad key, a missing `roles/aiplatform.user` binding or a skewed clock fails the config check rather than the first risky statement.
+
+    <Tip>
+    Prefer Workload Identity and omit `credentials_file` entirely. On GKE there is then **no credential on disk at all** — the pod's identity is the credential, so there is nothing to leak or rotate.
+    </Tip>
+
+    Set `region: global` or a multi-region endpoint. A single-region endpoint is an availability risk for something sitting on a database hot path.
+  </Tab>
+  <Tab title="Anthropic">
+    ```yaml
+    analyzer:
+      provider: anthropic
+      model: claude-sonnet-4-5
+      credentials_file: /run/secrets/anthropic-key
+    ```
+  </Tab>
+  <Tab title="OpenAI">
+    ```yaml
+    analyzer:
+      provider: openai
+      model: gpt-4.1
+      credentials_file: /run/secrets/openai-key
+      # endpoint: https://my-azure.openai.azure.com/...  for Azure or a compatible API
+    ```
+
+    The `openai` provider also serves Azure OpenAI and any OpenAI-compatible endpoint. Set `endpoint` and leave everything else the same.
+  </Tab>
+</Tabs>
+
+One provider serves every lane, so the credential is read once.
+
+---
+
+## The credential
+
+The config names a **path**, never the material.
+
+- The file must not be readable by group or other. A `0644` key file is refused at startup with its mode in the message, the way `ssh` refuses a private key.
+- The credential is held in a type that refuses to print. It renders as `[REDACTED]` through log lines, JSON marshalling and struct formatting alike, so a field added beside it later cannot leak by forgetting a tag.
+- `GET /config` reports the endpoint **host** and whether a custom prompt is set. Never the credential, never the path, never the prompt text.
+- An endpoint URL carrying userinfo or a query string is refused at startup, because `/config` sits beside a read interface to the audit trail.
+
+<Warning>
+Use a file, not an environment variable. `/proc/<pid>/environ`, `docker inspect` and core dumps all read the environment; a `0400` file on a tmpfs mount reads none of them.
+</Warning>
+
+---
+
+## Reading the verdicts
+
+Every classified statement carries its risk into the audit trail, on allowed statements as well as denied ones:
+
+```json
+{"kind": "statement", "operation": "update", "allowed": true,
+ "metadata": {"risk_level": "medium", "risk_action": "warn"}}
+```
+
+That feeds a per-session rollup that keeps the **highest** risk the session reached:
+
+```bash
+curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
+curl -s localhost:19000/api/stats             | python3 -m json.tool
+```
+
+```json
+{"id": "45edf2c8…", "connection": "appdb", "verdict": "clean",
+ "risk_level": "medium"}
+```
+
+Only the classification is recorded. The model's title and explanation reach the user on a denial, but never the audit record.
+
+<Tip>
+Roll out with every tier on `warn`, watch `by_risk` in `/api/stats` and the cache hit rate in `/stats` for a week, then move `high` to `block`.
+</Tip>
+
+---
+
+## What startup refuses
+
+Each of these would otherwise load, evaluate and do nothing:
+
+| Config | Result |
+|---|---|
+| An `ai_analysis` rule with no `analyzer` section | Refused, naming the lane |
+| An `ai_analysis` rule with no `trigger` | Refused: it would classify nothing |
+| An `ai_analysis` rule naming no action for any risk level | Refused: every verdict would allow |
+| `require_review` as an action | Refused: this build cannot hold a statement |
+| A `provider` the binary does not link | Refused, listing what it does link |
+| A credential file readable by group or other | Refused, reporting the mode |
+| `send: redacted` or `refuse` with no `pii` section | Refused: nothing to detect with |
+| An endpoint with userinfo or a query string | Refused: `/config` would publish it |
+| An `http` block on a non-HTTP lane | Refused, naming the lane |
+| `authorization`, `cookie` or `proxy-authorization` allowlisted | Refused, naming the header |
+| A Vertex credential that cannot mint a token | Refused, distinguishing parse, IAM and clock failures |
+
+Check before you deploy:
+
+```bash
+hoop start inspect --config config.yaml --validate
+```
+
+```
+config OK: 2 listener(s)
+  appdb            postgres  enforcing 1 rule(s) + 1 ai rule(s)
+  api              http      enforcing 1 rule(s) + 1 ai rule(s)
+```
+
+---
+
+## Limits worth knowing
+
+- **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. Keep the risks you *can* describe in an `operation` or `table` rule: free, deterministic, and immune to a vendor outage.
+- **Requests only.** A response verdict cannot prevent a write that already ran.
+- **No human review.** `require_review` is declared in the schema and refused at startup, so a config written today stays valid when a review backend lands.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+    Every other section of the config, and the full list of what startup refuses.
+  </Card>
+  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
+    How a request flows through the relay and where each verdict is decided.
+  </Card>
+</CardGroup>

@@ -197,10 +197,14 @@ The Postgres codec is stateful because one `RowDescription` describes every `Dat
 
 ## Policy evaluation
 
-Two evaluators compose, local rules first, so a statement the local set already forbids never costs a network round trip.
+Three evaluators compose in ascending order of cost, so a statement an earlier one already forbids never pays for a later one.
 
 ```
-Statement ──> policy.Chain{ Rules, OPAClient }
+Statement ──> policy.Chain{ Rules, OPAClient, analyzer }
+                   │           │             │
+                   │           │             └─> POST to an LLM provider
+                   │           │                  ~100ms-2s, costs money
+                   │           │                  fails OPEN by default
                    │           │
                    │           └─> POST /v1/data/…
                    │                {"input":{protocol, operation, tables,
@@ -212,7 +216,9 @@ Statement ──> policy.Chain{ Rules, OPAClient }
              http_resource · http_status · pii
 ```
 
-Both evaluators fail closed. An unreachable OPA, a 500, or an undefined decision denies.
+The chain stops at the first denial, which is what makes the ordering load-bearing rather than cosmetic: a `DELETE` a local `operation` rule already refuses never reaches a model.
+
+The first two evaluators fail closed. An unreachable OPA, a 500, or an undefined decision denies. The analyzer inverts that default, because it depends on a third-party API rather than a service you run — see [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#why-this-one-fails-open).
 
 The `pii` rule type dispatches at the rule-set level rather than per rule, because the detector belongs to the rule set and not to any single rule.
 

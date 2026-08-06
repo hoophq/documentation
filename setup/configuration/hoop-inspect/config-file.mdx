@@ -96,6 +96,7 @@ listeners:
 | `pii` | The detector engine. Omit it and detection is off. |
 | `policy` | Default rules, OPA endpoint and enforcement for every lane. |
 | `mask` | Default response rewriting for every lane. |
+| `analyzer` | The AI risk classifier. Omit it and `ai_analysis` rules are a config error. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis). |
 | `listeners` | One entry per upstream. |
 
 Keys starting `x-` are dropped before validation, so a YAML anchor block does not need a matching config field. See [sharing rules between lanes](#sharing-a-rule-block-between-lanes).
@@ -120,6 +121,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
 | `policy` | Overrides the top-level default for this lane. |
 | `mask` | Overrides the top-level default for this lane. |
+| `http` | What the HTTP codec captures. Only valid on an `http` lane. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#the-http-lane-needs-capture-body). |
 
 <Warning>
 `identity_header` trusts a header, which is safe only when nothing but your proxy can reach the listener. Bind it to loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
@@ -272,6 +274,7 @@ Every rule **denies**, and the first match wins. A rule set is an ordered deny l
 | `http_resource` | The normalized request path matches | `resources`, `methods` |
 | `http_status` | The response status matches | `statuses`, `methods` |
 | `pii` | The detector finds a listed entity in the statement | `entities` |
+| `ai_analysis` | A language model classifies the statement as a risk you mapped to `block` | `trigger`, `high`, `medium`, `low`, `prompt` |
 
 Every rule also takes `name` and `message`. `message` is what the user reads on denial, delivered in the protocol's own error frame. Leave it empty and the rule falls back to a generated string naming only the rule and operation; write one.
 
@@ -586,6 +589,16 @@ Error: invalid config:
 ```
 
 That last check matters more than it looks. Without it the rule loads, evaluates, and matches nothing, so a guardrail looks live while allowing through everything it was written to stop.
+
+**An `ai_analysis` rule that would classify nothing:**
+
+```
+Error: invalid config:
+  - appdb: ai_analysis rule "risky-writes" has no trigger, so it would
+    classify nothing; name operations, tables or resources
+```
+
+Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a rule with no trigger, a tier with no action, a provider the binary does not link, or `send: redacted` with no `pii` section all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#what-startup-refuses).
 
 **`mask.enabled` on a protocol whose codec can carry neither masking mechanism**, naming the lane, plus empty rule lists, duplicate listen addresses, missing upstreams and an `opa` block with no URL.
 
