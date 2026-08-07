@@ -1,0 +1,435 @@
+---
+title: 'Container Images'
+description: 'The container images Hoop publishes, what each one contains, and how to build your own from the released binaries.'
+---
+
+Hoop publishes its gateway and agent as container images on Docker Hub. This
+page describes each image so you can pick the right one, and shows how to build
+a custom image when none of them fits your environment.
+
+## Choosing an image
+
+<CardGroup cols={2}>
+  <Card title="Running the gateway" icon="server">
+    Use `hoophq/hoop`
+  </Card>
+  <Card title="Running an agent" icon="plug">
+    Use `hoophq/hoopdev`, or a slim `hoophq/hoopagent` flavour
+  </Card>
+</CardGroup>
+
+For agents, the choice comes down to what your connections need to run inside
+the container:
+
+| Image | Use it when |
+|---|---|
+| `hoophq/hoopagent:<version>-minimal` | Your connections are databases, TCP, HTTP, SSH or AWS SSM only |
+| `hoophq/hoopagent:<version>-distroless` | As above, and you want the smallest possible surface |
+| `hoophq/hoopdev` | You have **custom** or **command-line** connections (the agent runs a script, `psql`, `kubectl`, …), or **Remote Desktop (RDP)** connections |
+| `hoophq/hoop-agent-ocr` | You need live redaction of RDP sessions (requires an `amd64` GPU instance) |
+
+<Note>
+Custom and command-line connections work by executing a program inside the
+container, so they need an image that contains that program. If you deploy a
+slim flavour and a connection needs tooling it doesn't have, that connection
+fails while the agent stays up and keeps serving its other connections — check
+the agent logs and switch to `hoophq/hoopdev`.
+</Note>
+
+## Published images
+
+Every image is a multi-architecture manifest covering `linux/amd64` and
+`linux/arm64`, with one exception: the GPU OCR tag
+(`hoophq/hoop-agent-ocr:<version>-gpu`) is **`linux/amd64` only**, because it is
+built against CUDA. Pin an explicit version in production rather than using
+`latest`.
+
+<Note>
+Every version, its changelog and its release date are published on the
+[hoophq/hoop releases page](https://github.com/hoophq/hoop/releases). Use it to
+see what is current, what changed between two versions, and how often releases
+ship. Image tags and binary downloads use the same version numbers.
+</Note>
+
+### `hoophq/hoop` — Gateway
+
+The Hoop gateway: the API, the web app, and the gRPC endpoint that agents and
+clients connect to. Built on Ubuntu 24.04.
+
+```bash
+docker pull hoophq/hoop:<version>
+```
+
+This image carries the same multi-call binary as the agent images, so
+`hoop start agent` runs here too. For agents, prefer `hoophq/hoopdev` or a
+`hoophq/hoopagent` flavour — that is what the
+[Docker Compose deployment](/setup/deployment/docker-compose) does, running the
+gateway and the agent as separate services from `hoophq/hoop` and
+`hoophq/hoopdev` respectively.
+
+### `hoophq/hoopdev` — Agent with bundled tooling
+
+The general-purpose agent image. Contains the `hoop` binary plus the client
+tooling that custom and command-line connections execute inside the container:
+
+| Category | Included |
+|---|---|
+| Databases | `psql`, `mysql`, `mongosh`, MongoDB tools, `sqlcmd`, Oracle Instant Client with `sqlplus`, `redis-tools` |
+| Cloud | AWS CLI, AWS Session Manager plugin, Google Cloud CLI with the GKE auth plugin, `bq` |
+| Kubernetes | `kubectl` |
+| Runtimes | Node.js, Python 3 |
+| Utilities | `openssh-client`, `curl`, `wget`, `jq`, `netcat`, `tini` |
+
+It also contains the companion binary that serves **RDP** connections. Runs as
+`root`, because the bundled tooling expects it.
+
+```bash
+docker pull hoophq/hoopdev:<version>
+```
+
+### `hoophq/hoopagent` — Slim agent
+
+The `hoop` binary and nothing else, in two flavours. Both run as unprivileged
+uid `10001` and serve every connection type the agent handles in-process:
+PostgreSQL, MySQL, SQL Server, MongoDB, TCP, HTTP, SSH and AWS SSM.
+
+| Tag | Base | Notes |
+|---|---|---|
+| `hoophq/hoopagent:<version>-minimal` | Ubuntu 24.04 LTS | Keeps a shell, so `kubectl exec` works for troubleshooting |
+| `hoophq/hoopagent:<version>-distroless` | Distroless (static) | No shell and no package manager — the smallest surface, but you troubleshoot from logs only |
+
+Both are a fraction of the size of `hoophq/hoopdev` and carry no AGPL- or
+SSPL-licensed components.
+
+<Warning>
+`hoophq/hoopagent` has no unsuffixed tag and no `latest`. Always name a flavour
+and a release, for example `hoophq/hoopagent:1.135.1-minimal`.
+</Warning>
+
+### `hoophq/hoop-agent-ocr` — Agent with a bundled OCR engine
+
+`hoophq/hoopdev` plus an OCR engine, for **live redaction of Remote Desktop
+sessions**. The engine reads the RDP session's video frames as they stream
+through the agent, detects sensitive values on screen, and masks them before
+the frames reach the user — so credentials, personal data and other regulated
+fields never render on the operator's display. Recognition runs on loopback
+inside the container, so screen contents never leave the agent.
+
+<Warning>
+This image requires a **GPU instance**. Redacting a live video stream means
+running OCR on every frame in real time, which needs GPU acceleration to keep
+up with the session. Deploy it on a GPU node with the NVIDIA device plugin and
+container runtime installed.
+</Warning>
+
+| Tag | Architecture | Notes |
+|---|---|---|
+| `hoophq/hoop-agent-ocr:<version>-gpu` | `linux/amd64` only | The deployment target. Built against CUDA, so there is no ARM64 build; needs a GPU host |
+| `hoophq/hoop-agent-ocr:<version>` | `linux/amd64`, `linux/arm64` | CPU build. Functional for evaluation, but not fast enough to redact a live session |
+
+Live redaction is enabled per organisation and also needs a Presidio analyzer —
+see [Presidio](/setup/deployment/presidio).
+
+### `hoophq/agent-tools` — Base image
+
+The base layer `hoophq/hoopdev` is built from: the bundled client tooling
+without the Hoop binary. Published so you can build your own agent image on the
+same tooling set — see [Extending the tooling
+image](#option-2-extending-the-tooling-image) below.
+
+## Building a custom image
+
+If none of the published images fits — you need an extra database client, an
+internal CA, a company base image, or a hardening baseline — build your own.
+Every release publishes the Hoop binaries as tarballs, so a custom image is
+usually a short Dockerfile.
+
+### Released binaries
+
+```
+https://releases.hoop.dev/release/<version>/hoop_<version>_Linux_x86_64.tar.gz
+https://releases.hoop.dev/release/<version>/hoop_<version>_Linux_arm64.tar.gz
+https://releases.hoop.dev/release/<version>/checksums.txt
+```
+
+Each Linux tarball contains two files:
+
+| File | Purpose |
+|---|---|
+| `hoop` | The Hoop binary — gateway, agent and CLI in one executable |
+| `hoop_rs` | Companion binary that serves RDP connections. Only needed for RDP |
+
+Darwin and Windows tarballs are published under the same URL pattern for CLI
+use.
+
+<Note>
+The architecture is named `x86_64` and `arm64` in the filenames, matching
+`uname -m`. Docker's `TARGETARCH` uses `amd64` and `arm64`, so a multi-arch
+build needs to map one to the other — the example below does this.
+</Note>
+
+### Option 1: starting from a base image of your choice
+
+Each example downloads the tarball, verifies it against the published
+`checksums.txt`, and extracts the binary. The verification runs inside the
+build, so a corrupted or tampered download fails the build rather than
+producing a broken image.
+
+Pick the base you already standardise on. Add the tooling your connections need
+where the comment indicates.
+
+<Tabs>
+  <Tab title="Ubuntu">
+```docker Dockerfile
+ARG HOOP_VERSION=1.135.1
+FROM ubuntu:24.04
+
+ARG HOOP_VERSION
+ARG TARGETARCH
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ca-certificates is required: the agent verifies the gateway's TLS
+# certificate against the system trust store.
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Add the tooling your connections need, for example:
+#   apt-get install -y --no-install-recommends postgresql-client
+
+RUN case "${TARGETARCH}" in \
+      amd64) HOOP_ARCH=x86_64 ;; \
+      arm64) HOOP_ARCH=arm64  ;; \
+      *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    BASE="https://releases.hoop.dev/release/${HOOP_VERSION}" && \
+    TARBALL="hoop_${HOOP_VERSION}_Linux_${HOOP_ARCH}.tar.gz" && \
+    curl -fsSL -o "/tmp/${TARBALL}" "${BASE}/${TARBALL}" && \
+    curl -fsSL -o /tmp/checksums.txt "${BASE}/checksums.txt" && \
+    EXPECTED="$(grep -E "/${TARBALL}\$" /tmp/checksums.txt | awk '{print $1}')" && \
+    [ -n "${EXPECTED}" ] || { echo "no checksum found for ${TARBALL}" >&2; exit 1; } && \
+    echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c - && \
+    mkdir -p /app && \
+    tar -xzf "/tmp/${TARBALL}" -C /app ./hoop && \
+    chmod 755 /app/hoop && \
+    rm -f "/tmp/${TARBALL}" /tmp/checksums.txt
+
+ENV PATH="/app:${PATH}"
+USER 10001:10001
+CMD ["hoop", "start", "agent"]
+```
+  </Tab>
+  <Tab title="Alpine">
+```docker Dockerfile
+ARG HOOP_VERSION=1.135.1
+FROM alpine:3.22
+
+ARG HOOP_VERSION
+ARG TARGETARCH
+
+# ca-certificates is required: the agent verifies the gateway's TLS
+# certificate against the system trust store.
+RUN apk add --no-cache ca-certificates curl
+
+# Add the tooling your connections need, for example:
+#   apk add --no-cache postgresql16-client
+
+RUN case "${TARGETARCH}" in \
+      amd64) HOOP_ARCH=x86_64 ;; \
+      arm64) HOOP_ARCH=arm64  ;; \
+      *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    BASE="https://releases.hoop.dev/release/${HOOP_VERSION}" && \
+    TARBALL="hoop_${HOOP_VERSION}_Linux_${HOOP_ARCH}.tar.gz" && \
+    curl -fsSL -o "/tmp/${TARBALL}" "${BASE}/${TARBALL}" && \
+    curl -fsSL -o /tmp/checksums.txt "${BASE}/checksums.txt" && \
+    EXPECTED="$(grep -E "/${TARBALL}\$" /tmp/checksums.txt | awk '{print $1}')" && \
+    [ -n "${EXPECTED}" ] || { echo "no checksum found for ${TARBALL}" >&2; exit 1; } && \
+    echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c - && \
+    mkdir -p /app && \
+    tar -xzf "/tmp/${TARBALL}" -C /app ./hoop && \
+    chmod 755 /app/hoop && \
+    rm -f "/tmp/${TARBALL}" /tmp/checksums.txt
+
+ENV PATH="/app:${PATH}"
+USER 10001:10001
+CMD ["hoop", "start", "agent"]
+```
+
+The `hoop` binary is statically linked, so it runs on Alpine's musl C library
+with no compatibility shim. The `hoop_rs` binary used for RDP is **not** — it
+is dynamically linked against glibc and will not run on Alpine.
+  </Tab>
+  <Tab title="Distroless">
+Downloading in a separate stage keeps the tarball out of the final image
+entirely, and lets you ship onto a base with no shell or package manager.
+
+```docker Dockerfile
+ARG HOOP_VERSION=1.135.1
+
+FROM ubuntu:24.04 AS download
+ARG HOOP_VERSION
+ARG TARGETARCH
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+RUN case "${TARGETARCH}" in \
+      amd64) HOOP_ARCH=x86_64 ;; \
+      arm64) HOOP_ARCH=arm64  ;; \
+      *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    BASE="https://releases.hoop.dev/release/${HOOP_VERSION}" && \
+    TARBALL="hoop_${HOOP_VERSION}_Linux_${HOOP_ARCH}.tar.gz" && \
+    curl -fsSL -o "/tmp/${TARBALL}" "${BASE}/${TARBALL}" && \
+    curl -fsSL -o /tmp/checksums.txt "${BASE}/checksums.txt" && \
+    EXPECTED="$(grep -E "/${TARBALL}\$" /tmp/checksums.txt | awk '{print $1}')" && \
+    [ -n "${EXPECTED}" ] || { echo "no checksum found for ${TARBALL}" >&2; exit 1; } && \
+    echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c - && \
+    mkdir -p /out && \
+    tar -xzf "/tmp/${TARBALL}" -C /out ./hoop && \
+    chmod 755 /out/hoop
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=download /out/hoop /app/hoop
+ENV PATH="/app:${PATH}"
+USER 10001:10001
+CMD ["hoop", "start", "agent"]
+```
+
+The distroless static base already ships a CA bundle, so nothing is installed
+in the final stage. This pattern works with `scratch` too, provided you also
+copy in a CA bundle or set `HOOP_TLSCA`.
+  </Tab>
+</Tabs>
+
+Build and run any of them:
+
+```bash
+docker build --build-arg HOOP_VERSION=1.135.1 -t my-org/hoop-agent:1.135.1 .
+docker run -d -e HOOP_KEY='<AGENT_KEY>' my-org/hoop-agent:1.135.1
+```
+
+<Tip>
+In a single-stage build, deleting the tarball in a later layer does not shrink
+the image — the earlier layer still holds the bytes. Delete it in the same
+`RUN` that created it, as the Ubuntu and Alpine examples do, or use the
+two-stage pattern from the Distroless tab.
+</Tip>
+
+To include RDP support on a glibc base, extract `./hoop_rs` alongside `./hoop`:
+
+```docker
+tar -xzf "/tmp/${TARBALL}" -C /app ./hoop ./hoop_rs && \
+chmod 755 /app/hoop /app/hoop_rs
+```
+
+### Option 2: extending the tooling image
+
+If you want everything in `hoophq/hoopdev` plus one or two extra packages, the
+shortest path is to extend the published image:
+
+```docker Dockerfile
+FROM hoophq/hoopdev:1.135.1
+
+USER root
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends <your-packages> && \
+    rm -rf /var/lib/apt/lists/*
+```
+
+To build on the tooling set without the Hoop binary, start
+`FROM hoophq/agent-tools:<tag>` instead and add the binary as in Option 1. The
+tag to use is the one referenced by the Hoop release you are targeting.
+
+### Verifying a download outside a build
+
+The Dockerfiles above verify the tarball as part of the build. To check one by
+hand — when mirroring releases to an internal artifact store, for example:
+
+```bash
+VERSION=1.135.1
+TARBALL="hoop_${VERSION}_Linux_x86_64.tar.gz"
+BASE="https://releases.hoop.dev/release/${VERSION}"
+
+curl -fsSLO "${BASE}/${TARBALL}"
+curl -fsSL "${BASE}/checksums.txt" | grep -E "/${TARBALL}$" | awk '{print $1"  '"${TARBALL}"'"}' | sha256sum -c -
+```
+
+The paths in `checksums.txt` are build-time paths, so match on the filename
+rather than the whole line. Each architecture is listed under two equivalent
+names (`x86_64` and `amd64`, `arm64` and `aarch64`) with the same hash;
+anchoring the match to the end of the line picks exactly one.
+
+## Requirements for a custom agent image
+
+Whatever base you choose, a working agent image needs:
+
+<Steps titleSize="h3">
+  <Step title="A CA certificate bundle">
+    The agent connects to the gateway over TLS and verifies the certificate
+    against the system trust store. On Debian and Ubuntu this means the
+    `ca-certificates` package. Alternatively, set `HOOP_TLSCA` to pin a private
+    CA. Minimal base images frequently omit this and it is the most common
+    cause of a custom image failing to connect.
+  </Step>
+  <Step title="The binary on PATH, or an absolute command">
+    Either put the directory containing `hoop` on `PATH`, or use the absolute
+    path in your `CMD`.
+  </Step>
+  <Step title="The right command">
+    `hoop start agent`. How you express that depends on whether your image sets
+    an `ENTRYPOINT` — see [Command and
+    entrypoint](#command-and-entrypoint-per-image) below. The simplest custom
+    image sets no `ENTRYPOINT` and puts the whole command in
+    `CMD ["hoop", "start", "agent"]`, as the examples above do.
+  </Step>
+  <Step title="Any tooling your connections execute">
+    Custom and command-line connections run a program inside the container. If
+    the program is missing, that connection fails.
+  </Step>
+</Steps>
+
+Nothing else is required. The agent is configured entirely through environment
+variables, writes nothing to disk, and needs no volume — `HOOP_KEY` is the only
+mandatory variable. It opens one outbound connection to the gateway and listens
+on no ports, so it needs no inbound firewall rules and runs fine as a
+non-root user with a read-only root filesystem.
+
+## Command and entrypoint per image
+
+Kubernetes maps `command` to the image's `ENTRYPOINT` and `args` to its `CMD`.
+The published images do not all use the same contract, so which one you
+override depends on the image:
+
+| Image | `ENTRYPOINT` | `CMD` | To change the arguments |
+|---|---|---|---|
+| `hoophq/hoopagent` (both flavours) | none | `hoop start agent` | Set `command` — `args` alone would replace the whole command |
+| `hoophq/hoopdev` | `tini --` | `hoop start agent` | Set `args` — setting `command` would drop the `tini` init shim |
+| `hoophq/hoop` | `tini --` | none | Set `args`, for example `["hoop", "start", "gateway"]` |
+| `hoophq/hoop-agent-ocr` | `tini -- /opt/ocr/entrypoint-embedded.sh` | the default agent script | Leave both alone; overriding `command` bypasses the OCR engine launcher |
+
+<Warning>
+On `hoophq/hoopdev` and `hoophq/hoop`, replacing `command` removes `tini`. Those
+images run connection commands that fork child processes, and `tini` is what
+reaps them — without it, long-lived agents accumulate zombie processes. Override
+`args` instead.
+</Warning>
+
+Neither `hoophq/hoopagent` flavour needs an init shim: it ships no shell or
+client tooling, so the agent never forks a child process, and it handles
+`SIGTERM` itself.
+
+If you build a custom image, pick one contract and document it. The examples in
+this page set no `ENTRYPOINT`, matching `hoophq/hoopagent`.
+
+## Keeping a custom image current
+
+A custom image pins a Hoop version you have to bump yourself. Rebuild it as
+part of your upgrade process, and rebuild periodically even without a Hoop
+upgrade so the base image picks up operating-system security updates.
+
+Follow the [hoophq/hoop releases
+page](https://github.com/hoophq/hoop/releases) to know when a new version is
+available and what it changes — you can watch the repository's releases on
+GitHub to be notified.
