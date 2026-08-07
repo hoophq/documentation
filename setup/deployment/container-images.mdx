@@ -60,8 +60,12 @@ clients connect to. Built on Ubuntu 24.04.
 docker pull hoophq/hoop:<version>
 ```
 
-This image can also run an agent (`hoop start agent`), which is how the
-single-container Docker Compose deployment works.
+This image carries the same multi-call binary as the agent images, so
+`hoop start agent` runs here too. For agents, prefer `hoophq/hoopdev` or a
+`hoophq/hoopagent` flavour — that is what the
+[Docker Compose deployment](/setup/deployment/docker-compose) does, running the
+gateway and the agent as separate services from `hoophq/hoop` and
+`hoophq/hoopdev` respectively.
 
 ### `hoophq/hoopdev` — Agent with bundled tooling
 
