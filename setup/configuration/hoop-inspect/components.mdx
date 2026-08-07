@@ -51,6 +51,10 @@ Envoy sees less on each lane going down the table.
 
 On HTTP, `ext_authz` handles request-side authorization well. The gap sits on the response: `ext_authz` decides **before** Envoy calls the upstream, so no configuration of it reaches a response status or a response body. On Postgres the gap is wider. Envoy forwards bytes it cannot parse, so OPA never receives a statement to judge.
 
+<Note>
+The HTTP codec captures **nothing** by default: no bodies, no headers. Everything captured reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so a lane opts in per listener with an `http:` block. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#the-http-lane-needs-capture-body).
+</Note>
+
 ### Where Envoy ends and the relay begins
 
 |  | Envoy | hoop-inspect |
@@ -58,8 +62,8 @@ On HTTP, `ext_authz` handles request-side authorization well. The gap sits on th
 | Postgres SQL parse | `postgres_proxy`, best effort | full statement text |
 | Postgres granularity | `table.db` + operation verb | statement, operation, tables |
 | Postgres **response** | not available | result columns, row count, masking by re-framing |
-| HTTP request | `ext_authz`: method, path, headers, bounded body | same, plus normalized resource |
-| HTTP **response** | not available, ext_authz decides before the upstream runs | status, headers, body |
+| HTTP request | `ext_authz`: method, path, headers, bounded body | method, path, normalized resource; body and headers only when the lane sets `http.capture_body` |
+| HTTP **response** | not available, ext_authz decides before the upstream runs | status; body and headers under the same setting |
 | Deny UX | RBAC/ext_authz drops the connection or returns a bare 403 | the message an operator wrote |
 
 Envoy is not blind here, and an argument that says otherwise loses a technical review. The relay covers what remains.
@@ -197,10 +201,14 @@ The Postgres codec is stateful because one `RowDescription` describes every `Dat
 
 ## Policy evaluation
 
-Two evaluators compose, local rules first, so a statement the local set already forbids never costs a network round trip.
+Three evaluators compose in ascending order of cost, so a statement an earlier one already forbids never pays for a later one.
 
 ```
-Statement ──> policy.Chain{ Rules, OPAClient }
+Statement ──> policy.Chain{ Rules, OPAClient, analyzer }
+                   │           │             │
+                   │           │             └─> POST to an LLM provider
+                   │           │                  ~100ms-2s, costs money
+                   │           │                  fails OPEN by default
                    │           │
                    │           └─> POST /v1/data/…
                    │                {"input":{protocol, operation, tables,
@@ -212,7 +220,14 @@ Statement ──> policy.Chain{ Rules, OPAClient }
              http_resource · http_status · pii
 ```
 
-Both evaluators fail closed. An unreachable OPA, a 500, or an undefined decision denies.
+The chain stops at the first denial, which is what makes the ordering load-bearing rather than cosmetic: a `DELETE` a local `operation` rule already refuses never reaches a model.
+
+An `ai_analysis` rule is **not** evaluated by the local rules engine. It needs a provider, a deadline and a cache, none of which belong to a text matcher, so the sidecar lifts those rules out of the set at startup and builds one evaluator per rule, appended after OPA. Two consequences worth knowing:
+
+- Ordering between an `ai_analysis` rule and the local rules in the same list does not matter. Local rules always run first.
+- A lane can carry several `ai_analysis` rules. Each is its own evaluator with its own trigger, actions and prompt; if more than one classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
+
+The first two evaluators fail closed. An unreachable OPA, a 500, or an undefined decision denies. The analyzer inverts that default, because it depends on a third-party API rather than a service you run — see [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#why-this-one-fails-open).
 
 The `pii` rule type dispatches at the rule-set level rather than per rule, because the detector belongs to the rule set and not to any single rule.
 
