@@ -26,7 +26,7 @@ the container:
 | `hoophq/hoopagent:<version>-minimal` | Your connections are databases, TCP, HTTP, SSH or AWS SSM only |
 | `hoophq/hoopagent:<version>-distroless` | As above, and you want the smallest possible surface |
 | `hoophq/hoopdev` | You have **custom** or **command-line** connections (the agent runs a script, `psql`, `kubectl`, …), or **Remote Desktop (RDP)** connections |
-| `hoophq/hoop-agent-ocr` | You need live redaction of RDP sessions (requires a GPU instance) |
+| `hoophq/hoop-agent-ocr` | You need live redaction of RDP sessions (requires an `amd64` GPU instance) |
 
 <Note>
 Custom and command-line connections work by executing a program inside the
@@ -38,8 +38,10 @@ the agent logs and switch to `hoophq/hoopdev`.
 
 ## Published images
 
-All images are multi-architecture manifests covering `linux/amd64` and
-`linux/arm64`. Pin an explicit version in production rather than using
+Every image is a multi-architecture manifest covering `linux/amd64` and
+`linux/arm64`, with one exception: the GPU OCR tag
+(`hoophq/hoop-agent-ocr:<version>-gpu`) is **`linux/amd64` only**, because it is
+built against CUDA. Pin an explicit version in production rather than using
 `latest`.
 
 <Note>
@@ -116,10 +118,10 @@ up with the session. Deploy it on a GPU node with the NVIDIA device plugin and
 container runtime installed.
 </Warning>
 
-| Tag | Notes |
-|---|---|
-| `hoophq/hoop-agent-ocr:<version>-gpu` | The deployment target. CUDA, `amd64` only; needs a GPU host |
-| `hoophq/hoop-agent-ocr:<version>` | CPU build, multi-architecture. Functional for evaluation, but not fast enough to redact a live session |
+| Tag | Architecture | Notes |
+|---|---|---|
+| `hoophq/hoop-agent-ocr:<version>-gpu` | `linux/amd64` only | The deployment target. Built against CUDA, so there is no ARM64 build; needs a GPU host |
+| `hoophq/hoop-agent-ocr:<version>` | `linux/amd64`, `linux/arm64` | CPU build. Functional for evaluation, but not fast enough to redact a live session |
 
 Live redaction is enabled per organisation and also needs a Presidio analyzer —
 see [Presidio](/setup/deployment/presidio).
@@ -372,10 +374,11 @@ Whatever base you choose, a working agent image needs:
     path in your `CMD`.
   </Step>
   <Step title="The right command">
-    `hoop start agent`. The official images use
-    `CMD ["hoop", "start", "agent"]` with no `ENTRYPOINT`, so if you override
-    it in Kubernetes, override `command`, not `args` — `args` alone replaces
-    the command entirely.
+    `hoop start agent`. How you express that depends on whether your image sets
+    an `ENTRYPOINT` — see [Command and
+    entrypoint](#command-and-entrypoint-per-image) below. The simplest custom
+    image sets no `ENTRYPOINT` and puts the whole command in
+    `CMD ["hoop", "start", "agent"]`, as the examples above do.
   </Step>
   <Step title="Any tooling your connections execute">
     Custom and command-line connections run a program inside the container. If
@@ -388,6 +391,33 @@ variables, writes nothing to disk, and needs no volume — `HOOP_KEY` is the onl
 mandatory variable. It opens one outbound connection to the gateway and listens
 on no ports, so it needs no inbound firewall rules and runs fine as a
 non-root user with a read-only root filesystem.
+
+## Command and entrypoint per image
+
+Kubernetes maps `command` to the image's `ENTRYPOINT` and `args` to its `CMD`.
+The published images do not all use the same contract, so which one you
+override depends on the image:
+
+| Image | `ENTRYPOINT` | `CMD` | To change the arguments |
+|---|---|---|---|
+| `hoophq/hoopagent` (both flavours) | none | `hoop start agent` | Set `command` — `args` alone would replace the whole command |
+| `hoophq/hoopdev` | `tini --` | `hoop start agent` | Set `args` — setting `command` would drop the `tini` init shim |
+| `hoophq/hoop` | `tini --` | none | Set `args`, for example `["hoop", "start", "gateway"]` |
+| `hoophq/hoop-agent-ocr` | `tini -- /opt/ocr/entrypoint-embedded.sh` | the default agent script | Leave both alone; overriding `command` bypasses the OCR engine launcher |
+
+<Warning>
+On `hoophq/hoopdev` and `hoophq/hoop`, replacing `command` removes `tini`. Those
+images run connection commands that fork child processes, and `tini` is what
+reaps them — without it, long-lived agents accumulate zombie processes. Override
+`args` instead.
+</Warning>
+
+Neither `hoophq/hoopagent` flavour needs an init shim: it ships no shell or
+client tooling, so the agent never forks a child process, and it handles
+`SIGTERM` itself.
+
+If you build a custom image, pick one contract and document it. The examples in
+this page set no `ENTRYPOINT`, matching `hoophq/hoopagent`.
 
 ## Keeping a custom image current
 
