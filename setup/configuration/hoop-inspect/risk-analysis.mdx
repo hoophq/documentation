@@ -74,7 +74,7 @@ Statement ──> local rules  ──>  OPA  ──>  analyzer
               free              ~2ms      ~100ms-2s, costs money
 ```
 
-A `DELETE` that a `type: operation` rule already refuses never reaches a model. That ordering is not an optimization you can turn off; it is what makes the feature affordable.
+A `DELETE` that a `type: operation` rule already refuses never reaches a model. That ordering is what makes the feature affordable, and it is fixed.
 
 ---
 
@@ -94,7 +94,7 @@ An ORM issues the same statement shape thousands of times in one session. Withou
     This is also more correct than caching on bytes. The shape is what is risky, not the parameter.
   </Step>
   <Step title="max_calls is a backstop">
-    A process-lifetime budget. Past it, statements fall through to the local rules and OPA — the same outcome as a lane with no analyzer, which is what a spent budget means.
+    A process-lifetime budget. Past it, statements fall through to the local rules and OPA, the same outcome as a lane with no analyzer.
   </Step>
 </Steps>
 
@@ -105,7 +105,7 @@ curl -s localhost:19000/stats | python3 -m json.tool
 ```
 
 <Tip>
-Trigger on `operations` for anything load-bearing. `tables` is best effort — a statement whose tables the lexer could not determine does **not** match a table trigger.
+Trigger on `operations` for anything load-bearing. `tables` is best effort: a statement whose tables the lexer could not determine does **not** match a table trigger.
 </Tip>
 
 ---
@@ -127,14 +127,14 @@ FATAL:  unbounded delete against the customer ledger
 ```
 
 <Warning>
-`require_review` is **refused at startup**. Holding a statement for human approval needs a review backend this build does not have, and a config that looks like it holds statements for approval while quietly forwarding them is worse than one that fails.
+`require_review` is **refused at startup**. Holding a statement for human approval needs a review backend this build does not have, and a config that reads as an approval gate while forwarding every statement is worse than one that fails.
 </Warning>
 
 ---
 
 ## Requests only
 
-The analyzer classifies `FromClient` statements and ignores responses. By the time a response comes back the write has already run, so a verdict cannot prevent anything — and read-side exposure is [masking](/setup/configuration/hoop-inspect/config-file#masking)'s job, which is cheaper and already running.
+The analyzer classifies `FromClient` statements and ignores responses. By the time a response comes back the write has already run, so a verdict cannot prevent anything. Read-side exposure is [masking](/setup/configuration/hoop-inspect/config-file#masking)'s job, which costs less and already runs.
 
 ---
 
@@ -144,7 +144,7 @@ Every other evaluator in hoop-inspect fails **closed**. This one defaults to `fa
 
 OPA is a service you run, usually on the same host. A language model is a third-party API over the public internet. Fail closed there and a vendor outage refuses every `UPDATE` on the lane: you have turned "we could not score this statement" into "the database is down", which is a bigger incident than the one you were guarding against.
 
-Failing open is not failing silently. The verdict still carries the error, so it reaches the audit trail and `/stats` counts it. And the local rules and OPA both ran and both allowed — a silent analyzer means "guarded by everything except the optional expensive layer", not "unguarded".
+The verdict still carries the error, so it reaches the audit trail and `/stats` counts it. The local rules and OPA both ran and both allowed, so a lane whose analyzer is down keeps every guardrail except the paid one.
 
 <Note>
 Set `fail_open: false` where the classification is a compliance requirement, and accept that a provider outage then stops traffic.
@@ -168,13 +168,13 @@ Set `fail_open: false` where the classification is a compliance requirement, and
 A relay whose job is keeping taxpayer IDs out of a database's own query log must not post them to a model vendor. If you run PII detection, run `send: redacted`.
 </Warning>
 
-HTTP headers never reach the model, even ones a lane allowlists for policy. An allowlist that is safe for a local rule is not automatically safe to hand a third party.
+HTTP headers never reach the model, even ones a lane allowlists for policy. An allowlist that is safe for a local rule is not safe to hand a third party.
 
 ---
 
 ## Writing your own prompt
 
-What counts as risky depends on what you are protecting, so the guidance is replaceable at two levels.
+Risk depends on what you are protecting, so the guidance is replaceable at two levels.
 
 <Warning>
 `analyzer.prompt` is **process-wide**. It reaches every `ai_analysis` rule on every lane, database and HTTP alike. Keep it protocol-neutral; guidance reading "you are classifying SQL against a customer database" follows an HTTP statement to the model and has it reasoning about `DROP` while it looks at a JSON body.
@@ -211,14 +211,14 @@ A prompt replaces the **guidance**. Two instructions are appended after whatever
 
 <AccordionGroup>
   <Accordion title="Report the verdict by calling exactly one risk tool">
-    The risk level *is* which tool the model chose. That is what makes it a three-value enum instead of a parsing problem. Without this instruction the model answers in prose, nothing maps to a level, and every statement fails classification — which under `fail_open: true` means allowing everything.
+    The risk level *is* which tool the model chose, which makes it a three-value enum instead of a parsing problem. Without this instruction the model answers in prose, nothing maps to a level, and every statement fails classification. Under `fail_open: true` that allows everything.
   </Accordion>
   <Accordion title="Never quote a literal value from the statement">
     The verdict is written to an audit record, and audit redaction covers statement text but not verdict metadata. A title repeating the identifier it objected to has published that identifier, through a channel that bypasses your `redact_statements` setting.
   </Accordion>
 </AccordionGroup>
 
-Both failures are silent — the classifier keeps answering, just worse and leakier — which is exactly why they are not a config surface.
+Neither failure raises an error. The classifier keeps answering, worse and leakier, so neither belongs in a config file.
 
 Changing a prompt invalidates cached verdicts for the rules it applies to, so a reworded prompt takes effect on the next statement rather than after the cache TTL.
 
@@ -237,7 +237,9 @@ The HTTP codec exposes nothing by default: no bodies, no headers. Without a body
       headers: [Content-Type]
 ```
 
-A request with no body is **skipped rather than classified**, so a forgotten `capture_body` shows up as an analyzer that never fires rather than as an error. If an HTTP rule seems inert, check this first.
+An `ai_analysis` rule on an HTTP lane **without** `capture_body: true` is refused at startup, because it could never classify anything.
+
+A request that carries no body is still skipped at runtime once capture is on, and that stays intentional: paying for a verdict on `POST /orders` with no payload is the cost this design avoids. The startup check only asserts that the proxy *could* capture a body.
 
 <Warning>
 `authorization`, `cookie` and `proxy-authorization` cannot be allowlisted and are refused at startup. A lane exposing them to policy has put a bearer token into every decision log and audit record.
@@ -259,10 +261,10 @@ A request with no body is **skipped rather than classified**, so a forgotten `ca
       # credentials_file omitted -> Application Default Credentials
     ```
 
-    Vertex authenticates with a GCP OAuth bearer minted from a service account and refreshed automatically. `--validate` mints one token, so a bad key, a missing `roles/aiplatform.user` binding or a skewed clock fails the config check rather than the first risky statement.
+    Vertex authenticates with a GCP OAuth bearer minted from a service account and refreshed before expiry. `--validate` mints one token, so a bad key, a missing `roles/aiplatform.user` binding or a skewed clock fails the config check rather than the first risky statement.
 
     <Tip>
-    Prefer Workload Identity and omit `credentials_file` entirely. On GKE there is then **no credential on disk at all** — the pod's identity is the credential, so there is nothing to leak or rotate.
+    Prefer Workload Identity and omit `credentials_file`. On GKE there is then **no credential on disk at all**: the pod's identity is the credential, so you have nothing to leak or rotate.
     </Tip>
 
     Set `region: global` or a multi-region endpoint. A single-region endpoint is an availability risk for something sitting on a database hot path.
@@ -330,6 +332,10 @@ curl -s localhost:19000/api/stats             | python3 -m json.tool
 
 Only the classification is recorded. The model's title and explanation reach the user on a denial, but never the audit record.
 
+<Note>
+A lane can carry several `ai_analysis` rules. If more than one classifies the same statement, the record keeps the **highest** risk reported, together with the action that rule mapped it to, rather than whichever rule ran last.
+</Note>
+
 <Tip>
 Roll out with every tier on `warn`, watch `by_risk` in `/api/stats` and the cache hit rate in `/stats` for a week, then move `high` to `block`.
 </Tip>
@@ -350,6 +356,8 @@ Each of these would otherwise load, evaluate and do nothing:
 | A credential file readable by group or other | Refused, reporting the mode |
 | `send: redacted` or `refuse` with no `pii` section | Refused: nothing to detect with |
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
+| An `ai_analysis` rule on an HTTP lane without `http.capture_body` | Refused: every request would be skipped |
+| A negative `max_calls`, `cache.size`, `cache.ttl_sec` or `max_output_tokens` | Refused: a negative reads as "off" with no warning |
 | An `http` block on a non-HTTP lane | Refused, naming the lane |
 | `authorization`, `cookie` or `proxy-authorization` allowlisted | Refused, naming the header |
 | A Vertex credential that cannot mint a token | Refused, distinguishing parse, IAM and clock failures |
@@ -370,9 +378,9 @@ config OK: 2 listener(s)
 
 ## Limits worth knowing
 
-- **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. Keep the risks you *can* describe in an `operation` or `table` rule: free, deterministic, and immune to a vendor outage.
+- **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
 - **Requests only.** A response verdict cannot prevent a write that already ran.
-- **No human review.** `require_review` is declared in the schema and refused at startup, so a config written today stays valid when a review backend lands.
+- **No human review.** `require_review` is declared in the schema and refused at startup, so a config you write today stays valid when a review backend lands.
 
 ---
 

@@ -280,6 +280,10 @@ Every rule also takes `name` and `message`. `message` is what the user reads on 
 
 An HTTP rule never matches a SQL statement and vice versa, so one mixed rule set cannot deny the wrong protocol.
 
+<Note>
+`ai_analysis` is the one type the local rules engine does not evaluate. It is lifted out of the set at startup and runs after the local rules and OPA, so its position in the list has no effect. It also needs an [`analyzer`](/setup/configuration/hoop-inspect/risk-analysis) section, and on an HTTP lane it needs `http.capture_body: true` — both are refused at startup when missing.
+</Note>
+
 ### operation, not deny_words_list
 
 `operation` comes from a lexer that strips comments and string literals before looking for a verb, so `SELECT 'DROP TABLE customers'` classifies as a `select`. A word list denies that harmless query.
