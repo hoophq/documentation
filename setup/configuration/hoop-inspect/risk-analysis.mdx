@@ -296,16 +296,165 @@ One provider serves every lane, so the credential is read once.
 
 ## The credential
 
-The config names a **path**, never the material.
+The config holds a **path**, never the key itself. Three ways to supply one,
+strongest first.
 
-- The file must not be readable by group or other. A `0644` key file is refused at startup with its mode in the message, the way `ssh` refuses a private key.
-- The credential is held in a type that refuses to print. It renders as `[REDACTED]` through log lines, JSON marshalling and struct formatting alike, so a field added beside it later cannot leak by forgetting a tag.
-- `GET /config` reports the endpoint **host** and whether a custom prompt is set. Never the credential, never the path, never the prompt text.
-- An endpoint URL carrying userinfo or a query string is refused at startup, because `/config` sits beside a read interface to the audit trail.
+<Tabs>
+  <Tab title="Workload Identity (best)">
+    On GKE, GCE or Cloud Run, omit `credentials_file`. Vertex then resolves
+    Application Default Credentials, and **there is no credential on disk at
+    all**: the pod's identity is the credential, so nothing can leak from an
+    image layer, a backup or a `kubectl cp`.
 
-<Warning>
-Use a file, not an environment variable. `/proc/<pid>/environ`, `docker inspect` and core dumps all read the environment; a `0400` file on a tmpfs mount reads none of them.
-</Warning>
+    ```yaml config.yaml
+    analyzer:
+      provider: vertex
+      model: claude-sonnet-4-5@20250929
+      extra: {project: my-gcp-project, region: global}
+      # no credentials_file
+    ```
+
+    Bind the Kubernetes service account to a GCP one:
+
+    ```bash
+    gcloud iam service-accounts add-iam-policy-binding \
+      hoop-inspect@$PROJECT.iam.gserviceaccount.com \
+      --role roles/iam.workloadIdentityUser \
+      --member "serviceAccount:$PROJECT.svc.id.goog[default/hoop-inspect]"
+
+    kubectl annotate serviceaccount hoop-inspect \
+      iam.gke.io/gcp-service-account=hoop-inspect@$PROJECT.iam.gserviceaccount.com
+    ```
+
+    Rotation becomes a GCP concern rather than a redeploy.
+  </Tab>
+
+  <Tab title="Kubernetes Secret">
+    For a cluster outside GCP, or for an Anthropic or OpenAI key.
+
+    ```yaml config.yaml
+    analyzer:
+      provider: vertex
+      model: claude-sonnet-4-5@20250929
+      extra: {project: my-gcp-project, region: global}
+      credentials_file: /run/secrets/vertex/key.json
+    ```
+
+    ```yaml deployment.yaml
+    containers:
+      - name: hoop-inspect
+        command: ["hoop", "start", "inspect"]
+        env:
+          - name: HOOP_INSPECT_CONFIG
+            value: /etc/hoop-inspect/config.yaml
+        volumeMounts:
+          - {name: config, mountPath: /etc/hoop-inspect,  readOnly: true}
+          - {name: vertex, mountPath: /run/secrets/vertex, readOnly: true}
+    volumes:
+      - name: config
+        configMap: {name: hoop-inspect-config}
+      - name: vertex
+        secret:
+          secretName: hoop-inspect-vertex
+          defaultMode: 0400
+    ```
+
+    <Warning>
+    `defaultMode: 0400` is required. Kubernetes mounts secret files `0644` by
+    default, and the relay refuses anything readable by group or other:
+
+    ```
+    credential file is readable by group or other:
+    /run/secrets/vertex/key.json is 0644, want 0600 or stricter
+    ```
+
+    That refusal is deliberate. A key every process on the node can read is
+    already disclosed, and startup is the only moment anyone acts on it.
+    </Warning>
+
+    Mounting config and credential separately keeps the ConfigMap safe to
+    read, diff and commit.
+  </Tab>
+
+  <Tab title="Docker or a plain host">
+    ```yaml config.yaml
+    analyzer:
+      provider: anthropic
+      model: claude-sonnet-4-5
+      credentials_file: /run/secrets/anthropic-key
+    ```
+
+    ```bash
+    printf '%s' "$ANTHROPIC_KEY" > /run/secrets/anthropic-key
+    chmod 600 /run/secrets/anthropic-key
+    ```
+
+    Use `printf`, not `echo`. `echo` appends a newline, and while the relay
+    trims it, a key with trailing whitespace fails authentication somewhere
+    else with a message naming neither the whitespace nor the file.
+
+    In Compose:
+
+    ```yaml docker-compose.yml
+    services:
+      hoop-inspect:
+        volumes:
+          - ./config.yaml:/etc/hoop-inspect/config.yaml:ro
+        secrets:
+          - source: llm-key
+            target: /run/secrets/anthropic-key
+            mode: 0400
+    secrets:
+      llm-key:
+        file: ./anthropic-key      # add this to .gitignore
+    ```
+  </Tab>
+</Tabs>
+
+### There is no environment-variable option
+
+This is a design decision, not an omission. The config reads no environment
+variable and performs no `${VAR}` interpolation, so this does not work:
+
+```yaml
+analyzer:
+  credentials_file: ${VERTEX_KEY}   # taken literally as a filename
+  api_key: sk-abc123                # rejected: unknown field
+```
+
+`/proc/<pid>/environ`, `docker inspect` and a core dump all expose a process's
+environment. A `0400` file exposes it to none of them.
+
+### What protects the key once it is loaded
+
+| Layer | What it stops |
+|---|---|
+| A path in the config, never the material | The key reaching git, a ConfigMap, a diff or a support ticket |
+| The `0600` refusal at startup | A key any local account can read |
+| A type that refuses to print | `%v`, `%#v`, `json.Marshal` and structured logs |
+| A curated `/config` | The admin endpoint publishing it |
+
+The third layer is the one that catches you otherwise. A plain string escapes
+through a struct dump, a debug endpoint, a log line and a panic trace; the
+credential renders as `[REDACTED]` through all four, so a field added beside
+it later cannot leak by someone forgetting a tag.
+
+`GET /config` returns exactly this, with no credential field to omit:
+
+```json
+{
+  "provider": "vertex",
+  "model": "claude-sonnet-4-5@20250929",
+  "endpoint_host": "",
+  "send": "redacted",
+  "fail_open": true,
+  "custom_prompt": false
+}
+```
+
+An endpoint URL carrying userinfo or a query string is refused at startup,
+because that view sits beside a read interface to the audit trail and a
+credential in a URL would be published there.
 
 ---
 
@@ -380,6 +529,8 @@ config OK: 2 listener(s)
 
 - **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
 - **Requests only.** A response verdict cannot prevent a write that already ran.
+- **A slow classification can outlive the upstream's idle budget.** The relay dials the upstream when it accepts, then holds the request while it classifies. An upstream with a short keep-alive (gunicorn defaults to 2s) hangs up before a 3s model call returns, and the client reads an empty reply. Raise the upstream's idle timeout above your analyzer's p99. The cache hides this after the first call for a given shape, so it shows up as a rare first-request failure.
+- **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. The relay records `model refused to classify this statement`. Watch for these in the audit trail during an observe-only rollout: a model that refuses is the wrong model for this job.
 - **No human review.** `require_review` is declared in the schema and refused at startup, so a config you write today stays valid when a review backend lands.
 
 ---
