@@ -119,6 +119,30 @@ do not have. The chart refuses to render if you try. Deploy the slim image as a
 standalone agent with the `hoopagent` chart instead.
 </Warning>
 
+#### Between releases: weekly base-OS patches
+
+A release tag such as `hoophq/hoopagent:1.136.1-minimal` never changes, so it
+slowly accumulates OS package CVEs until the next release. A weekly job
+rebuilds the `minimal` flavour against the current Ubuntu base and republishes
+it only if the result has no fixable CRITICAL or HIGH vulnerabilities:
+
+| Tag | Moves | Use it when |
+|---|---|---|
+| `hoophq/hoopagent:<version>-minimal` | Never | You pin an exact release and upgrade deliberately |
+| `hoophq/hoopagent:<version>-minimal-<YYYYMMDD>` | Never | You want a specific patched rebuild, pinned |
+| `hoophq/hoopagent:latest-minimal` | Weekly | You want OS patches automatically between releases |
+
+The `distroless` flavour has no such tags: it installs no OS packages, so a
+re-patch would change nothing.
+
+Each rebuilt image records the release it carries in its labels, so you can
+always tell which Hoop version a moving tag is currently serving:
+
+```bash
+docker inspect --format '{{index .Config.Labels "dev.hoop.release.version"}}' \
+  hoophq/hoopagent:latest-minimal
+```
+
 ### `hoophq/hoop-agent-ocr` — Agent with a bundled OCR engine
 
 `hoophq/hoopdev` plus an OCR engine, for **live redaction of Remote Desktop
@@ -184,8 +208,20 @@ counterpart. Choose the clean line when you need bundled clients *and* a clean
 licence history; choose `hoophq/hoopagent` when you need neither.
 </Note>
 
-Before switching, confirm nothing invokes the legacy `mongo` command — use
-`mongosh` instead.
+Before switching, check three things:
+
+- Nothing invokes the legacy `mongo` command — use `mongosh` instead.
+- Nothing in an image built **on top of** `hoophq/hoopdev-ng` compiles a native
+  extension at build time. The clean line omits the Python, unixODBC and kernel
+  build headers (`python3-dev`, `unixodbc-dev`, `alien`, `elfutils`,
+  `libelf-dev`) that the standard line keeps — that is a large part of why it
+  carries fewer CVEs. A `pip install` of something like `pyodbc` or `pymssql`
+  that falls back to building from source will fail unless your own Dockerfile
+  installs those packages first, or you restrict yourself to prebuilt wheels.
+  The ODBC *runtime* is present either way.
+- Your connections tolerate newer client versions. The clean line tracks more
+  recent releases of `kubectl`, `sqlcmd`, `mongosh`, the MongoDB tools, Node.js,
+  the AWS CLI and the Google Cloud CLI than the standard line does.
 
 Install the clean line with its own chart artifacts. These charts **wrap** the
 standard charts, so every value must be nested under the dependency name:
@@ -262,10 +298,27 @@ build needs to map one to the other — the example below does this.
 
 ### Option 1: starting from a base image of your choice
 
-Each example downloads the tarball, verifies it against the published
-`checksums.txt`, and extracts the binary. The verification runs inside the
-build, so a corrupted or tampered download fails the build rather than
-producing a broken image.
+Each example downloads the tarball, checks it against the published
+`checksums.txt`, and extracts the binary. The check runs inside the build, so a
+corrupted or truncated download fails the build rather than producing a broken
+image.
+
+<Warning>
+That check detects corruption, not tampering. The archive and the checksum come
+from the same host, so anyone able to serve you altered bytes can serve a
+matching checksum too. To authenticate the bytes, pin the digest yourself:
+take the SHA-256 from the [GitHub release
+assets](https://github.com/hoophq/hoop/releases) — GitHub records an immutable
+digest for every asset it hosts — and pass it into the build:
+
+```docker
+ARG HOOP_SHA256
+RUN echo "${HOOP_SHA256}  /tmp/${TARBALL}" | sha256sum -c -
+```
+
+A digest you reviewed once and keep in your own build config is what makes the
+check meaningful; it also pins you to exactly the release you tested.
+</Warning>
 
 Pick the base you already standardise on. Add the tooling your connections need
 where the comment indicates.
@@ -436,7 +489,7 @@ tag to use is the one referenced by the Hoop release you are targeting.
 
 ### Verifying a download outside a build
 
-The Dockerfiles above verify the tarball as part of the build. To check one by
+The Dockerfiles above check the tarball as part of the build. To check one by
 hand — when mirroring releases to an internal artifact store, for example:
 
 ```bash
@@ -452,6 +505,17 @@ The paths in `checksums.txt` are build-time paths, so match on the filename
 rather than the whole line. Each architecture is listed under two equivalent
 names (`x86_64` and `amd64`, `arm64` and `aarch64`) with the same hash;
 anchoring the match to the end of the line picks exactly one.
+
+As above, this catches a corrupted or truncated copy. When you are mirroring —
+the case where the bytes then live in your own artifact store and get trusted
+for a long time — take the expected digest from the [GitHub release
+assets](https://github.com/hoophq/hoop/releases) instead, and record it
+alongside the mirrored file:
+
+```bash
+EXPECTED=<sha256 copied from the GitHub release asset>
+echo "${EXPECTED}  ${TARBALL}" | sha256sum -c -
+```
 
 ## Requirements for a custom agent image
 
