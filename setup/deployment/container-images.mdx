@@ -106,6 +106,19 @@ SSPL-licensed components.
 and a release, for example `hoophq/hoopagent:1.135.1-minimal`.
 </Warning>
 
+Neither flavour serves **Remote Desktop**: RDP is handled by a companion
+binary (`hoop_rs`) that these images do not carry. Setting `HOOP_GATEWAY_URL`
+on a slim flavour is still fine — the agent logs that it is starting without
+Remote Desktop support and serves everything else normally — but RDP
+connections need `hoophq/hoopdev`.
+
+<Warning>
+Do not use a slim flavour for the gateway chart's `defaultAgent` sidecar. That
+sidecar runs a startup script that needs a shell and `psql`, which these images
+do not have. The chart refuses to render if you try. Deploy the slim image as a
+standalone agent with the `hoopagent` chart instead.
+</Warning>
+
 ### `hoophq/hoop-agent-ocr` — Agent with a bundled OCR engine
 
 `hoophq/hoopdev` plus an OCR engine, for **live redaction of Remote Desktop
@@ -148,10 +161,11 @@ image](#option-2-extending-the-tooling-image) below.
 
 ### The clean image line (`-ng`)
 
-Every image above ships from a repository whose history may contain AGPL or
-SSPL components, because `hoophq/hoopdev` bundles the legacy MongoDB shell. If
-your policy forbids those licences anywhere in an image's history, use the
-clean line instead:
+`hoophq/hoopdev` bundles the legacy MongoDB shell, so its repository — and the
+`hoophq/hoop` gateway repository alongside it — has a history that may contain
+AGPL or SSPL components. (`hoophq/hoopagent` is the exception: it is clean-only
+by construction, as described below.) If your policy forbids those licences
+anywhere in an image's history, use the clean line instead:
 
 | Standard | Clean equivalent |
 |---|---|
