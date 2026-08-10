@@ -64,6 +64,18 @@ listeners:
         - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
         - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
 
+  - name: mssqldb
+    protocol: mssql
+    listen: 0.0.0.0:11433
+    upstream: mssql:1433
+    connection: mssqldb
+    policy:
+      rules:
+        - name: no-destructive-tsql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on mssqldb
+
   - name: httpbin
     protocol: http
     listen: 0.0.0.0:18080
@@ -110,12 +122,13 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | Field | Meaning |
 |---|---|
 | `name` | Identifies the lane in logs and in `/config`. Defaults to `connection`. |
-| `protocol` | `postgres` or `http`. Selects the codec. |
+| `protocol` | `postgres`, `mssql` or `http`. Selects the codec. |
 | `listen` | Bind address, or a filesystem path when `network: unix`. |
 | `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
 | `upstream` | The real backend, `host:port`. |
 | `connection` | Operator-facing resource name recorded in audit and exposed to policy. The physical `upstream` may change under it. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
+| `downstream_tls` | Terminates the client's TLS at the relay. Only valid on a `postgres` lane, because pgwire negotiates in-band. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#terminating-the-clients-tls). |
 | `identity_header` | Names an HTTP header carrying the authenticated subject. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
@@ -250,6 +263,9 @@ curl -s localhost:19000/config | python3 -m json.tool
   {"name": "appdb", "protocol": "postgres", "listen": "0.0.0.0:15432",
    "upstream": "appdb:5432", "enforcing": true,
    "rules": ["no-destructive-sql", "no-cpf-in-query"], "masking": true},
+  {"name": "mssqldb", "protocol": "mssql", "listen": "0.0.0.0:11433",
+   "upstream": "mssql:1433", "enforcing": true,
+   "rules": ["no-destructive-tsql", "no-cpf-in-query"], "masking": true},
   {"name": "httpbin", "protocol": "http", "listen": "0.0.0.0:18080",
    "upstream": "httpbin:8080", "enforcing": true,
    "rules": ["no-admin-api", "no-internal-ids", "no-upstream-5xx",
@@ -257,7 +273,7 @@ curl -s localhost:19000/config | python3 -m json.tool
 ], "version": "0.1.0"}
 ```
 
-Both lanes inherited `no-cpf-in-query`. Neither inherited the other's rules. Rule names only: a `pattern_regex` can encode business logic, and this endpoint already sits beside a read interface to the audit trail.
+Every lane inherited `no-cpf-in-query`. None inherited another lane's rules. Rule names only: a `pattern_regex` can encode business logic, and this endpoint already sits beside a read interface to the audit trail.
 
 ---
 
@@ -446,7 +462,7 @@ Turning on every recognizer rewrites ordinary numeric columns:
 Nine digits in a legal range is a valid SSN as far as any detector can tell, because SSNs carry no checksum. Card, CPF and IBAN carry real checksums (Luhn, mod-11, ISO 7064), so those three leave lookalike ids alone.
 
 <Note>
-Masking needs a codec that can carry it. HTTP declares its body length in a header the relay corrects; Postgres rebuilds its length-prefixed row frames around the new values. A protocol offering neither gets its `mask` section **refused at startup**. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
+Masking needs a codec that can carry it. HTTP declares its body length in a header the relay corrects; Postgres rebuilds its length-prefixed row frames around the new values, and MSSQL reassembles the TDS token stream and lays fresh packets over the rewritten rows. A protocol offering neither gets its `mask` section **refused at startup**. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
 </Note>
 
 ---
@@ -518,13 +534,15 @@ Three behaviors on a Postgres lane surprise people:
 - **A refusal is an error, never a downgrade.** If the server declines TLS, the connection fails with a message naming the likely cause. Sending credentials in the clear because the server said no is the outcome you were preventing.
 - **Channel binding is dropped from the server's offer.** With TLS terminating at the relay, `SCRAM-SHA-256-PLUS` cannot work. The relay removes that one mechanism, leaving plain `SCRAM-SHA-256`, which authenticates the same password against the same verifier.
 
+On an MSSQL lane `upstream_tls` performs a plain TLS-on-connect handshake, which is TDS 8.0 and the only TLS shape the relay originates. SQL Server on Linux cannot accept it: strict encryption is a Windows feature, and the Linux build offers `network.forceencryption`, whose TLS is the TDS 7.x kind negotiated inside `0x12` PRELOGIN packets. Leave `upstream_tls` off that lane and keep the hop on loopback or a private network.
+
 ### The client leg is a different hop
 
 `upstream_tls` covers the relay-to-backend hop only. The relay terminates **no** downstream TLS: if the client negotiates TLS all the way through, there is no plaintext at the gate and inspection is impossible. Terminating that leg belongs to Envoy.
 
 | Leg | Encrypted by |
 |---|---|
-| client → Envoy | Envoy. An HTTPS listener does it already; a Postgres lane needs `postgres_proxy` with a `starttls` transport socket |
+| client → Envoy | Envoy. An HTTPS listener does it already; a Postgres lane needs `postgres_proxy` with a `starttls` transport socket, and an MSSQL lane a plain `DownstreamTlsContext` for TDS 8.0 |
 | Envoy → relay | nothing, by design. These are the bytes the gate parses |
 | relay → backend | the relay, via `upstream_tls` above |
 

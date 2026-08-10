@@ -27,7 +27,7 @@ This runs with no gateway, no agent, and no control-plane database. One config f
 
 - The `hoop` CLI installed. See [CLI installation](/clients/cli).
 - An Envoy you can add a cluster to, or any proxy that can forward plaintext to a local port.
-- A backend to protect: PostgreSQL or an HTTP service.
+- A backend to protect: PostgreSQL, SQL Server or an HTTP service.
 
 ---
 
@@ -107,6 +107,27 @@ Pick a transport first. One field decides it, and the rest of the file is identi
 </Tabs>
 
 Nothing above the transport changes. Policy, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is. See [Transport](/setup/configuration/hoop-inspect/config-file#transport) for the full comparison.
+
+### Another protocol is one field
+
+`protocol` picks the codec and nothing else in the lane changes with it. A SQL Server lane is the same shape as the Postgres one above:
+
+```yaml config.yaml
+listeners:
+  - name: mssqldb
+    protocol: mssql             # postgres | mssql | http
+    listen: 127.0.0.1:11433     # network: unix works here too
+    upstream: mssql:1433
+    connection: mssqldb
+    policy:
+      rules:
+        - name: no-destructive-tsql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on mssqldb
+```
+
+Policy, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the relay can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos).
 
 <Warning>
 `policy.enforce` defaults to **false**. Without it every lane inspects and audits but denies nothing, so a misconfigured rule cannot take production down on first deploy. Set it to `true` when you want the rules to bite.
@@ -230,6 +251,47 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
 
     Nothing to mount. The relay's port is reachable by anything that can route to it, so keep it off any interface a client can find.
   </Tab>
+  <Tab title="MSSQL lane">
+    TDS 8.0 is TCP, then TLS, then the protocol, so Envoy terminates it with an ordinary `DownstreamTlsContext` and needs no TDS awareness.
+
+    ```yaml envoy.yaml
+    static_resources:
+      listeners:
+        - name: mssql_ingress
+          address:
+            socket_address: { address: 0.0.0.0, port_value: 1433 }
+          filter_chains:
+            - transport_socket:
+                name: envoy.transport_sockets.tls
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+                  common_tls_context:
+                    tls_certificates:
+                      - certificate_chain: { filename: /etc/envoy/certs/server.crt }
+                        private_key: { filename: /etc/envoy/certs/server.key }
+              filters:
+                - name: envoy.filters.network.tcp_proxy
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                    stat_prefix: ingress_mssql
+                    cluster: hoop_inspect_mssql
+                    idle_timeout: 3600s   # a session idles between keystrokes
+
+      clusters:
+        - name: hoop_inspect_mssql
+          type: STRICT_DNS
+          connect_timeout: 5s
+          load_assignment:
+            cluster_name: hoop_inspect_mssql
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address: { address: hoop-inspect, port_value: 11433 }
+    ```
+
+    Clients connect with `Encrypt=strict`. TDS 7.x wraps its TLS handshake inside `0x12` packets, which Envoy cannot speak, so a 7.x lane needs a terminator that does.
+  </Tab>
   <Tab title="HTTP lane">
     On HTTP you keep your existing `ext_authz` filter. Only the route's cluster changes: it points at the relay instead of at the service.
 
@@ -281,7 +343,7 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
 
 The relay reads plaintext. Whatever the client encrypts, something has to decrypt before the gate sees a statement, and the relay is not that something: it terminates **no** downstream TLS.
 
-On the HTTP lane Envoy already does it, because an HTTPS listener terminates TLS by definition. On the Postgres lane the stock `tcp_proxy` does not, which is why the client connects with `PGSSLMODE=disable`.
+On the HTTP lane Envoy already does it, because an HTTPS listener terminates TLS by definition. On the Postgres lane the stock `tcp_proxy` does not, which is why the client connects with `PGSSLMODE=disable`. An MSSQL lane is the easy case: TDS 8.0 hands Envoy an ordinary TLS-on-connect handshake, which the tab above terminates.
 
 To encrypt the client's Postgres leg, terminate it in Envoy with the `postgres_proxy` filter and a `starttls` transport socket:
 
@@ -319,7 +381,7 @@ With all three legs covered, only the hop the relay reads is ever in the clear:
 
 | Leg | Encrypted by |
 |---|---|
-| client → Envoy | Envoy, via `starttls` + `postgres_proxy` (HTTPS listener on the HTTP lane) |
+| client → Envoy | Envoy, via `starttls` + `postgres_proxy` (HTTPS listener on the HTTP lane, plain `DownstreamTlsContext` on an MSSQL one) |
 | Envoy → relay | nothing, and it must stay that way: the gate parses these bytes |
 | relay → database | the relay, via [`upstream_tls`](/setup/configuration/hoop-inspect/config-file#upstream-tls) |
 
@@ -473,6 +535,10 @@ The stack ships both transports. TCP is the default because it needs no shared v
 | 9901 | Envoy admin |
 
 Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the relay's two, which were never published to the host.
+
+<Note>
+SQL Server runs in its own stack under `deploy/docker-compose/envoy-stack/mssql/`, driven by `hoopinspect/scripts/dev/mssql-stack.sh`: Envoy terminating TDS 8.0, a Samba AD DC and a client holding a ticket. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#local-testing).
+</Note>
 
 ---
 

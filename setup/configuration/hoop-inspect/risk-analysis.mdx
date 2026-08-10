@@ -3,7 +3,7 @@ title: "Risk Analysis"
 description: "Classify statements with a language model and block on the risk it reports"
 ---
 
-An `ai_analysis` rule sends a statement to a language model and denies on the risk that comes back. It runs on both lanes: SQL on a `postgres` listener, request bodies on an `http` one.
+An `ai_analysis` rule sends a statement to a language model and denies on the risk that comes back. It runs on every lane: SQL on a `postgres` or `mssql` listener, request bodies on an `http` one.
 
 It is the only rule type that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-three-cost-controls) before you enable it anywhere real.
 

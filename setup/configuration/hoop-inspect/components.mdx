@@ -193,9 +193,10 @@ Two details in that path decide real verdicts.
 | Protocol | Request messages | Response messages | Stateful |
 |---|---|---|---|
 | `postgres` | `Query` ('Q'), `Parse` ('P'); handshake skipped | `RowDescription` ('T'), `DataRow` ('D'), and the terminators that end a result set | yes |
+| `mssql` | `SQLBatch` (`0x01`), `RPC` (`0x03`), `sp_executesql` unwrapped; PRELOGIN, LOGIN7 and SSPI forwarded untouched | none decoded as statements; the login reply is scanned once and a routing ENVCHANGE ends the connection | yes |
 | `http` | HTTP/1.x requests | HTTP/1.x responses | no |
 
-The Postgres codec is stateful because one `RowDescription` describes every `DataRow` after it, and those land in different TCP reads.
+Both database codecs are stateful: one Postgres `RowDescription` describes every `DataRow` after it, one TDS `COLMETADATA` describes every `ROW`, and those land in different TCP reads.
 
 ---
 
@@ -255,9 +256,11 @@ HTTP declares its body length in a header, so the gate substitutes bytes and ret
 
 Postgres length-prefixes every row and every column. Substituting `ada@example.com` (15 bytes) with `[REDACTED:EMAIL_ADDRESS]` (24 bytes) desynchronizes psql on the next message, and the user sees "lost synchronization with server". The Postgres codec rebuilds the `DataRow` frames around the masked values instead.
 
+MSSQL has the same problem in a different framing, and no `Content-Length` to correct. Its codec reassembles the TDS token stream across packets, rewrites `ROW` and `NBCROW` values, and lays fresh packets over the result. A column type it cannot measure (`SQL_VARIANT`, `XML`, UDT) stops the rewriting for that connection rather than guessing a length; statements and policy carry on.
+
 A codec offering neither mechanism gets its `mask` section refused at startup. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
 
-**Source:** [`hoopinspect/codec/postgres/rewrite.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/codec/postgres/rewrite.go), [`hoopinspect/gate/contentlength.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/gate/contentlength.go)
+**Source:** [`hoopinspect/codec/postgres/rewrite.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/codec/postgres/rewrite.go), [`hoopinspect/codec/mssql/rewrite.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/codec/mssql/rewrite.go), [`hoopinspect/gate/contentlength.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/gate/contentlength.go)
 
 ---
 
@@ -541,13 +544,14 @@ Until that function is written, a Rego policy keyed on `input.context.user` read
 
 Read these before writing a policy against the relay.
 
-- **Two codecs ship: postgres and http.** Adding one means a new `codec/<name>` package and nothing else.
+- **Three codecs ship: postgres, mssql and http.** Adding one means a new `codec/<name>` package and nothing else.
 - **`Tables` is best effort.** A lexer, not a SQL grammar, which is the same ceiling Envoy's own docs acknowledge for `postgres_proxy`. Empty means "could not determine" and never "touches nothing". Set `require_table_match: true` on rules protecting something critical and accept the false positives.
 - **A response batch can be truncated.** The Postgres codec stops decoding columns past 1000 rows in one result set, to keep the relay's memory out of a query's hands. It keeps counting and marks the batch truncated. A policy must read that as inconclusive, never as proof a value is absent.
 - **A response statement carries no verb.** For database codecs a server-direction statement reports `unknown`, because the operation belongs to the request the audit trail already recorded. Key a response-side SQL rule on the result, not on the operation.
+- **MSSQL statement extraction covers `sp_executesql`.** `sp_prepare`, `sp_prepexec` and the cursor family yield no statement, which is how JDBC and .NET send prepared statements, and `EXEC('DELETE ...')` classifies as a call rather than a delete.
 - **PII detection is neither sound nor complete.** A checksum-verified identifier holds up. Everything else is a pattern. Detecting a name column needs NER, which this does not wire, and a caller can split a value across two responses. Masking raises the cost of accidental exposure without replacing "do not grant access to that table".
 - **HTTP/1.x only for stream decoding.** HTTP/2 and HTTP/3 framing belongs to whatever terminated the connection.
-- **Plaintext at the relay.** A client negotiating TLS end to end past the relay leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, and `postgres_proxy` with a `starttls` socket covers Postgres. The upstream leg may be TLS, which the relay originates itself.
+- **Plaintext at the relay.** A client negotiating TLS end to end past the relay leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. The upstream leg may be TLS, which the relay originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the relay can start.
 - **Statements are not transactions.** Each one gets its own verdict, and no cross-statement session state exists.
 - **No SSH lane.** No SSH codec ships. Envoy ships no SSH filter at any fidelity either, so every service reached over SSH sits unpoliced by the Envoy and OPA layer.
 
