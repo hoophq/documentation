@@ -1,0 +1,80 @@
+---
+title: "1.136.1"
+description: "A new global app header with a Native Connections drawer, live Server Logs streaming, AI risk analysis for Postgres and HTTP inspection, stable connection passwords, and a wave of pages moving to the faster new interface."
+---
+
+### TL;DR
+- **New Features:** A global app header with a Native Connections drawer, live Server Logs, AI risk analysis in inspection, stable credentials, and Guardrails, Access Control, and Access Request pages in the new interface.
+- **Improvements:** Access Request rules can now let trusted groups skip review entirely.
+- **Bug Fixes:** Native-client credentials honor JIT review, a faster and more accurate Dashboard, clearer protection indicators in the Terminal, and setup footers that no longer hide fields below the fold.
+
+---
+
+### New Features
+**A cleaner shell, live logging, smarter inspection, and more pages in the new interface.**
+
+- **Global app header with a Native Connections drawer**
+  Every page now has a global header with search, a Native Connections button, and the user menu, and native connections open in a searchable side panel instead of floating over the app. Live native sessions now come from the server, so they survive a page refresh.
+  [PR #1673](https://github.com/hoophq/hoop/pull/1673)
+
+- **Live Server Logs from the gateway and agents**
+  A new admin-only Server Logs page streams runtime logs from the gateway and all connected agents in real time, with color-coded levels and sources, click-to-expand details, level and source filters, pause and resume, and JSON export.
+  [PR #1663](https://github.com/hoophq/hoop/pull/1663)
+
+- **AI risk analysis in Postgres and HTTP inspection**
+  Protocol-aware inspection can now classify database statements and API request bodies with a language model and block the risky ones, using Anthropic, OpenAI, or Google Vertex AI. Risk levels appear in the audit trail and roll up per session, so you can run in observe-only mode first to see what would have been caught before enforcing.
+  [PR #1682](https://github.com/hoophq/hoop/pull/1682)
+
+- **Stable passwords for connection credentials**
+  Standard user connection credentials now reuse the same password for a connection across issuances instead of minting a new one each time, generating a fresh password only on first use or after an explicit revocation.
+  [PR #1649](https://github.com/hoophq/hoop/pull/1649)
+
+- **Guardrails in the new interface**
+  The Guardrails pages now render in the new React interface, with a confirmation prompt before deleting and clear error toasts when a save or delete fails instead of failing silently.
+  [PR #1650](https://github.com/hoophq/hoop/pull/1650)
+
+- **Access Control in the new interface**
+  The Access Control pages for listing, creating, and editing group access to resource roles now render in the new React interface.
+  [PR #1666](https://github.com/hoophq/hoop/pull/1666)
+
+- **Access Request rules in the new interface**
+  The Access Request rules pages now render in the new interface, keeping the same rules, filters, and form fields.
+  [PR #1676](https://github.com/hoophq/hoop/pull/1676)
+
+---
+
+### Improvements
+**More flexible approval rules.**
+
+- **Let trusted groups skip Access Request review**
+  Access Request rules can now name user groups whose members bypass approval review entirely when a rule applies to everyone, while AI-mandated reviews and per-connection reviewers still take precedence.
+  [PR #1680](https://github.com/hoophq/hoop/pull/1680)
+
+---
+
+### Bug Fixes
+**Correct review enforcement, sharper protection cues, and forms that show every field.**
+
+- **Native-client credentials honor protection-profile review**
+  Issuing native-client credentials now correctly enforces just-in-time review for connections governed by protection profiles, and any error determining the review requirement fails closed instead of silently issuing credentials.
+  [PR #1675](https://github.com/hoophq/hoop/pull/1675)
+
+- **Faster, more accurate Dashboard**
+  The Dashboard now loads in the new interface and its numbers line up: daily figures agree with each other outside UTC, the 7-day, 14-day, 30-day, and 3-month redaction views include today, and approved versus rejected reviews are distinguishable at a glance.
+  [PR #1656](https://github.com/hoophq/hoop/pull/1656)
+
+- **See active protections before you run a query**
+  The Terminal now shows which protections are active on the resource role you picked, such as approval, guardrails, required metadata, live data masking, AI analysis, or Jira ticket creation, right next to the role name, with details on hover and click.
+  [PR #1665](https://github.com/hoophq/hoop/pull/1665)
+
+- **Setup footers no longer hide fields below the fold**
+  The resource setup wizard and connection and onboarding pages now place their action footer at the true end of the scrollable content, so you no longer submit a form before seeing fields like the Authorize with MCP step, which could save a connection that then failed to connect.
+  [PR #1636](https://github.com/hoophq/hoop/pull/1636)
+
+- **Reliable MCP streaming**
+  Fixed server-sent event streaming for MCP proxy connections.
+  [PR #1678](https://github.com/hoophq/hoop/pull/1678)
+
+---
+
+Less friction, faster connections.
