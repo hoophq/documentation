@@ -127,8 +127,17 @@ container runtime installed.
 | `hoophq/hoop-agent-ocr:<version>-gpu` | `linux/amd64` only | The deployment target. Built against CUDA, so there is no ARM64 build; needs a GPU host |
 | `hoophq/hoop-agent-ocr:<version>` | `linux/amd64`, `linux/arm64` | CPU build. Functional for evaluation, but not fast enough to redact a live session |
 
-Live redaction is enabled per organisation and also needs a Presidio analyzer —
-see [Presidio](/setup/deployment/presidio).
+Live redaction is enabled per organisation and also needs a Presidio analyzer.
+The agent calls Presidio directly, so set `MSPRESIDIO_ANALYZER_URL` on the
+**agent**, not only on the gateway. With the standard Presidio Helm deployment
+that endpoint is the Envoy load balancer:
+
+```yaml
+config:
+  MSPRESIDIO_ANALYZER_URL: http://presidio-envoy-lb:3010
+```
+
+See [Presidio](/setup/deployment/presidio) for the analyzer deployment.
 
 ### `hoophq/agent-tools` — Base image
 
@@ -136,6 +145,75 @@ The base layer `hoophq/hoopdev` is built from: the bundled client tooling
 without the Hoop binary. Published so you can build your own agent image on the
 same tooling set — see [Extending the tooling
 image](#option-2-extending-the-tooling-image) below.
+
+### The clean image line (`-ng`)
+
+Every image above ships from a repository whose history may contain AGPL or
+SSPL components, because `hoophq/hoopdev` bundles the legacy MongoDB shell. If
+your policy forbids those licences anywhere in an image's history, use the
+clean line instead:
+
+| Standard | Clean equivalent |
+|---|---|
+| `hoophq/hoop` | `hoophq/hoop-ng` |
+| `hoophq/hoopdev` | `hoophq/hoopdev-ng` |
+
+`hoophq/hoop-ng` is a manifest-for-manifest copy of the gateway, which is
+already licence-clean; the separate repository exists to give it a clean
+history. `hoophq/hoopdev-ng` keeps the same broad client tooling as
+`hoophq/hoopdev` but excludes the SSPL-licensed legacy MongoDB 5 `mongo` shell
+and its end-of-life OpenSSL 1.1 dependency, shipping only `mongosh`.
+
+<Note>
+`hoophq/hoopagent` is already clean-only by construction, so it has no `-ng`
+counterpart. Choose the clean line when you need bundled clients *and* a clean
+licence history; choose `hoophq/hoopagent` when you need neither.
+</Note>
+
+Before switching, confirm nothing invokes the legacy `mongo` command — use
+`mongosh` instead.
+
+Install the clean line with its own chart artifacts. These charts **wrap** the
+standard charts, so every value must be nested under the dependency name:
+
+```yaml
+# clean-gateway-values.yaml
+hoop-chart:
+  config:
+    POSTGRES_DB_URI: <database-uri>
+    API_URL: https://hoop.example.com
+  # Move the rest of your existing gateway values here.
+
+# clean-agent-values.yaml
+hoopagent-chart:
+  config:
+    HOOP_KEY: <agent-key>
+  # Move the rest of your existing agent values here.
+```
+
+<Warning>
+Passing an existing standard-chart values file to a wrapper chart unchanged
+silently ignores every top-level value, including database and API settings.
+Nest them first, and review the rendered manifests before upgrading.
+</Warning>
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+
+helm upgrade --install hoop \
+  --namespace <existing-namespace> \
+  https://releases.hoop.dev/release/$VERSION/hoop-ng-chart-$VERSION.tgz \
+  -f clean-gateway-values.yaml
+
+helm upgrade --install hoopagent \
+  --namespace <existing-namespace> \
+  https://releases.hoop.dev/release/$VERSION/hoopagent-ng-chart-$VERSION.tgz \
+  -f clean-agent-values.yaml
+```
+
+The release names stay `hoop` and `hoopagent`, so this is an in-place upgrade
+when the release name and namespace both match. If your values set an image
+repository explicitly, remove that override or point it at the `-ng` repository.
 
 ## Building a custom image
 
