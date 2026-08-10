@@ -302,6 +302,7 @@
           {
             "group": "Releases",
             "pages": [
+              "changelog/1.136.1",
               "changelog/1.126.3",
               "changelog/1.121.0",
               "changelog/1.119.4",
