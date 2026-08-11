@@ -133,6 +133,10 @@ Policy, masking and audit behave as they do on a Postgres lane. Two differences 
 `policy.enforce` defaults to **false**. Without it every lane inspects and audits but denies nothing, so a misconfigured rule cannot take production down on first deploy. Set it to `true` when you want the rules to bite.
 </Warning>
 
+<Note>
+`type: operation` matches the statement's most consequential **effect**, so `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` counts as a `delete` and the rule above catches it. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) covers every rule type, including deferring a match to a Rego policy instead of denying it.
+</Note>
+
 ---
 
 ## Step 2: Validate before you deploy
@@ -341,7 +345,7 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
 
 ### Terminating client TLS
 
-The relay reads plaintext. Whatever the client encrypts, something has to decrypt before the gate sees a statement, and the relay is not that something: it terminates **no** downstream TLS.
+The relay reads plaintext. Something in front has to decrypt whatever the client encrypted before the gate sees a statement; the relay terminates **no** downstream TLS.
 
 On the HTTP lane Envoy already does it, because an HTTPS listener terminates TLS by definition. On the Postgres lane the stock `tcp_proxy` does not, which is why the client connects with `PGSSLMODE=disable`. An MSSQL lane is the easy case: TDS 8.0 hands Envoy an ordinary TLS-on-connect handshake, which the tab above terminates.
 
@@ -403,6 +407,27 @@ FATAL:  destructive statements are not permitted on appdb
 ```
 
 That is a real pgwire `ErrorResponse` carrying the message you wrote in `config.yaml`, so the developer reads it in psql instead of watching a socket drop. Envoy forwarded the same bytes as opaque TCP and consulted nobody.
+
+The rule catches more than its three verbs suggest, because `Operation` is the worst effect rather than the leading word. A delete hidden inside a CTE trips it:
+
+```bash
+PGSSLMODE=disable psql -h envoy -p 5432 -U appuser -d appdb \
+  -c 'WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d;'
+```
+
+```
+FATAL:  destructive statements are not permitted on appdb
+```
+
+<Warning>
+`CALL` and `EXECUTE` report `unknown` rather than `call`, because their bodies live in the catalog and no parser can say what they touch. The rule above forwards `CALL purge()`. Add `unknown` where that matters:
+
+```yaml
+operations: [drop, delete, truncate, unknown]
+```
+
+A rule written as `operations: [call]` stops matching `CALL` and `EXECUTE` entirely. Write `operations: [call, unknown]`.
+</Warning>
 
 Read what the relay recorded:
 
@@ -546,7 +571,7 @@ SQL Server runs in its own stack under `deploy/docker-compose/envoy-stack/mssql/
 
 | Symptom | Check |
 |---|---|
-| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules` |
+| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
 | Masking leaves a value alone | The detector may refuse it. Add a column rule, or widen `pii.entities`. |
 | The relay refuses to start | It prints every config problem at once, each naming its lane |
 | psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The relay reads plaintext either way. |
@@ -561,6 +586,9 @@ SQL Server runs in its own stack under `deploy/docker-compose/envoy-stack/mssql/
 ## Next
 
 <CardGroup cols={2}>
+  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+    Every rule type, deferring a match to Rego, and the findings a policy reads.
+  </Card>
   <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
     Every section, every rule type, inheritance between lanes, and what startup refuses.
   </Card>

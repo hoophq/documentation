@@ -67,14 +67,17 @@ listeners:
 
 ## Where it runs in the chain
 
-Three evaluators compose in ascending order of cost, and the chain stops at the first denial:
+Evaluators compose in ascending order of cost, and the chain stops at the first denial:
 
 ```
-Statement ──> local rules  ──>  OPA  ──>  analyzer
-              free              ~2ms      ~100ms-2s, costs money
+Statement ──> local rules ──> OPA ──> analyzer ──> OPA (decide)
+              free            ~2ms    ~100ms-2s    only where something defers
+                                      costs money
 ```
 
-A `DELETE` that a `type: operation` rule already refuses never reaches a model. That ordering is what makes the feature affordable, and it is fixed.
+A `DELETE` that a `type: operation` rule already refuses never reaches a model. That ordering is fixed.
+
+The trailing decide-phase call appears only on a lane where a risk level or a local rule defers. [The gate phase](#the-gate-phase) puts a second decision in front of the analyzer as well.
 
 ---
 
@@ -86,7 +89,7 @@ An ORM issues the same statement shape thousands of times in one session. Withou
   <Step title="trigger narrows what is classified">
     Only statements naming these operations, tables or resources are sent. Everything else allows for free.
 
-    An **empty trigger classifies nothing** and is a startup error. The failure mode of the opposite default is an invoice.
+    An **empty trigger classifies nothing** and is a startup error. The failure mode of the opposite default is an invoice. A lane running [the gate](#the-gate-phase) is the exception: there the policy decides what gets classified, and an empty trigger is how an operator says so.
   </Step>
   <Step title="The cache keys on the statement shape">
     `WHERE id = 1` and `WHERE id = 2` are one verdict: literals are stripped from SQL, and HTTP resources are already normalized by the codec, so `/users/12345/orders` and `/users/67890/orders` share an entry.
@@ -105,7 +108,7 @@ curl -s localhost:19000/stats | python3 -m json.tool
 ```
 
 <Tip>
-Trigger on `operations` for anything load-bearing. `tables` is best effort: a statement whose tables the lexer could not determine does **not** match a table trigger.
+Trigger on `operations` for anything load-bearing. `tables` comes from a scanner rather than a full SQL grammar, and a statement whose relations it could not determine does **not** match a table trigger. `operations` reads the statement's most consequential effect, so a data-modifying CTE triggers on the `delete` it performs. See [Policy Rules](/setup/configuration/hoop-inspect/policy-rules).
 </Tip>
 
 ---
@@ -117,6 +120,7 @@ Trigger on `operations` for anything load-bearing. `tables` is best effort: a st
 | `allow` | Forward. The verdict is still recorded. |
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
+| `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
@@ -126,9 +130,102 @@ A blocked statement reaches the user the same way every other denial does:
 FATAL:  unbounded delete against the customer ledger
 ```
 
+### defer hands the verdict to Rego
+
+`high: block` decides the same way for everyone who touches the lane. `high: defer` makes the risk level one input among the actor, the hour and the table, and lets the Rego your InfoSec team already owns weigh them:
+
+```yaml
+- name: risky-writes
+  type: ai_analysis
+  trigger: {operations: [update, delete]}
+  high: defer          # the analyzer classifies; the policy rules
+  medium: warn
+```
+
+The analyzer still classifies, annotates and audits. The level travels to the decide-phase call as a finding under the `ai_analysis` source:
+
+```json
+"findings": {
+  "ai_analysis": {"rule": "risky-writes", "status": "ok", "reason": "",
+                  "values": {"risk_level": "high"}}
+}
+```
+
+```rego
+package hoop.inspect
+
+import rego.v1
+
+# A single-call lane sends no phase, so default it rather than
+# testing input.phase directly.
+phase := object.get(input, "phase", "decide")
+
+default allow := false
+
+allow if {
+	phase == "decide"
+	not blocked
+}
+
+blocked if {
+	f := input.findings.ai_analysis
+	f.status in {"ok", "cached"}      # the two answered statuses
+	f.values.risk_level == "high"
+	input.operation == "delete"
+}
+```
+
+Guard on `status` before reading `values`. An absent `risk_level` means "found nothing", "never ran", "budget spent" and "provider down" all at once, and only the status tells them apart. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) has the full status vocabulary.
+
+`defer` on a lane with no `policy.opa.url` is **refused at startup**. A finding nobody reads forwards every statement while looking like enforcement.
+
 <Warning>
 `require_review` is **refused at startup**. Holding a statement for human approval needs a review backend this build does not have, and a config that reads as an approval gate while forwarding every statement is worse than one that fails.
 </Warning>
+
+---
+
+## The gate phase
+
+`trigger` is a static filter written in YAML. A lane wanting "classify an UPDATE, but only outside business hours, and only against a table the policy calls sensitive" cannot say that in a trigger, and widening the trigger until it can pays for every statement in between.
+
+`policy.opa.gate: true` adds an OPA decision **before** the analyzer runs, so the policy answers whether the call is worth making:
+
+```yaml
+policy:
+  opa:
+    url: http://opa:8181/v1/data/hoop/inspect
+    gate: true
+  rules:
+    - name: risky-writes
+      type: ai_analysis
+      # no trigger: on a gated lane the policy decides what is classified
+      high: defer
+```
+
+Both calls hit the same URL and carry `input.phase`, so a policy ignoring the field answers both identically and turning the gate on costs one round trip. The gate answers with its allow/deny plus a `request` map keyed by producer source:
+
+```rego
+# Same package as the decide rules above.
+
+allow if phase == "gate"
+
+request["ai_analysis"] := true if {
+	phase == "gate"
+	input.operation in {"update", "delete"}
+	some r in input.relations
+	r.access == "write"
+	r.name == "customers"
+}
+```
+
+`true` runs the analyzer where its own trigger would have skipped, `false` vetoes a run the trigger would have made, and an absent key leaves the trigger in charge.
+
+<Note>
+An **undefined gate decision allows and requests nothing**, even under `fail_open: false`. A gate is an optimization over a policy someone already wrote, so reading its absence as a denial would block every statement on the lane until the Rego author writes a second rule nobody asked for. The decide phase keeps the fail-closed reading of undefined.
+</Note>
+
+`gate: true` on a lane with no `ai_analysis` rule is refused at startup: a round trip per statement that gates nothing.
 
 ---
 
@@ -413,8 +510,7 @@ strongest first.
 
 ### There is no environment-variable option
 
-This is a design decision, not an omission. The config reads no environment
-variable and performs no `${VAR}` interpolation, so this does not work:
+The config reads no environment variable and performs no `${VAR}` interpolation, deliberately, so this does not work:
 
 ```yaml
 analyzer:
@@ -464,8 +560,11 @@ Every classified statement carries its risk into the audit trail, on allowed sta
 
 ```json
 {"kind": "statement", "operation": "update", "allowed": true,
- "metadata": {"risk_level": "medium", "risk_action": "warn"}}
+ "metadata": {"risk_level": "medium", "risk_action": "warn",
+              "ai_status": "ok", "ai_rule": "risky-writes"}}
 ```
+
+`ai_status` is the analyzer's own vocabulary and keeps the specific word: `ok`, `cached`, `skipped`, `error`, `budget_exhausted`, `refused`. A Rego policy sees a generic status instead, because a policy should not have to learn this package's reasons: `budget_exhausted` and `refused` both arrive as `unavailable`, with the specific word in the finding's `reason`.
 
 That feeds a per-session rollup that keeps the **highest** risk the session reached:
 
@@ -498,9 +597,12 @@ Each of these would otherwise load, evaluate and do nothing:
 | Config | Result |
 |---|---|
 | An `ai_analysis` rule with no `analyzer` section | Refused, naming the lane |
-| An `ai_analysis` rule with no `trigger` | Refused: it would classify nothing |
+| An `ai_analysis` rule with no `trigger` | Refused: it would classify nothing. A gated lane is the exception. |
 | An `ai_analysis` rule naming no action for any risk level | Refused: every verdict would allow |
 | `require_review` as an action | Refused: this build cannot hold a statement |
+| A risk level set to `defer` with no `policy.opa.url` | Refused: a finding nobody reads forwards everything |
+| `action` set on an `ai_analysis` rule | Refused: this type defers per risk level through `high`, `medium` and `low` |
+| `policy.opa.gate: true` on a lane with no `ai_analysis` rule | Refused: a round trip per statement that gates nothing |
 | A `provider` the binary does not link | Refused, listing what it does link |
 | A credential file readable by group or other | Refused, reporting the mode |
 | `send: redacted` or `refuse` with no `pii` section | Refused: nothing to detect with |
@@ -531,13 +633,16 @@ config OK: 2 listener(s)
 - **Requests only.** A response verdict cannot prevent a write that already ran.
 - **A slow classification can outlive the upstream's idle budget.** The relay dials the upstream when it accepts, then holds the request while it classifies. An upstream with a short keep-alive (gunicorn defaults to 2s) hangs up before a 3s model call returns, and the client reads an empty reply. Raise the upstream's idle timeout above your analyzer's p99. The cache hides this after the first call for a given shape, so it shows up as a rare first-request failure.
 - **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. The relay records `model refused to classify this statement`. Watch for these in the audit trail during an observe-only rollout: a model that refuses is the wrong model for this job.
-- **No human review.** `require_review` is declared in the schema and refused at startup, so a config you write today stays valid when a review backend lands.
+- **No human review.** `require_review` is declared in the schema and refused at startup, so a config you write today stays valid when a review backend lands. `defer` is the closest thing that works now: a decide-phase policy holds the decision, though it still answers in milliseconds rather than waiting for a person.
 
 ---
 
 ## Next
 
 <CardGroup cols={2}>
+  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+    Every rule type, deferring a match to Rego, and the findings a policy reads.
+  </Card>
   <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
     Every other section of the config, and the full list of what startup refuses.
   </Card>

@@ -215,6 +215,7 @@
                     "pages": [
                       "setup/configuration/hoop-inspect/get-started",
                       "setup/configuration/hoop-inspect/config-file",
+                      "setup/configuration/hoop-inspect/policy-rules",
                       "setup/configuration/hoop-inspect/risk-analysis",
                       "setup/configuration/hoop-inspect/kerberos",
                       "setup/configuration/hoop-inspect/components"
