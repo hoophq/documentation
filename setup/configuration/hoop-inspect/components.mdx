@@ -60,7 +60,7 @@ The HTTP codec captures **nothing** by default: no bodies, no headers. Everythin
 |  | Envoy | hoop-inspect |
 |---|---|---|
 | Postgres SQL parse | `postgres_proxy`, best effort | full statement text |
-| Postgres granularity | `table.db` + operation verb | statement, operation, tables |
+| Postgres granularity | `table.db` + operation verb | statement, its worst effect, every effect, and each relation as a read or a write |
 | Postgres **response** | not available | result columns, row count, masking by re-framing |
 | HTTP request | `ext_authz`: method, path, headers, bounded body | method, path, normalized resource; body and headers only when the lane sets `http.capture_body` |
 | HTTP **response** | not available, ext_authz decides before the upstream runs | status; body and headers under the same setting |
@@ -158,7 +158,7 @@ A clean payload aliases the input rather than copying it, so a statement nothing
 
 ## Inside the Inspector
 
-A codec registers a factory, not an instance. Two connections sharing one stateful codec would corrupt each other's reassembly buffer, and one tenant's SQL would surface in another tenant's audit trail.
+A codec registers a factory rather than an instance. Two connections sharing one stateful codec would corrupt each other's reassembly buffer, and one tenant's SQL would surface in another tenant's audit trail.
 
 ```
                   hoopinspect.Register(factory)   from codec init()
@@ -168,32 +168,60 @@ A codec registers a factory, not an instance. Two connections sharing one statef
                                      ↓ codec.Decode
    ┌─── codec/postgres ──────────────────────────────────┐
    │  skipHandshake()   startup packet, SSLRequest        │
-   │  tag 'Q' Query ──> splitSimpleQuery()                │
+   │  tag 'Q' Query ──> lexer.Split() on top-level ';'    │
    │  tag 'P' Parse ──> parseMessage()                    │
    │  everything else → skip by length                    │
    └──────────────────────┬───────────────────────────────┘
                           ↓
-                ClassifySQL(text)   strips comments and string
-                          │         literals first
+           AnalyzeSQL(text, Postgres)   one pass, dialect-parameterized,
+                          │             over a labelled region stack
                           ↓
-   Statement{Protocol, Direction, Text, Operation, Tables,
-             Database, HTTP *HTTPDetail, Metadata}
+   Statement{Protocol, Direction, Text, Operation, Effects, Relations,
+             Tables, Database, HTTP *HTTPDetail, Metadata}
 ```
 
 Two details in that path decide real verdicts.
 
-`splitSimpleQuery` splits on semicolons, because `SELECT 1; DROP TABLE users` arrives as one `Q` message. A decoder that classified by leading verb would report a harmless select and wave the DROP through.
+The codec splits a simple-query payload on top-level semicolons, because `SELECT 1; DROP TABLE users` arrives as one `Q` message. A decoder classifying by the leading verb would report a harmless select and forward the DROP. The scanner owns the split, so a semicolon inside a string literal, a dollar-quoted body or a nested comment is never a separator.
 
-`ClassifySQL` strips comments and string literals before it looks for a verb, so `SELECT 'DROP TABLE customers'` classifies as `select`. That is why you prefer `type: operation` over `deny_words_list`: the word list denies the harmless one.
+`AnalyzeSQL` scans once and tracks nesting on a **labelled region stack**: every level knows whether it is a CTE, a subquery or a plain parenthesis. The previous classifier carried a single paren-depth integer, which is why `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` read as a `select` against `[customers d]`. It now reports `delete` against `customers` as a write.
 
-**Source:** [`hoopinspect/inspect.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/inspect.go), [`hoopinspect/codec/postgres/`](https://github.com/hoophq/hoop/tree/main/hoopinspect/codec/postgres)
+Three fields come out of it, and a rule can key on any of them:
+
+| Field | Answers |
+|---|---|
+| `Operation` | The most consequential effect. A statement whose effects are `{select, delete}` is a `delete`. |
+| `Effects` | Every operation the statement performs, anywhere in the tree. |
+| `Relations` | Each relation with `read` or `write`, so `INSERT INTO staging SELECT * FROM customers` writes one and reads the other. |
+
+Comments and string literals never reach the token stream, so `SELECT 'DROP TABLE customers'` is a `select` and a `deny_words_list` rule on `DROP` denies that harmless query. Prefer `type: operation`, and see [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) for what each rule type reads.
+
+A statement whose body the scanner cannot reach reports `Operation: unknown` and sets `Metadata["sql.incomplete"]` to the reason: `CALL purge()` gives "stored procedure; body is in the catalog", `EXECUTE p` gives "prepared statement; the text was supplied elsewhere", `DO $$…$$` gives "anonymous code block; body is interpreted at runtime". That pair is the fail-closed signal. Name `unknown` in a rule and the relay refuses what nobody can read.
+
+### Checked against PostgreSQL's own grammar
+
+`lexer/conformance` is a separate module that parses every fixture with PostgreSQL 17.5 through `wasilibs/go-pgquery` and compares write-sets. It runs under wazero with `CGO_ENABLED=0`, so it needs no C toolchain, and nothing the root builds imports it: `hoopinspect` still has zero requires and no `go.sum`.
+
+| Corpus | Result |
+|---|---|
+| 74 hand-written fixtures | 72 exact (97.3%), 2 conceded (`DO`, `CALL`), 0 wrong |
+| PostgreSQL 17.5's regression suite, 20,391 statements | 20,240 complete (99.3%). The 151 concessions are 94 `PREPARE`, 36 `CALL`, 18 `DO` and 3 unbalanced-paren, every one of them failing closed. |
+| `FuzzAnalyze`, 4.2M execs | zero findings |
+
+The suite asserts one thing: the scanner's write-set equals PostgreSQL's, or the scanner reported `Complete=false`. A confident, different answer fails the build.
+
+<Note>
+`DO`, `CALL`/`EXECUTE` and a function call inside a SELECT list are a permanent ceiling that no parser clears, PostgreSQL's own included, because the body sits in the catalog or was supplied on another round trip. The first two set `Complete=false`; the third does not, because flagging every `SELECT count(*)` would make the flag meaningless. So `operations: [unknown, other]` is a standing posture on a lane that must fail closed. MSSQL runs this scanner permanently: no credible Go T-SQL parser exists.
+</Note>
+
+**Source:** [`hoopinspect/lexer/`](https://github.com/hoophq/hoop/tree/main/hoopinspect/lexer), [`hoopinspect/sqlmeta.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/sqlmeta.go), [`hoopinspect/codec/postgres/`](https://github.com/hoophq/hoop/tree/main/hoopinspect/codec/postgres)
 
 ### Protocols
 
 | Protocol | Request messages | Response messages | Stateful |
 |---|---|---|---|
 | `postgres` | `Query` ('Q'), `Parse` ('P'); handshake skipped | `RowDescription` ('T'), `DataRow` ('D'), and the terminators that end a result set | yes |
-| `mssql` | `SQLBatch` (`0x01`), `RPC` (`0x03`), `sp_executesql` unwrapped; PRELOGIN, LOGIN7 and SSPI forwarded untouched | none decoded as statements; the login reply is scanned once and a routing ENVCHANGE ends the connection | yes |
+| `mssql` | `SQLBatch` (`0x01`), `RPC` (`0x03`), `sp_executesql` unwrapped; PRELOGIN, LOGIN7, SSPI and an `ENCRYPT_OFF` encrypted login forwarded untouched | none decoded as statements; the login reply is scanned once and a routing ENVCHANGE ends the connection | yes |
 | `http` | HTTP/1.x requests | HTTP/1.x responses | no |
 
 Both database codecs are stateful: one Postgres `RowDescription` describes every `DataRow` after it, one TDS `COLMETADATA` describes every `ROW`, and those land in different TCP reads.
@@ -202,33 +230,45 @@ Both database codecs are stateful: one Postgres `RowDescription` describes every
 
 ## Policy evaluation
 
-Three evaluators compose in ascending order of cost, so a statement an earlier one already forbids never pays for a later one.
+Evaluators compose in ascending order of cost, so a statement an earlier one already forbids never pays for a later one.
 
 ```
-Statement ──> policy.Chain{ Rules, OPAClient, analyzer }
-                   │           │             │
-                   │           │             └─> POST to an LLM provider
-                   │           │                  ~100ms-2s, costs money
-                   │           │                  fails OPEN by default
+Statement ──> policy.Chain{ Rules, OPAClient, analyzer, OPAClient }
+                   │           │            │            │
+                   │           │            │            └─> decide phase
+                   │           │            │                reads input.findings
+                   │           │            └─> POST to an LLM provider
+                   │           │                 ~100ms-2s, costs money
+                   │           │                 fails OPEN by default
                    │           │
-                   │           └─> POST /v1/data/…
-                   │                {"input":{protocol, operation, tables,
-                   │                          http{…}, context{user}}}
-                   │                fails closed by default
+                   │           └─> POST /v1/data/…   gate phase, optional
+                   │                {"input":{operation, effects, relations,
+                   │                          phase, context{principal}}}
+                   │                fails closed
                    ↓
-             first match wins
+             first match wins among the rules that DENY
              deny_words_list · pattern_match · operation · table
              http_resource · http_status · pii
 ```
 
-The chain stops at the first denial, which is what makes the ordering load-bearing rather than cosmetic: a `DELETE` a local `operation` rule already refuses never reaches a model.
+The chain stops at the first denial, so a `DELETE` a local `operation` rule already refuses never reaches a model. That ordering is load-bearing.
+
+A rule carrying `action: defer` reports its match as a **finding** and evaluation continues. The finding travels in-process on the evaluation context and reaches the decide-phase OPA call as `input.findings`, keyed by the rule's type. A producer that ran and could not answer still appears, carrying a status, because "no answer" is the case a policy most needs to see and the case an absent key hides.
+
+| Lane | Chain |
+|---|---|
+| Nothing defers, no gate | `rules` → `opa` |
+| Something defers | `rules` → producers → `opa(decide)` |
+| `policy.opa.gate: true` | `rules` → `opa(gate)` → producers → `opa(decide)` |
+
+The gate runs before the producers and answers whether they are worth running, which is how the cost control survives moving a determination into Rego. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) carries the finding shape, the status vocabulary and the Rego that reads it.
 
 An `ai_analysis` rule is **not** evaluated by the local rules engine. It needs a provider, a deadline and a cache, none of which belong to a text matcher, so the sidecar lifts those rules out of the set at startup and builds one evaluator per rule, appended after OPA. Two consequences worth knowing:
 
 - Ordering between an `ai_analysis` rule and the local rules in the same list does not matter. Local rules always run first.
 - A lane can carry several `ai_analysis` rules. Each is its own evaluator with its own trigger, actions and prompt; if more than one classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
 
-The first two evaluators fail closed. An unreachable OPA, a 500, or an undefined decision denies. The analyzer inverts that default, because it depends on a third-party API rather than a service you run — see [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#why-this-one-fails-open).
+The rules engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#why-this-one-fails-open).
 
 The `pii` rule type dispatches at the rule-set level rather than per rule, because the detector belongs to the rule set and not to any single rule.
 
@@ -383,7 +423,7 @@ The query endpoints accept filters: `principal`, `connection`, `protocol`, `sinc
 
 ### Envoy over a unix socket
 
-A TCP listener on 15432 is reachable by anything that can route to the pod. A NetworkPolicy narrows that; it does not remove it. With a socket there is no port, so reachability stops being a network question and becomes a filesystem one, which is the argument for a sidecar sharing a namespace with one workload. The cost is the setup below. Where it does not fit, [a TCP port](#envoy-over-a-tcp-port) carries the same traffic.
+A TCP listener on 15432 is reachable by anything that can route to the pod. A NetworkPolicy narrows that; it does not remove it. With a socket there is no port, so reachability is a filesystem question, which is the argument for a sidecar sharing a namespace with one workload. The cost is the setup below. [A TCP port](#envoy-over-a-tcp-port) carries the same traffic where that setup does not fit.
 
 Three pieces have to agree: the lane, the Envoy cluster, and the directory both mount.
 
@@ -536,7 +576,11 @@ Mount the config as a ConfigMap and set `HOOP_INSPECT_CONFIG` instead of passing
 
 Every session records `principal: anonymous` unless a deployment fills it. The plumbing runs end to end: the session carries a subject, and the proxy exposes a seam a deployment fills from a verified JWT, an mTLS peer cert or a credential token. A listener names its `identity_header`, and the current implementation contributes only the peer address.
 
-Until that function is written, a Rego policy keyed on `input.context.user` reads `anonymous` from every lane.
+The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. Until that seam is filled, a policy keyed on `input.context.principal` reads `anonymous` from every lane.
+
+<Note>
+A sidecar lane used to send an **empty** `input.context`. The gate looked for a bare `*policy.OPAClient` to stamp the session onto, and a lane's policy is a `policy.Chain`, so the assertion never matched and the facts never left the process. The gate now seeds the evaluation context instead, which every evaluator in the chain reads, including both calls on a two-phase lane.
+</Note>
 
 ---
 
@@ -545,13 +589,14 @@ Until that function is written, a Rego policy keyed on `input.context.user` read
 Read these before writing a policy against the relay.
 
 - **Three codecs ship: postgres, mssql and http.** Adding one means a new `codec/<name>` package and nothing else.
-- **`Tables` is best effort.** A lexer, not a SQL grammar, which is the same ceiling Envoy's own docs acknowledge for `postgres_proxy`. Empty means "could not determine" and never "touches nothing". Set `require_table_match: true` on rules protecting something critical and accept the false positives.
+- **Relations come from a scanner, not a SQL grammar.** One pass over a labelled region stack, reporting each relation as a read or a write. A statement it cannot finish comes back with no relations and an `unknown` operation carrying the reason in `metadata["sql.incomplete"]`, so "could not determine" never reads as "touches nothing". Set `require_table_match: true` on rules protecting something critical and accept the false positives. `lexer/conformance` holds the scanner to zero wrong answers against PostgreSQL 17.5's grammar.
 - **A response batch can be truncated.** The Postgres codec stops decoding columns past 1000 rows in one result set, to keep the relay's memory out of a query's hands. It keeps counting and marks the batch truncated. A policy must read that as inconclusive, never as proof a value is absent.
 - **A response statement carries no verb.** For database codecs a server-direction statement reports `unknown`, because the operation belongs to the request the audit trail already recorded. Key a response-side SQL rule on the result, not on the operation.
-- **MSSQL statement extraction covers `sp_executesql`.** `sp_prepare`, `sp_prepexec` and the cursor family yield no statement, which is how JDBC and .NET send prepared statements, and `EXEC('DELETE ...')` classifies as a call rather than a delete.
+- **MSSQL statement extraction covers `sp_executesql`.** `sp_prepare`, `sp_prepexec` and the cursor family yield no statement, which is how JDBC and .NET send prepared statements. `EXEC('DELETE ...')` reports `unknown` with the reason "stored procedure; body is in the catalog", so a rule naming `unknown` refuses it and one naming `call` no longer matches.
 - **PII detection is neither sound nor complete.** A checksum-verified identifier holds up. Everything else is a pattern. Detecting a name column needs NER, which this does not wire, and a caller can split a value across two responses. Masking raises the cost of accidental exposure without replacing "do not grant access to that table".
 - **HTTP/1.x only for stream decoding.** HTTP/2 and HTTP/3 framing belongs to whatever terminated the connection.
-- **Plaintext at the relay.** A client negotiating TLS end to end past the relay leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. The upstream leg may be TLS, which the relay originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the relay can start.
+- **Plaintext at the relay, with one exception.** A client negotiating TLS end to end past the relay leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the relay walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the relay originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the relay can start.
+- **A session encrypted end to end is refused, not forwarded.** `ENCRYPT_ON`, or a TDS 8.0 client reaching the relay with nothing terminating in front, leaves no statement that can be classified, masked or audited. Both report `rule: stream-unsafe` and name the cause. Such a session used to connect and run uninspected, so check what your driver sets for `Encrypt` before putting an existing MSSQL lane behind this: ODBC Driver 18 and SqlClient 5+ default to `Mandatory`, go-mssqldb to `ENCRYPT_OFF`.
 - **Statements are not transactions.** Each one gets its own verdict, and no cross-statement session state exists.
 - **No SSH lane.** No SSH codec ships. Envoy ships no SSH filter at any fidelity either, so every service reached over SSH sits unpoliced by the Envoy and OPA layer.
 
@@ -575,6 +620,9 @@ The repository ships a compose stack that runs every component on this page end 
 ## Next
 
 <CardGroup cols={2}>
+  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+    Every rule type, deferring a match to Rego, and the findings a policy reads.
+  </Card>
   <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
     Configure Envoy, run the relay, and watch a denial land in psql.
   </Card>

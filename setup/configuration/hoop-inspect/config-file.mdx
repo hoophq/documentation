@@ -179,7 +179,7 @@ Both carry the same traffic. They differ in who can reach the lane and what it c
 | Restart quirk | a stale file after SIGKILL, which the relay reclaims | none |
 | Fits | a sidecar beside one workload in one pod | separate hosts, or a laptop |
 
-A socket gives the tighter boundary: no port exists, so reachability stops being a network question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
+A socket gives the tighter boundary: no port exists, so reachability is a filesystem question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
 
 Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` to a scraper, and moving it to a socket means exec-ing into the container to read either.
 
@@ -279,12 +279,12 @@ Every lane inherited `no-cpf-in-query`. None inherited another lane's rules. Rul
 
 ## Policy rules
 
-Every rule **denies**, and the first match wins. A rule set is an ordered deny list, not an allow list.
+A rule matches, and by default it **denies**. First match wins among the rules that deny. A rule set is an ordered deny list.
 
-| `type` | Denies when | Fields |
+| `type` | Matches when | Fields |
 |---|---|---|
-| `operation` | The classified SQL verb is listed | `operations` |
-| `table` | The statement references a listed table | `tables`, `require_table_match` |
+| `operation` | The statement's most consequential effect is listed | `operations` |
+| `table` | The statement references a listed relation | `tables`, `access`, `require_table_match` |
 | `pattern_match` | An RE2 regex matches the statement text | `pattern_regex` |
 | `deny_words_list` | The text contains any word, case-insensitively | `words` |
 | `http_resource` | The normalized request path matches | `resources`, `methods` |
@@ -292,17 +292,30 @@ Every rule **denies**, and the first match wins. A rule set is an ordered deny l
 | `pii` | The detector finds a listed entity in the statement | `entities` |
 | `ai_analysis` | A language model classifies the statement as a risk you mapped to `block` | `trigger`, `high`, `medium`, `low`, `prompt` |
 
-Every rule also takes `name` and `message`. `message` is what the user reads on denial, delivered in the protocol's own error frame. Leave it empty and the rule falls back to a generated string naming only the rule and operation; write one.
+Every rule also takes `name`, `message` and `action`. `message` is what the user reads on denial, delivered in the protocol's own error frame. Leave it empty and the rule falls back to a generated string naming only the rule and operation; write one.
+
+`action` takes `defer` or nothing. Empty denies, the behavior every rule had before findings existed. `defer` reports the match as a finding and lets a Rego policy rule on it, so the matching stays in the local engine and only the determination moves:
+
+```yaml
+- name: cpf
+  type: pii
+  entities: [BR_CPF]
+  action: defer      # report a finding; the decide-phase policy rules on it
+```
+
+Deferring does not stop the rule set. First match wins applies to denials, so a deferring rule records and evaluation continues, and a hard rule further down still denies. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) covers the producer model, the finding shape and the Rego that reads it.
 
 An HTTP rule never matches a SQL statement and vice versa, so one mixed rule set cannot deny the wrong protocol.
 
 <Note>
-`ai_analysis` is the one type the local rules engine does not evaluate. It is lifted out of the set at startup and runs after the local rules and OPA, so its position in the list has no effect. It also needs an [`analyzer`](/setup/configuration/hoop-inspect/risk-analysis) section, and on an HTTP lane it needs `http.capture_body: true` — both are refused at startup when missing.
+`ai_analysis` is the one type the local rules engine does not evaluate. It is lifted out of the set at startup and runs after the local rules and OPA, so its position in the list has no effect. It also needs an [`analyzer`](/setup/configuration/hoop-inspect/risk-analysis) section, and on an HTTP lane it needs `http.capture_body: true`. Startup refuses a lane missing either. An `ai_analysis` rule spells deferring per risk level (`high: defer`) rather than through `action`.
 </Note>
 
-### operation, not deny_words_list
+### operation reports the worst effect
 
-`operation` comes from a lexer that strips comments and string literals before looking for a verb, so `SELECT 'DROP TABLE customers'` classifies as a `select`. A word list denies that harmless query.
+`Operation` is the most consequential effect of the statement, not the verb the user typed. `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` reports `delete`, so a rule naming `delete` catches it. `EXPLAIN ANALYZE DELETE FROM customers` reports `delete` as well, because it runs the statement; plain `EXPLAIN` reports `explain` and reads the table.
+
+The scanner discards comments and string literals before it classifies, so `SELECT 'DROP TABLE customers'` is a `select`. A word list denies that harmless query.
 
 ```yaml
 - name: no-destructive-sql
@@ -311,7 +324,17 @@ An HTTP rule never matches a SQL statement and vice versa, so one mixed rule set
   message: destructive statements are not permitted on appdb
 ```
 
-Valid SQL operations: `select`, `insert`, `update`, `delete`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `show`, `set`, `begin`, `commit`, `rollback`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
+Add `unknown` to that list on a lane where a statement the scanner could not read must not run. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Policy Rules](/setup/configuration/hoop-inspect/policy-rules).
+
+SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
+
+<Warning>
+**Breaking change: `CALL` and `EXECUTE` report `unknown`.** Their bodies live in the catalog, so no parser can say what they touch, and reporting `call` claimed knowledge the relay does not have. A rule written as `operations: [call]` **stops matching them**. Write `operations: [call, unknown]`.
+
+`call` survives in the vocabulary and costs nothing to name, though no complete statement reports it as an operation today: `CALL`, `EXECUTE`, `EXEC` and `DO` all come back incomplete. Rego still sees `call` in `input.effects`.
+
+`unknown` covers those four and any other statement the scan could not finish. Naming it is the fail-closed choice, and it stays the right one permanently: no parser reads a body that lives in the catalog, PostgreSQL's own included.
+</Warning>
 
 ### http_resource matches a normalized path
 
@@ -350,15 +373,27 @@ Masking rewrites the response. A national ID in a `WHERE` clause has already lan
 
 The denial message never quotes the value it found. A message quoting the identifier it denied has published that identifier.
 
-### table matching is best effort
+### table rules split read from write
 
-`tables` comes from a lexer, not a SQL grammar. Empty means "could not determine" and never "touches nothing":
+`tables` names relations, and `access` narrows the rule to `write` or `read`. Leave `access` unset and the rule matches either, which is what every rule written before the split meant, so deployed rules behave as they did:
+
+```yaml
+- name: protect-customers
+  type: table
+  tables: [customers]
+  access: write                # read is the other value; unset matches both
+  message: nothing may write to the customer ledger
+```
+
+Without `access`, "nothing writes to customers" has to be spelled "nothing mentions customers", so `INSERT INTO staging SELECT * FROM customers` trips a rule it only reads through, and operators widen the rule until it protects nothing. A value other than `read` or `write` is refused at startup.
+
+Relations come from a scanner rather than a full SQL grammar. A statement it cannot read comes back with no relations and an `unknown` operation, and empty means "could not determine":
 
 ```yaml
 - name: no-payroll
   type: table
   tables: [salaries]
-  require_table_match: true    # also deny when tables could not be determined
+  require_table_match: true    # also deny when the relations could not be determined
   message: the payroll tables are not reachable through this proxy
 ```
 
@@ -376,26 +411,68 @@ policy:
     url: http://opa:8181/v1/data/hoop/inspect
     timeout_sec: 2
     fail_open: false
+    gate: false          # true adds an earlier decision; see Two phases below
 ```
 
 The relay does not own policy; it owns the input document:
 
 ```json
 {"input": {
-  "protocol": "http",
+  "protocol": "postgres",
   "direction": "client",
   "operation": "delete",
-  "tables": ["/users/*"],
-  "http": {"method": "DELETE", "path": "/users/42", "resource": "/users/*"},
-  "context": {"user": "alice"}
+  "tables": ["customers"],
+  "effects": ["delete", "select"],
+  "relations": [{"name": "customers", "access": "write"}],
+  "phase": "decide",
+  "findings": {
+    "pii": {"rule": "no-cpf", "status": "ok", "reason": "",
+            "values": {"entities": ["BR_CPF"], "rules": ["no-cpf"]}}
+  },
+  "context": {"principal": "alice", "session_id": "98203ccc",
+              "connection": "appdb"}
 }}
 ```
+
+`operation` is the worst effect and `tables` the flattened relation names, both unchanged. `effects` and `relations` say what those two could not: a data-modifying CTE both deletes and selects, and a flat name list cannot separate the table a statement writes from the one it reads. `findings` carries what each deferring rule established, keyed by producer source. A lane with no producers sends a byte-identical document to the one it sent before findings existed.
+
+`context` comes from the session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them.
+
+The document also carries `statement` (the text verbatim), `database`, `metadata` from the codec, and `http` with the method, path and normalized resource on an HTTP lane.
 
 Your Rego may answer `{"allow": bool}`, `{"denied": bool}`, or a bare boolean, with an optional `message` and `rule`.
 
 <Warning>
-OPA **fails closed**. An unreachable endpoint, a 500, or an undefined decision denies the statement. Set `fail_open: true` only where availability outranks enforcement.
+OPA **fails closed**. An unreachable endpoint, a 500, or an undefined decision denies the statement. Set `fail_open: true` only where availability outranks enforcement. The gate phase below is the one exception, and it is deliberate.
 </Warning>
+
+### Two phases
+
+`gate: true` adds a decision **before** the producers run, so a policy answers "is this statement worth a model call" before anyone pays for one. Both calls hit the same URL and carry `input.phase`, so a policy that ignores the field answers both identically and turning the gate on costs one round trip.
+
+| Lane | Chain |
+|---|---|
+| `gate: true` | `rules` → `opa(gate)` → producers → `opa(decide)` |
+| Something defers, no gate | `rules` → producers → `opa(decide)` |
+| Neither | `rules` → `opa` |
+
+The gate answers with its allow/deny plus a `request` map keyed by producer source:
+
+```json
+{"result": {"allow": true, "request": {"ai_analysis": true}}}
+```
+
+`true` runs a producer its own configuration would have skipped, `false` vetoes one it would have run, and an absent key leaves the config in charge.
+
+<Note>
+An **undefined gate decision allows and requests nothing**, even under `fail_open: false`. A gate is an optimization over a policy someone already wrote, so reading its absence as a denial would block every statement on the lane until the Rego author writes a second rule nobody asked for. The decide phase keeps the fail-closed reading of undefined.
+</Note>
+
+<Warning>
+A single-call lane sends **no** `phase` field, so Rego testing `input.phase == "decide"` is undefined there and `fail_open: false` denies everything. Write `phase := object.get(input, "phase", "decide")` and the same policy serves both arrangements.
+</Warning>
+
+See [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) for the finding shape, the status vocabulary and worked Rego.
 
 ---
 
@@ -622,6 +699,31 @@ Error: invalid config:
 
 Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a rule with no trigger, a tier with no action, a provider the binary does not link, or `send: redacted` with no `pii` section all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#what-startup-refuses).
 
+**A rule that defers to nothing:**
+
+```
+Error: invalid config:
+  - appdb: rule "cpf" defers its match to a policy decision, and the lane has
+    no policy.opa.url to defer to; set one or drop the action
+```
+
+**A gate over nothing:**
+
+```
+Error: invalid config:
+  - appdb: policy.opa.gate is on but the lane has no ai_analysis rule, so the
+    extra decision would gate nothing
+```
+
+Four more refusals arrived with findings, each one a config that would load and then mean something other than what it says:
+
+| Config | Refusal |
+|---|---|
+| `action` set to anything but `defer` | Unknown action, naming the rule. Empty denies; `defer` reports a finding. |
+| `action` set at all on an `ai_analysis` rule | That type defers per risk level through `high`, `medium` and `low`, and two spellings would leave two answers for one question. |
+| `access` set to anything but `read` or `write` | Unknown access, naming the rule. Empty matches either. |
+| A risk level set to `defer` with no `policy.opa.url` | Same argument as a local rule deferring to nothing: use `block`, `warn` or `allow`. |
+
 **`mask.enabled` on a protocol whose codec can carry neither masking mechanism**, naming the lane, plus empty rule lists, duplicate listen addresses, missing upstreams and an `opa` block with no URL.
 
 ---
@@ -629,6 +731,9 @@ Every analyzer refusal follows the same argument, applied to a control that also
 ## Next
 
 <CardGroup cols={2}>
+  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+    Every rule type in depth, deferring to Rego, and the findings a policy reads.
+  </Card>
   <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
     Configure Envoy, run the relay, and watch a denial land in psql.
   </Card>

@@ -133,6 +133,10 @@ Policy, masking and audit behave as they do on a Postgres lane. Two differences 
 `policy.enforce` defaults to **false**. Without it every lane inspects and audits but denies nothing, so a misconfigured rule cannot take production down on first deploy. Set it to `true` when you want the rules to bite.
 </Warning>
 
+<Note>
+`type: operation` matches the statement's most consequential **effect**, so `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` counts as a `delete` and the rule above catches it. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) covers every rule type, including deferring a match to a Rego policy instead of denying it.
+</Note>
+
 ---
 
 ## Step 2: Validate before you deploy
@@ -290,7 +294,7 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
                         socket_address: { address: hoop-inspect, port_value: 11433 }
     ```
 
-    Clients connect with `Encrypt=strict`. TDS 7.x wraps its TLS handshake inside `0x12` packets, which Envoy cannot speak, so a 7.x lane needs a terminator that does.
+    Clients connect with `Encrypt=strict`. A TDS 7.x client wraps its TLS handshake inside `0x12` packets, which Envoy cannot speak, so that lane skips Envoy and the relay takes the connection directly: `ENCRYPT_OFF` encrypts the login packet alone and leaves every statement readable. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else).
   </Tab>
   <Tab title="HTTP lane">
     On HTTP you keep your existing `ext_authz` filter. Only the route's cluster changes: it points at the relay instead of at the service.
@@ -341,7 +345,7 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
 
 ### Terminating client TLS
 
-The relay reads plaintext. Whatever the client encrypts, something has to decrypt before the gate sees a statement, and the relay is not that something: it terminates **no** downstream TLS.
+The relay reads plaintext. Something in front has to decrypt whatever the client encrypted before the gate sees a statement; the relay terminates **no** downstream TLS.
 
 On the HTTP lane Envoy already does it, because an HTTPS listener terminates TLS by definition. On the Postgres lane the stock `tcp_proxy` does not, which is why the client connects with `PGSSLMODE=disable`. An MSSQL lane is the easy case: TDS 8.0 hands Envoy an ordinary TLS-on-connect handshake, which the tab above terminates.
 
@@ -403,6 +407,27 @@ FATAL:  destructive statements are not permitted on appdb
 ```
 
 That is a real pgwire `ErrorResponse` carrying the message you wrote in `config.yaml`, so the developer reads it in psql instead of watching a socket drop. Envoy forwarded the same bytes as opaque TCP and consulted nobody.
+
+The rule catches more than its three verbs suggest, because `Operation` is the worst effect rather than the leading word. A delete hidden inside a CTE trips it:
+
+```bash
+PGSSLMODE=disable psql -h envoy -p 5432 -U appuser -d appdb \
+  -c 'WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d;'
+```
+
+```
+FATAL:  destructive statements are not permitted on appdb
+```
+
+<Warning>
+`CALL` and `EXECUTE` report `unknown` rather than `call`, because their bodies live in the catalog and no parser can say what they touch. The rule above forwards `CALL purge()`. Add `unknown` where that matters:
+
+```yaml
+operations: [drop, delete, truncate, unknown]
+```
+
+A rule written as `operations: [call]` stops matching `CALL` and `EXECUTE` entirely. Write `operations: [call, unknown]`.
+</Warning>
 
 Read what the relay recorded:
 
@@ -537,7 +562,7 @@ The stack ships both transports. TCP is the default because it needs no shared v
 Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the relay's two, which were never published to the host.
 
 <Note>
-SQL Server runs in its own stack under `deploy/docker-compose/envoy-stack/mssql/`, driven by `hoopinspect/scripts/dev/mssql-stack.sh`: Envoy terminating TDS 8.0, a Samba AD DC and a client holding a ticket. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#local-testing).
+SQL Server runs in two stacks of its own, and what separates them is who terminates the client's TLS. `deploy/docker-compose/envoy-stack/mssql/` (`hoopinspect/scripts/dev/mssql-stack.sh`) runs SQL Server 2022 over TDS 8.0, with Envoy terminating, a Samba AD DC and a client holding a ticket. `deploy/docker-compose/envoy-stack/mssql2019/` (`mssql2019-stack.sh`) runs TDS 7.4 with no Envoy at all, covering the encrypted login; its `MSSQL_TAG` accepts 2017, 2019 and 2022. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#local-testing).
 </Note>
 
 ---
@@ -546,7 +571,7 @@ SQL Server runs in its own stack under `deploy/docker-compose/envoy-stack/mssql/
 
 | Symptom | Check |
 |---|---|
-| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules` |
+| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
 | Masking leaves a value alone | The detector may refuse it. Add a column rule, or widen `pii.entities`. |
 | The relay refuses to start | It prints every config problem at once, each naming its lane |
 | psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The relay reads plaintext either way. |
@@ -561,6 +586,9 @@ SQL Server runs in its own stack under `deploy/docker-compose/envoy-stack/mssql/
 ## Next
 
 <CardGroup cols={2}>
+  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+    Every rule type, deferring a match to Rego, and the findings a policy reads.
+  </Card>
   <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
     Every section, every rule type, inheritance between lanes, and what startup refuses.
   </Card>
