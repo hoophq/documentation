@@ -57,9 +57,10 @@ the relay forward a credential it cannot interpret.
 
 | Packet | Type | What the relay does |
 |---|---|---|
-| PRELOGIN | `0x12` | forward |
+| PRELOGIN | `0x12` | forward, TLS handshake wrapped inside it included |
 | LOGIN7 | `0x10` | forward; record that the login is integrated |
 | SSPI | `0x11` | forward verbatim, carrying the Kerberos exchange |
+| encrypted login | raw TLS records | forward, then resume on the byte where plaintext returns |
 | Reply | `0x04` | forward, and refuse a routing redirect |
 | SQLBatch / RPC | `0x01` / `0x03` | **inspect**: classify, evaluate policy, audit |
 
@@ -94,9 +95,41 @@ TDS awareness:
             idle_timeout: 3600s
 ```
 
-Clients connect with `Encrypt=strict`. TDS 7.x wraps its TLS handshake inside
-`0x12` packets, which Envoy cannot speak, so 7.x lanes need a terminator that
-does.
+Clients connect with `Encrypt=strict`.
+
+### TDS 7.x encrypts the login and nothing else
+
+A 7.x client wraps its TLS handshake inside `0x12` packets, which Envoy cannot
+speak, so no terminator sits in front of that lane. The relay takes the
+connection directly and reads it anyway, because of what PRELOGIN negotiated.
+
+`ENCRYPT_OFF` says "encryption off" and means "encrypt the login only". MS-TDS
+3.2.5.3 puts the first LOGIN7 packet inside TLS and leaves every other packet
+in the clear. A SQL Server with encryption administratively disabled still does
+this: with no certificate installed it mints a self-signed one at startup and
+encrypts credentials with that. go-mssqldb sends `ENCRYPT_OFF` by default, so
+this is the ordinary 7.x case rather than an exotic one.
+
+The relay walks that encrypted region by TLS record framing, resumes on the
+byte where plaintext returns, and inspects every statement after it. Those
+statements carry `mssql.login_encrypted` in the audit trail, so an operator
+reading the trail sees the window nobody could observe.
+
+| Client asks | On the wire | The relay |
+|---|---|---|
+| `ENCRYPT_OFF` (`Encrypt=optional`, go-mssqldb default) | login in TLS, statements clear | inspects |
+| `ENCRYPT_ON` (`Encrypt=mandatory`, ODBC 18 and SqlClient 5+ defaults) | whole session in TLS | refuses |
+| TDS 8.0 reaching the relay unterminated | TLS from the first byte | refuses |
+
+<Warning>
+Both refusals report `rule: stream-unsafe` and name the cause. A session nobody
+can inspect used to connect and run with no policy, no masking and no audit
+trail, and it now stops instead. Check what your driver sets for `Encrypt`
+before you put an existing MSSQL lane behind this.
+</Warning>
+
+Verified against SQL Server 2017, 2019 and 2022 in
+`deploy/docker-compose/envoy-stack/mssql2019/`.
 
 ### The relay refuses a routing redirect
 
@@ -246,9 +279,10 @@ rule drops the inherited entity rules, so list those again alongside it.
 
 ## Local testing
 
-Two compose stacks under `deploy/docker-compose/envoy-stack` run the whole flow
-against a real domain controller: a Samba AD DC, a database holding a keytab, a
-client holding a ticket, and Envoy in front.
+Three compose stacks under `deploy/docker-compose/envoy-stack` run the whole
+flow. The first two put a Samba AD DC, a database holding a keytab, a client
+holding a ticket and Envoy in front of it. The third drops Envoy and Kerberos
+to isolate one variable, the encryption negotiation.
 
 ```bash
 # Postgres, where a Kerberos login succeeds end to end. Starts in seconds.
@@ -258,6 +292,11 @@ hoopinspect/scripts/dev/pg-kerberos-check.sh
 # SQL Server. Runs emulated on Apple Silicon, so first boot takes minutes.
 hoopinspect/scripts/dev/mssql-stack.sh
 hoopinspect/scripts/dev/mssql-kerberos-check.sh
+
+# TDS 7.4, no Envoy: the login is encrypted and the statements are not.
+# MSSQL_TAG accepts 2017-latest, 2019-latest and 2022-latest.
+hoopinspect/scripts/dev/mssql2019-stack.sh
+hoopinspect/scripts/dev/mssql2019-check.sh
 ```
 
 Each check script asserts the flow end to end: the ticket, the statement, the
