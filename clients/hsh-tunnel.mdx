@@ -8,13 +8,15 @@ under the `.hoop` domain. Once it's running, connecting to a production
 database is just:
 
 ```bash
-psql -h pg-prod.hoop -U readonly
-mysql -h mysql-staging.hoop -u app -p
+PGPASSWORD=noop psql -h pg-prod.hoop -U noop
+mysql -h mysql-staging.hoop -u noop -pnoop
 ```
 
-No proxies to start, no ports to remember, no tokens to paste. Any TCP
-client — `psql`, `mysql`, DBeaver, DataGrip, your application code —
-works unmodified.
+No proxies to start, no ports to remember, no tokens to paste, and no
+database credentials to look up — every connection uses the same fixed
+`noop`/`noop` placeholder ([see below](#credentials)). Any TCP client —
+`psql`, `mysql`, DBeaver, DataGrip, your application code — works
+unmodified.
 
 <Note>
   Everything the gateway already enforces still applies. Each TCP flow
@@ -65,6 +67,65 @@ SSH, Kubernetes, RDP, SSM, and command-line connections all need
 protocol-specific clients. Use the
 [`hsh` shell plugins](/clients/hsh) for SSH and Kubernetes, and the
 `hoop` CLI or the Web App for the rest.
+
+Oracle connections appear only when native Oracle access is enabled for
+your organization; otherwise the agent refuses the session, so the
+tunnel hides them rather than offering a resource that cannot connect.
+
+## Credentials
+
+Every database reached through the tunnel uses the same fixed
+credentials: **`noop` / `noop`**.
+
+These are not your database's credentials, and there is nothing to
+rotate or copy from the Web App. The Hoop agent completes your client's
+login locally, then authenticates to the real database itself using the
+credentials stored on the connection. Your client never sees them.
+
+`hsh tunnel ls` prints a ready-to-paste command per connection, so you
+normally don't type these by hand:
+
+```
+Tunneled connections
+
+  pg-prod.hoop        postgres  port  5432  fd5a:1b2c:3d4e::a1b2:c3d4
+                      PGPASSWORD=noop psql -h pg-prod.hoop -U noop
+  mysql-staging.hoop  mysql     port  3306  fd5a:1b2c:3d4e::e5f6:0708
+                      mysql -h mysql-staging.hoop -u noop -pnoop
+
+  Credentials above are fixed and local to this tunnel — not your database's.
+```
+
+For a GUI client (DBeaver, DataGrip, TablePlus), enter the `.hoop`
+hostname, the protocol's normal port, and `noop` for both username and
+password.
+
+Two connection types are exceptions and show no credentials:
+
+- **Raw TCP** — Hoop cannot parse the protocol, so bytes are relayed
+  untouched and your client authenticates to the upstream itself, with
+  whatever credentials that service expects.
+- **HTTP proxy** — authorization is injected by the agent as HTTP
+  headers; there is nothing for you to present.
+
+<Warning>
+  **`noop`/`noop` works only through a local Hoop listener** — the
+  tunnel, or `hoop connect`. It grants no access on its own: what
+  authorizes the session is your `hsh login`, and every flow is still a
+  normal gateway session with the usual access control and audit.
+
+  It is **not** the credential for native database access, where you
+  point a client straight at the gateway with no local Hoop process
+  running. That path issues a per-user secret key from the Web App —
+  it expires, it can be revoked, and it rejects `noop`.
+</Warning>
+
+<Note>
+  Because any local process that can reach a `.hoop` name uses your
+  tunnel session, treat a machine running the tunnel as belonging to
+  one person. On a shared host, other local accounts would inherit your
+  access to every tunneled resource.
+</Note>
 
 ## Installation
 
@@ -148,20 +209,25 @@ Windows support is not yet available.
     Tunneled connections
 
       pg-prod.hoop        postgres  port  5432  fd5a:1b2c:3d4e::a1b2:c3d4
+                          PGPASSWORD=noop psql -h pg-prod.hoop -U noop
       mysql-staging.hoop  mysql     port  3306  fd5a:1b2c:3d4e::e5f6:0708
+                          mysql -h mysql-staging.hoop -u noop -pnoop
 
-      Use: psql -h <name>.hoop  /  mysql -h <name>.hoop -u … -p
+      Credentials above are fixed and local to this tunnel — not your database's.
     ```
+
+    Each row carries the exact command to connect — copy and paste it.
   </Step>
 
   <Step title="Connect">
     ```bash
-    psql -h pg-prod.hoop -U readonly
+    PGPASSWORD=noop psql -h pg-prod.hoop -U noop
     ```
 
     Use the `.hoop` hostname anywhere a regular hostname works — CLI
     clients, GUI tools like DBeaver or TablePlus, ORMs, and local
-    development configs.
+    development configs. The username and password are always
+    [`noop`/`noop`](#credentials).
   </Step>
 </Steps>
 
@@ -170,7 +236,7 @@ Windows support is not yet available.
 | Command | What it does |
 |---|---|
 | `hsh tunnel status` | Show daemon state, auth state, and the last error (if any). |
-| `hsh tunnel connections` (alias `ls`) | List the `*.hoop` hostnames currently served. |
+| `hsh tunnel connections` (alias `ls`) | List the `*.hoop` hostnames currently served, with credentials and a ready-to-paste command for each. |
 | `hsh tunnel refresh` | Re-fetch the connection list from the gateway now. |
 | `hsh tunnel up` | Bring the tunnel online (reuses the daemon's existing login). |
 | `hsh tunnel down` | Take the tunnel offline without logging out. |
@@ -226,10 +292,20 @@ sudo hsh-tunneld status
     `hsh tunnel login` to re-authenticate the daemon.
   </Accordion>
   <Accordion title="A connection is missing from `hsh tunnel connections`">
-    Only TCP-based connection types are tunnelable (see above). If it
-    is one and still doesn't show up, run `hsh tunnel refresh` to
+    Only TCP-based connection types are tunnelable (see above). Oracle
+    additionally requires native Oracle access to be enabled for your
+    organization. If neither applies, run `hsh tunnel refresh` to
     re-fetch the list, and confirm your user has access to that
     connection in the Web App.
+  </Accordion>
+  <Accordion title="The database rejects my login">
+    Use `noop` for both the username and the password — not your
+    database credentials, and not the secret key issued for native
+    database access. `hsh tunnel ls` prints the exact command per
+    connection; copy it rather than composing one by hand.
+
+    Raw TCP connections are the exception: those relay your bytes
+    untouched, so the upstream service expects its own credentials.
   </Accordion>
   <Accordion title="Names don't resolve (`could not translate host name`)">
     Host DNS routing is configured automatically on bring-up. Check
