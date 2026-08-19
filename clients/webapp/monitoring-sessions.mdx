@@ -52,6 +52,22 @@ For application and SSH resource roles:
 - Command output
 - Terminal sessions
 
+## Handling Large Results
+
+When an operation returns a value too large for a browser to handle, it can cause the session to crash or freeze. To prevent this, we automatically truncate the preview and provide the full data via a downloadable file.
+
+<Note>
+**Important Note on Configuration**: If your organization has the "Block Downloads" setting enabled (typically for security reasons), you may run into a situation where:
+- The data is too large to display in-browser
+- The download option is unavailable
+
+**Why not just show it in the browser?** We prioritize your uptime. If we forced the browser to render these massive values without truncation, it would likely crash your current session, making the product unusable until the session is cleared.
+</Note>
+
+<Info>
+The "Block Downloads" setting is controlled by the `DISABLE_SESSIONS_DOWNLOAD` environment variable. See [Environment Variables](/setup/configuration/env-vars) for configuration details.
+</Info>
+
 ## Session Actions
 
 From the session details view, you can:
