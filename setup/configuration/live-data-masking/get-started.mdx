@@ -22,13 +22,83 @@ import { LiveDataMasking } from '/snippets/annimations/datamaskingscan.jsx';
 
 ## Setup
 
-This service currently supports Microsoft Presidio for data classification and PII detection.
+This service supports two providers for data classification and PII detection:
+**Alcatraz**, which runs inside the agent and needs no extra services, and
+**Microsoft Presidio**, which you deploy and point the gateway at.
 
 Google Cloud Data Loss Prevention (DLP) is still available for existing customers but is deprecated for new installations.
 
 <Info>
   You must be on an Enterprise plan to have full access to the Live Data Masking feature.
 </Info>
+
+### Alcatraz
+
+Alcatraz detects sensitive data in-process, inside the agent. There is no
+analyzer to deploy, no anonymizer, no credentials and no network hop: detection
+is a function call on the data already passing through the agent.
+
+<Steps>
+  <Step title="Set up">
+    Set one environment variable in hoop.dev's Gateway:
+
+    | Environment variable key | Value                     |
+    | ------------------------ | ------------------------- |
+    | `DLP_PROVIDER`           | alcatraz                  |
+    | `DLP_MODE`               | `best-effort` or `strict` |
+
+    No analyzer URL, no anonymizer URL and no service account: unlike the other
+    two providers, Alcatraz has nothing external to reach.
+  </Step>
+  <Step title="Run hoop.dev's Gateway with the new configs">
+    Masking rules apply to every resource role you activate, and the entity
+    types you pick per rule are evaluated by the agent serving the session.
+  </Step>
+  <Step title="Deploy an agent that can serve the statistical entity types">
+    Only needed if your masking rules select `PERSON`, `LOCATION` or `NRP` —
+    see below. Every other entity type works on any agent image.
+  </Step>
+</Steps>
+
+#### PERSON, LOCATION and NRP need a model on the agent
+
+Most entity types are pattern-based: credit cards, IBANs, national IDs, API
+keys and the rest are matched, checksum-verified where a checksum exists, and
+masked without anything extra on disk. Names, places and nationalities cannot
+be matched that way — they come from a statistical NER model that runs
+in-process on the agent.
+
+The agent never downloads that model at runtime. Either its image carries it,
+or you mount it:
+
+| Agent image | What to do |
+| --- | --- |
+| `hoophq/hoopagent:<version>-minimal-alcatraz` | Nothing — the model ships in the image, which sets `ALCATRAZ_NER_MODEL_PATH` itself |
+| `hoophq/hoopagent:<version>-distroless-alcatraz` | Nothing — same, on the distroless base |
+| `hoophq/hoopdev`, or any other image | Mount the model directory and set `ALCATRAZ_NER_MODEL_PATH` to it |
+
+For the mounted case, `ALCATRAZ_NER_MODEL_PATH` is the models *directory* — the
+parent that holds one subdirectory per model id, which is what
+`alcatraz models download --dest <dir>` writes into.
+
+<Warning>
+An agent with no model on disk **refuses** sessions whose masking rules ask for
+`PERSON`, `LOCATION` or `NRP`. It does not return that data unmasked. Rules
+using any other entity type keep working on the same agent.
+</Warning>
+
+<Note>
+The model loads lazily, on the first session that needs one of those three
+types, and then holds about 260MB of resident memory until the agent restarts.
+Give the agent pod headroom before you enable those entity types.
+
+Enablement is also gated per organisation by the `experimental.alcatraz_ner`
+feature flag: go to **Organization > Settings > Experimental** and toggle it
+**On**. No agent restart is needed.
+</Note>
+
+See [Container Images](/setup/deployment/container-images#the-alcatraz-tags)
+for the tag list and what each flavour contains.
 
 ### Microsoft Presidio
 

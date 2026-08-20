@@ -50,7 +50,7 @@ All fields below are not required but can give you some extra configuration opti
 | AUDITOR_USERNAME (DEPRECATED)       | auditor                 | Changes the name of the group to act as the `auditor` role |
 | API_KEY (DEPRECATED)                |                         | When this environment is set, it enables authentication with full administrative privileges. The key must follow this format: `{org-id}\|{random-string}` |
 | ANALYTICS_TRACKING                  | enabled                 | Disable the analytics tracking by setting it to `disabled` |
-| DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `mspresidio` or `gcp` |
+| DLP_PROVIDER                        | `gcp`                   | Which DLP provider to use: `alcatraz`, `mspresidio` or `gcp`. `alcatraz` runs in the agent and needs no other configuration |
 | DLP_MODE                            | `best-effort`           | The redact mode policy: `best-effort` or `strict`. The former makes a best effort to redact the content and the later will return an error in case of any redaction issue.  |
 | DEFAULT_AGENT_GRPC_SCHEME           |                         | Override the gRPC scheme for the default agent. `grpc` or `grpcs`. |
 | DEFAULT_AGENT_GRPC_HOST             |                         | Override the default host for the default agent. |

@@ -3,6 +3,33 @@ title: "Supported Fields"
 description: "Get to know all the fields that you can use to mask data in your organization."
 ---
 
+## Alcatraz
+
+Alcatraz ships 45 built-in recognizers covering 12 countries. 25 of them
+validate a checksum before reporting a match — Luhn for credit cards, ISO 7064
+mod-97 for IBANs, Verhoeff for Aadhaar, mod-11 for the Brazilian documents (CPF,
+CNPJ, CNH, PIS) and others — so a number with the right shape but the wrong
+check digit is dropped rather than masked. It also recognises secrets such as
+AWS access keys, JWTs and private keys.
+
+For the current list, see the [alcatraz
+recognizers](https://github.com/hoophq/alcatraz).
+
+### Entity types that need the NER model
+
+| Entity type | Detects |
+| --- | --- |
+| `PERSON` | People's names in free text |
+| `LOCATION` | Places, addresses and geographic references in free text |
+| `NRP` | Nationality, religious or political group |
+
+These three are statistical, not pattern-based: they come from an ONNX model
+that runs in-process on the agent. The agent needs that model on disk, which
+means either an `-alcatraz` image tag or a mounted model directory — see [Get
+Started](/setup/configuration/live-data-masking/get-started#person-location-and-nrp-need-a-model-on-the-agent).
+A rule that selects one of them is refused by an agent without the model; every
+other entity type above keeps working.
+
 ## Microsoft Presidio
 
 For updated fields support, visit [Microsoft Presidio's official documentation](https://microsoft.github.io/presidio/supported_entities/).
