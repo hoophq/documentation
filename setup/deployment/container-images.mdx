@@ -25,6 +25,8 @@ the container:
 |---|---|
 | `hoophq/hoopagent:<version>-minimal` | Your connections are databases, TCP, HTTP, SSH or AWS SSM only |
 | `hoophq/hoopagent:<version>-distroless` | As above, and you want the smallest possible surface |
+| `hoophq/hoopagent:<version>-minimal-alcatraz` | As `-minimal`, and masking rules ask for `PERSON`, `LOCATION` or `NRP` |
+| `hoophq/hoopagent:<version>-distroless-alcatraz` | As `-distroless`, and masking rules ask for `PERSON`, `LOCATION` or `NRP` |
 | `hoophq/hoopdev` | You have **custom** or **command-line** connections (the agent runs a script, `psql`, `kubectl`, …), or **Remote Desktop (RDP)** connections |
 | `hoophq/hoop-agent-ocr` | You need live redaction of RDP sessions (requires an `amd64` GPU instance) |
 
@@ -97,6 +99,8 @@ PostgreSQL, MySQL, SQL Server, MongoDB, TCP, HTTP, SSH and AWS SSM.
 |---|---|---|
 | `hoophq/hoopagent:<version>-minimal` | Ubuntu 24.04 LTS | Keeps a shell, so `kubectl exec` works for troubleshooting |
 | `hoophq/hoopagent:<version>-distroless` | Distroless (static) | No shell and no package manager — the smallest surface, but you troubleshoot from logs only |
+| `hoophq/hoopagent:<version>-minimal-alcatraz` | `-minimal` | The same image plus the Alcatraz NER model |
+| `hoophq/hoopagent:<version>-distroless-alcatraz` | `-distroless` | The same image plus the Alcatraz NER model |
 
 Both are a fraction of the size of `hoophq/hoopdev` and carry no AGPL- or
 SSPL-licensed components.
@@ -105,6 +109,35 @@ SSPL-licensed components.
 `hoophq/hoopagent` has no unsuffixed tag and no `latest`. Always name a flavour
 and a release, for example `hoophq/hoopagent:1.135.1-minimal`.
 </Warning>
+
+#### The `-alcatraz` tags
+
+Data masking with `DLP_PROVIDER=alcatraz` detects most entity types with
+patterns, in-process, needing nothing on disk. Three of them — `PERSON`,
+`LOCATION` and `NRP` — come from a statistical model instead, and the agent
+never downloads it at runtime: the files have to be in the image, or mounted
+into it. That is the whole difference between a flavour and its `-alcatraz`
+sibling.
+
+Each `-alcatraz` tag is its base flavour plus ~250MB of model weights and one
+environment variable, `ALCATRAZ_NER_MODEL_PATH=/opt/alcatraz/models`, which the
+image sets for you. The binary, the user, the command and the invocation
+contract are identical, so a deployment moves between `-minimal` and
+`-minimal-alcatraz` by editing the tag and nothing else.
+
+<Warning>
+An agent with no model on disk **refuses** the sessions that ask for those three
+entity types, rather than returning them unmasked. Every other entity type keeps
+working. If you enable masking rules with `PERSON`, `LOCATION` or `NRP`, deploy
+an `-alcatraz` tag — or mount the model into a plain flavour and point
+`ALCATRAZ_NER_MODEL_PATH` at it.
+</Warning>
+
+The model is loaded lazily, on the first session that needs it, and then costs
+about 260MB of resident memory that is not released until the pod restarts.
+Size the agent accordingly, and see
+[Live Data Masking](/setup/configuration/live-data-masking/get-started#alcatraz)
+for the gateway side of the setup.
 
 ### `hoophq/hoop-agent-ocr` — Agent with a bundled OCR engine
 
@@ -404,7 +437,7 @@ override depends on the image:
 
 | Image | `ENTRYPOINT` | `CMD` | To change the arguments |
 |---|---|---|---|
-| `hoophq/hoopagent` (both flavours) | none | `hoop start agent` | Set `command` — `args` alone would replace the whole command |
+| `hoophq/hoopagent` (every flavour, `-alcatraz` included) | none | `hoop start agent` | Set `command` — `args` alone would replace the whole command |
 | `hoophq/hoopdev` | `tini --` | `hoop start agent` | Set `args` — setting `command` would drop the `tini` init shim |
 | `hoophq/hoop` | `tini --` | none | Set `args`, for example `["hoop", "start", "gateway"]` |
 | `hoophq/hoop-agent-ocr` | `tini -- /opt/ocr/entrypoint-embedded.sh` | the default agent script | Leave both alone; overriding `command` bypasses the OCR engine launcher |
