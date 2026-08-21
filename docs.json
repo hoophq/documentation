@@ -187,6 +187,7 @@
                   "setup/deployment/container-images",
                   "setup/deployment/kubernetes",
                   "setup/deployment/presidio",
+                  "setup/deployment/alcatraz",
                   "setup/deployment/spiffe",
                   "setup/deployment/AWS"
                 ]

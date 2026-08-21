@@ -40,12 +40,12 @@ is a function call on the data already passing through the agent.
 
 <Steps>
   <Step title="Set up">
-    Set one environment variable in hoop.dev's Gateway:
+    Set the environment variables in hoop.dev's Gateway:
 
-    | Environment variable key | Value                     |
-    | ------------------------ | ------------------------- |
-    | `DLP_PROVIDER`           | alcatraz                  |
-    | `DLP_MODE`               | `best-effort` or `strict` |
+    | Environment variable key | Value                     | Required |
+    | ------------------------ | ------------------------- | -------- |
+    | `DLP_PROVIDER`           | alcatraz                  | Yes      |
+    | `DLP_MODE`               | `best-effort` or `strict` | No, defaults to `best-effort` |
 
     No analyzer URL, no anonymizer URL and no service account: unlike the other
     two providers, Alcatraz has nothing external to reach.
@@ -91,14 +91,16 @@ using any other entity type keep working on the same agent.
 The model loads lazily, on the first session that needs one of those three
 types, and then holds about 260MB of resident memory until the agent restarts.
 Give the agent pod headroom before you enable those entity types.
-
-Enablement is also gated per organisation by the `experimental.alcatraz_ner`
-feature flag: go to **Organization > Settings > Experimental** and toggle it
-**On**. No agent restart is needed.
 </Note>
 
-See [Container Images](/setup/deployment/container-images#the-alcatraz-tags)
-for the tag list and what each flavour contains.
+<CardGroup cols={2}>
+  <Card title="Alcatraz deployment" icon="server" href="/setup/deployment/alcatraz">
+    Provisioning the model, sizing, verification and troubleshooting.
+  </Card>
+  <Card title="Container images" icon="box" href="/setup/deployment/container-images#the-alcatraz-tags">
+    The tag list and what each flavour contains.
+  </Card>
+</CardGroup>
 
 ### Microsoft Presidio
 

@@ -1,0 +1,303 @@
+---
+title: 'Alcatraz'
+---
+
+This guide covers deploying Live Data Masking with the Alcatraz provider: which agent image to run, when the statistical NER model is needed, and how to size the agent for it.
+
+## Overview
+
+Alcatraz is Hoop's in-process PII detection engine: a Go library compiled into the agent binary rather than a service you deploy. Detection is a function call on data the agent is already handling.
+
+That removes the deployment surface [Microsoft Presidio](/setup/deployment/presidio) carries: no Analyzer to scale, no Anonymizer, no Envoy, no service URLs, no HTTP round-trip per masked session. Configuration and behaviour are unchanged. You enable masking per resource role and pick entity types in the Hoop UI exactly as before, and the agent still parses the protocol, masks findings, and reports redaction statistics to the gateway. Only the detection step moves.
+
+The exception is coverage. `PERSON`, `LOCATION` and `NRP` are statistical rather than pattern-based, so the agent needs a small NER model on disk to serve them. That model is what the `-alcatraz` image tags carry, and most of what this page is about.
+
+| | Microsoft Presidio | Alcatraz |
+| --- | --- | --- |
+| Extra services | Analyzer, Anonymizer, Envoy | none |
+| Credentials | none (service URLs) | none |
+| Detection path | HTTP call from agent | in-process function call |
+| Built-in entity types | ~45 | 48 |
+| Custom recognizers | regex and deny lists | regex (RE2, no lookaround) and deny lists |
+| `PERSON` / `LOCATION` / `NRP` | always available | needs the NER model on the agent |
+
+<Note>
+  Requires Hoop `1.147.1` or later on **both** the gateway and every agent that serves masked connections. Existing Presidio and Google Cloud DLP deployments are unaffected.
+</Note>
+
+## Architecture
+
+```
+┌─────────┐  connect params   ┌───────┐
+│ Gateway │ ────────────────> │ Agent │ ── in-process detection + masking
+│         │  DLP_PROVIDER     │       │    (alcatraz engine, linked into
+└─────────┘  DLP_MODE         └───────┘     the hoop binary)
+                                  │
+                             redaction stats
+                                  ↓
+                              Gateway → PostgreSQL
+```
+
+The provider is a gateway decision, but it is enforced on the agent. When a session opens, the gateway sends the effective `DLP_PROVIDER` and `DLP_MODE` in the connection parameters; the agent constructs the matching redactor and runs it for the life of the session. That is why both sides have a version requirement, and why sensitive payloads never leave the agent for analysis.
+
+## Enabling the provider
+
+Set these on the **gateway**:
+
+```conf
+DLP_PROVIDER=alcatraz
+DLP_MODE=best-effort
+```
+
+| Variable | Value | Notes |
+| --- | --- | --- |
+| `DLP_PROVIDER` | `alcatraz` | Replaces `mspresidio` or `gcp`. |
+| `DLP_MODE` | `best-effort` or `strict` | Optional, defaults to `best-effort`. `strict` fails the session when masking cannot be applied; `best-effort` continues unmasked. |
+
+Nothing else is required: `MSPRESIDIO_ANALYZER_URL`, `MSPRESIDIO_ANONYMIZER_URL` and `GOOGLE_APPLICATION_CREDENTIALS_JSON` can all be removed when you switch.
+
+Restart the gateway, then confirm:
+
+```bash
+curl -s $API_URL/api/serverinfo -H "Authorization: Bearer $TOKEN" \
+  | jq '.redact_provider, .has_redact_credentials'
+# "alcatraz"
+# true
+```
+
+<Warning>
+  **Upgrade agents before switching the gateway.** An agent older than `1.147.1` does not recognise `alcatraz` and falls back to its Presidio client, which has no analyzer URL to call. Every session carrying masking rules then fails at startup with an error naming Presidio rather than the real cause. Connections without masking rules are unaffected.
+</Warning>
+
+## Choosing an agent image
+
+Detection works on every agent image. Only the three statistical entity types need extra bytes on disk, and that is the whole difference between a `hoophq/hoopagent` flavour and its `-alcatraz` sibling. Tag list and invocation contract: [Container Images](/setup/deployment/container-images#the-alcatraz-tags).
+
+Agents serving **custom / command-line** or **RDP** connections must run `hoophq/hoopdev`, and no `hoopdev` tag bakes the model in. See [Mounting the model on hoopdev](#mounting-the-model-on-hoopdev).
+
+## The statistical entity types
+
+Alcatraz is pattern-based at its core: each built-in recognizer matches a structured identifier and, for 25 of the 45, validates a checksum. Those need nothing beyond the binary.
+
+Three types have no pattern to match, because a name or a city is only recognisable from context:
+
+- `PERSON`
+- `LOCATION`
+- `NRP` (nationality, religious or political group)
+
+An ONNX NER model serves them, in-process on the agent. The backend is **offline** and never fetches at runtime, so the model must already be on disk.
+
+<Warning>
+  If a connection's masking rules request `PERSON`, `LOCATION` or `NRP` and the model is missing, the agent **refuses the session** rather than running it unmasked.
+</Warning>
+
+`ALCATRAZ_NER_MODEL_PATH` enables the module. It points at the **models directory**, the parent holding one subdirectory per model id, not the model's own directory:
+
+```
+/opt/alcatraz/models/            <- ALCATRAZ_NER_MODEL_PATH
+├── checksums.txt
+└── KnightsAnalytics_distilbert-NER/
+    ├── config.json
+    ├── model.onnx
+    ├── special_tokens_map.json
+    ├── tokenizer.json
+    ├── tokenizer_config.json
+    └── vocab.txt
+```
+
+The `-alcatraz` tags set this variable themselves. Leave it unset there.
+
+The model is ~250 MB on disk. It loads lazily, on the first session that needs one of the three types, and is not released until the pod restarts, so size the pod for the loaded state rather than the idle one. See [Sizing](#sizing).
+
+## Kubernetes
+
+### With a baked-in model
+
+Point the [agent Helm chart](/setup/deployment/kubernetes) at an `-alcatraz` tag and change nothing else.
+
+```yaml
+image:
+  repository: hoophq/hoopagent
+  tag: <release>-minimal-alcatraz
+
+config:
+  HOOP_KEY: '<AUTH_KEY>'
+  # ALCATRAZ_NER_MODEL_PATH is set by the image. Do not set it here.
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: '2'
+    memory: 1Gi
+```
+
+```bash
+helm upgrade --install hoopagent \
+  oci://ghcr.io/hoophq/helm-charts/hoopagent-chart --version $VERSION \
+  -f values.yaml
+```
+
+### Without the statistical types
+
+If your rules only use structured identifiers, skip the model and run a plain flavour: ~250 MB smaller, no extra memory headroom.
+
+```yaml
+image:
+  repository: hoophq/hoopagent
+  tag: <release>-distroless
+```
+
+### Mounting the model on hoopdev
+
+No `hoopdev` flavour bakes the model in. Provision it onto a volume and point the variable at it:
+
+```yaml
+image:
+  repository: hoophq/hoopdev
+  tag: <release>
+
+config:
+  HOOP_KEY: '<AUTH_KEY>'
+  ALCATRAZ_NER_MODEL_PATH: '/opt/alcatraz/models'
+```
+
+The volume is deployment-specific: a ReadOnlyMany PVC shared across replicas, or an init container running [`alcatraz models download`](#provisioning-the-model-yourself) into an `emptyDir`. Read-only is enough; the agent never writes there.
+
+## Docker Compose
+
+```yaml
+services:
+  hoopagent:
+    image: hoophq/hoopagent:<release>-minimal-alcatraz
+    environment:
+      HOOP_KEY: '<AUTH_KEY>'
+    restart: unless-stopped
+```
+
+For the [full local stack](/setup/deployment/docker-compose), set `DLP_PROVIDER=alcatraz` on the gateway service and use an `-alcatraz` tag for the agent.
+
+## Provisioning the model yourself
+
+Only needed for air-gapped builds, `hoopdev` agents, or a custom image. The `-alcatraz` tags already contain everything.
+
+### With the Alcatraz CLI
+
+```bash
+brew install hoophq/tap/alcatraz
+# or: go install github.com/hoophq/alcatraz/cmd/alcatraz@latest
+
+alcatraz models download --dest /opt/alcatraz/models
+```
+
+The CLI verifies every file against pinned sha256 digests at a pinned upstream commit. Point `ALCATRAZ_NER_MODEL_PATH` at `--dest`.
+
+### From Hoop's mirror
+
+Hoop publishes the same files to a bucket with a manifest naming them. This is what the `-alcatraz` image builds use. **The objects are public-read: no AWS credentials, no `aws` CLI, no account.** Listing is not allowed, which is why the recipe reads `checksums.txt` for the file names instead of enumerating the prefix.
+
+```bash
+ORIGIN=https://hoopartifacts.s3.us-east-1.amazonaws.com/alcatraz/current
+
+mkdir -p /opt/alcatraz/models && cd /opt/alcatraz/models
+curl -fsSL "$ORIGIN/checksums.txt" -o checksums.txt
+while read -r _ path; do
+  [ -n "$path" ] || continue
+  curl -fsSL "$ORIGIN/$path" --create-dirs -o "$path"
+done < checksums.txt
+sha256sum -c checksums.txt
+chmod -R a+rX /opt/alcatraz/models
+```
+
+<Note>
+  `current` is a moving alias, not a revision. A rebuild may pick up a newer model; model/binary skew is caught when the agent loads it. Mirror the bucket into your own artifact store if you need a frozen copy.
+</Note>
+
+### Building your own image
+
+`Dockerfile.agent` in `hoophq/hoop` exposes the origin as a build argument, so an air-gapped build can swap in an internal mirror:
+
+```bash
+docker build -f Dockerfile.agent --target minimal-alcatraz \
+  --build-arg ALCATRAZ_MODEL_ORIGIN=https://artifacts.internal/alcatraz/current \
+  -t registry.internal/hoopagent:<release>-minimal-alcatraz .
+```
+
+## Sizing
+
+Alcatraz adds no baseline cost: nothing is loaded until a session needs it.
+
+| Workload | Memory request | Notes |
+| --- | --- | --- |
+| Structured identifiers only | agent baseline | Pattern matching is linear-time. |
+| Statistical types, model loaded | baseline + ~300 Mi | ~260 Mi resident for the model, plus inference working set. |
+
+- **The model never unloads.** Once the first `PERSON` session runs, the pod holds that memory for life. A limit sized for the idle agent OOM-kills on that first session, not gradually.
+- **Detection is CPU-bound and inline.** Inference runs on the pure-Go ONNX backend (no cgo, no GPU) on the session's own path. Under sustained masked traffic, CPU bounds throughput. Scale out replicas rather than up.
+
+<Tip>
+  Run agents that need the statistical types as a separate deployment. Only those pods pay for the model; the plain flavours stay small.
+</Tip>
+
+## Verifying the model
+
+The manifest ships with the model, so one command checks any copy:
+
+```bash
+kubectl exec <pod> -- sh -c 'cd /opt/alcatraz/models && sha256sum -c checksums.txt'
+```
+
+`distroless` has no shell. Export the container filesystem instead:
+
+```bash
+mkdir -p /tmp/img
+cid=$(docker create hoophq/hoopagent:<release>-distroless-alcatraz)
+docker export "$cid" | tar -x -C /tmp/img opt/alcatraz/models
+docker rm "$cid"
+(cd /tmp/img/opt/alcatraz/models && sha256sum -c checksums.txt)
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Sessions fail with an error about PERSON, LOCATION or NRP">
+    The rules request a statistical entity type and the agent has no model on disk. Switch to an `-alcatraz` tag, or mount the model and set `ALCATRAZ_NER_MODEL_PATH`.
+
+    ```bash
+    kubectl exec <pod> -- env | grep ALCATRAZ_NER_MODEL_PATH
+    ```
+
+    If the variable is set but sessions still fail, it is probably pointing at the model's own directory. It must point at the parent that *contains* `KnightsAnalytics_distilbert-NER/`.
+  </Accordion>
+
+  <Accordion title="The agent pod is OOM-killed shortly after a masked session starts">
+    The model loaded and is never released. Raise the limit as described in [Sizing](#sizing), or move the connections that need statistical types to a dedicated deployment.
+  </Accordion>
+
+  <Accordion title="The UI still shows the Google Cloud DLP deprecation message">
+    The gateway is not reporting `alcatraz` as the effective provider. Check `/api/serverinfo` (see [Enabling the provider](#enabling-the-provider)) and confirm `DLP_PROVIDER` reached the process. A Helm value under the wrong key is the usual cause.
+  </Accordion>
+
+  <Accordion title="A -alcatraz image build fails on `sha256sum -c`">
+    A digest mismatch is never transient and the step must not be softened. The one benign cause is a build reading the manifest mid-publish. Retry once; if it fails again, the origin is serving something unexpected.
+  </Accordion>
+
+  <Accordion title="`kubectl exec` fails with `exec: sh: not found`">
+    You are on a `distroless` flavour, which has no shell by design. Use the `minimal` equivalent for interactive debugging, or export the filesystem as shown in [Verifying the model](#verifying-the-model).
+  </Accordion>
+</AccordionGroup>
+
+## What Alcatraz detects
+
+48 entity types: 45 pattern-based recognizers, 25 of them checksum-validated, plus the 3 statistical ones. Custom regex and deny-list recognizers work as they do with Presidio. Full list: [Supported Fields](/setup/configuration/live-data-masking/fields#alcatraz).
+
+Alcatraz is open source under the MIT license: [github.com/hoophq/alcatraz](https://github.com/hoophq/alcatraz).
+
+## Release information
+
+| Component | Version |
+| --- | --- |
+| Gateway and agent | `1.147.1`+ (provider in `1.147.0`, `-alcatraz` tags in `1.147.1`) |
+| NER model | `KnightsAnalytics/distilbert-NER` (ONNX), pinned by commit and per-file sha256 |
+| Platforms | `linux/amd64`, `linux/arm64` |
