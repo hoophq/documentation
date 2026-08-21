@@ -1,0 +1,24 @@
+---
+title: "1.121.0"
+description: "Introducing Protection Profiles for one-click compliance-ready security presets, plus a new license-clean image line so you always deploy exactly what you intend."
+---
+
+### TL;DR
+- **New Features:** Protection Profiles apply curated guardrails, data masking, access request, and AI Session Analyzer rules in a single selection, alongside a new license-clean image line.
+
+---
+
+### New Features
+**Ready-made security presets and cleaner deployments.**
+
+- **Protection Profiles for one-click security posture**
+  Choose an organization-level protection profile like HIPAA-ready, SOC 2 Type 2, or permissive, medium, and high presets to instantly apply a curated set of guardrails, data masking, access request, and AI session analyzer rules across your connections. New connections are tagged automatically while a profile is active, switching profiles migrates your connections cleanly, and you can revert to manual configuration at any time.
+  [PR #1627](https://github.com/hoophq/hoop/pull/1627)
+
+- **License-clean image line**
+  A new clean image line lets you deploy a gateway and agent free of AGPL and SSPL components, while existing deployments that depend on the legacy MongoDB shell keep working unchanged. Opt in when you're ready, with no disruption to current setups.
+  [PR #1629](https://github.com/hoophq/hoop/pull/1629)
+
+---
+
+Less friction, stronger protection out of the box.

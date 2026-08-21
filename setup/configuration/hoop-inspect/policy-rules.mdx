@@ -1,0 +1,708 @@
+---
+title: "Policy Rules"
+description: "Write a rule, pick deny or defer, and hand the judgement call to Rego"
+---
+
+A rule makes two decisions. It decides what it MATCHES, and it decides what happens on a match.
+
+The first decision is a `type` and a list. The second is the `action` field: leave it unset and a match denies, set `action: defer` and the match becomes a **finding** that a Rego policy rules on.
+
+```yaml
+- name: no-national-id           # deny: the rule decides
+  type: pii
+  entities: [BR_CPF]
+  message: do not put a national ID in a query
+
+- name: no-national-id           # defer: the rule reports, OPA decides
+  type: pii
+  entities: [BR_CPF]
+  action: defer
+```
+
+Deferring moves the DETERMINATION and leaves the matching where it is. The local engine still runs the detector, the regex and the word list, in microseconds with no network. Rego gets the answer and decides what it means for this actor, this table and this hour.
+
+<Note>
+`action: defer` on a lane with no `policy.opa.url` is refused at startup. A finding nobody reads is a rule that matches and then allows, which looks like enforcement from the config file.
+</Note>
+
+[Config File](/setup/configuration/hoop-inspect/config-file#policy-rules) carries the exhaustive schema for every field named below.
+
+---
+
+## The eight rule types
+
+| `type` | Matches on | Protocol |
+|---|---|---|
+| `operation` | the statement's most consequential effect | SQL and HTTP |
+| `table` | a relation the statement touches, narrowed by access | SQL |
+| `deny_words_list` | a substring of the statement text | any |
+| `pattern_match` | an RE2 regex over the statement text | any |
+| `pii` | entity classes a detector finds in the text | any |
+| `http_resource` | the normalized request path | HTTP |
+| `http_status` | the response status | HTTP |
+| `ai_analysis` | the risk a language model reports | any |
+
+Every rule also takes `name` and `message`. `message` reaches the user in the protocol's own error frame, so write one: the fallback names the rule and the operation and nothing else.
+
+Each block below is one entry in a lane's `policy.rules` list.
+
+### operation
+
+```yaml
+- name: no-destructive-sql
+  type: operation
+  operations: [drop, delete, truncate]
+  message: destructive statements are not permitted on this lane
+```
+
+Reach for it first. It costs nothing, it survives every outage, and it reads the scanner's classification rather than the text, so `SELECT 'DROP TABLE customers'` stays a `select`.
+
+`Operation` is the **most consequential effect** the statement has, whatever verb it opens with. A data-modifying CTE is a `delete`:
+
+| Statement | `operation` |
+|---|---|
+| `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` | `delete` |
+| `UPDATE audit SET n = 1; DELETE FROM customers` | `delete` |
+| `MERGE INTO customers c USING s ON c.id = s.id WHEN MATCHED THEN DELETE` | `delete` |
+| `EXPLAIN DELETE FROM customers` | `explain` (it plans, it does not execute) |
+| `EXPLAIN ANALYZE DELETE FROM customers` | `delete` (it executes) |
+
+`Statement.Effects` carries the full set when a rule needs to tell them apart, and it reaches Rego as `input.effects`.
+
+The SQL vocabulary: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `show`, `set`, `begin`, `commit`, `rollback`, `explain`, plus `other` and `unknown`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`, `head`, `options`, `connect`, `trace`.
+
+<Warning>
+`CALL` and `EXECUTE` now report `unknown`, so a rule written as `operations: [call]` **stops matching**. Both hide their body from any parser, and reporting a verb for a statement nobody can read is the fail-open this design removes. `call` survives in `input.effects`, which is where a Rego policy still sees it; a rule wanting both writes `operations: [call, unknown]`. Read [Fail closed on what the scanner could not read](#fail-closed-on-what-the-scanner-could-not-read).
+</Warning>
+
+### table
+
+```yaml
+- name: customers-is-read-only
+  type: table
+  tables: [customers]
+  access: write
+  message: customers is read-only through this lane
+```
+
+`access` takes `write`, `read`, or nothing at all. Unset matches either, so every rule written before the split means what it always meant.
+
+Set it when the rule guards a table's contents against change. Without `access: write`, a rule meaning "nothing writes to customers" also fires on a statement that only reads it:
+
+```sql
+INSERT INTO staging SELECT * FROM customers
+```
+
+The scanner reports `staging` as a write and `customers` as a read. That false positive is how operators learn to widen a rule until it protects nothing. An unknown `access` value is refused at startup.
+
+Table matching is best effort. A bare name matches any schema qualification, so `customers` covers `public.customers`, and an empty relation list means "could not determine" rather than "touches nothing". Add `require_table_match: true` on a rule guarding something critical and accept the false positives.
+
+### deny_words_list
+
+```yaml
+- name: no-admin-functions
+  type: deny_words_list
+  words: [pg_sleep, pg_terminate_backend]
+  message: administrative functions are not available here
+```
+
+A case-insensitive substring search over the raw text. Use it for identifiers the scanner has no concept of, such as a function name. Do not use it for verbs: it denies `SELECT 'DROP TABLE customers'`, and an `operation` rule does not.
+
+### pattern_match
+
+```yaml
+- name: no-unqualified-delete
+  type: pattern_match
+  pattern_regex: '(?i)^\s*delete\s+from\s+\w+\s*;?\s*$'
+  message: a DELETE on this lane needs a WHERE clause
+```
+
+RE2, compiled at startup, so a bad pattern names the lane and the rule and stops the process rather than failing on the first request that hits it. Reach for it when the shape you object to is textual and nothing else expresses it.
+
+### pii
+
+```yaml
+pii:
+  entities: [BR_CPF, US_SSN]        # top-level: turns detection on
+```
+
+```yaml
+- name: no-national-id-in-query
+  type: pii
+  entities: [BR_CPF, US_SSN]        # a rule may name a subset
+  message: do not put a national ID in a query
+```
+
+The guardrail half of PII detection, and it runs on the REQUEST. Masking rewrites a response, and a taxpayer ID in a `WHERE` clause has already landed in the database's own query log, its slow-query log and its `EXPLAIN` output. A rule naming an entity absent from `pii.entities` is refused at startup, because it would load, evaluate and match nothing.
+
+The denial message never quotes the value it found.
+
+### http_resource
+
+```yaml
+- name: no-admin-api
+  type: http_resource
+  resources: ["/admin/**"]
+  methods: [POST, DELETE]
+  message: the admin API is not reachable through this proxy
+```
+
+Patterns match the NORMALIZED path, so `/users/12345/orders/98765` arrives as `/users/*/orders/*` and one rule replaces a regex per endpoint. A trailing `/**` matches any deeper path. `methods` narrows the rule; leave it out to cover every method.
+
+### http_status
+
+```yaml
+- name: no-5xx-bodies
+  type: http_status
+  statuses: ["5xx"]
+  message: upstream error suppressed
+```
+
+`ext_authz` cannot express this rule. Envoy decides before it calls the upstream, so no Envoy config reads a response status. This one is response-side: a request carries status 0 and never matches. Exact codes (`"404"`) and classes (`"4xx"`) both work.
+
+### ai_analysis
+
+```yaml
+analyzer:
+  provider: anthropic
+  model: claude-sonnet-4-5
+  credentials_file: /run/secrets/anthropic-key
+```
+
+```yaml
+- name: risky-writes
+  type: ai_analysis
+  trigger:
+    operations: [update, delete]
+  high: block
+  medium: warn
+```
+
+The local engine does not evaluate this type. The sidecar lifts it out of the rule set and runs it after the local rules and OPA, so its position in the list changes nothing and a statement a free rule already denied never reaches a paid classifier. Actions are `allow`, `warn`, `block` and `defer`; an unnamed risk level allows.
+
+It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis) before enabling it anywhere real.
+
+<Note>
+`ai_analysis` expresses deferral per risk level: `high: defer`. An `action` field on this rule type is refused at startup, and so are `require_review` and a `defer` on a lane with no `policy.opa.url`.
+</Note>
+
+---
+
+## Fail closed on what the scanner could not read
+
+```yaml
+- name: unreadable-sql
+  type: operation
+  operations: [unknown, other]
+  message: this statement could not be read end to end; refusing
+```
+
+`unknown` means the scanner did not understand the statement, and the reason travels in `metadata["sql.incomplete"]`, which reaches Rego as `input.metadata["sql.incomplete"]`:
+
+| Statement | Reason |
+|---|---|
+| `DO $$ … $$` | anonymous code block; body is interpreted at runtime |
+| `CALL purge()` | stored procedure; body is in the catalog |
+| `EXECUTE p` | prepared statement; the text was supplied elsewhere |
+
+Those three are a permanent ceiling, and no parser lifts it, PostgreSQL's own grammar included. The body is not in the statement: it is in the catalog, in the client's earlier `PREPARE`, or in a string a PL interpreter reads at runtime. A fourth case sits beside them and does NOT set the flag: a function call inside a `SELECT` list can do anything the function does, and flagging every `SELECT count(*)` would make the flag mean nothing.
+
+`other` is the statement that parsed into something the scanner does not classify. `REFRESH MATERIALIZED VIEW mv` is one, and it writes `mv`, which is why a lane refusing writes names `other` beside `unknown`.
+
+<Warning>
+`operations: [unknown, other]` is a permanent posture. No future parser removes the need for it, because the body of a `DO` block or a `CALL` is somewhere the statement does not carry. Leave it off a lane and you have accepted that risk in writing, which is the point of making it a rule you type.
+</Warning>
+
+The scanner is measured against PostgreSQL's own grammar. On the differential oracle it agrees exactly on 72 of 74 statements, concedes 2 (`DO` and `CALL`) and gets 0 wrong. Run over PostgreSQL 17.5's own regression suite, 20,391 statements, it reads 99.3% end to end; all 151 concessions are `PREPARE`, `CALL`, `DO` and three unbalanced-paren statements, and every one of them fails closed.
+
+---
+
+## Deferring to OPA
+
+A `pii` rule knows which entity classes a statement carries. Whether a statement carrying one may run depends on who is asking, and that belongs in one policy rather than scattered across YAML. Defer hands the second half to Rego.
+
+<Steps>
+  <Step title="The rule defers">
+    ```yaml config.yaml
+    pii:
+      entities: [BR_CPF, US_SSN]
+
+    policy:
+      enforce: true
+
+    listeners:
+      - name: appdb
+        protocol: postgres
+        listen: 127.0.0.1:15432
+        upstream: appdb:5432
+        connection: appdb
+        policy:
+          opa:
+            url: http://opa:8181/v1/data/hoop/inspect/decision
+            timeout_sec: 2
+            fail_open: false
+          rules:
+            - name: no-national-id
+              type: pii
+              entities: [BR_CPF, US_SSN]
+              action: defer
+    ```
+  </Step>
+
+  <Step title="The producer writes a finding">
+    A rule that defers becomes a **producer**: it establishes a fact and writes it to the evaluation context, keyed by its **source**.
+
+    | Field | Meaning |
+    |---|---|
+    | the key | the **source**: the rule TYPE that reported, one of `pii`, `deny_words_list`, `ai_analysis` |
+    | `rule` | the rule name that matched |
+    | `status` | `ok`, `cached`, `skipped`, `unavailable` or `error` |
+    | `reason` | always present; the specific word behind a degraded status |
+    | `values` | the producer's own payload, absent when it established nothing |
+
+    Findings key by TYPE rather than by name, so several `pii` rules fold into one finding: `values.rules` is the union of the names that matched and every list value unions. `pii` adds `values.entities`, `deny_words_list` adds `values.words`, and a matched pattern's TEXT never travels, because OPA's decision log is a copy of everything sent to it.
+  </Step>
+
+  <Step title="The policy sees it in input.findings">
+    ```json
+    {"input": {
+      "protocol": "postgres",
+      "operation": "select",
+      "tables": ["customers"],
+      "effects": ["select"],
+      "relations": [{"name": "customers", "access": "read"}],
+      "statement": "SELECT * FROM customers WHERE cpf = '111.222.333-44'",
+      "context": {
+        "principal": "alice@example.com",
+        "connection": "appdb",
+        "session_id": "01HZ...",
+        "peer_addr": "10.4.1.7:52344"
+      },
+      "phase": "decide",
+      "findings": {
+        "pii": {
+          "rule": "no-national-id",
+          "status": "ok",
+          "reason": "",
+          "values": {"entities": ["BR_CPF"], "rules": ["no-national-id"]}
+        }
+      }
+    }}
+    ```
+
+    `phase`, `findings`, `effects` and `relations` are additive. A single-call lane with no producers sends a byte-identical document to the one it sent before any of this existed.
+
+    The relay fills `input.context` from the session: `principal`, `session_id` and `connection` always, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them.
+  </Step>
+
+  <Step title="Rego rules on it">
+    ```rego policy.rego
+    # Decide-phase policy for a lane whose pii rule defers.
+    package hoop.inspect
+
+    import rego.v1
+
+    # A single-call lane sends no phase at all. Reading an absent phase as
+    # "decide" keeps this policy answering there; without it `decision` is
+    # undefined on that lane and fail_open: false denies every statement.
+    phase := object.get(input, "phase", "decide")
+
+    # What the pii producer established. Empty when nothing matched, which is
+    # a different fact from "the scanner could not run".
+    entities := object.get(input, ["findings", "pii", "values", "entities"], [])
+
+    pii_answered if input.findings.pii.status in {"ok", "cached"}
+
+    # The one principal allowed to run a statement carrying a national ID.
+    break_glass := "incident-response"
+
+    decision := {"denied": true, "rule": "pii-unreadable", "message": msg} if {
+    	phase == "decide"
+    	input.findings.pii
+    	not pii_answered
+    	msg := sprintf("the pii scanner reported %v; refusing", [input.findings.pii.status])
+    } else := {"allow": true, "rule": "break-glass"} if {
+    	phase == "decide"
+    	count(entities) > 0
+    	input.context.principal == break_glass
+    } else := {"denied": true, "rule": "pii-in-query", "message": msg} if {
+    	phase == "decide"
+    	count(entities) > 0
+    	msg := sprintf("do not put %v in a statement; it lands in the database's own query log", [concat(", ", sort(entities))])
+    } else := {"allow": true}
+    ```
+
+    Four inputs, four verdicts, from `opa eval` against that file:
+
+    | Input | Verdict |
+    |---|---|
+    | principal `alice@example.com`, `BR_CPF` found | `{"denied": true, "rule": "pii-in-query", "message": "do not put BR_CPF in a statement; it lands in the database's own query log"}` |
+    | principal `incident-response`, `BR_CPF` found | `{"allow": true, "rule": "break-glass"}` |
+    | `"status": "unavailable"` | `{"denied": true, "rule": "pii-unreadable", "message": "the pii scanner reported unavailable; refusing"}` |
+    | single-call lane, no `findings`, no `phase` | `{"allow": true}` |
+  </Step>
+</Steps>
+
+### Test the status, never the value
+
+Only `ok` and `cached` mean the producer answered. The other three carry no values, so a policy testing `count(entities) == 0` reads "found nothing", "never ran", "budget spent" and "provider down" as one answer. Every status outside those two MUST fail closed.
+
+### The phase idiom
+
+```rego
+phase := object.get(input, "phase", "decide")
+```
+
+Write it in every policy. A single-call lane sends **no** `phase` field, so a policy testing `input.phase == "decide"` is undefined there, and `fail_open: false` turns undefined into a denial for every statement on that lane. The default makes one policy answer a gated lane, a deferring lane and a plain one.
+
+---
+
+## The gate phase
+
+A lane that defers calls its producers first and OPA second, so a statement Rego would have refused for free has already cost a model call. `gate: true` buys the cost control back by consulting OPA on both sides of the producers:
+
+```yaml
+policy:
+  opa:
+    url: http://opa:8181/v1/data/hoop/inspect/decision
+    gate: true
+```
+
+| Lane | Chain |
+|---|---|
+| `gate: true` | `rules → opa(gate) → producers → opa(decide)` |
+| something defers, no gate | `rules → producers → opa(decide)` |
+| neither | `rules → opa` |
+
+Both calls hit the same URL and carry `input.phase`, so a policy that ignores the field answers both identically and turning the gate on costs one round trip rather than a rewrite.
+
+The gate answers `request` beside its decision, keyed by source:
+
+```rego
+decision := {"allow": true, "request": {"ai_analysis": true}} if {
+	phase == "gate"
+	touches_sensitive
+}
+```
+
+| `request` value | Effect on that producer |
+|---|---|
+| `true` | runs, even where its own config would skip it |
+| `false` | skipped, even where its own config would run it |
+| absent | the producer's own config decides |
+
+<Note>
+An UNDEFINED gate decision allows and requests nothing, even under `fail_open: false`. A gate is an optimization over a policy someone already wrote, so switching it on must not deny every statement until a second Rego rule exists. The decide phase keeps the normal fail-closed reading of undefined.
+</Note>
+
+`gate: true` on a lane with no `ai_analysis` rule is refused at startup: the extra round trip would gate nothing.
+
+---
+
+## Rule ordering and inheritance
+
+**First match wins, for DENIALS only.** A deferring rule records its finding and evaluation continues, so one statement can report several findings and still be denied by a hard rule further down. Order decides which name and message a user reads, never whether the statement runs.
+
+**Top-level rules concatenate with a listener's, listener first.** Every rule denies and evaluation is first-match-wins, so concatenating cannot change the outcome, and putting the listener's rules in front lets a lane's specific message beat a generic default for the same statement.
+
+```yaml config.yaml
+policy:
+  enforce: true
+  rules:
+    - name: unreadable-sql              # every lane inherits this
+      type: operation
+      operations: [unknown, other]
+      message: this statement could not be read end to end; refusing
+
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 127.0.0.1:15432
+    upstream: appdb:5432
+    connection: appdb
+    policy:
+      rules:
+        - name: customers-is-read-only  # evaluated first
+          type: table
+          tables: [customers]
+          access: write
+          message: customers is read-only through appdb
+```
+
+`policy.opa` and `policy.enforce` REPLACE instead of merging: two decision endpoints cannot become one, and a lane saying `enforce: false` means it.
+
+Reading the file will not tell you what a lane ended up with, because the merge happens at startup. Ask the running process, which reports rule names per resolved lane:
+
+```bash
+curl -s localhost:19000/config | jq '.lanes[] | {name, rules}'
+```
+
+---
+
+## Recipes
+
+Four complete lane configs. Each one validates with `hoop-inspect -validate -config config.yaml`.
+
+<Tabs>
+  <Tab title="Read-only replica">
+    ```yaml config.yaml
+    log_level: info
+
+    admin:
+      listen: 127.0.0.1:19000
+
+    audit:
+      file: "-"
+
+    policy:
+      enforce: true
+
+    listeners:
+      - name: replica
+        protocol: postgres
+        listen: 127.0.0.1:15432
+        upstream: replica:5432
+        connection: analytics-replica
+        policy:
+          rules:
+            - name: this-replica-serves-reads
+              type: operation
+              operations:
+                [insert, update, delete, merge, create, drop, alter, truncate,
+                 grant, revoke, other]
+              message: analytics-replica serves reads; run writes against the primary
+            - name: unreadable-sql
+              type: operation
+              operations: [unknown]
+              message: this statement could not be read end to end; refusing
+    ```
+
+    `other` earns its place: `REFRESH MATERIALIZED VIEW` lands there and writes.
+
+    `copy` is the judgement call. `COPY t FROM STDIN` writes and `COPY (SELECT …) TO STDOUT` reads, and both classify as `copy`, so naming it costs your analysts their exports. Add it where nobody exports, and guard the writable tables with `access: write` rules where they do.
+  </Tab>
+
+  <Tab title="One table, no writes">
+    ```yaml config.yaml
+    log_level: info
+
+    admin:
+      listen: 127.0.0.1:19000
+
+    audit:
+      file: "-"
+
+    policy:
+      enforce: true
+
+    listeners:
+      - name: appdb
+        protocol: postgres
+        listen: 127.0.0.1:15432
+        upstream: appdb:5432
+        connection: appdb
+        policy:
+          rules:
+            - name: customers-is-read-only
+              type: table
+              tables: [customers]
+              access: write
+              require_table_match: true
+              message: customers is read-only through this lane; joins and reads are fine
+            - name: unreadable-sql
+              type: operation
+              operations: [unknown, other]
+              message: this statement could not be read end to end; refusing
+    ```
+
+    `INSERT INTO staging SELECT * FROM customers` passes, because it reads `customers` and writes `staging`. `DELETE FROM customers` and `INSERT INTO customers …` do not.
+
+    `require_table_match: true` extends the rule to statements whose relations the scanner could not determine. It costs false positives and it is the right trade on a table that must never be written.
+  </Tab>
+
+  <Tab title="Defer to Rego">
+    ```yaml config.yaml
+    log_level: info
+
+    admin:
+      listen: 127.0.0.1:19000
+
+    audit:
+      file: "-"
+
+    pii:
+      entities: [BR_CPF, US_SSN, CREDIT_CARD]
+
+    policy:
+      enforce: true
+
+    listeners:
+      - name: appdb
+        protocol: postgres
+        listen: 127.0.0.1:15432
+        upstream: appdb:5432
+        connection: appdb
+        policy:
+          opa:
+            url: http://opa:8181/v1/data/hoop/inspect/decision
+            timeout_sec: 2
+            fail_open: false
+          rules:
+            - name: national-ids
+              type: pii
+              entities: [BR_CPF, US_SSN, CREDIT_CARD]
+              action: defer
+            - name: admin-functions
+              type: deny_words_list
+              words: [pg_sleep, pg_terminate_backend, pg_read_file]
+              action: defer
+            - name: unreadable-sql
+              type: operation
+              operations: [unknown]
+              message: this statement could not be read end to end; refusing
+    ```
+
+    Two producers report into one decision. The policy reads `input.findings.pii.values.entities` and `input.findings.deny_words_list.values.words`, and the local engine still owns both matchers.
+
+    The last rule stays a hard denial on purpose. A statement nobody could read is not a judgement call.
+  </Tab>
+
+  <Tab title="AI analysis, gated">
+    ```yaml config.yaml
+    log_level: info
+
+    admin:
+      listen: 127.0.0.1:19000
+
+    audit:
+      file: "-"
+
+    pii:
+      entities: [BR_CPF, US_SSN]
+
+    analyzer:
+      provider: anthropic
+      model: claude-sonnet-4-5
+      credentials_file: /run/secrets/anthropic-key
+      send: redacted
+      max_calls: 5000
+      cache:
+        size: 2048
+        ttl_sec: 900
+
+    policy:
+      enforce: true
+
+    listeners:
+      - name: appdb
+        protocol: postgres
+        listen: 127.0.0.1:15432
+        upstream: appdb:5432
+        connection: appdb
+        policy:
+          opa:
+            url: http://opa:8181/v1/data/hoop/inspect/decision
+            timeout_sec: 2
+            gate: true
+          rules:
+            - name: no-destructive-sql
+              type: operation
+              operations: [drop, truncate]
+              message: destructive statements are not permitted on appdb
+            - name: risky-writes
+              type: ai_analysis
+              high: defer
+              medium: defer
+    ```
+
+    The `ai_analysis` rule carries no `trigger`, which a plain lane refuses. A gated lane accepts it, because the gate decides what gets classified and the trigger would be a second cost control the Rego author never sees.
+
+    ```rego policy.rego
+    # Two-phase policy: the gate decides what is worth classifying, the decide
+    # phase rules on what came back.
+    package hoop.inspect
+
+    import rego.v1
+
+    phase := object.get(input, "phase", "decide")
+
+    sensitive := {"customers", "payments"}
+
+    touches_sensitive if {
+    	some r in input.relations
+    	r.name in sensitive
+    }
+
+    ai_answered if input.findings.ai_analysis.status in {"ok", "cached"}
+
+    risk := object.get(input, ["findings", "ai_analysis", "values", "risk_level"], "")
+
+    decision := {"allow": true, "request": {"ai_analysis": true}} if {
+    	phase == "gate"
+    	touches_sensitive
+    } else := {"allow": true, "request": {"ai_analysis": false}} if {
+    	phase == "gate"
+    } else := {"denied": true, "rule": "ai-unavailable", "message": msg} if {
+    	phase == "decide"
+    	touches_sensitive
+    	not ai_answered
+    	msg := sprintf("risk analysis is %v and this statement touches protected data", [input.findings.ai_analysis.status])
+    } else := {"denied": true, "rule": "ai-high-risk", "message": "blocked by policy: this statement was rated high risk"} if {
+    	phase == "decide"
+    	risk == "high"
+    } else := {"allow": true}
+    ```
+
+    Three verdicts from that policy:
+
+    | Call | Verdict |
+    |---|---|
+    | gate, `DELETE FROM customers` | `{"allow": true, "request": {"ai_analysis": true}}` |
+    | decide, `"risk_level": "high"` | `{"denied": true, "rule": "ai-high-risk", "message": "blocked by policy: this statement was rated high risk"}` |
+    | decide, `"status": "unavailable"` | `{"denied": true, "rule": "ai-unavailable", "message": "risk analysis is unavailable and this statement touches protected data"}` |
+
+    The third line is why status exists. `budget_exhausted` and `refused` reach the audit trail as `ai_status` in the analyzer's own words; the finding maps both onto `unavailable` and keeps the word in `reason`, so one Rego test covers every way a classification can fail to happen.
+  </Tab>
+</Tabs>
+
+---
+
+## What startup refuses
+
+Each of these would otherwise load, evaluate and do nothing:
+
+| Config | Message |
+|---|---|
+| `action: defer` with no `policy.opa.url` | `rule "x" defers its match to a policy decision, and the lane has no policy.opa.url to defer to` |
+| `access: readwrite` on a table rule | `unknown access "readwrite" (read, write, or empty for either)` |
+| `action` set to anything but `defer` | `unknown action "warn" (empty denies, "defer" reports a finding)` |
+| `gate: true` with no `ai_analysis` rule | `policy.opa.gate is on but the lane has no ai_analysis rule, so the extra decision would gate nothing` |
+| a `pii` rule naming an entity absent from `pii.entities` | `names entity "US_SSN", which the detector is not configured to find` |
+| `high: defer` with no `policy.opa.url` | `defers high risk to a policy decision, and the lane has no policy.opa.url to defer to` |
+| `action` on an `ai_analysis` rule | `sets action "defer", which this rule type ignores; it defers per risk level through high, medium and low` |
+
+Check before you deploy. Nothing needs to be running:
+
+```bash
+hoop-inspect -validate -config config.yaml
+```
+
+```
+config OK: 1 listener(s)
+  appdb            postgres  enforcing 3 rule(s) + opa
+```
+
+The line reports the RESOLVED lane, so the count includes everything it inherited. The full refusal list is in [Config File](/setup/configuration/hoop-inspect/config-file#what-startup-refuses).
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+    Every field of every section, inheritance between lanes, and the full list of what startup refuses.
+  </Card>
+  <Card title="Risk Analysis" icon="robot" href="/setup/configuration/hoop-inspect/risk-analysis">
+    Cost controls, providers, prompts and what leaves the process before you enable `ai_analysis`.
+  </Card>
+</CardGroup>

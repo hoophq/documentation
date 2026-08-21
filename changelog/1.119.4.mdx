@@ -1,0 +1,302 @@
+---
+title: "1.119.4"
+description: "A major catch-up release: native tunnels, machine identities, AI session analysis, RDP recording with live PII redaction, HTTP proxy connections, resource provisioning, and a wave of new connection types and access controls."
+---
+
+### TL;DR
+- **New Features:** Hoop Tunnel for native access, machine identities, AI session risk analysis, RDP recording, HTTP proxy connections, and many new connection types.
+- **Improvements:** Faster RDP PII redaction, resilient runbook migrations, and a redesigned session experience.
+- **Bug Fixes:** Sturdier sessions, cleaner credentials, reliable proxies, and safer guardrail defaults across the board.
+
+---
+
+### New Features
+**New ways to connect, govern, and attribute access.**
+
+- **Hoop Tunnel for native access**
+  Install once, log in, and reach resources natively — psql -h foo.hoop just works, with DNS auto-wired and dual-stack addressing on both Linux and macOS. New tunnel up and down controls let you pause and resume without re-authenticating, and HTTP proxy connections now appear as stable hostnames inside the tunnel so guardrails and DLP still apply.
+  [PR #1486](https://github.com/hoophq/hoop/pull/1486), [PR #1489](https://github.com/hoophq/hoop/pull/1489), [PR #1507](https://github.com/hoophq/hoop/pull/1507), [PR #1608](https://github.com/hoophq/hoop/pull/1608)
+
+- **Machine identities with live audit**
+  Issue, rotate, and revoke connection credentials for non-human consumers like CI jobs, ETL pipelines, and agents, scoped per resource role. Revoking a credential immediately terminates all active proxy sessions using it across Postgres, SSH, RDP, and HTTP, and you can watch machine sessions in real time with a terminal-style live tail.
+  [PR #1387](https://github.com/hoophq/hoop/pull/1387), [PR #1442](https://github.com/hoophq/hoop/pull/1442), [PR #1351](https://github.com/hoophq/hoop/pull/1351)
+
+- **Native client access with review gating**
+  Connect directly with your own clients like OpenSSH, PuTTY, or psql using temporary credentials with configurable session duration. Credential requests now create a session immediately and route through your existing review and just-in-time rules, so credentials are only released after approval, with all connections sharing a credential shown as a single session in the audit trail.
+  [PR #1079](https://github.com/hoophq/hoop/pull/1079), [PR #1317](https://github.com/hoophq/hoop/pull/1317), [PR #1171](https://github.com/hoophq/hoop/pull/1171), [PR #1157](https://github.com/hoophq/hoop/pull/1157), [PR #1154](https://github.com/hoophq/hoop/pull/1154)
+
+- **Unified human connection flow**
+  Connecting through Hoop as a human now feels like connecting directly to the resource: a one-time auth mints a persistent credential, the Configure Session step is skipped for non-review connections, and hoop connect --persistent-credential prints credentials directly. Human sessions stream their audit events live and persist incrementally.
+  [PR #1478](https://github.com/hoophq/hoop/pull/1478)
+
+- **AI Session Analyzer with risk-based actions**
+  AI-powered analysis can assess session risk and allow, block, or require an access request during a session's lifecycle, with support for OpenAI-compatible and Anthropic providers, custom prompts, and rule-based risk-to-action mapping. It now covers Web Terminal, API exec, and runbook executions, ships identically in open source and enterprise, and can create review requests.
+  [PR #1306](https://github.com/hoophq/hoop/pull/1306), [PR #1533](https://github.com/hoophq/hoop/pull/1533), [PR #1474](https://github.com/hoophq/hoop/pull/1474), [PR #1547](https://github.com/hoophq/hoop/pull/1547), [PR #1190](https://github.com/hoophq/hoop/pull/1190), [PR #1201](https://github.com/hoophq/hoop/pull/1201)
+
+- **RDP session recording and playback**
+  Remote desktop sessions can now be recorded and replayed with a new in-browser web player, alongside a browser-based RDP web client you can open straight from the credentials dialog.
+  [PR #1314](https://github.com/hoophq/hoop/pull/1314), [PR #1188](https://github.com/hoophq/hoop/pull/1188)
+
+- **Live PII redaction for RDP**
+  RDP sessions apply live, agent-side data masking that blanks sensitive on-screen text, with a redaction pipeline that keeps regions covered until pixels actually change and fails closed to preserve safety.
+  [PR #1561](https://github.com/hoophq/hoop/pull/1561), [PR #1569](https://github.com/hoophq/hoop/pull/1569)
+
+- **HTTP proxy access**
+  Reach web resources through the gateway with token and cookie authentication, WebSocket and server-sent event streaming, guardrails, and native data masking. HTTP proxy is now a first-class connection type with a native credential button to open connections directly.
+  [PR #1204](https://github.com/hoophq/hoop/pull/1204), [PR #1216](https://github.com/hoophq/hoop/pull/1216), [PR #1218](https://github.com/hoophq/hoop/pull/1218), [PR #1226](https://github.com/hoophq/hoop/pull/1226), [PR #1255](https://github.com/hoophq/hoop/pull/1255), [PR #1264](https://github.com/hoophq/hoop/pull/1264), [PR #1372](https://github.com/hoophq/hoop/pull/1372)
+
+- **Resource Provisioning Hub**
+  Provision least-privilege Postgres roles directly from Hoop end to end — run connectivity checks, preview a dry-run plan, and apply it from the CLI or the admin Provisioning Hub in Discover, with every step captured as an audited session.
+  [PR #1449](https://github.com/hoophq/hoop/pull/1449)
+
+- **Manage Hoop from AI agents over MCP**
+  An embedded Model Context Protocol server lets MCP-compatible agents manage connections, guardrails, data masking, user groups, access rules, reviews, sessions, and more with the same authentication and audit as human admins. Regular-user agents can discover what they can access, run queries, handle approval gates, and read their own session history, all secured with OAuth 2.1.
+  [PR #1384](https://github.com/hoophq/hoop/pull/1384), [PR #1408](https://github.com/hoophq/hoop/pull/1408), [PR #1433](https://github.com/hoophq/hoop/pull/1433), [PR #1404](https://github.com/hoophq/hoop/pull/1404)
+
+- **MCP connections with OAuth login**
+  Add Model Context Protocol connections and authorize against remote MCP servers protected by OAuth 2.1, with the gateway driving discovery, client registration, and the authorization flow and storing the resulting token securely.
+  [PR #1537](https://github.com/hoophq/hoop/pull/1537), [PR #1545](https://github.com/hoophq/hoop/pull/1545)
+
+- **Resources and Roles model**
+  Organize access with a new hierarchical model: group related roles under a single resource to define access levels like readonly, readwrite, and admin. A guided setup wizard, dual My Resources and My Roles views, infinite scroll, and advanced filtering by name, tags, and type make managing access at scale far simpler.
+  [PR #1120](https://github.com/hoophq/hoop/pull/1120)
+
+- **Attribute-based policy management**
+  Group connections with an Attributes layer to assign guardrail, access request, and data masking rules more flexibly and reusably, available across Settings, resource role configuration, and access request rules.
+  [PR #1319](https://github.com/hoophq/hoop/pull/1319)
+
+- **Access Request rules and richer reviews**
+  A redesigned Access Request system lets you define dedicated approval rules with minimum approvals, force-approval groups, time ranges, and target connections and user groups. Approvers can restrict when a session runs, force approve urgent reviews, set per-connection JIT durations, and record rejection reasons visible across the app and CLI.
+  [PR #1275](https://github.com/hoophq/hoop/pull/1275), [PR #1228](https://github.com/hoophq/hoop/pull/1228), [PR #1248](https://github.com/hoophq/hoop/pull/1248), [PR #1240](https://github.com/hoophq/hoop/pull/1240), [PR #1189](https://github.com/hoophq/hoop/pull/1189), [PR #1192](https://github.com/hoophq/hoop/pull/1192), [PR #1235](https://github.com/hoophq/hoop/pull/1235), [PR #1251](https://github.com/hoophq/hoop/pull/1251), [PR #1386](https://github.com/hoophq/hoop/pull/1386)
+
+- **New connection types**
+  Connect to Amazon SSM, Amazon EKS and Kubernetes clusters, Grafana and Kibana, Claude Code with your Anthropic credentials, and MSSQL with a full database explorer, plus local SSH sessions that terminate directly on the agent host.
+  [PR #1162](https://github.com/hoophq/hoop/pull/1162), [PR #1174](https://github.com/hoophq/hoop/pull/1174), [PR #1170](https://github.com/hoophq/hoop/pull/1170), [PR #1197](https://github.com/hoophq/hoop/pull/1197), [PR #1241](https://github.com/hoophq/hoop/pull/1241), [PR #1232](https://github.com/hoophq/hoop/pull/1232), [PR #1277](https://github.com/hoophq/hoop/pull/1277), [PR #1187](https://github.com/hoophq/hoop/pull/1187), [PR #1576](https://github.com/hoophq/hoop/pull/1576)
+
+- **AWS RDS IAM authentication**
+  Connect to AWS RDS databases using IAM authentication: the gateway automatically generates an IAM token to use as the password when a connection is configured for it, including MySQL from the web terminal.
+  [PR #1131](https://github.com/hoophq/hoop/pull/1131), [PR #1137](https://github.com/hoophq/hoop/pull/1137)
+
+- **Per-user GCP identity for BigQuery**
+  Attribute BigQuery and other GCP operations to each user's real Google account with service-account impersonation using session-time short-lived credentials, or per-user OAuth where each person consents once and connects with no shared service accounts.
+  [PR #1495](https://github.com/hoophq/hoop/pull/1495), [PR #1526](https://github.com/hoophq/hoop/pull/1526)
+
+- **SSH certificate authentication**
+  Connect to SSH, Postgres, MySQL, and terminal connections using short-lived SSH certificates signed by a trusted CA, enabling passwordless, audited access that fits existing certificate workflows like Vault SSH and step-ca.
+  [PR #1525](https://github.com/hoophq/hoop/pull/1525)
+
+- **SPIFFE authentication for agents**
+  Agents can optionally authenticate with short-lived, rotatable SPIFFE JWT-SVIDs issued by your own SPIFFE infrastructure, with inlined JWKS bundle, refactored Helm chart, agent high availability, and a default SPIFFE sidecar deployment. Static tokens continue to work.
+  [PR #1393](https://github.com/hoophq/hoop/pull/1393), [PR #1403](https://github.com/hoophq/hoop/pull/1403), [PR #1418](https://github.com/hoophq/hoop/pull/1418)
+
+- **Security audit logging**
+  A comprehensive audit logging system records who changed what and when across all admin mutation endpoints, and admins can browse, filter, and inspect entries on a dedicated Audit Logs page with actor, operation, path, outcome, and payload details.
+  [PR #1279](https://github.com/hoophq/hoop/pull/1279), [PR #1305](https://github.com/hoophq/hoop/pull/1305)
+
+- **Kill a live session by revoking credentials**
+  Revoke a connection credential to instantly disconnect any live sessions using it across Postgres, SSH, RDP, and HTTP, and the disconnect button now actively terminates sessions instead of only clearing local state. Active sessions are also terminated automatically when a user's token expires or is invalidated.
+  [PR #1139](https://github.com/hoophq/hoop/pull/1139), [PR #1161](https://github.com/hoophq/hoop/pull/1161), [PR #1153](https://github.com/hoophq/hoop/pull/1153)
+
+- **Parallel Mode for multi-connection runs**
+  Select multiple resource roles and run scripts or runbooks in parallel across mixed connection types, with a cleaner selection modal, a real-time execution summary with success and error tabs, a share link for filtered sessions, and multiple simultaneous native sessions each with its own persistent card.
+  [PR #1233](https://github.com/hoophq/hoop/pull/1233), [PR #1215](https://github.com/hoophq/hoop/pull/1215), [PR #1194](https://github.com/hoophq/hoop/pull/1194)
+
+- **Runbooks V2 with rules, multi-repo, and file uploads**
+  Runbooks now support multiple repositories, access-control rules, file upload parameters, and field ordering, with existing configurations migrated automatically. Enjoy improved search caching, a smarter command palette, and per-entry configuration endpoints for programmatic and Terraform management.
+  [PR #1119](https://github.com/hoophq/hoop/pull/1119), [PR #1125](https://github.com/hoophq/hoop/pull/1125), [PR #1213](https://github.com/hoophq/hoop/pull/1213), [PR #1230](https://github.com/hoophq/hoop/pull/1230), [PR #1261](https://github.com/hoophq/hoop/pull/1261)
+
+- **Mandatory session metadata**
+  Admins can require specific metadata fields to be filled before running terminal sessions and runbooks, with proactive callouts and a pre-execution form that collects the required information.
+  [PR #1299](https://github.com/hoophq/hoop/pull/1299), [PR #1302](https://github.com/hoophq/hoop/pull/1302)
+
+- **Stream large session results in the browser**
+  Sessions with large payloads now stream directly into the UI with fast virtualized rendering instead of forcing a download, with the download option still available when it makes sense.
+  [PR #1292](https://github.com/hoophq/hoop/pull/1292), [PR #1147](https://github.com/hoophq/hoop/pull/1147)
+
+- **API key management and approved sessions via API**
+  Admins can create, list, view, update, revoke, and reactivate scoped API keys shown once at creation and stored hashed, and the CLI adds an API key login option. A new endpoint lets you create pre-approved sessions with an API key for time-bound just-in-time access or ad-hoc executions.
+  [PR #1385](https://github.com/hoophq/hoop/pull/1385), [PR #1210](https://github.com/hoophq/hoop/pull/1210)
+
+- **Write-only secrets policy**
+  A new organization toggle blocks reading secrets so connection and role credentials become write-only: admins can set or replace values but never read them back, while external secret references still round-trip.
+  [PR #1599](https://github.com/hoophq/hoop/pull/1599), [PR #1193](https://github.com/hoophq/hoop/pull/1193)
+
+- **Custom guardrail messages and free-plan access**
+  Admins can attach a custom, actionable message to each guardrail rule, and free organizations can now create one Guardrail with a single input and output rule as well as AI Data Masking with one rule, with clear in-app callouts explaining the limits.
+  [PR #1578](https://github.com/hoophq/hoop/pull/1578), [PR #1417](https://github.com/hoophq/hoop/pull/1417), [PR #1256](https://github.com/hoophq/hoop/pull/1256), [PR #1252](https://github.com/hoophq/hoop/pull/1252), [PR #1375](https://github.com/hoophq/hoop/pull/1375)
+
+- **Usage-based gating and product activation**
+  Free-tier orgs can now explore the real Dashboard, Jira Templates, and Resource Discovery pages with their own data, only hitting a sales prompt when they reach a feature's allowance, and new in-product surfaces promote Guardrails, Live Data Masking, and AI Session Analyzer with recommended templates per resource.
+  [PR #1475](https://github.com/hoophq/hoop/pull/1475), [PR #1613](https://github.com/hoophq/hoop/pull/1613)
+
+- **New CLI commands and Claude configuration**
+  Manage sessions, resources, roles, and runbooks directly from the CLI with filters and JSON output, and run hoop claude configure to write active native connection credentials straight into your Claude Code settings.
+  [PR #1349](https://github.com/hoophq/hoop/pull/1349), [PR #1425](https://github.com/hoophq/hoop/pull/1425)
+
+- **Support access and analytics identity**
+  Support access is now centralized in the sidebar with a Contact support link that opens the messenger, and analytics events attach user email and name for open-source installations while Enterprise continues to send only pseudonymous identifiers.
+  [PR #1219](https://github.com/hoophq/hoop/pull/1219), [PR #1395](https://github.com/hoophq/hoop/pull/1395)
+
+---
+
+### Improvements
+**Faster protection, cleaner navigation, and a more resilient platform.**
+
+- **Faster RDP PII redaction**
+  The RDP live redaction pipeline is now meaningfully faster, with a recency-based OCR cache, deduplicated redaction calls on static screens, row-wise image compositing, optional half-precision bucketed recognition, and an English-optimized model — all with the guard's fail-closed safety preserved.
+  [PR #1575](https://github.com/hoophq/hoop/pull/1575), [PR #1592](https://github.com/hoophq/hoop/pull/1592)
+
+- **Redesigned session experience**
+  Session details now live in a dedicated Sessions area with an improved header, kill-session controls, runbook display, clearer review status, and smoother expandable details, with the separate Reviews pages folded in and Slack approvals deep-linking directly to the session.
+  [PR #1282](https://github.com/hoophq/hoop/pull/1282), [PR #1298](https://github.com/hoophq/hoop/pull/1298), [PR #1245](https://github.com/hoophq/hoop/pull/1245)
+
+- **More resilient runbook migration**
+  Runbook migrations now fall back to a simplified configuration when the full build fails, so more runbooks migrate successfully instead of being skipped.
+  [PR #1209](https://github.com/hoophq/hoop/pull/1209), [PR #1198](https://github.com/hoophq/hoop/pull/1198)
+
+- **Lower latency on database connections**
+  The agent now processes packets concurrently, improving latency for tools like DBeaver that run several operations in parallel, and connection testing detects Oracle-specific error patterns for more accurate results.
+  [PR #1176](https://github.com/hoophq/hoop/pull/1176), [PR #1130](https://github.com/hoophq/hoop/pull/1130)
+
+- **React shell for a faster webapp**
+  A new React-based application shell owns the global sidebar, command palette, and auth flows, bundling and shipping as a single build with everything else rendered seamlessly alongside.
+  [PR #1427](https://github.com/hoophq/hoop/pull/1427)
+
+- **Native access favored in resource creation**
+  When creating a resource, the Native option is now offered and preferred and the Hoop CLI choice only appears when a native client is unavailable, with connection strings built dynamically from credential data.
+  [PR #1223](https://github.com/hoophq/hoop/pull/1223), [PR #1285](https://github.com/hoophq/hoop/pull/1285)
+
+- **Connection filtering across features**
+  A reusable connection filter with search and infinite scroll lets you filter by resource roles across Access Control, AI Session Analyzer, Access Request, Runbooks Setup, AI Data Masking, Guardrails, and Jira Templates, backed by a consistent empty state.
+  [PR #1323](https://github.com/hoophq/hoop/pull/1323)
+
+- **Cleaner gateway logs and startup**
+  The HTTP server emits structured logs and omits harmless health-check EOF errors, and interactive gateway startup renders a phased, colored, human-readable trace while non-interactive runs keep structured JSON output unchanged.
+  [PR #1149](https://github.com/hoophq/hoop/pull/1149), [PR #1389](https://github.com/hoophq/hoop/pull/1389)
+
+- **And much more**
+  This range also brings RDP and SSH ports in Helm and AWS templates, a MySQL TLS skip-verify option, Amazon SSM and HTTP proxy ports on Helm, Kubernetes Gateway and HTTPRoute routing, gRPC Helm configuration, security contexts and non-root gateway for stricter Pod Security Standards, configurable agent Vault settings, custom OIDC groups claim, session analytics with type and origin, clearer agent installation options, clipboard copy and cut controls, richer analytics tracking, per-org analytics privacy control, analytics on by default, URL and header-based token sign-in, in-CLI version management, Jira issue-key session search, audit search by session ID, batch connection creation from YAML, runbook length limits, an experimental settings page, workflow timeline view, self-service org migration, AI agent management endpoints, guardrails details in session records, a rebuilt Live Data Masking page, generic client support for Claude Code, skip Jira transition on failed sessions, guardrail suggestions on resource creation, dark-themed auth loading screens, guardrails DLP-provider guidance, terminal keyboard and screen reader support, a refreshed upgrade plan image, a more accessible resources page, sticky headers with per-tab loading, clearer runbook and session APIs, guardrails pattern input polish, and assorted smaller changes.
+  [PR #1115](https://github.com/hoophq/hoop/pull/1115), [PR #1172](https://github.com/hoophq/hoop/pull/1172), [PR #1220](https://github.com/hoophq/hoop/pull/1220), [PR #1466](https://github.com/hoophq/hoop/pull/1466), [PR #1504](https://github.com/hoophq/hoop/pull/1504), [PR #1513](https://github.com/hoophq/hoop/pull/1513), [PR #1541](https://github.com/hoophq/hoop/pull/1541), [PR #1556](https://github.com/hoophq/hoop/pull/1556), [PR #1178](https://github.com/hoophq/hoop/pull/1178), [PR #1508](https://github.com/hoophq/hoop/pull/1508), [PR #1267](https://github.com/hoophq/hoop/pull/1267), [PR #1269](https://github.com/hoophq/hoop/pull/1269), [PR #1260](https://github.com/hoophq/hoop/pull/1260), [PR #1438](https://github.com/hoophq/hoop/pull/1438), [PR #1293](https://github.com/hoophq/hoop/pull/1293), [PR #1249](https://github.com/hoophq/hoop/pull/1249), [PR #1415](https://github.com/hoophq/hoop/pull/1415), [PR #1465](https://github.com/hoophq/hoop/pull/1465), [PR #1238](https://github.com/hoophq/hoop/pull/1238), [PR #1177](https://github.com/hoophq/hoop/pull/1177), [PR #1362](https://github.com/hoophq/hoop/pull/1362), [PR #1360](https://github.com/hoophq/hoop/pull/1360), [PR #1406](https://github.com/hoophq/hoop/pull/1406), [PR #1429](https://github.com/hoophq/hoop/pull/1429), [PR #1392](https://github.com/hoophq/hoop/pull/1392), [PR #1472](https://github.com/hoophq/hoop/pull/1472), [PR #1346](https://github.com/hoophq/hoop/pull/1346), [PR #1334](https://github.com/hoophq/hoop/pull/1334), [PR #1512](https://github.com/hoophq/hoop/pull/1512), [PR #1370](https://github.com/hoophq/hoop/pull/1370), [PR #1605](https://github.com/hoophq/hoop/pull/1605), [PR #1437](https://github.com/hoophq/hoop/pull/1437), [PR #1603](https://github.com/hoophq/hoop/pull/1603), [PR #1602](https://github.com/hoophq/hoop/pull/1602), [PR #1295](https://github.com/hoophq/hoop/pull/1295), [PR #1163](https://github.com/hoophq/hoop/pull/1163), [PR #1296](https://github.com/hoophq/hoop/pull/1296), [PR #1310](https://github.com/hoophq/hoop/pull/1310), [PR #1126](https://github.com/hoophq/hoop/pull/1126), [PR #1195](https://github.com/hoophq/hoop/pull/1195), [PR #1297](https://github.com/hoophq/hoop/pull/1297), [PR #1491](https://github.com/hoophq/hoop/pull/1491), [PR #1542](https://github.com/hoophq/hoop/pull/1542), [PR #1544](https://github.com/hoophq/hoop/pull/1544)
+
+---
+
+### API Improvements
+**Clearer contracts and automation-friendly endpoints.**
+
+- **Faster, more flexible session input handling**
+  You can now download session input separately from the main session stream, and session details expose the input size in bytes, with input loaded only when explicitly requested to keep retrieval fast.
+  [PR #1147](https://github.com/hoophq/hoop/pull/1147)
+
+---
+
+### Bug Fixes
+**Sturdier sessions, cleaner credentials, and safer defaults across the platform.**
+
+- **Reliable SSH sessions and large transfers**
+  SSH connections now handle multi-channel sessions, request replies, and strict per-connection write ordering correctly, so shells connect end-to-end with proper exit status forwarding, GitHub over SSH proxy works, and large SCP transfers complete without dropping data or crashing the gateway.
+  [PR #1273](https://github.com/hoophq/hoop/pull/1273), [PR #1246](https://github.com/hoophq/hoop/pull/1246), [PR #1338](https://github.com/hoophq/hoop/pull/1338), [PR #1590](https://github.com/hoophq/hoop/pull/1590)
+
+- **Stable database sessions in IDEs**
+  Resolved out-of-order packet handling that caused concurrency issues with Postgres and SQL Server connections in tools like DBeaver and SQL Server Management Studio, and fixed startup races when connections send multiple packets.
+  [PR #1411](https://github.com/hoophq/hoop/pull/1411), [PR #1222](https://github.com/hoophq/hoop/pull/1222), [PR #1150](https://github.com/hoophq/hoop/pull/1150), [PR #1164](https://github.com/hoophq/hoop/pull/1164)
+
+- **Reliable HTTP proxy under load**
+  HTTP proxy connections now stream large upstream responses in bounded chunks, wait long enough for slow LLM calls, share a single session across concurrent first-requests, and refresh credentials only when a token actually expires — ending token-rotation lockouts, orphaned open sessions, message-too-large errors, and streaming cutoffs. A duplicate identifier in the connection modal and a duplicate HTTP proxy entry that could break the UI build were also fixed.
+  [PR #1498](https://github.com/hoophq/hoop/pull/1498), [PR #1607](https://github.com/hoophq/hoop/pull/1607), [PR #1454](https://github.com/hoophq/hoop/pull/1454), [PR #1572](https://github.com/hoophq/hoop/pull/1572), [PR #1577](https://github.com/hoophq/hoop/pull/1577), [PR #1330](https://github.com/hoophq/hoop/pull/1330), [PR #1221](https://github.com/hoophq/hoop/pull/1221), [PR #1283](https://github.com/hoophq/hoop/pull/1283)
+
+- **Correct guardrail enforcement and safe defaults**
+  Guardrail enforcement now happens at the agent so guarded connections can never run unguarded: sessions are refused when no enforcement is possible, treated as unguarded when no rules exist, and enforcement no longer requires a Presidio provider so Google DLP and other checks work. Guardrails now apply to MSSQL web exec sessions too.
+  [PR #1573](https://github.com/hoophq/hoop/pull/1573), [PR #1580](https://github.com/hoophq/hoop/pull/1580), [PR #1621](https://github.com/hoophq/hoop/pull/1621), [PR #1583](https://github.com/hoophq/hoop/pull/1583), [PR #1611](https://github.com/hoophq/hoop/pull/1611)
+
+- **Reliable OCR and stable memory during RDP sessions**
+  Fixed a shared parser that could wedge the gateway across concurrent RDP sessions and a crash-looping GPU OCR image, changed the default PII policy to redact rather than kill, bounded the relay queue and streamed recordings to storage to prevent out-of-memory crashes, truncated oversized RDP audit records, detected session close promptly, and resolved the AWS SSM native client redirect and abnormal-disconnect crashes. The RDP web client also renders sharply on HiDPI displays.
+  [PR #1574](https://github.com/hoophq/hoop/pull/1574), [PR #1545](https://github.com/hoophq/hoop/pull/1545), [PR #1563](https://github.com/hoophq/hoop/pull/1563), [PR #1566](https://github.com/hoophq/hoop/pull/1566), [PR #1567](https://github.com/hoophq/hoop/pull/1567), [PR #1593](https://github.com/hoophq/hoop/pull/1593), [PR #1594](https://github.com/hoophq/hoop/pull/1594), [PR #1423](https://github.com/hoophq/hoop/pull/1423), [PR #1612](https://github.com/hoophq/hoop/pull/1612), [PR #1263](https://github.com/hoophq/hoop/pull/1263)
+
+- **MongoDB and MySQL operations stop on disconnect**
+  Closing a session now reliably kills the running operation on MongoDB and MySQL so heavy commands no longer consume server resources after you disconnect, with added MongoDB read preference support.
+  [PR #1589](https://github.com/hoophq/hoop/pull/1589), [PR #1582](https://github.com/hoophq/hoop/pull/1582), [PR #1497](https://github.com/hoophq/hoop/pull/1497)
+
+- **SAML and OIDC sign-in fixes**
+  SAML and OIDC logins are more reliable with corrected cookie handling compatible with modern browsers and Safari's Intelligent Tracking Prevention, force re-authentication support, stricter metadata validation, and in-app SAML configuration, and the React login page now calls the SAML endpoint correctly.
+  [PR #1217](https://github.com/hoophq/hoop/pull/1217), [PR #1247](https://github.com/hoophq/hoop/pull/1247), [PR #1312](https://github.com/hoophq/hoop/pull/1312), [PR #1559](https://github.com/hoophq/hoop/pull/1559), [PR #1601](https://github.com/hoophq/hoop/pull/1601)
+
+- **Reliable database migrations and schema**
+  Resolved conflicting and duplicated migration numbers, legacy user group view errors, an access request lookup issue, and reconciled missing HTTP audit-log columns with a guarded, idempotent migration.
+  [PR #1181](https://github.com/hoophq/hoop/pull/1181), [PR #1211](https://github.com/hoophq/hoop/pull/1211), [PR #1322](https://github.com/hoophq/hoop/pull/1322), [PR #1236](https://github.com/hoophq/hoop/pull/1236), [PR #1237](https://github.com/hoophq/hoop/pull/1237), [PR #1342](https://github.com/hoophq/hoop/pull/1342), [PR #1366](https://github.com/hoophq/hoop/pull/1366), [PR #1596](https://github.com/hoophq/hoop/pull/1596)
+
+- **Correct credential handling in role and connection forms**
+  Metadata-driven connections show every credential field in edit mode, saved credential values load with correct key casing, pending config and environment values are saved automatically, command tokens delete precisely, and the MCP connection editor with OAuth is restored.
+  [PR #1124](https://github.com/hoophq/hoop/pull/1124), [PR #1134](https://github.com/hoophq/hoop/pull/1134), [PR #1493](https://github.com/hoophq/hoop/pull/1493), [PR #1517](https://github.com/hoophq/hoop/pull/1517), [PR #1622](https://github.com/hoophq/hoop/pull/1622)
+
+- **Kubernetes and EKS session fixes**
+  kubectl works with bearer token resources, tokens saved without the Bearer prefix are normalized automatically, and the agent accepts both EKS role environment variables so existing connections assume the intended IAM role.
+  [PR #1199](https://github.com/hoophq/hoop/pull/1199), [PR #1202](https://github.com/hoophq/hoop/pull/1202), [PR #1329](https://github.com/hoophq/hoop/pull/1329), [PR #1502](https://github.com/hoophq/hoop/pull/1502)
+
+- **Correct API targeting and access control**
+  The web app now includes the port when auto-discovering the gateway API, reaches the correct API on localhost and non-standard ports, and includes user information before requesting a connection so the CLI can validate access control correctly.
+  [PR #1143](https://github.com/hoophq/hoop/pull/1143), [PR #1183](https://github.com/hoophq/hoop/pull/1183), [PR #1307](https://github.com/hoophq/hoop/pull/1307)
+
+- **Audit logs preserved through reviews and stops**
+  Sessions parked for review or stopped in the UI now recover their logs from disk and flush them before ending, fixing empty and missing-log symptoms.
+  [PR #1145](https://github.com/hoophq/hoop/pull/1145), [PR #1570](https://github.com/hoophq/hoop/pull/1570)
+
+- **Accurate review flow, attribution, and Slack feedback**
+  Reviews now retrieve connection data without access control so approvals work, per-command exec requests create their own review, session details show who approved or rejected each group, approvers can list their assigned sessions, group selection works for JIT reviews, and Slack correctly handles multi-group and partial approvals including AI-created reviews. The Allow insecure SSL toggle and rejection details in the CLI were also fixed.
+  [PR #1257](https://github.com/hoophq/hoop/pull/1257), [PR #1587](https://github.com/hoophq/hoop/pull/1587), [PR #1511](https://github.com/hoophq/hoop/pull/1511), [PR #1224](https://github.com/hoophq/hoop/pull/1224), [PR #1191](https://github.com/hoophq/hoop/pull/1191), [PR #1166](https://github.com/hoophq/hoop/pull/1166), [PR #1265](https://github.com/hoophq/hoop/pull/1265), [PR #1505](https://github.com/hoophq/hoop/pull/1505), [PR #1604](https://github.com/hoophq/hoop/pull/1604)
+
+- **Long-running executions stay tracked**
+  Reviewed and long-running executions that run past the API timeout now show a persistent in-progress indicator that survives modal close and page reload, then render the result when they finish, and the web app and CLI clearly explain when a query is still running.
+  [PR #1624](https://github.com/hoophq/hoop/pull/1624), [PR #1420](https://github.com/hoophq/hoop/pull/1420)
+
+- **AI analyzer reliability**
+  AI analysis runs only when a session is created, loads correctly for non-admin users, shows accurate blocked feedback instead of false success, restores session input retrieval, and shows analyzer cards only when a rule is configured.
+  [PR #1337](https://github.com/hoophq/hoop/pull/1337), [PR #1347](https://github.com/hoophq/hoop/pull/1347), [PR #1340](https://github.com/hoophq/hoop/pull/1340), [PR #1467](https://github.com/hoophq/hoop/pull/1467), [PR #1326](https://github.com/hoophq/hoop/pull/1326)
+
+- **Stable MCP and API-key sessions**
+  MCP sessions no longer self-destruct for clients that don't hold a standalone stream open, API-key authenticated gRPC sessions are no longer terminated after five minutes, license data propagates correctly, user token storage works on first login, and user group sync no longer overwrites memberships during MCP authentication.
+  [PR #1568](https://github.com/hoophq/hoop/pull/1568), [PR #1482](https://github.com/hoophq/hoop/pull/1482), [PR #1368](https://github.com/hoophq/hoop/pull/1368), [PR #1464](https://github.com/hoophq/hoop/pull/1464), [PR #1165](https://github.com/hoophq/hoop/pull/1165)
+
+- **Correct query handling for special database names**
+  Queries and column browsing now work for SQL Server and MySQL databases whose names contain dots, spaces, or hyphens, and Oracle table listing completes in seconds on large databases.
+  [PR #1281](https://github.com/hoophq/hoop/pull/1281), [PR #1623](https://github.com/hoophq/hoop/pull/1623), [PR #1591](https://github.com/hoophq/hoop/pull/1591)
+
+- **Reliable RDP and TLS negotiation**
+  RDP connections buffer initial packets and negotiate at the TLS termination level, the TLS skip-verify variable no longer overrides local configuration, the gateway connects to itself with self-signed certificates, and the PostgreSQL proxy no longer crashes on nil TLS configuration.
+  [PR #1138](https://github.com/hoophq/hoop/pull/1138), [PR #1140](https://github.com/hoophq/hoop/pull/1140), [PR #1135](https://github.com/hoophq/hoop/pull/1135), [PR #1146](https://github.com/hoophq/hoop/pull/1146)
+
+- **CLI version manager, connect, and terminal fixes**
+  The version manager works on Windows and no longer conflicts with dev builds, hoop connect gives clearer version-mismatch guidance, Linux VM and container terminals initialize correctly, JIT access validates without a duration flag, and sessions create cleanly through hoop connect.
+  [PR #1509](https://github.com/hoophq/hoop/pull/1509), [PR #1524](https://github.com/hoophq/hoop/pull/1524), [PR #1470](https://github.com/hoophq/hoop/pull/1470), [PR #1287](https://github.com/hoophq/hoop/pull/1287), [PR #1461](https://github.com/hoophq/hoop/pull/1461), [PR #1290](https://github.com/hoophq/hoop/pull/1290)
+
+- **Accurate analytics attribution**
+  Connection creation is always tracked with a source tag, the web app identifies logged-in users to collapse duplicate profiles, gateway-originated events are attributed correctly, and an intermittent crash from a data race in usage tracking is fixed.
+  [PR #1431](https://github.com/hoophq/hoop/pull/1431), [PR #1473](https://github.com/hoophq/hoop/pull/1473), [PR #1426](https://github.com/hoophq/hoop/pull/1426), [PR #1485](https://github.com/hoophq/hoop/pull/1485)
+
+- **Webapp navigation and rendering polish**
+  Restored the first-admin setup flow, session download menu, and reviewer attribution in the React shell; fixed the analytics privacy picker, Machine Identities sidebar entry, Open in Web Terminal redirect, session output actions, plain-text scrolling, command palette reliability, editor scrolling, attributes edit navigation, feature-flag-aware collapsed sidebar, accessible sidebar navigation, and a footer pushed off-screen by large logs.
+  [PR #1481](https://github.com/hoophq/hoop/pull/1481), [PR #1445](https://github.com/hoophq/hoop/pull/1445), [PR #1457](https://github.com/hoophq/hoop/pull/1457), [PR #1463](https://github.com/hoophq/hoop/pull/1463), [PR #1422](https://github.com/hoophq/hoop/pull/1422), [PR #1413](https://github.com/hoophq/hoop/pull/1413), [PR #1324](https://github.com/hoophq/hoop/pull/1324), [PR #1258](https://github.com/hoophq/hoop/pull/1258), [PR #1259](https://github.com/hoophq/hoop/pull/1259), [PR #1289](https://github.com/hoophq/hoop/pull/1289), [PR #1484](https://github.com/hoophq/hoop/pull/1484), [PR #1316](https://github.com/hoophq/hoop/pull/1316)
+
+- **And more fixes**
+  This range also corrects Claude Code setup URLs and protocol, resource command injection, MongoDB argument expansion, session output decoding, runbook listing payloads and queries, nested runbook folders, inline runbook results, plain-text SSH known hosts, Jira required-fields modals, AWS template typos, HTTP proxy edit and header handling, database resource updates, correct architecture binaries, native-client hostnames and Postgres proxy fallback, aggregated live terminal view, Resource Catalog role loading, async session open, leaner agent images, backward compatibility for runbook parameters, correct guardrails regex tooltip, auditor read access, user management by email or ID, role creation from resource setup, session metric preservation, larger user group names, and OSS data masking limit messaging.
+  [PR #1584](https://github.com/hoophq/hoop/pull/1584), [PR #1291](https://github.com/hoophq/hoop/pull/1291), [PR #1471](https://github.com/hoophq/hoop/pull/1471), [PR #1320](https://github.com/hoophq/hoop/pull/1320), [PR #1180](https://github.com/hoophq/hoop/pull/1180), [PR #1208](https://github.com/hoophq/hoop/pull/1208), [PR #1214](https://github.com/hoophq/hoop/pull/1214), [PR #1308](https://github.com/hoophq/hoop/pull/1308), [PR #1207](https://github.com/hoophq/hoop/pull/1207), [PR #1321](https://github.com/hoophq/hoop/pull/1321), [PR #1262](https://github.com/hoophq/hoop/pull/1262), [PR #1278](https://github.com/hoophq/hoop/pull/1278), [PR #1244](https://github.com/hoophq/hoop/pull/1244), [PR #1311](https://github.com/hoophq/hoop/pull/1311), [PR #1129](https://github.com/hoophq/hoop/pull/1129), [PR #1142](https://github.com/hoophq/hoop/pull/1142), [PR #1157](https://github.com/hoophq/hoop/pull/1157), [PR #1154](https://github.com/hoophq/hoop/pull/1154), [PR #1538](https://github.com/hoophq/hoop/pull/1538), [PR #1554](https://github.com/hoophq/hoop/pull/1554), [PR #1551](https://github.com/hoophq/hoop/pull/1551), [PR #1564](https://github.com/hoophq/hoop/pull/1564), [PR #1585](https://github.com/hoophq/hoop/pull/1585), [PR #1301](https://github.com/hoophq/hoop/pull/1301), [PR #1527](https://github.com/hoophq/hoop/pull/1527), [PR #1359](https://github.com/hoophq/hoop/pull/1359), [PR #1402](https://github.com/hoophq/hoop/pull/1402), [PR #1184](https://github.com/hoophq/hoop/pull/1184), [PR #1242](https://github.com/hoophq/hoop/pull/1242), [PR #1280](https://github.com/hoophq/hoop/pull/1280), [PR #1169](https://github.com/hoophq/hoop/pull/1169), [PR #1128](https://github.com/hoophq/hoop/pull/1128), [PR #1127](https://github.com/hoophq/hoop/pull/1127), [PR #1175](https://github.com/hoophq/hoop/pull/1175)
+
+---
+
+### Infrastructure
+**Steadier releases, cleaner builds, and better detection coverage.**
+
+- **Traceable, automated release pipeline**
+  Every change now produces a testable release bundle, dependency tagging happens automatically after all builds and checks pass, releases tag and check out the matching support library version, and an automated workflow posts an API changelog flagging breaking changes.
+  [PR #1168](https://github.com/hoophq/hoop/pull/1168), [PR #1336](https://github.com/hoophq/hoop/pull/1336), [PR #1343](https://github.com/hoophq/hoop/pull/1343), [PR #1318](https://github.com/hoophq/hoop/pull/1318), [PR #1309](https://github.com/hoophq/hoop/pull/1309)
+
+- **Reliable image and Linux builds**
+  Fixed the Linux Rust build pipeline with automatic architecture detection, resolved build typos and git tag artifacts, and the agent OCR images now build with the right privileges and a non-root runtime user, validated by a pre-merge smoke build for CPU and GPU flavors.
+  [PR #1158](https://github.com/hoophq/hoop/pull/1158), [PR #1152](https://github.com/hoophq/hoop/pull/1152), [PR #1151](https://github.com/hoophq/hoop/pull/1151), [PR #1155](https://github.com/hoophq/hoop/pull/1155), [PR #1579](https://github.com/hoophq/hoop/pull/1579)
+
+- **Faster Presidio and Brazilian CPF detection**
+  Data masking now handles higher load with least-request load balancing, tuned concurrency, and a rolling update strategy, and PII detection adds support for the Brazilian CPF entity type.
+  [PR #1332](https://github.com/hoophq/hoop/pull/1332), [PR #1469](https://github.com/hoophq/hoop/pull/1469)
+
+---
+
+Less friction, faster connections — now everywhere you work.

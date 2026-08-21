@@ -66,6 +66,11 @@ This installs a system service (`hoop-agent`) that starts automatically on login
 | `MSPRESIDIO_ANALYZER_URL` | Override the MS Presidio analyzer URL. Supports basic auth in the URL (e.g. `http://user:pass@host:5001`) | — |
 | `MSPRESIDIO_ANONYMIZER_URL` | Override the MS Presidio anonymizer URL. Supports basic auth in the URL (e.g. `http://user:pass@host:5002`) | — |
 | `DLP_MODE` | Override the DLP mode: `strict` (fail on errors) or `best-effort` (skip masking on errors) | — |
+| `ALCATRAZ_NER_MODEL_PATH` | Models directory for the Alcatraz NER model, which serves the `PERSON`, `LOCATION` and `NRP` entity types. Set for you by the `-alcatraz` image tags; set it yourself when you mount the model into another image | — |
+
+Agent images differ in what they can run — bundled database clients, RDP, the
+Alcatraz NER model — see [Container
+Images](/setup/deployment/container-images).
 
 ## Standard Mode
 

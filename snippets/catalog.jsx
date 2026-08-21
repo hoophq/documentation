@@ -9,7 +9,7 @@ export const ResourceCatalog = () => {
     { name: "MongoDB", icon: "database", category: "Databases", tags: ["database", "nosql"], href: "/quickstart/databases/mongodb" },
     { name: "SSH", icon: "terminal", category: "Infrastructure Access", tags: ["cli"], href: "/quickstart/ssh" },
     { name: "AWS CLI", icon: "aws", category: "Cloud Services", tags: ["aws", "cli"], href: "/quickstart/cloud-services/aws/aws-cli" },
-    { name: "Kubernetes", icon: "kubernetes", category: "Cloud Services", tags: ["containers", "google-cloud"], href: "/quickstart/cloud-services/kubernetes/token" },
+    { name: "Kubernetes", icon: "circle-nodes", category: "Cloud Services", tags: ["containers", "google-cloud"], href: "/quickstart/cloud-services/kubernetes/token" },
 
     // Cloud Services
     { name: "AWS CloudWatch", icon: "chart-line", category: "Cloud Services", tags: ["aws", "monitoring"], href: "/quickstart/cloud-services/aws/aws-cloudwatch" },
@@ -32,6 +32,10 @@ export const ResourceCatalog = () => {
     { name: "PHP Artisan", icon: "php", category: "Development Environments", tags: ["development"], href: "/quickstart/development-environments/php-artisan" },
     { name: "Elixir IEx", icon: "code", category: "Development Environments", tags: ["development"], href: "/quickstart/development-environments/elixir-IEx" },
     { name: "Clojure", icon: "code", category: "Development Environments", tags: ["development"], href: "/quickstart/development-environments/clojure" },
+
+    // AI and LLMs
+    { name: "Claude Code", icon: "terminal", category: "AI and LLMs", tags: [], href: "/quickstart/ai-and-llms/claude-code" },
+    { name: "MCP", icon: "globe", category: "AI and LLMs", tags: [], href: "/quickstart/ai-and-llms/mcp" },
 
     // Web Applications
     { name: "Web Apps & APIs", icon: "globe", category: "Web Applications", tags: ["interactive"], href: "/quickstart/web-applications/webapps-and-apis" },

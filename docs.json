@@ -90,7 +90,8 @@
               "clients/cli-versions",
               "clients/cli-resources",
               "clients/cli-federation",
-              "clients/hsh"
+              "clients/hsh",
+              "clients/hsh-tunnel"
             ]
           },
           {
@@ -114,7 +115,11 @@
               {
                 "group": "AI and LLMs",
                 "pages": [
-                  "quickstart/ai-and-llms/claude-code"
+                  "quickstart/ai-and-llms/claude-code",
+                  "quickstart/ai-and-llms/mcp",
+                  "quickstart/ai-and-llms/mcp-gateway",
+                  "quickstart/ai-and-llms/mcp-servers",
+                  "quickstart/ai-and-llms/mcp-connect"
                 ]
               },
               {
@@ -179,6 +184,7 @@
                 "pages": [
                   "setup/deployment/overview",
                   "setup/deployment/docker-compose",
+                  "setup/deployment/container-images",
                   "setup/deployment/kubernetes",
                   "setup/deployment/presidio",
                   "setup/deployment/alcatraz",
@@ -197,11 +203,25 @@
                     ]
                   },
                   "setup/configuration/ai-session-analyzer-configuration",
+                  "setup/configuration/ai-session-analyzer-configuration-http-proxy",
                   "setup/configuration/access-requests/action-configuration",
                   "setup/configuration/access-requests/jit-configuration",
                   "setup/configuration/access-control-configuration",
                   "setup/configuration/abac-configuration",
                   "setup/configuration/guardrails-configuration",
+                  "setup/configuration/guardrails-sql-recipes",
+                  "setup/configuration/guardrails-http",
+                  {
+                    "group": "Hoop Inspector Sidecar",
+                    "pages": [
+                      "setup/configuration/hoop-inspect/get-started",
+                      "setup/configuration/hoop-inspect/config-file",
+                      "setup/configuration/hoop-inspect/policy-rules",
+                      "setup/configuration/hoop-inspect/risk-analysis",
+                      "setup/configuration/hoop-inspect/kerberos",
+                      "setup/configuration/hoop-inspect/components"
+                    ]
+                  },
                   "setup/configuration/runbooks-configuration",
                   "setup/configuration/event-routing-configuration",
                   "setup/configuration/mcp-server-configuration",
@@ -285,6 +305,11 @@
           {
             "group": "Releases",
             "pages": [
+              "changelog/1.144.0",
+              "changelog/1.136.1",
+              "changelog/1.126.3",
+              "changelog/1.121.0",
+              "changelog/1.119.4",
               "changelog/1.43.1",
               "changelog/1.43.0",
               "changelog/1.42.9",

@@ -1,0 +1,92 @@
+---
+title: "1.144.0"
+description: "Kerberos-authenticated MSSQL and Postgres inspection, an agentic AI Session Analyzer, AI risk analysis for MSSQL, policy verdicts you can defer to your own Rego, selectable RDP resolutions, and dramatically faster session listing."
+---
+
+### TL;DR
+- **New Features:** Kerberos support for MSSQL and Postgres inspection, an agentic AI Session Analyzer, AI risk analysis for MSSQL, OPA-backed policy verdicts, selectable RDP desktop resolutions, and a lightweight onboarding survey.
+- **Improvements:** Open native connections now sort to the top of the drawer, and MCP can filter connections by key/value tags.
+- **Bug Fixes:** Much faster session listing, bounded terminal output, RDP masking that honors per-connection rules, a stable setup checklist, and a sharper destructive-write SQL scanner.
+
+---
+
+### New Features
+**Deeper inspection, smarter analysis, and more control over your sessions.**
+
+- **Kerberos support for MSSQL and Postgres**
+  Hoop can now inspect, mask, and audit Microsoft SQL Server traffic, including sessions where the user authenticates with Kerberos, and Postgres connections from Kerberos-enabled clients can no longer slip past inspection. Audit records for those sessions now name the user who ran each statement.
+  [PR #1698](https://github.com/hoophq/hoop/pull/1698)
+
+- **Agentic AI Session Analyzer**
+  The AI Session Analyzer can now investigate before assigning a risk level, drawing on the user's past sessions, read-only metadata queries against the target database, and the connection's governance context, with the full reasoning and tool-call trace shown on the session detail page and in the Slack review message. It is opt-in per rule, so existing rules keep their single-shot behavior unchanged.
+  [PR #1702](https://github.com/hoophq/hoop/pull/1702)
+
+- **AI risk analysis for MSSQL**
+  Protocol-aware inspection can now classify Microsoft SQL Server statements with the AI analyzer, extending risk scoring to your MSSQL connections.
+  [PR #1712](https://github.com/hoophq/hoop/pull/1712)
+
+- **Defer policy verdicts to your own Rego**
+  Inspection rules can now match locally and hand the final verdict to the Rego policies your InfoSec team already owns, so decisions like blocking a taxpayer id unless the caller is on the finance team become expressible.
+  [PR #1704](https://github.com/hoophq/hoop/pull/1704)
+
+- **Selectable RDP desktop resolutions**
+  RDP users can now pick a stable desktop resolution from browser-fit plus six fixed presets before opening the browser client, with browser-fit remaining the default.
+  [PR #1713](https://github.com/hoophq/hoop/pull/1713)
+
+- **Onboarding survey that never gets in the way**
+  New users are asked how they heard about Hoop during their first week through a small floating button that expands into a card, takes one click to answer, and never comes back.
+  [PR #1701](https://github.com/hoophq/hoop/pull/1701)
+
+---
+
+### Improvements
+**Quicker access to the connections and data you need.**
+
+- **Open connections first in the native drawer**
+  The Native Connections drawer now lists your open connections at the top, so live sessions are always the first thing you see.
+  [PR #1707](https://github.com/hoophq/hoop/pull/1707)
+
+- **Filter connections by tag over MCP**
+  Agents can now filter connections by their key/value tags through MCP using the same key=value,key!=value syntax as the REST API, replacing a full connection dump with a scoped list on large installs.
+  [PR #1706](https://github.com/hoophq/hoop/pull/1706)
+
+---
+
+### Bug Fixes
+**Faster listings, tighter masking, and steadier terminals.**
+
+- **Dramatically faster session listing**
+  Listing sessions is now far faster on large workspaces and no longer risks slowing the rest of the API, with the speedup applied automatically across the sessions page, both CLI listings, the MCP tool, and the AI analyzer. Totals above 10,000 are reported as a floor unless an exact count is requested, and the counts shown to people, like the dashboard's sessions-today card, stay exact.
+  [PR #1714](https://github.com/hoophq/hoop/pull/1714)
+
+- **RDP masking honors per-connection rules**
+  RDP live masking now uses the Data Masking rules assigned to the selected connection instead of gateway-wide entity and confidence settings, with unsupported custom entities failing closed.
+  [PR #1711](https://github.com/hoophq/hoop/pull/1711)
+
+- **Bounded terminal output and clearer draft limits**
+  Running a command that returns very large output no longer freezes the terminal tab; output above 512KB is capped for display with a pointer to the full result, and scripts too large for browser storage now show a clear "Draft not saved" message instead of an endless spinner.
+  [PR #1703](https://github.com/hoophq/hoop/pull/1703)
+
+- **Setup checklist stays checked**
+  The onboarding setup checklist is now computed on the server, so completed steps no longer untick themselves.
+  [PR #1709](https://github.com/hoophq/hoop/pull/1709)
+
+- **Sharper destructive-write detection**
+  Several SQL statements that previously slipped past destructive-write rules are now caught, including data-modifying CTEs, MERGE delete branches, and multi-statement queries hidden behind an escape string.
+  [PR #1704](https://github.com/hoophq/hoop/pull/1704)
+
+- **Steadier expired-credential cleanup**
+  Expired-credential audit sessions are now marked done on a fixed 15-second schedule rather than whenever someone happens to load the sessions page, keeping cleanup off the read paths.
+  [PR #1708](https://github.com/hoophq/hoop/pull/1708)
+
+- **Reliable OCR startup on large hosts**
+  Fixed a startup crash in the OCR sidecar on high-core hosts by bounding its thread pools, so masking deployments come up cleanly on big machines.
+  [PR #1658](https://github.com/hoophq/hoop/pull/1658)
+
+- **Security update for gRPC**
+  Updated the gRPC library to the latest version to address a known security advisory.
+  [PR #1697](https://github.com/hoophq/hoop/pull/1697)
+
+---
+
+Less friction, deeper inspection, faster connections.
