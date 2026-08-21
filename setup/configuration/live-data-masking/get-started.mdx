@@ -22,13 +22,28 @@ import { LiveDataMasking } from '/snippets/annimations/datamaskingscan.jsx';
 
 ## Setup
 
-This service currently supports Microsoft Presidio for data classification and PII detection.
+This service supports two providers for data classification and PII detection: **Alcatraz**, which runs in-process on the agent and needs no extra services, and **Microsoft Presidio**, which runs as a set of services you deploy.
 
 Google Cloud Data Loss Prevention (DLP) is still available for existing customers but is deprecated for new installations.
 
 <Info>
   You must be on an Enterprise plan to have full access to the Live Data Masking feature.
 </Info>
+
+### Alcatraz
+
+Alcatraz needs no services, no credentials and no service URLs — detection is compiled into the agent binary. Set one environment variable in hoop.dev's Gateway:
+
+| Environment variable key | Value                     |
+| ------------------------ | ------------------------- |
+| `DLP_PROVIDER`           | alcatraz                  |
+| `DLP_MODE`               | `best-effort` or `strict` |
+
+The `PERSON`, `LOCATION` and `NRP` entity types need a small NER model on the agent's disk. The `hoophq/hoopagent` `-alcatraz` image tags ship it.
+
+<Card title="Alcatraz deployment guide" icon="server" href="/setup/deployment/alcatraz">
+  Agent images, the NER model, sizing and troubleshooting.
+</Card>
 
 ### Microsoft Presidio
 
