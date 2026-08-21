@@ -8,9 +8,9 @@ This guide covers deploying Live Data Masking with the Alcatraz provider: which 
 
 Alcatraz is Hoop's in-process PII detection engine: a Go library compiled into the agent binary rather than a service you deploy. Detection is a function call on data the agent is already handling.
 
-That removes the deployment surface [Microsoft Presidio](/setup/deployment/presidio) carries — no Analyzer to scale, no Anonymizer, no Envoy, no service URLs, no HTTP round-trip per masked session. Configuration and behaviour are unchanged: you enable masking per resource role and pick entity types in the Hoop UI exactly as before, and the agent still parses the protocol, masks findings, and reports redaction statistics to the gateway. Only the detection step moves.
+That removes the deployment surface [Microsoft Presidio](/setup/deployment/presidio) carries: no Analyzer to scale, no Anonymizer, no Envoy, no service URLs, no HTTP round-trip per masked session. Configuration and behaviour are unchanged. You enable masking per resource role and pick entity types in the Hoop UI exactly as before, and the agent still parses the protocol, masks findings, and reports redaction statistics to the gateway. Only the detection step moves.
 
-The exception is coverage. `PERSON`, `LOCATION` and `NRP` are statistical rather than pattern-based, so the agent needs a small NER model on disk to serve them — that is what the `-alcatraz` image tags carry, and most of what this page is about.
+The exception is coverage. `PERSON`, `LOCATION` and `NRP` are statistical rather than pattern-based, so the agent needs a small NER model on disk to serve them. That model is what the `-alcatraz` image tags carry, and most of what this page is about.
 
 | | Microsoft Presidio | Alcatraz |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ The exception is coverage. `PERSON`, `LOCATION` and `NRP` are statistical rather
                               Gateway → PostgreSQL
 ```
 
-The provider is a gateway decision, but it is enforced on the agent. When a session opens, the gateway sends the effective `DLP_PROVIDER` and `DLP_MODE` in the connection parameters; the agent constructs the matching redactor and runs it for the life of the session. This is why both sides have a version requirement, and why sensitive payloads never leave the agent for analysis.
+The provider is a gateway decision, but it is enforced on the agent. When a session opens, the gateway sends the effective `DLP_PROVIDER` and `DLP_MODE` in the connection parameters; the agent constructs the matching redactor and runs it for the life of the session. That is why both sides have a version requirement, and why sensitive payloads never leave the agent for analysis.
 
 ## Enabling the provider
 
@@ -71,9 +71,9 @@ curl -s $API_URL/api/serverinfo -H "Authorization: Bearer $TOKEN" \
 
 ## Choosing an agent image
 
-Detection works on every agent image. Only the three statistical entity types need extra bytes on disk — that is the whole difference between a `hoophq/hoopagent` flavour and its `-alcatraz` sibling. Tag list and invocation contract: [Container Images](/setup/deployment/container-images#the-alcatraz-tags).
+Detection works on every agent image. Only the three statistical entity types need extra bytes on disk, and that is the whole difference between a `hoophq/hoopagent` flavour and its `-alcatraz` sibling. Tag list and invocation contract: [Container Images](/setup/deployment/container-images#the-alcatraz-tags).
 
-Agents serving **custom / command-line** or **RDP** connections must run `hoophq/hoopdev`, and no `hoopdev` tag bakes the model in — see [Mounting the model on hoopdev](#mounting-the-model-on-hoopdev).
+Agents serving **custom / command-line** or **RDP** connections must run `hoophq/hoopdev`, and no `hoopdev` tag bakes the model in. See [Mounting the model on hoopdev](#mounting-the-model-on-hoopdev).
 
 ## The statistical entity types
 
@@ -85,13 +85,13 @@ Three types have no pattern to match, because a name or a city is only recognisa
 - `LOCATION`
 - `NRP` (nationality, religious or political group)
 
-An ONNX NER model serves them, in-process on the agent. The backend is **offline** — it never fetches at runtime — so the model must already be on disk.
+An ONNX NER model serves them, in-process on the agent. The backend is **offline** and never fetches at runtime, so the model must already be on disk.
 
 <Warning>
   If a connection's masking rules request `PERSON`, `LOCATION` or `NRP` and the model is missing, the agent **refuses the session** rather than running it unmasked.
 </Warning>
 
-`ALCATRAZ_NER_MODEL_PATH` enables the module. It points at the **models directory** — the parent holding one subdirectory per model id, not the model's own directory:
+`ALCATRAZ_NER_MODEL_PATH` enables the module. It points at the **models directory**, the parent holding one subdirectory per model id, not the model's own directory:
 
 ```
 /opt/alcatraz/models/            <- ALCATRAZ_NER_MODEL_PATH
@@ -107,7 +107,7 @@ An ONNX NER model serves them, in-process on the agent. The backend is **offline
 
 The `-alcatraz` tags set this variable themselves. Leave it unset there.
 
-The model is ~250 MB on disk. It loads lazily, on the first session that needs one of the three types, and is not released until the pod restarts — so size the pod for the loaded state, not the idle one. See [Sizing](#sizing).
+The model is ~250 MB on disk. It loads lazily, on the first session that needs one of the three types, and is not released until the pod restarts, so size the pod for the loaded state rather than the idle one. See [Sizing](#sizing).
 
 ## Kubernetes
 
@@ -141,7 +141,7 @@ helm upgrade --install hoopagent \
 
 ### Without the statistical types
 
-If your rules only use structured identifiers, skip the model and run a plain flavour — ~250 MB smaller, no extra memory headroom.
+If your rules only use structured identifiers, skip the model and run a plain flavour: ~250 MB smaller, no extra memory headroom.
 
 ```yaml
 image:
@@ -163,7 +163,7 @@ config:
   ALCATRAZ_NER_MODEL_PATH: '/opt/alcatraz/models'
 ```
 
-The volume is deployment-specific — a ReadOnlyMany PVC shared across replicas, or an init container running [`alcatraz models download`](#provisioning-the-model-yourself) into an `emptyDir`. Read-only is enough; the agent never writes there.
+The volume is deployment-specific: a ReadOnlyMany PVC shared across replicas, or an init container running [`alcatraz models download`](#provisioning-the-model-yourself) into an `emptyDir`. Read-only is enough; the agent never writes there.
 
 ## Docker Compose
 
@@ -195,7 +195,7 @@ The CLI verifies every file against pinned sha256 digests at a pinned upstream c
 
 ### From Hoop's mirror
 
-Hoop publishes the same files to a bucket with a manifest naming them — this is what the `-alcatraz` image builds use. **The objects are public-read: no AWS credentials, no `aws` CLI, no account.** Listing is not allowed, which is why the recipe reads `checksums.txt` for the file names instead of enumerating the prefix.
+Hoop publishes the same files to a bucket with a manifest naming them. This is what the `-alcatraz` image builds use. **The objects are public-read: no AWS credentials, no `aws` CLI, no account.** Listing is not allowed, which is why the recipe reads `checksums.txt` for the file names instead of enumerating the prefix.
 
 ```bash
 ORIGIN=https://hoopartifacts.s3.us-east-1.amazonaws.com/alcatraz/current
@@ -276,7 +276,7 @@ docker rm "$cid"
   </Accordion>
 
   <Accordion title="The UI still shows the Google Cloud DLP deprecation message">
-    The gateway is not reporting `alcatraz` as the effective provider. Check `/api/serverinfo` (see [Enabling the provider](#enabling-the-provider)) and confirm `DLP_PROVIDER` reached the process — a Helm value under the wrong key is the usual cause.
+    The gateway is not reporting `alcatraz` as the effective provider. Check `/api/serverinfo` (see [Enabling the provider](#enabling-the-provider)) and confirm `DLP_PROVIDER` reached the process. A Helm value under the wrong key is the usual cause.
   </Accordion>
 
   <Accordion title="A -alcatraz image build fails on `sha256sum -c`">
