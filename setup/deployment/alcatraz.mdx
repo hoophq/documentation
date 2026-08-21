@@ -2,13 +2,17 @@
 title: 'Alcatraz'
 ---
 
-Deploying Live Data Masking with the Alcatraz provider: which agent image to run, when the NER model is needed, and how to size the pod for it.
+This guide covers deploying Live Data Masking with the Alcatraz provider: which agent image to run, when the statistical NER model is needed, and how to size the agent for it.
 
 ## Overview
 
-Alcatraz is Hoop's in-process PII detection engine. Where [Microsoft Presidio](/setup/deployment/presidio) is a set of services you deploy and call over HTTP, Alcatraz is a library compiled into the agent binary.
+Alcatraz is Hoop's in-process PII detection engine, open source under the MIT license. It is a Go library compiled into the agent binary rather than a service you deploy: detection is a function call on data the agent is already handling.
 
-You still pick entity types per connection in the Hoop UI. What changes is where detection runs.
+That removes the entire deployment surface the [Microsoft Presidio](/setup/deployment/presidio) provider carries. There is no Analyzer to run and scale, no Anonymizer, no Envoy in front of them, no service URLs to configure and keep reachable, and no HTTP round-trip inserted into every masked session. What you deploy is the agent you were deploying anyway.
+
+Nothing changes about how masking is configured or how it behaves. You enable it per resource role and pick entity types in the Hoop UI exactly as before; the agent still parses the protocol (Postgres, MongoDB, terminal, and so on) in real time, analyzes the payload, masks any findings, redacts the content back into the protocol format, and reports redaction statistics to the gateway. Only the detection step moves — from an HTTP call out to Presidio, to a call inside the agent process.
+
+The one asterisk is coverage. Most entity types are pattern-based and need nothing but the binary. Three — `PERSON`, `LOCATION` and `NRP` — are statistical, and the agent needs a small NER model on disk to serve them. That is what the `-alcatraz` image tags exist for, and it is most of what this page is about.
 
 | | Microsoft Presidio | Alcatraz |
 | --- | --- | --- |
@@ -36,7 +40,7 @@ You still pick entity types per connection in the Hoop UI. What changes is where
                               Gateway → PostgreSQL
 ```
 
-The gateway picks the provider and pushes that to the agent when a session opens. The agent parses the protocol, detects and masks in the payload, and writes it back into protocol format. Only redaction statistics travel back.
+The provider is a gateway decision, but it is enforced on the agent. When a session opens, the gateway sends the effective `DLP_PROVIDER` and `DLP_MODE` in the connection parameters; the agent constructs the matching redactor and runs it for the life of the session. This is why both sides have a version requirement, and why sensitive payloads never leave the agent for analysis.
 
 ## Enabling the provider
 
@@ -290,7 +294,7 @@ docker rm "$cid"
 
 48 entity types: 45 pattern-based recognizers, 25 of them checksum-validated, plus the 3 statistical ones. Custom regex and deny-list recognizers work as they do with Presidio. Full list: [Supported Fields](/setup/configuration/live-data-masking/fields#alcatraz).
 
-Alcatraz is open source under the MIT license: [github.com/hoophq/alcatraz](https://github.com/hoophq/alcatraz).
+Source: [github.com/hoophq/alcatraz](https://github.com/hoophq/alcatraz).
 
 ## Release information
 
