@@ -69,7 +69,7 @@ curl -s $API_URL/api/serverinfo -H "Authorization: Bearer $TOKEN" \
 
 ## Choosing an agent image
 
-Detection works on every agent image. Only the three statistical entity types need extra bytes on disk — that is the whole difference between a `hoophq/hoopagent` flavour and its `-alcatraz` sibling. Tag list and invocation contract: [Container Images](/setup/deployment/container-images#the-alcatraz-tags).
+Detection works on every agent image. Only the three statistical entity types need extra bytes on disk — that is the whole difference between a `hoophq/hoopagent` flavour and its `-alcatraz` sibling. Tag list and invocation contract: [Container Images](/setup/deployment/container-images#the--alcatraz-tags).
 
 Agents serving **custom / command-line** or **RDP** connections must run `hoophq/hoopdev`, and no `hoopdev` tag bakes the model in — see [Mounting the model on hoopdev](#mounting-the-model-on-hoopdev).
 
