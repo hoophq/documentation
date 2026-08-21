@@ -12,8 +12,32 @@ CNPJ, CNH, PIS) and others — so a number with the right shape but the wrong
 check digit is dropped rather than masked. It also recognises secrets such as
 AWS access keys, JWTs and private keys.
 
-For the current list, see the [alcatraz
-recognizers](https://github.com/hoophq/alcatraz).
+The full set, with ✓ marking the checksum- or format-validated types:
+
+| Group | Entity types |
+| --- | --- |
+| Generic | `EMAIL_ADDRESS`, `PHONE_NUMBER`, `CREDIT_CARD`✓, `CRYPTO`, `IP_ADDRESS`, `URL`, `DATE_TIME`, `IBAN_CODE`✓ |
+| United States | `US_SSN`✓, `US_ITIN`✓, `US_PASSPORT`, `US_DRIVER_LICENSE`, `US_BANK_NUMBER`, `ABA_ROUTING`✓, `MEDICAL_LICENSE` |
+| United Kingdom | `UK_NHS`✓, `UK_NINO`✓ |
+| Australia | `AU_TFN`✓, `AU_ABN`✓, `AU_ACN`✓, `AU_MEDICARE`✓ |
+| India | `IN_AADHAAR`✓, `IN_PAN`, `IN_PASSPORT`, `IN_VEHICLE_REGISTRATION`, `IN_VOTER`, `IN_GSTIN` |
+| Italy | `IT_FISCAL_CODE`✓, `IT_VAT_CODE`✓, `IT_IDENTITY_CARD`, `IT_DRIVER_LICENSE`, `IT_PASSPORT` |
+| Spain | `ES_NIF`✓, `ES_NIE`✓ |
+| Singapore | `SG_FIN`✓ (offered as `SG_NRIC_FIN` in the UI), `SG_UEN` |
+| Brazil | `BR_CPF`✓, `BR_CNPJ`✓, `BR_RG`, `BR_CNH`✓, `BR_PIS`✓ |
+| Other | `PL_PESEL`✓, `KR_RRN`✓, `FI_PERSONAL_IDENTITY_CODE`✓, `TH_TNIN`✓ |
+
+Every one of these detects a language-independent structured identifier — an
+IBAN or a Thai national ID looks the same in any surrounding text — so the whole
+set is active regardless of the content's language. The three statistical types
+below are English-language.
+
+On top of the built-ins, Alcatraz supports the same **custom recognizers** as
+Presidio: regular expressions, compiled as RE2 and therefore without lookaround
+or backreferences, and deny lists, matched on word boundaries.
+
+The authoritative list is in the [alcatraz
+repository](https://github.com/hoophq/alcatraz).
 
 ### Entity types that need the NER model
 
