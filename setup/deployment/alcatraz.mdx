@@ -6,13 +6,11 @@ This guide covers deploying Live Data Masking with the Alcatraz provider: which 
 
 ## Overview
 
-Alcatraz is Hoop's in-process PII detection engine, open source under the MIT license. It is a Go library compiled into the agent binary rather than a service you deploy: detection is a function call on data the agent is already handling.
+Alcatraz is Hoop's in-process PII detection engine: a Go library compiled into the agent binary rather than a service you deploy. Detection is a function call on data the agent is already handling.
 
-That removes the entire deployment surface the [Microsoft Presidio](/setup/deployment/presidio) provider carries. There is no Analyzer to run and scale, no Anonymizer, no Envoy in front of them, no service URLs to configure and keep reachable, and no HTTP round-trip inserted into every masked session. What you deploy is the agent you were deploying anyway.
+That removes the deployment surface [Microsoft Presidio](/setup/deployment/presidio) carries — no Analyzer to scale, no Anonymizer, no Envoy, no service URLs, no HTTP round-trip per masked session. Configuration and behaviour are unchanged: you enable masking per resource role and pick entity types in the Hoop UI exactly as before, and the agent still parses the protocol, masks findings, and reports redaction statistics to the gateway. Only the detection step moves.
 
-Nothing changes about how masking is configured or how it behaves. You enable it per resource role and pick entity types in the Hoop UI exactly as before; the agent still parses the protocol (Postgres, MongoDB, terminal, and so on) in real time, analyzes the payload, masks any findings, redacts the content back into the protocol format, and reports redaction statistics to the gateway. Only the detection step moves — from an HTTP call out to Presidio, to a call inside the agent process.
-
-The one asterisk is coverage. Most entity types are pattern-based and need nothing but the binary. Three — `PERSON`, `LOCATION` and `NRP` — are statistical, and the agent needs a small NER model on disk to serve them. That is what the `-alcatraz` image tags exist for, and it is most of what this page is about.
+The exception is coverage. `PERSON`, `LOCATION` and `NRP` are statistical rather than pattern-based, so the agent needs a small NER model on disk to serve them — that is what the `-alcatraz` image tags carry, and most of what this page is about.
 
 | | Microsoft Presidio | Alcatraz |
 | --- | --- | --- |
@@ -294,7 +292,7 @@ docker rm "$cid"
 
 48 entity types: 45 pattern-based recognizers, 25 of them checksum-validated, plus the 3 statistical ones. Custom regex and deny-list recognizers work as they do with Presidio. Full list: [Supported Fields](/setup/configuration/live-data-masking/fields#alcatraz).
 
-Source: [github.com/hoophq/alcatraz](https://github.com/hoophq/alcatraz).
+Alcatraz is open source under the MIT license: [github.com/hoophq/alcatraz](https://github.com/hoophq/alcatraz).
 
 ## Release information
 
