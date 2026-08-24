@@ -45,12 +45,12 @@ None of your SQL patterns transfer, because the keywords they match are text you
 |-------------|------------------------------|----------------|
 | `DROP\s+TABLE` | `db.users.drop()` | `\{"drop":` |
 | `DROP\s+DATABASE` | `db.dropDatabase()` | `\{"dropDatabase":` |
-| `TRUNCATE` | `db.users.deleteMany({})` | `("q":\{\},"limit":0\|"filter":\{\},"multi":true)` |
+| `TRUNCATE` | `db.users.deleteMany({})` | `("q":\{\},"limit":0|"filter":\{\},"multi":true)` |
 | `DELETE\s+FROM` | `db.users.deleteMany({status:"old"})` | `\{"delete":` |
 | `UPDATE` | `db.users.updateMany({a:1},{$set:{b:2}})` | `\{"update":` |
 | `INSERT\s+INTO` | `db.users.insertMany([{a:1}])` | `\{"insert":` |
 | `SELECT\s+\*` with no `WHERE` | `db.users.find({})` | `"filter":\{\}` |
-| `ALTER\s+TABLE` | `collMod`, `createIndex` | `\{"(collMod\|createIndexes)":` |
+| `ALTER\s+TABLE` | `collMod`, `createIndex` | `\{"(collMod|createIndexes)":` |
 
 MongoDB has no command named `truncate`, but the operation exists: `deleteMany({})` empties a collection and keeps it, while `drop()` removes the collection and its indexes. They map to `TRUNCATE TABLE` and `DROP TABLE` respectively — worth keeping straight, since a rule for one does not cover the other.
 
