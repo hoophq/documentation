@@ -1,0 +1,359 @@
+---
+title: "MongoDB Guardrail Recipes"
+description: "Patterns for MongoDB connections: drops, unscoped deletes, pipeline writes, and server-side JavaScript"
+---
+
+MongoDB guardrails work differently from SQL ones. There is no query text on the wire, so a pattern written for SQL never matches. This page explains what your patterns actually see, then gives **tested recipes** for the operations people usually want to block.
+
+<Note>
+For rule creation, actions, and pattern syntax basics, see [Guardrails Configuration](/setup/configuration/guardrails-configuration).
+</Note>
+
+---
+
+## What your patterns match against
+
+`mongosh` and Compass are JavaScript interpreters. They evaluate your expression locally and send only the resulting **command document** — the shell text is never transmitted.
+
+```js
+db["listingsAndReviews2"].drop()
+```
+
+The guardrail sees this instead:
+
+```json
+{"drop":"listingsAndReviews2","$db":"sample_airbnb2"}
+```
+
+So you write patterns against MongoDB's command grammar — the same names in the MongoDB command reference. Three details make the recipes below work:
+
+**The command name is always the first field.** MongoDB requires it. That makes `\{"drop":` a reliable signature for *this command is a drop*, rather than *the word drop appears somewhere in the payload*.
+
+**`$db` names the target database**, on every command.
+
+**Operators keep their names as JSON keys**, at any depth. A pattern for `"\$out"` finds it inside a nested `$lookup` sub-pipeline just as easily as at the top level.
+
+<Warning>
+The payload also contains the driver's session envelope — `lsid`, `$clusterTime` and `signature`, each carrying base64 blobs on **every** command. Do not assign generic secret-detection or high-entropy patterns to MongoDB connections as input rules: they will match constantly.
+</Warning>
+
+### Coming from SQL
+
+None of your SQL patterns transfer, because the keywords they match are text your client never sends. The operations still exist — they just have different names:
+
+| SQL pattern | Equivalent MongoDB operation | Pattern to use |
+|-------------|------------------------------|----------------|
+| `DROP\s+TABLE` | `db.users.drop()` | `\{"drop":` |
+| `DROP\s+DATABASE` | `db.dropDatabase()` | `\{"dropDatabase":` |
+| `TRUNCATE` | `db.users.deleteMany({})` | `("q":\{\},"limit":0\|"filter":\{\},"multi":true)` |
+| `DELETE\s+FROM` | `db.users.deleteMany({status:"old"})` | `\{"delete":` |
+| `UPDATE` | `db.users.updateMany({a:1},{$set:{b:2}})` | `\{"update":` |
+| `INSERT\s+INTO` | `db.users.insertMany([{a:1}])` | `\{"insert":` |
+| `SELECT\s+\*` with no `WHERE` | `db.users.find({})` | `"filter":\{\}` |
+| `ALTER\s+TABLE` | `collMod`, `createIndex` | `\{"(collMod\|createIndexes)":` |
+
+MongoDB has no command named `truncate`, but the operation exists: `deleteMany({})` empties a collection and keeps it, while `drop()` removes the collection and its indexes. They map to `TRUNCATE TABLE` and `DROP TABLE` respectively — worth keeping straight, since a rule for one does not cover the other.
+
+<Tip>
+`$` means end-of-string in a regex, and every MongoDB operator starts with `$`. Escape it as `\$` or the pattern silently matches nothing.
+</Tip>
+
+---
+
+## Which rule type to use
+
+Guardrail rules come in two types: a **Pattern** (`pattern_match`, a regex) and a **word list** (`deny_words_list`, a list of whole words).
+
+**Every recipe on this page is a Pattern**, and that is not incidental. MongoDB signatures identify a command by its JSON punctuation — `\{"drop":`, `"q":\{\},"limit":0` — and a word list matches whole words, so it cannot express a signature that begins or ends on a brace, quote or colon.
+
+Use a word list when the thing you want to block genuinely *is* a whole word:
+
+| Rule | Type | Why |
+|------|------|-----|
+| `salaries` | Word list | A collection name is a whole word |
+| `\{"find":"salaries"` | Pattern | Punctuation ties it to the command position |
+| `\{"drop":` | Pattern | Same |
+| `"\$where"` | Pattern | The quotes keep it out of document content |
+
+A word list is the blunter of the two. `salaries` as a word list also fires when a document merely mentions the word, so prefer a Pattern whenever you need the match tied to a specific place in the command.
+
+---
+
+## Recipes
+
+Each recipe is one input rule with the **Pattern** field and the **Block** action, unless noted. Every pattern was validated against real command payloads, checking both the commands that must be blocked and the ones that must pass.
+
+### block-collection-drop
+
+Blocks dropping a collection.
+
+```regex
+\{"drop":
+```
+
+| Command | Result |
+|---------|--------|
+| `db.users.drop()` | Blocked |
+| `db.users.insertOne({note:"drop the old index"})` | Allowed |
+| `db.dropDatabase()` | Allowed (different command) |
+
+The leading `\{"` ties the match to the command position, so an ordinary document containing the word `drop` does not trip it. `dropDatabase` and `dropIndexes` are separate commands with their own names — use the next recipe to cover all of them.
+
+### block-destructive-ddl
+
+Blocks every irreversible namespace or index operation.
+
+```regex
+\{"(drop|dropDatabase|dropIndexes|renameCollection|collMod)":
+```
+
+| Command | Result |
+|---------|--------|
+| `db.users.drop()` | Blocked |
+| `db.dropDatabase()` | Blocked |
+| `db.users.dropIndex("email_1")` | Blocked |
+| `db.users.renameCollection("users_old")` | Blocked |
+| `db.users.find({})` | Allowed |
+| `db.users.insertOne({name:"Jane"})` | Allowed |
+
+### block-writes
+
+A read-only connection needs **two** rules. This one covers write commands:
+
+```regex
+\{"(insert|update|delete|findAndModify|bulkWrite|drop|dropDatabase|dropIndexes|create|createIndexes|renameCollection|collMod|mapReduce)":
+```
+
+And this one covers writes hidden inside an aggregation pipeline:
+
+```regex
+"\$(out|merge)"
+```
+
+| Command | Blocked by |
+|---------|-----------|
+| `db.users.insertOne({a:1})` | rule 1 |
+| `db.users.deleteMany({status:"old"})` | rule 1 |
+| `db.orders.aggregate([{$out:"export"}])` | **rule 2 only** |
+| `db.orders.aggregate([{$merge:{into:"summary"}}])` | **rule 2 only** |
+| `db.users.find({})` | neither — allowed |
+
+The second rule is not redundant. A pipeline write looks like this:
+
+```json
+{"aggregate":"orders","pipeline":[{"$match":{"status":"shipped"}},{"$out":"export"}],"cursor":{},"$db":"shop"}
+```
+
+The command name is `aggregate` — a read command — so rule 1 does not match it, but `$out` writes a collection. **A read-only policy with only the first rule has this hole.** Assign both to the same resource role.
+
+### block-delete-all
+
+Blocks deleting every document in a collection, while allowing scoped deletes.
+
+```regex
+("q":\{\},"limit":0|"filter":\{\},"multi":true)
+```
+
+| Command | Result |
+|---------|--------|
+| `db.users.deleteMany({})` | Blocked |
+| `db.users.deleteMany({status:"inactive"})` | Allowed |
+| `db.users.deleteOne({_id:1})` | Allowed |
+
+MongoDB puts the delete scope on the wire, which makes this precise rather than approximate: `limit: 0` means *all matches*, `limit: 1` means one, and `"q":{}` is an empty filter.
+
+The pattern has two alternatives because `deleteMany({})` has **two wire encodings**, depending on your driver version. Both empty the collection, so both must be blocked:
+
+| Driver | What it sends |
+|--------|---------------|
+| Pre-8.0 | `"deletes":[{"q":{},"limit":0}]` |
+| 8.0 `bulkWrite` | `"ops":[{"delete":0,"filter":{},"multi":true}]` |
+
+The second alternative requires `multi` to follow `filter` immediately, which is what keeps it from firing on a `bulkWrite` **update** — that op carries `updateMods` between the two fields.
+
+<Warning>
+This matches an *empty* filter, not a filter that happens to match everything. `db.users.deleteMany({_id:{$exists:true}})` empties the collection just as thoroughly and is **not** blocked. No pattern can close that gap — deciding whether a predicate selects every document means evaluating it against the data.
+</Warning>
+
+Where that gap matters, put the resource role behind [Action Access Requests](/setup/configuration/access-requests/action-configuration) and add a second rule on `\{"delete":` with the **Require Approval** action. Every delete then waits for an approver from the groups you set with `--reviewers`, and the approver sees the command — including the filter this pattern cannot judge — before it runs.
+
+```regex
+\{"delete":
+```
+
+That pattern matches `deleteMany` with any predicate, `deleteOne`, and the 8.0 `bulkWrite` delete op. Two things to weigh before assigning it:
+
+- `db.users.deleteOne({_id:1})` waits for approval too. On an interactive connection that is real friction, so scope it to the resource roles that need it rather than all of them — see [Read-Only with Approval](/setup/configuration/access-requests/action-configuration#read-only-with-approval) for that shape, or [Sensitive Operations - Dual Approval](/setup/configuration/access-requests/action-configuration#sensitive-operations---dual-approval) to require two groups.
+- It does not cover `db.users.findOneAndDelete({_id:1})`, which the server receives as `findAndModify` with `remove: true`. Add `"remove":true` as a second pattern if single-document deletes matter.
+
+To catch any multi-document delete regardless of its filter, scope the pattern to the delete command: `\{"delete":.*"limit":0`. Do not use `"limit":0` alone — in a `find` command `limit: 0` means *no limit*, so it blocks the ordinary read `db.users.find({}).limit(0)`.
+
+### block-update-all
+
+Blocks updating every document in a collection.
+
+```regex
+"q":\{\},"u":.*"multi":true
+```
+
+| Command | Result |
+|---------|--------|
+| `db.users.updateMany({}, {$set:{archived:true}})` | Blocked |
+| `db.users.updateMany({active:false}, {$set:{archived:true}})` | Allowed |
+| `db.users.updateOne({_id:1}, {$set:{email:"x@y.com"}})` | Allowed |
+
+`multi: true` marks a multi-document update and `"q":{}` an empty filter. This is also the technique for requiring **two conditions together** — a single pattern with `.*` spans between them.
+
+<Note>
+This pattern depends on field order (`q`, then `u`, then `multi`), which is driver behaviour rather than a protocol guarantee. Prefer order-independent patterns where you can, and revisit this one after a major driver upgrade.
+</Note>
+
+### block-server-side-js
+
+Blocks server-side JavaScript execution.
+
+```regex
+"(\$where|\$function|\$accumulator|\$code)"
+```
+
+| Command | Result |
+|---------|--------|
+| `db.users.find({$where:"this.ssn.length > 0"})` | Blocked |
+| `db.users.mapReduce(fn, fn, {out:{inline:1}})` | Blocked |
+| `db.users.find({ssn:"123-45-6789"})` | Allowed |
+
+A `$where` clause is arbitrary JavaScript evaluated by the server:
+
+```json
+{"find":"users","filter":{"$where":{"$code":"this.ssn.length > 0"}},"$db":"app"}
+```
+
+`$code` is how any JavaScript value renders, which is why the same rule also covers `mapReduce`'s `map` and `reduce` functions. That command sends:
+
+```json
+{"mapReduce":"gr_test_zz","map":{"$code":"function () { emit(this.k, 1) }"},"reduce":{"$code":"function (k, vals) { return Array.sum(vals) }"},"out":{"inline":1},"$db":"test"}
+```
+
+To test it, pass the functions inline — a bare `map` or `reduce` identifier is not defined in a fresh shell and throws `ReferenceError` before anything reaches the wire:
+
+```js
+db.runCommand({
+  mapReduce: "gr_test_zz",
+  map: function () { emit(this.k, 1) },
+  reduce: function (k, vals) { return Array.sum(vals) },
+  out: { inline: 1 }
+})
+```
+
+`out: { inline: 1 }` returns results instead of writing a collection, so a failed block leaves nothing behind. Map-reduce has been deprecated since MongoDB 5.0; if your server rejects the command outright, that error is not a guardrail result.
+
+### block-restricted-collection
+
+Blocks one collection by name, without matching documents that merely mention it.
+
+```regex
+\{"(find|aggregate|count|distinct|insert|update|delete|findAndModify)":"salaries"
+```
+
+| Command | Result |
+|---------|--------|
+| `db.salaries.find({})` | Blocked |
+| `db.notes.insertOne({text:"see salaries table"})` | Allowed |
+
+A query on a permitted collection can still reach a restricted one through a join. Add a second rule for `"from":"salaries"` to cover `$lookup` and `$graphLookup`.
+
+---
+
+## Test before you deploy
+
+Never test a blocking rule with a command that would be destructive if the block fails. A typo in the pattern, or a guardrail assigned to the wrong resource role, means the command runs.
+
+The commands below are safe. They target collections that do not exist (`gr_test_zz`), so even if a rule fails to match, MongoDB performs a no-op instead of destroying data. The "must pass" commands are filtered reads against the same non-existent collection, which return an empty result.
+
+```js
+// must block — each line triggers exactly one rule
+db.gr_test_zz.drop()                                     // block-collection-drop, block-destructive-ddl
+db.gr_test_zz.insertOne({ canary: 1 })                   // block-writes, rule 1
+db.gr_test_zz.aggregate([{ $out: "gr_out_zz" }])         // block-writes, rule 2
+db.gr_test_zz.deleteMany({})                             // block-delete-all
+db.gr_test_zz.updateMany({}, { $set: { a: true } })      // block-update-all
+db.gr_test_zz.find({ $where: "this.canary == 1" })       // block-server-side-js
+```
+
+On MongoDB 8.0, verify the second wire encoding too. This is the same delete-everything operation a newer driver sends, and a pattern covering only the pre-8.0 form lets it through:
+
+```js
+// must block — the 8.0 bulkWrite encoding of deleteMany({})
+db.adminCommand({
+  bulkWrite: 1,
+  ops: [ { delete: 0, filter: {}, multi: true } ],
+  nsInfo: [ { ns: "test.gr_test_zz" } ]
+})
+```
+
+On a server older than 8.0 the command does not exist, so a failed block returns `no such command: bulkWrite` and changes nothing.
+
+```js
+// must pass
+db.gr_test_zz.find({ _id: 1 })
+db.gr_test_zz.aggregate([{ $match: { canary: 1 } }])
+db.gr_test_zz.deleteMany({ canary: 1 })
+db.gr_test_zz.updateMany({ canary: 1 }, { $set: { a: true } })
+```
+
+<Warning>
+Do not test a `dropDatabase` rule from a connection pointed at a real database. Switch to a scratch database first — `use gr_scratch_zz` — so a failed block destroys nothing.
+</Warning>
+
+Two extra checks worth running:
+
+1. `db.users.countDocuments({})` must **not** trigger a rule targeting `count`. `countDocuments` sends an `aggregate` command; only `estimatedDocumentCount` sends `count`.
+2. An explained command must trigger the same rule as the command itself: `db.gr_test_zz.find({$where:"1"}).explain()` blocks, because `explain` is unwrapped to the command it wraps.
+
+<Note>
+Test in `mongosh` before Compass. Compass issues its own `listCollections`, `$collStats` and schema-analysis `aggregate` calls alongside your actions, so a broad rule can block Compass's own metadata queries and make the session look broken rather than guarded.
+</Note>
+
+---
+
+## What patterns cannot catch
+
+**Which command produced a match.** A pattern for an SSN fires identically on a query *searching by* an SSN and a write *storing* one:
+
+```json
+{"find":"users","filter":{"ssn":"123-45-6789"},"$db":"app"}
+{"insert":"users","ordered":true,"$db":"app","documents":[{"ssn":"123-45-6789"}]}
+```
+
+Both are one JSON string to the matcher. Different risks, same match.
+
+**Anything expressed as an allowlist.** Rules only block, so "permit only the `analytics` database" is not expressible — enumerate what to deny, with patterns like `"\$db":"production"`.
+
+**The size of a bulk operation.** A pattern cannot count documents.
+
+**Commands that are not evaluated.** A pattern targeting these never fires: `listCollections`, `listIndexes`, `reIndex`, `compact`, `shardCollection`, user management such as `createUser`, cursor iteration (`getMore`), and heartbeats (`hello`, `ping`).
+
+For what patterns cannot express, layer your defenses:
+
+- **Require Approval** on the broadest rules, so a human sees the operation regex cannot judge.
+- **Database-level controls**: give the resource role's MongoDB user a read-only role, or scope it to specific collections. The guardrail blocks the text; the database enforces the permission.
+- **[Runbooks](/learn/features/runbooks)**: parameterized operations for day-to-day work, instead of free-form shell access.
+
+---
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Guardrails Configuration" icon="gear" href="/setup/configuration/guardrails-configuration">
+    Rule creation, actions, pattern syntax, and troubleshooting
+  </Card>
+  <Card title="SQL Guardrail Recipes" icon="database" href="/setup/configuration/guardrails-sql-recipes">
+    Patterns for tautologies, subqueries, CTEs, and missing WHERE clauses
+  </Card>
+  <Card title="Guardrails Overview" icon="shield" href="/learn/features/guardrails">
+    What guardrails do and how they fit with other features
+  </Card>
+  <Card title="Runbooks" icon="book" href="/learn/features/runbooks">
+    Parameterized operations instead of free-form shell access
+  </Card>
+</CardGroup>

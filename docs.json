@@ -210,6 +210,7 @@
                   "setup/configuration/abac-configuration",
                   "setup/configuration/guardrails-configuration",
                   "setup/configuration/guardrails-sql-recipes",
+                  "setup/configuration/guardrails-mongodb-recipes",
                   "setup/configuration/guardrails-http",
                   {
                     "group": "Hoop Inspector Sidecar",
