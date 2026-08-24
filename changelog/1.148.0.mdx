@@ -1,0 +1,50 @@
+---
+title: "1.148.0"
+description: "License expiry warnings, cascading CMDB dropdowns in Jira templates, an Alcatraz-model agent flavour, broader MCP OAuth client matching, and steadier Slack review messages."
+---
+
+### TL;DR
+- **New Features:** License expiry warnings, cascading CMDB dropdowns in Jira templates, an agent flavour with the Alcatraz NER model baked in, and wider MCP OAuth static-client recognition.
+- **Bug Fixes:** Slack review messages that stay in sync everywhere, the correct credentials view for MCP connections, and RDP masking that honors every configured entity.
+
+---
+
+### New Features
+**Earlier warnings, smarter forms, and more ways to connect.**
+
+- **Know before your license expires**
+  Admins now see a banner as their license nears expiration, and a persistent one once it has expired or cannot be verified, so you can act before sessions start failing.
+  [PR #1727](https://github.com/hoophq/hoop/pull/1727)
+
+- **Cascading CMDB dropdowns in Jira templates**
+  CMDB fields in the Jira template prompt now cascade automatically: picking a value in one field filters the dependent fields to the related objects, such as showing only a product's services after you select the product. The behavior is derived from your Jira Assets schema with no template configuration required, and falls back gracefully if a schema lookup fails.
+  [PR #1724](https://github.com/hoophq/hoop/pull/1724)
+
+- **Agent flavour with the Alcatraz NER model built in**
+  The agent with the Alcatraz NER model bundled now ships as minimal-alcatraz and distroless-alcatraz images, and every image a release publishes is listed on the release page with a link to its exact tag. Agents that need the bundled database clients or RDP stay on the hoopdev image and mount the model.
+  [PR #1731](https://github.com/hoophq/hoop/pull/1731)
+
+- **Broader MCP OAuth client recognition**
+  MCP OAuth static-client validation now also matches the client identity supplied in the client_id claim, so identity providers that leave the audience empty, such as JumpCloud, are accepted instead of being rejected with an audience mismatch.
+  [PR #1736](https://github.com/hoophq/hoop/pull/1736)
+
+---
+
+### Bug Fixes
+**Reviews that stay in sync and the right screens for each connection.**
+
+- **Slack review messages stay in sync everywhere**
+  Slack review messages now update to reflect the outcome no matter where a review is resolved, whether in the web app, the API, or MCP. Reviewed groups turn into clear outcome notes, terminal states drop the remaining buttons, and partial approvals show an approved-by progress line, so stale Approve and Reject buttons no longer linger.
+  [PR #1715](https://github.com/hoophq/hoop/pull/1715)
+
+- **Correct credentials view for MCP connections**
+  Opening credentials for an MCP connection in the Native Connections drawer now shows the MCP endpoint details instead of a bogus PostgreSQL connection string.
+  [PR #1725](https://github.com/hoophq/hoop/pull/1725)
+
+- **RDP masking honors your full masking rules**
+  RDP live masking now applies the supported and custom entities configured on the selected connection instead of gateway-wide entity settings.
+  [PR #1717](https://github.com/hoophq/hoop/pull/1717)
+
+---
+
+Less friction, faster connections.
