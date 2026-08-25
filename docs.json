@@ -47,9 +47,56 @@
         "icon": "book-open",
         "groups": [
           {
-            "group": "Introduction",
+            "group": "Getting Started",
             "pages": [
-              "introduction/getting-started"
+              "introduction/getting-started",
+              "introduction/quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core-concepts/sidecar",
+              "core-concepts/control-plane"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/direct-access",
+              "features/agentic-access",
+              "features/data-masking",
+              "features/guardrails"
+            ]
+          },
+          {
+            "group": "Control Plane Setup",
+            "pages": [
+              "control-plane/install",
+              "control-plane/connect-sidecar"
+            ]
+          },
+          {
+            "group": "Sidecar Reference",
+            "pages": [
+              "setup/configuration/hoop-inspect/get-started",
+              "setup/configuration/hoop-inspect/config-file",
+              "setup/configuration/hoop-inspect/policy-rules",
+              "setup/configuration/hoop-inspect/risk-analysis",
+              "setup/configuration/hoop-inspect/components",
+              "setup/configuration/hoop-inspect/kerberos"
+            ]
+          }
+        ]
+      },
+      {
+        "anchor": "Hoop Gateway",
+        "icon": "server",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "gateway/overview"
             ]
           },
           {
@@ -212,17 +259,6 @@
                   "setup/configuration/guardrails-sql-recipes",
                   "setup/configuration/guardrails-mongodb-recipes",
                   "setup/configuration/guardrails-http",
-                  {
-                    "group": "Hoop Inspector Sidecar",
-                    "pages": [
-                      "setup/configuration/hoop-inspect/get-started",
-                      "setup/configuration/hoop-inspect/config-file",
-                      "setup/configuration/hoop-inspect/policy-rules",
-                      "setup/configuration/hoop-inspect/risk-analysis",
-                      "setup/configuration/hoop-inspect/kerberos",
-                      "setup/configuration/hoop-inspect/components"
-                    ]
-                  },
                   "setup/configuration/runbooks-configuration",
                   "setup/configuration/event-routing-configuration",
                   "setup/configuration/mcp-server-configuration",
@@ -298,34 +334,6 @@
           "directory": "api-reference"
         },
         "icon": "square-terminal"
-      },
-      {
-        "anchor": "Changelog",
-        "pages": [
-          "changelog",
-          {
-            "group": "Releases",
-            "pages": [
-              "changelog/1.148.0",
-              "changelog/1.144.0",
-              "changelog/1.136.1",
-              "changelog/1.126.3",
-              "changelog/1.121.0",
-              "changelog/1.119.4",
-              "changelog/1.43.1",
-              "changelog/1.43.0",
-              "changelog/1.42.9",
-              "changelog/1.42.6",
-              "changelog/1.42.5",
-              "changelog/1.42.4",
-              "changelog/1.42.1",
-              "changelog/1.42.0",
-              "changelog/1.41.0",
-              "changelog/1.40.1"
-            ]
-          }
-        ],
-        "icon": "notes"
       }
     ]
   },

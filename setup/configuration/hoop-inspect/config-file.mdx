@@ -1,9 +1,9 @@
 ---
-title: "Config File"
-description: "Every section of the hoop-inspect config file, and what startup refuses"
+title: "Config File Reference"
+description: "Every section of the Sidecar config file, and what startup refuses"
 ---
 
-One file is the whole configuration. The relay reads it at startup, resolves every listener, and then tells you what it resolved.
+One file is the whole configuration. The Sidecar reads it at startup, resolves every listener, and then tells you what it resolved.
 
 YAML and JSON both work, and the file extension picks the parser: `.yaml` and `.yml` go through the YAML front end, anything else is read as JSON. Decoding is **strict**, so a mistyped key fails startup instead of disabling a control without telling you.
 
@@ -128,7 +128,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `upstream` | The real backend, `host:port`. |
 | `connection` | Operator-facing resource name recorded in audit and exposed to policy. The physical `upstream` may change under it. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
-| `downstream_tls` | Terminates the client's TLS at the relay. Only valid on a `postgres` lane, because pgwire negotiates in-band. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#terminating-the-clients-tls). |
+| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane, because pgwire negotiates in-band. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#terminating-the-clients-tls). |
 | `identity_header` | Names an HTTP header carrying the authenticated subject. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
@@ -176,7 +176,7 @@ Both carry the same traffic. They differ in who can reach the lane and what it c
 | Reachable by | whoever can open the file | anything that can route to the host |
 | Narrowing it | directory and file permissions | a NetworkPolicy, which narrows without removing |
 | Setup cost | both processes mount one directory and agree on uids | none |
-| Restart quirk | a stale file after SIGKILL, which the relay reclaims | none |
+| Restart quirk | a stale file after SIGKILL, which the Sidecar reclaims | none |
 | Fits | a sidecar beside one workload in one pod | separate hosts, or a laptop |
 
 A socket gives the tighter boundary: no port exists, so reachability is a filesystem question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
@@ -214,7 +214,7 @@ ls -l /run/hoop-inspect/
 
 Both cost real time, and neither produces a useful error on its own.
 
-**Creating the socket.** The relay needs write permission on the directory. A volume that mounts root-owned against a non-root image gives:
+**Creating the socket.** The Sidecar needs write permission on the directory. A volume that mounts root-owned against a non-root image gives:
 
 ```
 listen unix /run/hoop-inspect/pg.sock: bind: permission denied
@@ -222,13 +222,13 @@ listen unix /run/hoop-inspect/pg.sock: bind: permission denied
 
 **Connecting to it.** `connect()` on a unix socket requires **write** permission on the socket file, not read. Go creates a listening socket at `0777 &^ umask`, and the usual 022 clears exactly the group-write bit a peer needs. Envoy then fails with nothing useful in either log: `flags=UF` and an `upstream_cx_connect_fail` counter, while the cluster still reports healthy because the endpoint resolved.
 
-Run the relay with the peer's gid and `umask 0002` so its sockets come out group-writable. [`deploy/docker-compose/envoy-stack/uds/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/uds) does exactly this and is worth reading before you write your own.
+Run the Sidecar with the peer's gid and `umask 0002` so its sockets come out group-writable. [`deploy/docker-compose/envoy-stack/uds/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/uds) does exactly this and is worth reading before you write your own.
 
 #### Stale sockets after an unclean exit
 
 Go unlinks the socket when the listener closes, so an orderly shutdown leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process.
 
-The relay reclaims it. At startup it dials the path, and a socket nothing answers on gets unlinked with a warning:
+The Sidecar reclaims it. At startup it dials the path, and a socket nothing answers on gets unlinked with a warning:
 
 ```json
 {"level":"WARN","msg":"removed a stale socket file left by an unclean shutdown",
@@ -329,7 +329,7 @@ Add `unknown` to that list on a lane where a statement the scanner could not rea
 SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
 
 <Warning>
-**Breaking change: `CALL` and `EXECUTE` report `unknown`.** Their bodies live in the catalog, so no parser can say what they touch, and reporting `call` claimed knowledge the relay does not have. A rule written as `operations: [call]` **stops matching them**. Write `operations: [call, unknown]`.
+**Breaking change: `CALL` and `EXECUTE` report `unknown`.** Their bodies live in the catalog, so no parser can say what they touch, and reporting `call` claimed knowledge the Sidecar does not have. A rule written as `operations: [call]` **stops matching them**. Write `operations: [call, unknown]`.
 
 `call` survives in the vocabulary and costs nothing to name, though no complete statement reports it as an operation today: `CALL`, `EXECUTE`, `EXEC` and `DO` all come back incomplete. Rego still sees `call` in `input.effects`.
 
@@ -414,7 +414,7 @@ policy:
     gate: false          # true adds an earlier decision; see Two phases below
 ```
 
-The relay does not own policy; it owns the input document:
+The Sidecar does not own policy; it owns the input document:
 
 ```json
 {"input": {
@@ -539,7 +539,7 @@ Turning on every recognizer rewrites ordinary numeric columns:
 Nine digits in a legal range is a valid SSN as far as any detector can tell, because SSNs carry no checksum. Card, CPF and IBAN carry real checksums (Luhn, mod-11, ISO 7064), so those three leave lookalike ids alone.
 
 <Note>
-Masking needs a codec that can carry it. HTTP declares its body length in a header the relay corrects; Postgres rebuilds its length-prefixed row frames around the new values, and MSSQL reassembles the TDS token stream and lays fresh packets over the rewritten rows. A protocol offering neither gets its `mask` section **refused at startup**. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
+Masking needs a codec that can carry it. HTTP declares its body length in a header the Sidecar corrects; Postgres rebuilds its length-prefixed row frames around the new values, and MSSQL reassembles the TDS token stream and lays fresh packets over the rewritten rows. A protocol offering neither gets its `mask` section **refused at startup**. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
 </Note>
 
 ---
@@ -562,7 +562,7 @@ Six event kinds reach the sink: `session_start`, `statement`, `violation`, `mask
 `fail_closed: false` is the default and it is the uncomfortable one. A dropped audit write lets the statement proceed and logs the error. Set it to `true` where proving who did what matters more than staying up.
 </Warning>
 
-The relay records what was masked, never the values:
+The Sidecar records what was masked, never the values:
 
 ```json
 {"kind":"session_end","timestamp":"2026-07-30T18:53:34Z","session_id":"98203ccc…",
@@ -578,7 +578,7 @@ The admin listener serves a read interface to every statement every user ran, wi
 
 ## Upstream TLS
 
-The hop from the relay to the backend can be encrypted, and it costs you no inspection.
+The hop from the Sidecar to the backend can be encrypted, and it costs you no inspection.
 
 ```yaml
 listeners:
@@ -593,7 +593,7 @@ listeners:
       # insecure_skip_verify    logs a warning; do not ship it
 ```
 
-The relay is the TLS **client** on that hop, so it decrypts on read and the gate inspects plaintext the same way it does without TLS. Verify it from a client session:
+The Sidecar is the TLS **client** on that hop, so it decrypts on read and the gate inspects plaintext the same way it does without TLS. Verify it from a client session:
 
 ```sql
 SELECT ssl, version FROM pg_stat_ssl WHERE pid = pg_backend_pid();
@@ -607,21 +607,21 @@ SELECT ssl, version FROM pg_stat_ssl WHERE pid = pg_backend_pid();
 
 Three behaviors on a Postgres lane surprise people:
 
-- **Postgres negotiates in-band.** The server expects an 8-byte `SSLRequest` and a one-byte reply before any handshake. The relay speaks that exchange, so `upstream_tls` works the way the field name implies.
+- **Postgres negotiates in-band.** The server expects an 8-byte `SSLRequest` and a one-byte reply before any handshake. The Sidecar speaks that exchange, so `upstream_tls` works the way the field name implies.
 - **A refusal is an error, never a downgrade.** If the server declines TLS, the connection fails with a message naming the likely cause. Sending credentials in the clear because the server said no is the outcome you were preventing.
-- **Channel binding is dropped from the server's offer.** With TLS terminating at the relay, `SCRAM-SHA-256-PLUS` cannot work. The relay removes that one mechanism, leaving plain `SCRAM-SHA-256`, which authenticates the same password against the same verifier.
+- **Channel binding is dropped from the server's offer.** With TLS terminating at the Sidecar, `SCRAM-SHA-256-PLUS` cannot work. The Sidecar removes that one mechanism, leaving plain `SCRAM-SHA-256`, which authenticates the same password against the same verifier.
 
-On an MSSQL lane `upstream_tls` performs a plain TLS-on-connect handshake, which is TDS 8.0 and the only TLS shape the relay originates. SQL Server on Linux cannot accept it: strict encryption is a Windows feature, and the Linux build offers `network.forceencryption`, whose TLS is the TDS 7.x kind negotiated inside `0x12` PRELOGIN packets. Leave `upstream_tls` off that lane and keep the hop on loopback or a private network.
+On an MSSQL lane `upstream_tls` performs a plain TLS-on-connect handshake, which is TDS 8.0 and the only TLS shape the Sidecar originates. SQL Server on Linux cannot accept it: strict encryption is a Windows feature, and the Linux build offers `network.forceencryption`, whose TLS is the TDS 7.x kind negotiated inside `0x12` PRELOGIN packets. Leave `upstream_tls` off that lane and keep the hop on loopback or a private network.
 
 ### The client leg is a different hop
 
-`upstream_tls` covers the relay-to-backend hop only. The relay terminates **no** downstream TLS: if the client negotiates TLS all the way through, there is no plaintext at the gate and inspection is impossible. Terminating that leg belongs to Envoy.
+`upstream_tls` covers the Sidecar-to-backend hop only. The Sidecar terminates **no** downstream TLS: if the client negotiates TLS all the way through, there is no plaintext at the gate and inspection is impossible. Terminating that leg belongs to Envoy.
 
 | Leg | Encrypted by |
 |---|---|
 | client → Envoy | Envoy. An HTTPS listener does it already; a Postgres lane needs `postgres_proxy` with a `starttls` transport socket, and an MSSQL lane a plain `DownstreamTlsContext` for TDS 8.0 |
 | Envoy → relay | nothing, by design. These are the bytes the gate parses |
-| relay → backend | the relay, via `upstream_tls` above |
+| relay → backend | the Sidecar, via `upstream_tls` above |
 
 Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/setup/configuration/hoop-inspect/get-started#terminating-client-tls) for the Envoy config.
 
@@ -653,7 +653,7 @@ listeners:
 Nothing needs to be running:
 
 ```bash
-hoop start inspect --config config.yaml --validate
+hoop start sidecar --config config.yaml --validate
 ```
 
 ```
@@ -735,9 +735,9 @@ Four more refusals arrived with findings, each one a config that would load and 
     Every rule type in depth, deferring to Rego, and the findings a policy reads.
   </Card>
   <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
-    Configure Envoy, run the relay, and watch a denial land in psql.
+    Configure Envoy, run the Sidecar, and watch a denial land in psql.
   </Card>
   <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
-    How a request flows through the relay, and where each config knob takes effect.
+    How a request flows through the Sidecar, and where each config knob takes effect.
   </Card>
 </CardGroup>

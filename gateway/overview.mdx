@@ -1,0 +1,103 @@
+---
+title: "Overview"
+description: "The full Hoop platform: web app, agents, session recording, access requests and integrations."
+---
+
+The Hoop Gateway is Hoop's full platform. It is a layer 7 gateway that sits between engineers, AI agents, service accounts and your infrastructure, with a web app for administration, agents deployed next to each resource, and a broad feature set built on top: access requests, session recording, runbooks, resource provisioning, identity federation and integrations with Slack, Teams, Jira and your SIEM.
+
+It is fully supported, and everything documented under this section works today.
+
+<Note>
+  **Starting fresh?** Begin with the [Sidecar](/core-concepts/sidecar). It installs in one command, runs from a single config file, and needs no gateway, agent or database. The Gateway is where you go when you need the full platform. See [Getting Started](/introduction/getting-started).
+</Note>
+
+---
+
+## Gateway or Sidecar?
+
+| | [Sidecar](/core-concepts/sidecar) | Hoop Gateway |
+|---|---|---|
+| Deployment | one binary, one config file | gateway service, database, identity provider, one agent per network |
+| Dependencies | none | PostgreSQL, an IdP, deployed agents |
+| Administration | the config file, and the [Control Plane](/core-concepts/control-plane) at scale | web app |
+| Data Masking | [in-Sidecar, config-driven](/features/data-masking) | [DLP providers, per resource role](/learn/features/live-data-masking) |
+| Guardrails | [typed rules, deny or defer](/features/guardrails) | [regex patterns, block, warn or require approval](/learn/features/guardrails) |
+| Also includes | — | access requests, session recording, runbooks, secrets management, resource provisioning, MCP server, SSH, chat and ticketing integrations |
+| Licensing | free for one rule per feature | Enterprise |
+
+The two are converging: the Gateway becomes the [Control Plane](/core-concepts/control-plane), and the two run in parallel through the transition.
+
+---
+
+## The problems it solves
+
+Organizations managing access to critical infrastructure run into the same five things:
+
+- Security risk from overly permissive access policies
+- Productivity bottlenecks from complex approval workflows
+- Compliance gaps from inadequate audit trails
+- No clear answer to *which identity accessed what, and when*
+- Sensitive data exposed during ordinary access sessions
+
+The Gateway sits between your users and your infrastructure and enforces controls inline at the wire protocol, for engineers, AI agents and service accounts alike.
+
+<AccordionGroup>
+  <Accordion title="AI Agent Enablement">
+    Agents reach real data through the same gateway engineers use, with PII masked at the wire, destructive operations blocked, and every session recorded.
+  </Accordion>
+  <Accordion title="Improve Engineering Productivity">
+    Provide secure, audited access to databases while masking sensitive data. Developers run queries without ever handling production credentials.
+  </Accordion>
+  <Accordion title="Data Masking in Production">
+    Make PII, PHI, PCI and credentials invisible in database responses, API payloads and terminal output, so production access does not expose sensitive data.
+  </Accordion>
+  <Accordion title="Compliance Evidence">
+    Meet regulatory requirements with session recordings, access logs and data protection features that document who accessed what and when.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Explore
+
+<CardGroup cols={2}>
+  <Card title="Features" icon="stars" href="/learn/features/live-data-masking">
+    Live Data Masking, access requests, access control, ABAC, guardrails, runbooks, session recording, MCP server and more.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart/overview">
+    Connect a resource. Databases, cloud services, web applications, development environments, AI and LLMs.
+  </Card>
+  <Card title="Clients" icon="terminal" href="/clients/cli">
+    The `hoop` CLI, the `hsh` shell, and the web app.
+  </Card>
+  <Card title="Setup & Administration" icon="gear" href="/setup/architecture">
+    Architecture, deployment, configuration, identity providers, APIs and licensing.
+  </Card>
+  <Card title="Concepts" icon="lightbulb" href="/concepts/agents">
+    Agents and resource roles.
+  </Card>
+  <Card title="Integrations" icon="puzzle-piece" href="/integrations/slack">
+    Slack, Teams, Jira, SIEM, Svix, AWS and Microsoft Presidio.
+  </Card>
+</CardGroup>
+
+---
+
+## Get the Gateway
+
+<CardGroup cols={2}>
+  <Card title="Managed Service" icon="cloud" href="https://hoop.dev/start">
+    No setup. Register and start connecting resources.
+
+    <br />
+
+    **Create an account** <Icon icon="arrow-right" />
+  </Card>
+  <Card title="Self-Hosted" icon="server" href="/setup/deployment/overview">
+    Deploy in your own infrastructure with Docker, Kubernetes or AWS.
+
+    <br />
+
+    **Go to the deployment guide** <Icon icon="arrow-right" />
+  </Card>
+</CardGroup>

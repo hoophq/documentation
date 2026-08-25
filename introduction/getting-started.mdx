@@ -1,6 +1,6 @@
 ---
-title: "Getting Started"
-description: "The Gateway for AI Acceleration: Layer 7 Control for Humans and Agents"
+title: "Overview"
+description: "Runtime control for agents"
 ---
 
 import { HeroAnimation } from '/snippets/annimations/HeroAnimation.jsx';
@@ -9,75 +9,108 @@ import { HeroAnimation } from '/snippets/annimations/HeroAnimation.jsx';
   <HeroAnimation />
 </div>
 
-Hoop.dev is a layer 7 gateway that sits between engineers, AI agents, service accounts, and your infrastructure. Every query and command passes through at the wire protocol level, where Hoop.dev masks sensitive data, blocks dangerous commands, routes risky operations for human approval, and records every session.
+Agents and engineers reach real infrastructure with real credentials, and the decision about what they are allowed to do gets made at runtime or not at all. Hoop makes it at runtime.
 
-## The Challenge of Infrastructure Access
+The **Sidecar** is where you start. It is a proxy that runs next to your resource, decodes the wire protocol, and decides what reaches the database and what comes back — blocking destructive statements, masking sensitive values in responses, and recording every session. Nothing else to deploy and no database to run: one binary, one config file, free.
 
-Organizations face significant challenges when managing access to critical infrastructure:
+---
 
-- Security risks from overly permissive access policies
-- Productivity bottlenecks from complex approval workflows
-- Compliance headaches due to inadequate audit trails
-- Visibility gaps in understanding what identities accessed what and when
-- Sensitive data exposure risks during access sessions
+## Install the Sidecar
 
-Hoop.dev addresses these challenges by providing a secure gateway that sits between your users and your infrastructure, delivering zero-config security features that protect your resources while streamlining access for developers.
+The Sidecar ships in the `hoop` CLI.
 
-## Our Solutions
+<Tabs>
+  <Tab title="MacOS">
+    Through homebrew:
 
-Hoop.dev enforces controls inline at the wire protocol for engineers, AI agents, and service accounts.
+    ```bash
+    brew tap hoophq/brew https://github.com/hoophq/brew.git
+    brew install hoop
+    ```
+
+    To upgrade it:
+
+    ```bash
+    brew update && brew upgrade hoop
+    ```
+  </Tab>
+  <Tab title="Linux">
+    To install or upgrade:
+
+    ```bash
+    curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
+    ```
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Download">
+        Download the latest release of [the hoop command line](https://github.com/hoophq/hoop/releases) for your architecture (usually **hoop-windows-amd64**) and save it in the **Downloads** folder.
+      </Step>
+      <Step title="Extract">
+        Extract the file using **winrar** or **winzip**.
+      </Step>
+      <Step title="Place it in the right folder">
+        Move the extracted file `hoop.exe` to the folder `C:\Windows\System32\`.
+      </Step>
+      <Step title="Check the installation">
+        Open a terminal session and run `hoop version`. If it prints a version, you are installed.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows WSL">
+    1. Install the [Windows Terminal](https://aka.ms/terminal)
+    2. Install [Ubuntu WSL](https://ubuntu.com/wsl)
+    3. Open the Windows Terminal app
+    4. Install and open Ubuntu by typing `ubuntu`. The first run prompts you to create a user.
+
+    ```bash
+    PS C:\Users\san> ubuntu
+    san@DESKTOP-BBQAAEG:~$
+    ```
+
+    5. Gain root access:
+
+    ```bash
+    sudo su -
+    ```
+
+    6. Install or upgrade the CLI:
+
+    ```bash
+    curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
+    ```
+  </Tab>
+  <Tab title="Manual">
+    Check the latest build for your operating system and architecture on the [releases page](https://github.com/hoophq/hoop/releases).
+  </Tab>
+</Tabs>
+
+---
+
+## Next step
+
+<Card title="Quickstart" icon="rocket" href="/introduction/quickstart">
+  Write your first config file and run a Sidecar in front of a local database. You will watch it mask a value on the way out and refuse a destructive statement on the way in.
+
+  <br />
+
+  **Start here** <Icon icon="arrow-right" />
+</Card>
+
+---
+
+## Core Concepts
 
 <CardGroup cols={2}>
-  <Card title="Live Data Masking" icon="mask" href="/learn/features/live-data-masking">
-    Zero-config DLP policies that automatically mask sensitive data in real-time at the protocol layer. Protect PII, credentials, and other sensitive information without requiring complex rule setup.
+  <Card title="Sidecar" icon="bolt" href="/core-concepts/sidecar">
+    The engine. A proxy beside your resource that reads the wire protocol and decides what gets through — with no external dependency.
 
     <br />
 
     **Learn more** <Icon icon="arrow-right" />
   </Card>
-  <Card title="Access Requests" icon="clock" href="/learn/features/access-requests/jit">
-    Enable time-based access sessions or command-level approvals. Users request access while approvers guarantee security without sacrificing productivity.
-
-    <br />
-
-    **Learn more** <Icon icon="arrow-right" />
-  </Card>
-  <Card title="Access Control" icon="lock" href="/learn/features/access-control">
-    Define granular access policies determining which users or groups can access specific resources. Integrate with your existing identity provider to maintain consistent access governance.
-
-    <br />
-
-    **Learn more** <Icon icon="arrow-right" />
-  </Card>
-  <Card title="Guardrails" icon="shield" href="/learn/features/guardrails">
-    Intelligent protection layer that automatically enforces access policies and prevents risky operations in real-time. Keep your infrastructure secure with smart command filtering and context-aware access.
-
-    <br />
-
-    **Learn more** <Icon icon="arrow-right" />
-  </Card>
-  <Card title="Runbooks" icon="book" href="/learn/features/runbooks">
-    Automate tasks with templated runbooks. Create, share, and execute procedures through a Git-based system, improving consistency and reducing errors.
-
-    <br />
-
-    **Learn more** <Icon icon="arrow-right" />
-  </Card>
-  
-  <Card icon="key" title="Secrets Management" href="/learn/features/secrets-manager">
-  Securely integrate with most popular secrets management tools. Dynamically expand environment variables without exposing sensitive credentials.
-  <br />
-  **Learn more** <Icon icon="arrow-right" />
-  </Card>
-  <Card title="AI Session Analyzer" icon="brain" href="/learn/features/ai-session-analyzer">
-    AI-powered risk analysis that evaluates commands before execution and applies configured policies automatically. Detect and block risky or destructive operations in real time.
-
-    <br />
-
-    **Learn more** <Icon icon="arrow-right" />
-  </Card>
-  <Card title="MCP Server" icon="robot" href="/learn/features/mcp-server">
-    Connect AI agents to Hoop.dev with the built-in Model Context Protocol server. Agents run queries and commands without ever handling credentials. Authorization, data masking, guardrails, and review gates apply to every action.
+  <Card title="Control Plane" icon="tower-control" href="/core-concepts/control-plane">
+    The brain. Centralizes every Sidecar you run and delivers rule sets to all of them from one place. An Enterprise feature.
 
     <br />
 
@@ -85,40 +118,39 @@ Hoop.dev enforces controls inline at the wire protocol for engineers, AI agents,
   </Card>
 </CardGroup>
 
-## Common Use Cases
+---
 
-<AccordionGroup>
-  <Accordion title="AI Agent Enablement">
-    Agents reach production with inline controls that make access secure and auditable. Agents reach real data through the same gateway engineers use, with PII masked at the wire, destructive operations blocked, and every session recorded.
-  </Accordion>
-  <Accordion title="Improve Engineering Productivity">
-    Provide secure, audited access to databases while masking sensitive data. Enable developers to run queries without direct access to production credentials.
-  </Accordion>
-  <Accordion title="Data Masking in Production">
-    Make PII, PHI, PCI, and credentials invisible in database responses, API payloads, and terminal output, so production access doesn't expose sensitive data.
-  </Accordion>
-  <Accordion title="Compliance Evidence">
-    Meet regulatory requirements with comprehensive session recordings, access logs, and data protection features that document who accessed what and when.
-  </Accordion>
-</AccordionGroup>
+## Features
 
-## Getting Started
-
-Hoop.dev is currently available in managed and self-hosted modes. Choose the option that best fits your needs:
+Two ways a request can travel through the Sidecar, and two controls that apply on either path.
 
 <CardGroup cols={2}>
-  <Card title="Managed Service" icon="cloud" href="https://hoop.dev/start">
-    Get started with our managed platform. No complex setup required - just register and begin connecting your resources to secure your infrastructure access immediately.
+  <Card title="Direct Access" icon="arrow-right-long" href="/features/direct-access">
+    The straight-through path. Guardrails and Data Masking apply inline, deterministically, with no model call and no third party in the chain.
 
     <br />
 
-    **Create free account** <Icon icon="arrow-right" />
+    **Learn more** <Icon icon="arrow-right" />
   </Card>
-  <Card title="Self-Hosted" icon="server" href="/setup/deployment/overview">
-    Deploy Hoop.dev in your own infrastructure using Docker, Kubernetes, or AWS. Take full control over your environment setup with the same powerful features.
+  <Card title="Agentic Access" icon="robot" href="/features/agentic-access">
+    The AI Analyzer classifies the statement and the risk level picks a tool: block, allow, review, apply a guardrail, or mask the response.
 
     <br />
 
-    **Go to deployment guide** <Icon icon="arrow-right" />
+    **Learn more** <Icon icon="arrow-right" />
+  </Card>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Rewrite sensitive values in the response, in memory, before they reach the client. Requests are never touched.
+
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
+  </Card>
+  <Card title="Guardrails" icon="shield-halved" href="/features/guardrails">
+    An ordered deny list evaluated against every statement, refusing what should never run with a message you wrote.
+
+    <br />
+
+    **Learn more** <Icon icon="arrow-right" />
   </Card>
 </CardGroup>

@@ -1,9 +1,9 @@
 ---
-title: "Get Started"
-description: "Run the hoop-inspect relay from the CLI and put it behind your Envoy"
+title: "Running the Sidecar"
+description: "Run the Sidecar from the CLI and put it behind your Envoy"
 ---
 
-`hoop-inspect` is an inspecting relay. It decodes the wire protocol between a client and a database or an API, evaluates every statement against policy, records an audit trail, and masks sensitive values in the response.
+The Sidecar is an inspecting proxy. It decodes the wire protocol between a client and a database or an API, evaluates every statement against policy, records an audit trail, and masks sensitive values in the response.
 
 It routes nothing and terminates no client TLS. You run it behind something that already owns the network path and identity, which in most enterprises means Envoy. Envoy reaches it over a unix socket or a TCP port, your choice per lane.
 
@@ -11,11 +11,11 @@ It routes nothing and terminates no client TLS. You run it behind something that
 flowchart LR
     C["client<br/>psql · curl"] -->|TLS| E["envoy<br/>terminates TLS"]
     E -.->|ext_authz| O["OPA<br/>can alice reach it?"]
-    E -->|socket or port| H["hoop-inspect<br/>is this DELETE allowed?"]
+    E -->|socket or port| H["Sidecar<br/>is this DELETE allowed?"]
     H --> U["postgres · HTTP API"]
 ```
 
-Envoy answers reachability. `hoop-inspect` answers what the statement does, and what comes back.
+Envoy answers reachability. The Sidecar answers what the statement does, and what comes back.
 
 <Note>
 This runs with no gateway, no agent, and no control-plane database. One config file is the whole setup.
@@ -73,7 +73,7 @@ Pick a transport first. One field decides it, and the rest of the file is identi
               message: destructive statements are not permitted on appdb
     ```
 
-    A socket opens no port, so reachability becomes a filesystem question rather than a network one. The cost is coordination: Envoy and the relay mount the same directory and their uids have to agree. Cheap in a pod spec, awkward across hosts.
+    A socket opens no port, so reachability becomes a filesystem question rather than a network one. The cost is coordination: Envoy and the Sidecar mount the same directory and their uids have to agree. Cheap in a pod spec, awkward across hosts.
   </Tab>
   <Tab title="TCP port">
     ```yaml config.yaml
@@ -102,7 +102,7 @@ Pick a transport first. One field decides it, and the rest of the file is identi
               message: destructive statements are not permitted on appdb
     ```
 
-    Nothing to mount and nothing to chown, which is why the compose stack defaults to this. Bind loopback where the relay and Envoy share a network namespace: a `0.0.0.0` bind is reachable by anything that can route to the host, and a NetworkPolicy narrows that without removing it.
+    Nothing to mount and nothing to chown, which is why the compose stack defaults to this. Bind loopback where the Sidecar and Envoy share a network namespace: a `0.0.0.0` bind is reachable by anything that can route to the host, and a NetworkPolicy narrows that without removing it.
   </Tab>
 </Tabs>
 
@@ -127,7 +127,7 @@ listeners:
           message: destructive statements are not permitted on mssqldb
 ```
 
-Policy, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the relay can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos).
+Policy, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the Sidecar can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos).
 
 <Warning>
 `policy.enforce` defaults to **false**. Without it every lane inspects and audits but denies nothing, so a misconfigured rule cannot take production down on first deploy. Set it to `true` when you want the rules to bite.
@@ -144,7 +144,7 @@ Policy, masking and audit behave as they do on a Postgres lane. Two differences 
 Nothing needs to be running. The validator builds every lane and reports every problem in one run:
 
 ```bash
-hoop start inspect --config config.yaml --validate
+hoop start sidecar --config config.yaml --validate
 ```
 
 ```
@@ -159,10 +159,10 @@ Each line is the **resolved** lane, so the rule count includes anything it inher
 ## Step 3: Run it
 
 ```bash
-hoop start inspect --config config.yaml
+hoop start sidecar --config config.yaml
 ```
 
-`--config` also reads `HOOP_INSPECT_CONFIG`, which is the shape a Kubernetes deployment wants: mount the ConfigMap, set the variable, pass no arguments.
+`--config` also reads `HOOP_SIDECAR_CONFIG`, which is the shape a Kubernetes deployment wants: mount the ConfigMap, set the variable, pass no arguments.
 
 Check it came up:
 
@@ -175,7 +175,7 @@ curl -s localhost:19000/config | python3 -m json.tool
 
 ## Step 4: Point Envoy at it
 
-`hoop-inspect` is an ordinary upstream. There is no ext_proc, no WASM, no custom Envoy filter to install. You change the cluster your listener already routes to.
+The Sidecar is an ordinary upstream. There is no ext_proc, no WASM, no custom Envoy filter to install. You change the cluster your listener already routes to.
 
 The cluster shape follows the transport you picked in Step 1:
 
@@ -215,14 +215,14 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
                         pipe: { path: /run/hoop-inspect/pg.sock }
     ```
 
-    Envoy has no pgwire parser, so this lane is plain `tcp_proxy`. Every byte reaches the relay unexamined, which is the reason the relay earns its place here.
+    Envoy has no pgwire parser, so this lane is plain `tcp_proxy`. Every byte reaches the Sidecar unexamined, which is the reason the Sidecar earns its place here.
 
     <Warning>
     **Two permission traps, and neither produces a useful error.**
 
-    *Creating the socket.* The relay needs write permission on the directory. A volume that mounts root-owned against a non-root image fails with `bind: permission denied`. Chown the directory before the relay starts, or set `fsGroup` on a Kubernetes pod.
+    *Creating the socket.* The Sidecar needs write permission on the directory. A volume that mounts root-owned against a non-root image fails with `bind: permission denied`. Chown the directory before the Sidecar starts, or set `fsGroup` on a Kubernetes pod.
 
-    *Connecting to it.* `connect()` on a unix socket requires **write** permission on the socket file, not read. Go creates a listening socket at `0777 &^ umask`, and the usual 022 clears exactly the group-write bit Envoy needs. Envoy then reports `flags=UF` and `upstream_cx_connect_fail` while the cluster still shows healthy, because the endpoint resolved. Run the relay with Envoy's gid and `umask 0002`.
+    *Connecting to it.* `connect()` on a unix socket requires **write** permission on the socket file, not read. Go creates a listening socket at `0777 &^ umask`, and the usual 022 clears exactly the group-write bit Envoy needs. Envoy then reports `flags=UF` and `upstream_cx_connect_fail` while the cluster still shows healthy, because the endpoint resolved. Run the Sidecar with Envoy's gid and `umask 0002`.
     </Warning>
   </Tab>
   <Tab title="TCP port">
@@ -253,7 +253,7 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
                         socket_address: { address: hoop-inspect, port_value: 15432 }
     ```
 
-    Nothing to mount. The relay's port is reachable by anything that can route to it, so keep it off any interface a client can find.
+    Nothing to mount. The Sidecar's port is reachable by anything that can route to it, so keep it off any interface a client can find.
   </Tab>
   <Tab title="MSSQL lane">
     TDS 8.0 is TCP, then TLS, then the protocol, so Envoy terminates it with an ordinary `DownstreamTlsContext` and needs no TDS awareness.
@@ -294,10 +294,10 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
                         socket_address: { address: hoop-inspect, port_value: 11433 }
     ```
 
-    Clients connect with `Encrypt=strict`. A TDS 7.x client wraps its TLS handshake inside `0x12` packets, which Envoy cannot speak, so that lane skips Envoy and the relay takes the connection directly: `ENCRYPT_OFF` encrypts the login packet alone and leaves every statement readable. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else).
+    Clients connect with `Encrypt=strict`. A TDS 7.x client wraps its TLS handshake inside `0x12` packets, which Envoy cannot speak, so that lane skips Envoy and the Sidecar takes the connection directly: `ENCRYPT_OFF` encrypts the login packet alone and leaves every statement readable. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else).
   </Tab>
   <Tab title="HTTP lane">
-    On HTTP you keep your existing `ext_authz` filter. Only the route's cluster changes: it points at the relay instead of at the service.
+    On HTTP you keep your existing `ext_authz` filter. Only the route's cluster changes: it points at the Sidecar instead of at the service.
 
     ```yaml envoy.yaml
     route_config:
@@ -339,13 +339,13 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
                       pipe: { path: /run/hoop-inspect/http.sock }
     ```
 
-    Envoy already terminated the client's TLS on the HTTPS listener, so this lane carries plaintext to the relay and there is nothing extra to configure.
+    Envoy already terminated the client's TLS on the HTTPS listener, so this lane carries plaintext to the Sidecar and there is nothing extra to configure.
   </Tab>
 </Tabs>
 
 ### Terminating client TLS
 
-The relay reads plaintext. Something in front has to decrypt whatever the client encrypted before the gate sees a statement; the relay terminates **no** downstream TLS.
+The Sidecar reads plaintext. Something in front has to decrypt whatever the client encrypted before the gate sees a statement; the Sidecar terminates **no** downstream TLS.
 
 On the HTTP lane Envoy already does it, because an HTTPS listener terminates TLS by definition. On the Postgres lane the stock `tcp_proxy` does not, which is why the client connects with `PGSSLMODE=disable`. An MSSQL lane is the easy case: TDS 8.0 hands Envoy an ordinary TLS-on-connect handshake, which the tab above terminates.
 
@@ -375,19 +375,19 @@ filter_chains:
           cluster: hoop_inspect_pg
 ```
 
-Postgres negotiates TLS in-band: the client sends an `SSLRequest` packet and waits for a one-byte reply, which is why this needs the `starttls` socket rather than a plain `DownstreamTlsContext`. The client then connects with `PGSSLMODE=require`, Envoy decrypts, and the relay receives the plaintext it needs.
+Postgres negotiates TLS in-band: the client sends an `SSLRequest` packet and waits for a one-byte reply, which is why this needs the `starttls` socket rather than a plain `DownstreamTlsContext`. The client then connects with `PGSSLMODE=require`, Envoy decrypts, and the Sidecar receives the plaintext it needs.
 
 <Warning>
 `postgres_proxy` ships only in the **contrib** image (`envoyproxy/envoy-contrib`), and Envoy marks it experimental and not hardened. The stock `envoyproxy/envoy` image rejects the config with `could not find @type … PostgresProxy`. On Envoy 1.33 the field is `terminate_ssl: true`; newer versions deprecate it in favor of `downstream_ssl: REQUIRE`, so check which your image accepts.
 </Warning>
 
-With all three legs covered, only the hop the relay reads is ever in the clear:
+With all three legs covered, only the hop the Sidecar reads is ever in the clear:
 
 | Leg | Encrypted by |
 |---|---|
 | client → Envoy | Envoy, via `starttls` + `postgres_proxy` (HTTPS listener on the HTTP lane, plain `DownstreamTlsContext` on an MSSQL one) |
 | Envoy → relay | nothing, and it must stay that way: the gate parses these bytes |
-| relay → database | the relay, via [`upstream_tls`](/setup/configuration/hoop-inspect/config-file#upstream-tls) |
+| relay → database | the Sidecar, via [`upstream_tls`](/setup/configuration/hoop-inspect/config-file#upstream-tls) |
 
 Keep the middle leg on loopback or a unix socket. It carries decrypted traffic by design, and a socket is the tighter boundary because no port exists to reach.
 
@@ -429,7 +429,7 @@ operations: [drop, delete, truncate, unknown]
 A rule written as `operations: [call]` stops matching `CALL` and `EXECUTE` entirely. Write `operations: [call, unknown]`.
 </Warning>
 
-Read what the relay recorded:
+Read what the Sidecar recorded:
 
 ```bash
 curl -s localhost:19000/stats                  | python3 -m json.tool
@@ -455,7 +455,7 @@ curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
 ]}
 ```
 
-On a socket deployment, ask the relay's own namespace what it listens on:
+On a socket deployment, ask the Sidecar's own namespace what it listens on:
 
 ```bash
 netstat -ltn        # or: ss -ltn
@@ -506,7 +506,7 @@ The same query now comes back rewritten:
 
 ## Run the whole thing on your laptop
 
-The repository ships a compose stack that runs all of this end to end: Envoy terminating TLS, OPA answering reachability, the relay behind both, a seeded Postgres and an HTTP service behind that. Needs `docker`, `curl`, `openssl` and `python3`.
+The repository ships a compose stack that runs all of this end to end: Envoy terminating TLS, OPA answering reachability, the Sidecar behind both, a seeded Postgres and an HTTP service behind that. Needs `docker`, `curl`, `openssl` and `python3`.
 
 ```bash
 git clone https://github.com/hoophq/hoop
@@ -526,7 +526,7 @@ The stack ships both transports. TCP is the default because it needs no shared v
     ./demo.sh
     ```
 
-    The relay binds `:15432` and `:18080` on the compose network. Neither is published to the host.
+    The Sidecar binds `:15432` and `:18080` on the compose network. Neither is published to the host.
   </Tab>
   <Tab title="Unix socket (overlay)">
     ```bash
@@ -559,7 +559,7 @@ The stack ships both transports. TCP is the default because it needs no shared v
 | 19000 | relay admin: `/healthz`, `/stats`, `/config`, `/events`, `/api/*` |
 | 9901 | Envoy admin |
 
-Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the relay's two, which were never published to the host.
+Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the Sidecar's two, which were never published to the host.
 
 <Note>
 SQL Server runs in two stacks of its own, and what separates them is who terminates the client's TLS. `deploy/docker-compose/envoy-stack/mssql/` (`hoopinspect/scripts/dev/mssql-stack.sh`) runs SQL Server 2022 over TDS 8.0, with Envoy terminating, a Samba AD DC and a client holding a ticket. `deploy/docker-compose/envoy-stack/mssql2019/` (`mssql2019-stack.sh`) runs TDS 7.4 with no Envoy at all, covering the encrypted login; its `MSSQL_TAG` accepts 2017, 2019 and 2022. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#local-testing).
@@ -573,12 +573,12 @@ SQL Server runs in two stacks of its own, and what separates them is who termina
 |---|---|
 | A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
 | Masking leaves a value alone | The detector may refuse it. Add a column rule, or widen `pii.entities`. |
-| The relay refuses to start | It prints every config problem at once, each naming its lane |
-| psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The relay reads plaintext either way. |
-| Envoy returns 503 with `flags=UF` | On a socket lane, Envoy lacks write permission on the socket file. Check `ls -l` on the directory and the relay's umask. On TCP, check the cluster address. |
+| The Sidecar refuses to start | It prints every config problem at once, each naming its lane |
+| psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The Sidecar reads plaintext either way. |
+| Envoy returns 503 with `flags=UF` | On a socket lane, Envoy lacks write permission on the socket file. Check `ls -l` on the directory and the Sidecar's umask. On TCP, check the cluster address. |
 | Everything is allowed | `policy.enforce` defaults to false. `/config` reports `enforcing` per lane. |
-| `bind: permission denied` at startup | The relay cannot write to the socket directory. Chown it, or set `fsGroup` on the pod. |
-| `is a live socket; another relay is already listening on it` | A second relay tried to bind a path in use. Stop the first one. |
+| `bind: permission denied` at startup | The Sidecar cannot write to the socket directory. Chown it, or set `fsGroup` on the pod. |
+| `is a live socket; another relay is already listening on it` | A second Sidecar tried to bind a path in use. Stop the first one. |
 | Envoy rejects the cluster config | A `pipe:` endpoint needs `type: STATIC`; `STRICT_DNS` tries to resolve a filesystem path. A `socket_address` endpoint needs `STRICT_DNS` or `STATIC` with an IP. |
 
 ---
@@ -593,6 +593,6 @@ SQL Server runs in two stacks of its own, and what separates them is who termina
     Every section, every rule type, inheritance between lanes, and what startup refuses.
   </Card>
   <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
-    How a request flows through the relay, multi-lane and unix-socket deployments, Kubernetes.
+    How a request flows through the Sidecar, multi-lane and unix-socket deployments, Kubernetes.
   </Card>
 </CardGroup>

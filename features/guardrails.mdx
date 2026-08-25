@@ -1,0 +1,247 @@
+---
+title: "Guardrails"
+description: "An ordered deny list evaluated against every statement, before it reaches the resource."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+Someone runs this against production:
+
+```sql
+UPDATE users SET email = 'test@example.com';
+```
+
+The `WHERE` clause is missing. 500,000 rows change. The statement was valid, the credentials were valid, the permissions were valid — nothing in the database's own model of correctness had an objection.
+
+Guardrails are the objection. Every statement is decoded and evaluated before it reaches the resource, and a rule that matches refuses it with a message you wrote.
+
+<EnterpriseLimit />
+
+---
+
+## How a rule set resolves
+
+Three sentences cover the entire semantics:
+
+1. A rule matches, and by default it **denies**.
+2. **First match wins** among the rules that deny.
+3. A rule set is an ordered deny list. No match means allowed.
+
+```yaml config.yaml
+policy:
+  enforce: true
+  rules:
+    - name: no-destructive-sql
+      type: operation
+      operations: [drop, delete, truncate]
+      message: destructive statements are not permitted on this listener
+```
+
+Every rule takes `name`, `message` and `action` in addition to its own fields.
+
+<Warning>
+`policy.enforce` defaults to **false**. Without it every listener inspects and audits but denies nothing — which is exactly how you want to roll out, and not how you want to leave it. `/config` on the admin API reports `enforcing` per listener.
+</Warning>
+
+---
+
+## Rule types
+
+| `type` | Matches on | Protocols |
+|---|---|---|
+| `operation` | the statement's most consequential effect | SQL, HTTP |
+| `table` | the relation touched, narrowed by read or write | SQL |
+| `deny_words_list` | a case-insensitive substring of the raw text | any |
+| `pattern_match` | an RE2 regex over the statement text | any |
+| `pii` | entity classes a detector finds *in the request* | any |
+| `http_resource` | the normalized request path | HTTP |
+| `http_status` | the response status | HTTP |
+| `ai_analysis` | risk a language model reports | any |
+
+<AccordionGroup>
+  <Accordion title="operation — deny by effect">
+    ```yaml
+    - name: no-destructive-sql
+      type: operation
+      operations: [drop, delete, truncate]
+      message: destructive statements are not permitted on this listener
+    ```
+
+    `operation` reads the statement's **worst effect**, not its leading verb. A delete hidden in a CTE — `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` — reports `delete` and this rule catches it. `EXPLAIN DELETE …` reports `explain`; `EXPLAIN ANALYZE DELETE …` reports `delete`, because it runs.
+
+    Vocabulary: `select insert update delete merge create drop alter truncate grant revoke call copy explain show set begin commit rollback`, plus `other` (parsed but unclassified) and `unknown` (the scanner could not finish). HTTP verbs are their own values: `get post put patch head options connect trace`.
+  </Accordion>
+  <Accordion title="table — deny by relation">
+    ```yaml
+    - name: customers-is-read-only
+      type: table
+      tables: [customers]
+      access: write
+      message: customers is read-only through this listener
+    ```
+
+    `access` is `read` or `write`. Add `require_table_match: true` to also deny when the relations could not be determined — the fail-closed posture for anything genuinely off limits.
+  </Accordion>
+  <Accordion title="deny_words_list — deny by substring">
+    ```yaml
+    - name: no-admin-functions
+      type: deny_words_list
+      words: [pg_sleep, pg_terminate_backend]
+      message: administrative functions are not available here
+    ```
+
+    Case-insensitive, matched against the raw statement text.
+  </Accordion>
+  <Accordion title="pattern_match — deny by regex">
+    ```yaml
+    - name: no-unqualified-delete
+      type: pattern_match
+      pattern_regex: '(?i)^\s*delete\s+from\s+\w+\s*;?\s*$'
+      message: a DELETE on this listener needs a WHERE clause
+    ```
+
+    RE2 syntax — no lookaround, no backreferences. A bad regex is rejected at startup, naming the listener and the rule.
+  </Accordion>
+  <Accordion title="pii — deny sensitive values in the request">
+    ```yaml
+    - name: no-national-id-in-query
+      type: pii
+      entities: [BR_CPF, US_SSN]
+      message: do not put a national ID in a query; it lands in the database's own logs
+    ```
+
+    Requires a top-level `pii.entities` block. A rule naming an entity absent from that list is **refused at startup** — otherwise the guardrail would look live while allowing through everything it was written to stop.
+  </Accordion>
+  <Accordion title="http_resource and http_status">
+    ```yaml
+    - name: no-admin-api
+      type: http_resource
+      resources: ["/admin/**"]
+      methods: [POST, DELETE]
+      message: the admin API is not reachable through this proxy
+    ```
+
+    ```yaml
+    - name: no-upstream-5xx
+      type: http_status
+      statuses: ["5xx"]
+      message: upstream failure suppressed by policy
+    ```
+
+    `http_status` is response-side, which is why an authorization filter running before the upstream can never ask it.
+  </Accordion>
+  <Accordion title="ai_analysis — deny by classified risk">
+    ```yaml
+    - name: risky-writes
+      type: ai_analysis
+      trigger: {operations: [update, delete]}
+      high: block
+      medium: warn
+    ```
+
+    This is the [Agentic Access](/features/agentic-access) path. It takes per-risk-level actions instead of an `action` field, and setting `action` on it is refused at startup.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+`CALL` and `EXECUTE` report `unknown` rather than `call`, because their bodies live in the catalog and no parser can say what they touch. A rule written `operations: [call]` matches neither. Write `operations: [call, unknown]`.
+</Warning>
+
+---
+
+## Actions
+
+`action` on a regular rule is either empty or `defer`. That is the whole list.
+
+| `action` | Effect |
+|---|---|
+| *(empty)* | Deny. First match wins. |
+| `defer` | Record a finding, keep evaluating, and hand the decision to an external policy endpoint. |
+
+```yaml
+- name: cpf
+  type: pii
+  entities: [BR_CPF]
+  action: defer          # the policy endpoint rules on it
+```
+
+`defer` with no `policy.opa.url` configured is refused at startup — a finding nobody reads forwards every statement while looking like enforcement.
+
+<Note>
+`action: warn` and `require_review` are **refused at startup**. `warn` exists only as a per-tier action on `ai_analysis` rules. Human review needs a review backend the current build does not ship — see [Agentic Access](/features/agentic-access#the-tools). For everything else, `defer` is how a rule stops short of deciding.
+</Note>
+
+---
+
+## Inheritance: policy rules concatenate
+
+A listener's rules are evaluated **first**, then the top-level defaults:
+
+```yaml config.yaml
+policy:                          # inherited by every listener
+  enforce: true
+  rules:
+    - name: no-cpf-in-query
+      type: pii
+      entities: [BR_CPF]
+      message: do not put a taxpayer id in a query
+
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+    policy:
+      rules:                     # runs before the inherited rule above
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on appdb
+```
+
+Concatenation is safe here precisely because first-match-wins applies to denials: adding rules can never turn a deny into an allow, only change which message the user reads. `policy.opa` and `policy.enforce` replace rather than merge, and [`mask` replaces too](/features/data-masking#inheritance-a-listeners-mask-block-replaces-the-defaults).
+
+---
+
+## Roll out without breaking anything
+
+<Steps>
+  <Step title="Start observe-only">
+    Leave `policy.enforce: false`. Every statement is inspected and audited, nothing is denied.
+  </Step>
+  <Step title="Validate the config">
+    ```bash
+    hoop start sidecar --config config.yaml --validate
+    ```
+
+    ```
+    config OK: 1 listener(s)
+      appdb            postgres  observe-only
+    ```
+  </Step>
+  <Step title="Read what would have been denied">
+    ```bash
+    curl -s 'localhost:19000/api/events?kind=violation' | python3 -m json.tool
+    ```
+  </Step>
+  <Step title="Turn on enforcement">
+    Set `policy.enforce: true`. `/config` confirms `enforcing` per listener.
+  </Step>
+</Steps>
+
+---
+
+<Note>
+Looking for guardrails on the **Hoop Gateway** instead? That is a different implementation — Python regex patterns configured in the web app, with Block, Warn and Require Approval actions. See [Guardrails](/learn/features/guardrails).
+</Note>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Policy Rules Reference" icon="scale-balanced" href="/setup/configuration/hoop-inspect/policy-rules">
+    Every field of every rule type, deferring to Rego, and the full findings vocabulary.
+  </Card>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Control what comes back, not just what goes in.
+  </Card>
+</CardGroup>

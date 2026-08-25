@@ -1,0 +1,154 @@
+---
+title: "Data Masking"
+description: "Rewrite sensitive values in the response, in memory, before they reach the client."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+A query runs against real production data and returns real production data. Data Masking sits on the way back: the [Sidecar](/core-concepts/sidecar) decodes the response as it streams, finds sensitive values, and rewrites them before the client ever sees them.
+
+Nothing is copied, staged or transformed at rest. The masking happens in memory, in real time, at the protocol layer — so it works the same for `psql`, for an ORM, for a dashboard and for an agent.
+
+<Warning>
+Masking runs on **responses only**. Requests are never rewritten: changing the statement the upstream executes is a correctness change wearing a privacy label.
+</Warning>
+
+<EnterpriseLimit />
+
+---
+
+## Configuration
+
+Two blocks, and both are required. `pii` turns detection on; `mask` says what to do with what was detected.
+
+```yaml config.yaml
+pii:
+  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
+
+mask:
+  enabled: true
+  rules:
+    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+    - {name: ssn,    entity: US_SSN, strategy: partial, keep_last: 4}
+```
+
+The same query now comes back rewritten:
+
+```
+     name     |          email           |     ssn     |          iban
+--------------+--------------------------+-------------+------------------------
+ Ada Lovelace | [REDACTED:EMAIL_ADDRESS] | ***-**-6789 | ******************5432
+ Grace Hopper | [REDACTED:EMAIL_ADDRESS] | ***-**-4321 | ******************3000
+```
+
+<Warning>
+`pii.entities` is required and there is no all-entities default. A `mask` rule naming an entity that detection was never told to look for loads cleanly, evaluates, and masks nothing — the config looks live while everything leaks. Name the types your data actually contains.
+
+The opposite is also a real cost: turning on every recognizer rewrites ordinary numeric columns, because nine digits in a legal range is a valid `US_SSN` as far as any detector can tell.
+</Warning>
+
+### Rule fields
+
+| Field | Meaning |
+|---|---|
+| `entity` | Entity type to rewrite wherever it appears. Required unless `columns` is set. |
+| `columns` | Result-set column names to mask outright, compared case-insensitively. |
+| `strategy` | `redact`, `mask`, `partial` or `hash`. Empty means `redact`. |
+| `keep_last` | Tail length for `partial`. Default `4`. |
+| `mask_char` | Replacement character for `mask` and `partial`. Default `*`. |
+
+### Strategies
+
+| Strategy | `4111111111111111` becomes |
+|---|---|
+| `redact` | `[REDACTED:CREDIT_CARD]` |
+| `mask` | `****************` |
+| `partial` | `************1111` |
+| `hash` | `sha256:<first 16 hex>` |
+
+`hash` is the one worth knowing about: equal inputs give equal outputs, so a masked column still works as a join key. An analyst can group by customer without ever seeing a customer.
+
+---
+
+## Entity rules and column rules
+
+Two ways to name what gets masked, and they fail in opposite directions.
+
+**Entity rules** mask by detection. They work anywhere a value appears, including inside an opaque HTTP body where the protocol names nothing — and they miss whatever the detector does not recognize.
+
+**Column rules** mask by position. They cannot miss, because they never guess — and they only work where the protocol names its values, which means result sets, not payloads.
+
+```
+postgres  SELECT ssn FROM customers   →  ***-**-6789   column rule caught it
+HTTP      POST {"x":"123-45-6789"}    →  123-45-6789   no detection, no column
+```
+
+Use column rules for the columns you know, and entity rules for everything else.
+
+---
+
+## Inheritance: a listener's mask block replaces the defaults
+
+This is the single most common way a working config quietly stops masking:
+
+```yaml config.yaml
+mask:                                    # top-level defaults
+  enabled: true
+  rules:
+    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+    - {name: ssn, entity: US_SSN, strategy: partial, keep_last: 4}
+
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+    mask:
+      rules:
+        - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
+        - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}   # relisted on purpose
+```
+
+A listener's `mask` block **replaces** the top-level list rather than extending it. Adding one column rule drops every inherited entity rule, so list those again alongside it. This is deliberate: a rule owns an entity type, and two concatenated lists would leave two rules competing for one entity.
+
+[`policy.rules` behaves the opposite way](/features/guardrails) — it concatenates.
+
+---
+
+## Verify what actually resolved
+
+The admin API reports the resolved state per listener, which is the only place the merge above is visible:
+
+```bash
+hoop start sidecar --config config.yaml --validate
+```
+
+```
+config OK: 1 listener(s)
+  appdb            postgres  enforcing 1 rule(s) + masking
+```
+
+```bash
+curl -s localhost:19000/config | python3 -m json.tool
+```
+
+<Tip>
+If a value comes back unmasked, the detector probably refused it rather than missed it — obvious test fixtures like `123-45-6789` are deliberately not reported. Add a column rule, or widen `pii.entities`.
+</Tip>
+
+---
+
+<Note>
+Looking for masking on the **Hoop Gateway** instead? That is a different implementation, configured in the web app with DLP providers and per-resource roles. See [Live Data Masking](/learn/features/live-data-masking).
+</Note>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-halved" href="/features/guardrails">
+    Control what reaches the resource, not just what comes back.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+    Every field, the full entity list, and what startup refuses.
+  </Card>
+</CardGroup>

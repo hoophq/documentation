@@ -1,0 +1,74 @@
+---
+title: "Install the Control Plane"
+description: "Deploy the Control Plane in your own infrastructure with Docker Compose, Kubernetes or AWS."
+---
+
+The [Control Plane](/core-concepts/control-plane) is the service your Sidecars register with and pull configuration from. You run one per environment.
+
+<Note>
+  The Control Plane is an **Enterprise** feature and requires a license. [Talk to us](https://hoop.dev/start) to get one, or use the [managed service](https://use.hoop.dev) and skip this page entirely.
+</Note>
+
+---
+
+## Before you start
+
+- A license key.
+- A PostgreSQL database the Control Plane can reach.
+- An identity provider — see [Identity Providers](/setup/configuration/idp/get-started) for the supported list and per-provider setup.
+- A hostname your Sidecars can reach over HTTPS. Sidecars only ever make outbound requests, so the Control Plane does not need to reach *them*.
+
+<Warning>
+The deployment guides below say "gateway" throughout. Read it as "Control Plane": the container image, the Helm chart and the environment variables are the ones you want.
+</Warning>
+
+---
+
+## Deployment options
+
+<CardGroup cols={3}>
+  <Card title="Docker Compose" icon="docker" href="/setup/deployment/docker-compose">
+    The fastest way to stand one up. Good for evaluation and for single-host production.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/setup/deployment/kubernetes">
+    Helm chart, with the full set of values for ingress, database and secrets.
+  </Card>
+  <Card title="AWS" icon="aws" href="/setup/deployment/AWS">
+    A CloudFormation stack that provisions the network, database and service.
+  </Card>
+</CardGroup>
+
+---
+
+## After it is running
+
+<Steps>
+  <Step title="Connect your identity provider">
+    Nobody can sign in until this is done. Each provider has its own guide under [Identity Providers](/setup/configuration/idp/get-started) — Auth0, Okta, Google, Azure, JumpCloud, AWS Cognito, OneLogin and Keycloak are all supported.
+  </Step>
+  <Step title="Apply your license">
+    See [License Management](/setup/license-management).
+  </Step>
+  <Step title="Connect your first Sidecar">
+    Issue a token, point a Sidecar at the Control Plane, and confirm it picked up its configuration. See [Connect a Sidecar](/control-plane/connect-sidecar).
+  </Step>
+</Steps>
+
+---
+
+## Keeping it current
+
+See [Updating](/setup/updating) for the upgrade process. Sidecars and the Control Plane are versioned independently, but keep them within a minor release of each other.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Connect a Sidecar" icon="link" href="/control-plane/connect-sidecar">
+    Token, server host, and confirming the handshake.
+  </Card>
+  <Card title="Environment Variables" icon="list" href="/setup/configuration/env-vars">
+    Every variable the service reads.
+  </Card>
+</CardGroup>

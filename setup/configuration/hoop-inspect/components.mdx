@@ -1,9 +1,9 @@
 ---
-title: "Components and Architecture"
-description: "How a request flows through hoop-inspect, and how to place it in a real deployment"
+title: "Architecture"
+description: "How a request flows through the Sidecar, and how to place it in a real deployment"
 ---
 
-This page traces one connection from the client through Envoy, through the relay, to the upstream and back. Read it to find out where a policy denial happens, why Postgres masking takes a different path from HTTP masking, and which knob in `config.yaml` controls which behavior.
+This page traces one connection from the client through Envoy, through the Sidecar, to the upstream and back. Read it to find out where a policy denial happens, why Postgres masking takes a different path from HTTP masking, and which knob in `config.yaml` controls which behavior.
 
 <Note>
 For the commands, start at [Get Started](/setup/configuration/hoop-inspect/get-started). For every config field, see the [Config File reference](/setup/configuration/hoop-inspect/config-file).
@@ -13,7 +13,7 @@ For the commands, start at [Get Started](/setup/configuration/hoop-inspect/get-s
 
 ## The two tiers
 
-Envoy owns TLS and the network path. OPA answers reachability. `hoop-inspect` reads the payload.
+Envoy owns TLS and the network path. OPA answers reachability. The Sidecar reads the payload.
 
 ```mermaid
 flowchart TB
@@ -26,7 +26,7 @@ flowchart TB
 
     OPA["opa :9191<br/>ext_authz · authz.rego<br/>tier 1: reachability"]
 
-    subgraph si["hoop-inspect process"]
+    subgraph si["Sidecar process"]
       LH["lane httpbin<br/>http codec"]
       LP["lane appdb<br/>postgres codec"]
       ADM["admin :19000<br/>/healthz /stats /config /api"]
@@ -55,9 +55,9 @@ On HTTP, `ext_authz` handles request-side authorization well. The gap sits on th
 The HTTP codec captures **nothing** by default: no bodies, no headers. Everything captured reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so a lane opts in per listener with an `http:` block. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#the-http-lane-needs-capture-body).
 </Note>
 
-### Where Envoy ends and the relay begins
+### Where Envoy ends and the Sidecar begins
 
-|  | Envoy | hoop-inspect |
+|  | Envoy | Sidecar |
 |---|---|---|
 | Postgres SQL parse | `postgres_proxy`, best effort | full statement text |
 | Postgres granularity | `table.db` + operation verb | statement, its worst effect, every effect, and each relation as a read or a write |
@@ -66,13 +66,13 @@ The HTTP codec captures **nothing** by default: no bodies, no headers. Everythin
 | HTTP **response** | not available, ext_authz decides before the upstream runs | status; body and headers under the same setting |
 | Deny UX | RBAC/ext_authz drops the connection or returns a bare 403 | the message an operator wrote |
 
-Envoy is not blind here, and an argument that says otherwise loses a technical review. The relay covers what remains.
+Envoy is not blind here, and an argument that says otherwise loses a technical review. The Sidecar covers what remains.
 
 ---
 
 ## One process, one lane per Envoy cluster
 
-`hoop-inspect` serves one listener per Envoy cluster. Each listener resolves its own rules, its own masking and its own OPA endpoint.
+The Sidecar serves one listener per Envoy cluster. Each listener resolves its own rules, its own masking and its own OPA endpoint.
 
 ```
 envoy :8443 ──cluster hoop_inspect_http──> lane "httpbin"   http
@@ -82,13 +82,13 @@ envoy :5432 ──cluster hoop_inspect_pg────> lane "appdb"     postgres
 
 Each lane binds a unix socket or a TCP port, set per listener. Nothing above the transport changes, because the gate reads a `net.Conn` and never asks what kind it is.
 
-Most sidecars run one lane. A per-user pod fronting both a database and an API runs two in one process instead of two containers. The relay resolves the merge between top-level defaults and a lane's overrides once at startup, and reports every broken lane in one run.
+Most sidecars run one lane. A per-user pod fronting both a database and an API runs two in one process instead of two containers. The Sidecar resolves the merge between top-level defaults and a lane's overrides once at startup, and reports every broken lane in one run.
 
 ---
 
 ## Inside one connection
 
-The relay accepts a socket, builds per-connection state, and starts two goroutines that pump in opposite directions through one Gate.
+The Sidecar accepts a socket, builds per-connection state, and starts two goroutines that pump in opposite directions through one Gate.
 
 ```
 accept
@@ -196,7 +196,7 @@ Three fields come out of it, and a rule can key on any of them:
 
 Comments and string literals never reach the token stream, so `SELECT 'DROP TABLE customers'` is a `select` and a `deny_words_list` rule on `DROP` denies that harmless query. Prefer `type: operation`, and see [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) for what each rule type reads.
 
-A statement whose body the scanner cannot reach reports `Operation: unknown` and sets `Metadata["sql.incomplete"]` to the reason: `CALL purge()` gives "stored procedure; body is in the catalog", `EXECUTE p` gives "prepared statement; the text was supplied elsewhere", `DO $$…$$` gives "anonymous code block; body is interpreted at runtime". That pair is the fail-closed signal. Name `unknown` in a rule and the relay refuses what nobody can read.
+A statement whose body the scanner cannot reach reports `Operation: unknown` and sets `Metadata["sql.incomplete"]` to the reason: `CALL purge()` gives "stored procedure; body is in the catalog", `EXECUTE p` gives "prepared statement; the text was supplied elsewhere", `DO $$…$$` gives "anonymous code block; body is interpreted at runtime". That pair is the fail-closed signal. Name `unknown` in a rule and the Sidecar refuses what nobody can read.
 
 ### Checked against PostgreSQL's own grammar
 
@@ -475,7 +475,7 @@ hoop-inspect:
     socket-dir: { condition: service_completed_successfully }
 ```
 
-The setgid bit on the directory and `umask 0002` on the relay are what make the sockets group-writable, which is the permission Envoy needs to connect.
+The setgid bit on the directory and `umask 0002` on the Sidecar are what make the sockets group-writable, which is the permission Envoy needs to connect.
 
 <Warning>
 Two permission traps cost real time to diagnose.
@@ -489,7 +489,7 @@ Keep the admin listener on TCP. It serves `/healthz` to a healthcheck and `/stat
 
 #### Proving the port is gone
 
-Ask the relay's own namespace what it bound:
+Ask the Sidecar's own namespace what it bound:
 
 ```bash
 docker compose exec -T hoop-inspect netstat -ltn
@@ -504,11 +504,11 @@ That is the whole list. On a TCP deployment the same command also shows `:::1543
 
 #### Restarting after an unclean exit
 
-Go unlinks the socket when the listener closes, so SIGTERM leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process. The relay reclaims it at startup by dialing the path: a socket nothing answers on gets unlinked with a warning, and one that answers is left alone while the bind fails, naming the conflict. Two relays sharing a socket would split a client's connections between them at random.
+Go unlinks the socket when the listener closes, so SIGTERM leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process. The Sidecar reclaims it at startup by dialing the path: a socket nothing answers on gets unlinked with a warning, and one that answers is left alone while the bind fails, naming the conflict. Two relays sharing a socket would split a client's connections between them at random.
 
 ### Envoy over a TCP port
 
-Sockets need both processes to mount one directory and agree on uids. That is cheap in a pod spec and awkward where the relay and its peer sit on different hosts. Drop `network` from the lane, give `listen` a `host:port`, and point a `STRICT_DNS` cluster at it:
+Sockets need both processes to mount one directory and agree on uids. That is cheap in a pod spec and awkward where the Sidecar and its peer sit on different hosts. Drop `network` from the lane, give `listen` a `host:port`, and point a `STRICT_DNS` cluster at it:
 
 ```yaml config.yaml
 listeners:
@@ -531,11 +531,11 @@ listeners:
                 socket_address: { address: hoop-inspect, port_value: 15432 }
 ```
 
-Bind loopback where the two share a network namespace. A `0.0.0.0` bind is reachable by anything that can route to the host, and the relay authenticates nobody: it assumes whatever reaches it already passed identity.
+Bind loopback where the two share a network namespace. A `0.0.0.0` bind is reachable by anything that can route to the host, and the Sidecar authenticates nobody: it assumes whatever reaches it already passed identity.
 
 ### As a sidecar container
 
-The relay ships as a small static binary that reads one file. A [Dockerfile](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/hoopinspect/Dockerfile) is in the repository; the process needs no privileges, so run it as a non-root user.
+The Sidecar ships as a small static binary that reads one file. A [Dockerfile](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/hoopinspect/Dockerfile) is in the repository; the process needs no privileges, so run it as a non-root user.
 
 ```yaml docker-compose.yml
 hoop-inspect:
@@ -568,7 +568,7 @@ containers:
 
 `fsGroup` on the pod securityContext replaces the chown step: the kubelet applies it to the `emptyDir` before any container starts. Set it to Envoy's gid and both sides can use the directory.
 
-Mount the config as a ConfigMap and set `HOOP_INSPECT_CONFIG` instead of passing a flag.
+Mount the config as a ConfigMap and set `HOOP_SIDECAR_CONFIG` instead of passing a flag.
 
 ---
 
@@ -586,17 +586,17 @@ A sidecar lane used to send an **empty** `input.context`. The gate looked for a 
 
 ## Known limits
 
-Read these before writing a policy against the relay.
+Read these before writing a policy against the Sidecar.
 
 - **Three codecs ship: postgres, mssql and http.** Adding one means a new `codec/<name>` package and nothing else.
 - **Relations come from a scanner, not a SQL grammar.** One pass over a labelled region stack, reporting each relation as a read or a write. A statement it cannot finish comes back with no relations and an `unknown` operation carrying the reason in `metadata["sql.incomplete"]`, so "could not determine" never reads as "touches nothing". Set `require_table_match: true` on rules protecting something critical and accept the false positives. `lexer/conformance` holds the scanner to zero wrong answers against PostgreSQL 17.5's grammar.
-- **A response batch can be truncated.** The Postgres codec stops decoding columns past 1000 rows in one result set, to keep the relay's memory out of a query's hands. It keeps counting and marks the batch truncated. A policy must read that as inconclusive, never as proof a value is absent.
+- **A response batch can be truncated.** The Postgres codec stops decoding columns past 1000 rows in one result set, to keep the Sidecar's memory out of a query's hands. It keeps counting and marks the batch truncated. A policy must read that as inconclusive, never as proof a value is absent.
 - **A response statement carries no verb.** For database codecs a server-direction statement reports `unknown`, because the operation belongs to the request the audit trail already recorded. Key a response-side SQL rule on the result, not on the operation.
 - **MSSQL statement extraction covers `sp_executesql`.** `sp_prepare`, `sp_prepexec` and the cursor family yield no statement, which is how JDBC and .NET send prepared statements. `EXEC('DELETE ...')` reports `unknown` with the reason "stored procedure; body is in the catalog", so a rule naming `unknown` refuses it and one naming `call` no longer matches.
 - **PII detection is neither sound nor complete.** A checksum-verified identifier holds up. Everything else is a pattern. Detecting a name column needs NER, which this does not wire, and a caller can split a value across two responses. Masking raises the cost of accidental exposure without replacing "do not grant access to that table".
 - **HTTP/1.x only for stream decoding.** HTTP/2 and HTTP/3 framing belongs to whatever terminated the connection.
-- **Plaintext at the relay, with one exception.** A client negotiating TLS end to end past the relay leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the relay walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the relay originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the relay can start.
-- **A session encrypted end to end is refused, not forwarded.** `ENCRYPT_ON`, or a TDS 8.0 client reaching the relay with nothing terminating in front, leaves no statement that can be classified, masked or audited. Both report `rule: stream-unsafe` and name the cause. Such a session used to connect and run uninspected, so check what your driver sets for `Encrypt` before putting an existing MSSQL lane behind this: ODBC Driver 18 and SqlClient 5+ default to `Mandatory`, go-mssqldb to `ENCRYPT_OFF`.
+- **Plaintext at the Sidecar, with one exception.** A client negotiating TLS end to end past the Sidecar leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the Sidecar walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the Sidecar originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the Sidecar can start.
+- **A session encrypted end to end is refused, not forwarded.** `ENCRYPT_ON`, or a TDS 8.0 client reaching the Sidecar with nothing terminating in front, leaves no statement that can be classified, masked or audited. Both report `rule: stream-unsafe` and name the cause. Such a session used to connect and run uninspected, so check what your driver sets for `Encrypt` before putting an existing MSSQL lane behind this: ODBC Driver 18 and SqlClient 5+ default to `Mandatory`, go-mssqldb to `ENCRYPT_OFF`.
 - **Statements are not transactions.** Each one gets its own verdict, and no cross-statement session state exists.
 - **No SSH lane.** No SSH codec ships. Envoy ships no SSH filter at any fidelity either, so every service reached over SSH sits unpoliced by the Envoy and OPA layer.
 
@@ -608,8 +608,8 @@ The repository ships a compose stack that runs every component on this page end 
 
 | File | What it holds |
 |---|---|
-| [`docker-compose.yml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/docker-compose.yml) | Six containers: Envoy, OPA, the relay, Postgres, an HTTP service, a client |
-| [`envoy/envoy.yaml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/envoy/envoy.yaml) | Both listeners, the `ext_authz` filter, and the relay clusters |
+| [`docker-compose.yml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/docker-compose.yml) | Six containers: Envoy, OPA, the Sidecar, Postgres, an HTTP service, a client |
+| [`envoy/envoy.yaml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/envoy/envoy.yaml) | Both listeners, the `ext_authz` filter, and the Sidecar clusters |
 | [`opa/authz.rego`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/opa/authz.rego) | Tier-1 reachability policy |
 | [`hoopinspect/config.yaml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/hoopinspect/config.yaml) | Two lanes with rules, masking and upstream TLS |
 | [`uds/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/uds) | The socket overlay: `pipe:` clusters, the init container, and both permission traps solved |
@@ -624,7 +624,7 @@ The repository ships a compose stack that runs every component on this page end 
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
   <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
-    Configure Envoy, run the relay, and watch a denial land in psql.
+    Configure Envoy, run the Sidecar, and watch a denial land in psql.
   </Card>
   <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
     Every section, every rule type, and what startup refuses.

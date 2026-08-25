@@ -1,5 +1,5 @@
 ---
-title: "Policy Rules"
+title: "Policy Rules Reference"
 description: "Write a rule, pick deny or defer, and hand the judgement call to Rego"
 ---
 
@@ -292,7 +292,7 @@ A `pii` rule knows which entity classes a statement carries. Whether a statement
 
     `phase`, `findings`, `effects` and `relations` are additive. A single-call lane with no producers sends a byte-identical document to the one it sent before any of this existed.
 
-    The relay fills `input.context` from the session: `principal`, `session_id` and `connection` always, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them.
+    The Sidecar fills `input.context` from the session: `principal`, `session_id` and `connection` always, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them.
   </Step>
 
   <Step title="Rego rules on it">
@@ -441,7 +441,7 @@ curl -s localhost:19000/config | jq '.lanes[] | {name, rules}'
 
 ## Recipes
 
-Four complete lane configs. Each one validates with `hoop-inspect -validate -config config.yaml`.
+Four complete lane configs. Each one validates with `hoop start sidecar --validate --config config.yaml`.
 
 <Tabs>
   <Tab title="Read-only replica">
@@ -684,7 +684,7 @@ Each of these would otherwise load, evaluate and do nothing:
 Check before you deploy. Nothing needs to be running:
 
 ```bash
-hoop-inspect -validate -config config.yaml
+hoop start sidecar --validate --config config.yaml
 ```
 
 ```

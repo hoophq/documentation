@@ -1,0 +1,131 @@
+---
+title: "Quickstart"
+description: "Run your first Sidecar in front of a local database"
+---
+
+One config file describes a Sidecar: where it listens, what it sits in front of, and the rules it applies. The one below masks emails in every response and refuses destructive statements.
+
+You need the `hoop` CLI — see [Install the Sidecar](/introduction/getting-started#install-the-sidecar) — and a resource to put it in front of. This example uses a local database; an HTTP API works the same way, with the `protocol` line changed.
+
+---
+
+## Run your first Sidecar
+
+<Steps>
+  <Step title="Write config.yaml">
+    ```yaml config.yaml
+    log_level: info
+
+    admin:
+      listen: 127.0.0.1:19000        # /healthz /stats /config /events
+
+    audit:
+      file: "-"                      # JSON lines on stdout
+
+    pii:
+      entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD]
+
+    mask:                            # one Data Masking rule
+      enabled: true
+      rules:
+        - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+
+    policy:                          # one Guardrail
+      enforce: true
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted
+
+    listeners:
+      - name: localdb
+        protocol: postgres           # postgres | mssql | http
+        listen: 127.0.0.1:15432      # where clients connect
+        upstream: 127.0.0.1:5432     # your real database
+        connection: localdb
+    ```
+
+    <Note>
+      This file sits exactly at the free tier: one Data Masking rule, one Guardrail. Both features are free at that size, forever.
+    </Note>
+  </Step>
+
+  <Step title="Validate it">
+    Nothing needs to be running. The validator builds every listener and reports every problem in one pass:
+
+    ```bash
+    hoop start sidecar --config config.yaml --validate
+    ```
+
+    ```
+    config OK: 1 listener(s)
+      localdb          postgres  enforcing 1 rule(s) + masking
+    ```
+  </Step>
+
+  <Step title="Start it">
+    ```bash
+    hoop start sidecar --config config.yaml
+    ```
+
+    Confirm it came up:
+
+    ```bash
+    curl -s localhost:19000/healthz     # ok
+    ```
+  </Step>
+
+  <Step title="Connect through it">
+    Point your client at the Sidecar's port instead of the database's:
+
+    ```bash
+    PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U postgres
+    ```
+  </Step>
+
+  <Step title="Watch it work">
+    Emails come back rewritten, and the client never sees the real value:
+
+    ```
+     SELECT name, email FROM customers;
+
+         name     |          email
+    --------------+--------------------------
+     Ada Lovelace | [REDACTED:EMAIL_ADDRESS]
+     Grace Hopper | [REDACTED:EMAIL_ADDRESS]
+    ```
+
+    A destructive statement never reaches the database:
+
+    ```
+     DELETE FROM customers WHERE id = 1;
+
+    FATAL:  destructive statements are not permitted
+    ```
+
+    That is a real pgwire error carrying the message you wrote in `config.yaml`, so the developer reads the reason in `psql` instead of watching a connection drop.
+
+    Read what was recorded:
+
+    ```bash
+    curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Where to go next
+
+<CardGroup cols={3}>
+  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-inspect/get-started">
+    Transports, putting it behind Envoy, and a compose stack that runs the whole thing on your laptop.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+    Every section, every field, and what startup refuses.
+  </Card>
+  <Card title="Hoop Gateway" icon="server" href="/gateway/overview">
+    The full platform: web app, agents, session recording, access requests, runbooks and integrations.
+  </Card>
+</CardGroup>

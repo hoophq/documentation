@@ -3,18 +3,18 @@ title: "Kerberos and SQL Server"
 description: "Inspect MSSQL and Postgres sessions where the user authenticates with a Kerberos ticket"
 ---
 
-`hoop-inspect` relays Kerberos-authenticated database sessions and inspects each
+The Sidecar relays Kerberos-authenticated database sessions and inspects each
 statement inside them. It holds no credential, reads no ticket, and contains no
 Kerberos code.
 
-A user runs `kinit`, their OS mints a ticket, and the relay carries it to the
+A user runs `kinit`, their OS mints a ticket, and the Sidecar carries it to the
 database untouched. Policy, masking and the audit trail behave as they do
 on a password session.
 
 ```mermaid
 flowchart LR
     C["client<br/>kinit alice"] -->|TLS| E["envoy<br/>terminates TLS"]
-    E -->|plaintext| R["hoop-inspect<br/>inspects · masks · audits"]
+    E -->|plaintext| R["Sidecar<br/>inspects · masks · audits"]
     R --> D["mssql · postgres<br/>keytab"]
     K["KDC / AD"] -.->|ticket| C
     K -.->|service key| D
@@ -34,7 +34,7 @@ out of it.
 
 So `db.corp.example` can resolve to your Envoy. The client dials that name and
 asks the KDC for a ticket naming that service. The KDC encrypts the ticket with
-the **database's** key, so Envoy and the relay carry bytes neither can read, and
+the **database's** key, so Envoy and the Sidecar carry bytes neither can read, and
 the database decrypts what it would have decrypted anyway.
 
 The name the client dials has to match the SPN the database holds. The two
@@ -53,9 +53,9 @@ account. The rest of Kerberos stays as it was.
 ## MSSQL
 
 TDS gives the authentication exchange its own packet types, which is what lets
-the relay forward a credential it cannot interpret.
+the Sidecar forward a credential it cannot interpret.
 
-| Packet | Type | What the relay does |
+| Packet | Type | What the Sidecar does |
 |---|---|---|
 | PRELOGIN | `0x12` | forward, TLS handshake wrapped inside it included |
 | LOGIN7 | `0x10` | forward; record that the login is integrated |
@@ -100,7 +100,7 @@ Clients connect with `Encrypt=strict`.
 ### TDS 7.x encrypts the login and nothing else
 
 A 7.x client wraps its TLS handshake inside `0x12` packets, which Envoy cannot
-speak, so no terminator sits in front of that lane. The relay takes the
+speak, so no terminator sits in front of that lane. The Sidecar takes the
 connection directly and reads it anyway, because of what PRELOGIN negotiated.
 
 `ENCRYPT_OFF` says "encryption off" and means "encrypt the login only". MS-TDS
@@ -110,16 +110,16 @@ this: with no certificate installed it mints a self-signed one at startup and
 encrypts credentials with that. go-mssqldb sends `ENCRYPT_OFF` by default, so
 this is the ordinary 7.x case rather than an exotic one.
 
-The relay walks that encrypted region by TLS record framing, resumes on the
+The Sidecar walks that encrypted region by TLS record framing, resumes on the
 byte where plaintext returns, and inspects every statement after it. Those
 statements carry `mssql.login_encrypted` in the audit trail, so an operator
 reading the trail sees the window nobody could observe.
 
-| Client asks | On the wire | The relay |
+| Client asks | On the wire | The Sidecar |
 |---|---|---|
 | `ENCRYPT_OFF` (`Encrypt=optional`, go-mssqldb default) | login in TLS, statements clear | inspects |
 | `ENCRYPT_ON` (`Encrypt=mandatory`, ODBC 18 and SqlClient 5+ defaults) | whole session in TLS | refuses |
-| TDS 8.0 reaching the relay unterminated | TLS from the first byte | refuses |
+| TDS 8.0 reaching the Sidecar unterminated | TLS from the first byte | refuses |
 
 <Warning>
 Both refusals report `rule: stream-unsafe` and name the cause. A session nobody
@@ -131,15 +131,15 @@ before you put an existing MSSQL lane behind this.
 Verified against SQL Server 2017, 2019 and 2022 in
 `deploy/docker-compose/envoy-stack/mssql2019/`.
 
-### The relay refuses a routing redirect
+### The Sidecar refuses a routing redirect
 
 A login response can carry a routing ENVCHANGE, telling the driver to reconnect
 elsewhere. AlwaysOn and Azure both use it, and drivers obey without
 telling the user.
 
-Forward it and the client lands on a socket the relay has no hold on, where the
+Forward it and the client lands on a socket the Sidecar has no hold on, where the
 session continues with no policy, no masking and no audit, leaving no trace
-that it stopped being watched. The relay refuses it and ends the connection with a
+that it stopped being watched. The Sidecar refuses it and ends the connection with a
 message naming the redirect target. No rule enables this behaviour and none can
 switch it off.
 
@@ -174,7 +174,7 @@ the **whole session** in GSSAPI before anything else, ahead of TLS. Accept it an
 each later byte is ciphertext: no statements, no masking, no audit trail, and no
 error anywhere saying inspection stopped.
 
-The relay answers `N` to that request. The client falls back and **keeps its
+The Sidecar answers `N` to that request. The client falls back and **keeps its
 Kerberos authentication**, which travels as those tagged messages. Postgres
 agrees:
 
@@ -206,7 +206,7 @@ principal=alice@HOOP.TEST  stmts=1  denied=1  verdict=denied
 rule=no-destructive-sql    operation=delete
 ```
 
-At the moment the relay reads it the name is a claim. It becomes true when the
+At the moment the Sidecar reads it the name is a claim. It becomes true when the
 backend answers `AuthenticationOk`, because Postgres validated the ticket against
 that exact name. Statements only flow after authentication succeeds, so a
 statement attributed to a principal carries a verified one. A session showing a
@@ -220,8 +220,8 @@ where it expects a ClientHello and fails.
 
 Two ways to handle it.
 
-**The relay terminates.** Set `downstream_tls` on the lane. Envoy stays a plain
-`tcp_proxy`, and the relay answers both the GSS request and the TLS request in
+**The Sidecar terminates.** Set `downstream_tls` on the lane. Envoy stays a plain
+`tcp_proxy`, and the Sidecar answers both the GSS request and the TLS request in
 the right order, so Kerberos and TLS coexist with no client flags:
 
 ```yaml
@@ -240,8 +240,8 @@ documents it as unhardened. It also reacts to a `GSSENCRequest` by treating the
 session as encrypted and stops terminating from that point, so Kerberos
 clients on that lane must set `gssencmode=disable`.
 
-Either way, clients need `channel_binding=disable` when the relay terminates the
-**upstream** TLS. The relay strips `SCRAM-SHA-256-PLUS` from the server's offer,
+Either way, clients need `channel_binding=disable` when the Sidecar terminates the
+**upstream** TLS. The Sidecar strips `SCRAM-SHA-256-PLUS` from the server's offer,
 because the client cannot bind to a channel it did not see, and a client on TLS
 reads that missing mechanism as a downgrade attack.
 
@@ -301,8 +301,8 @@ hoopinspect/scripts/dev/mssql2019-check.sh
 
 Each check script asserts the flow end to end: the ticket, the statement, the
 denial, the masked values, and the audit rows. The MSSQL one runs the same login
-down two paths, through the relay and straight at the database, and reports a
-disagreement as a failure. A Kerberos result tells you about the relay only when
+down two paths, through the Sidecar and straight at the database, and reports a
+disagreement as a failure. A Kerberos result tells you about the Sidecar only when
 you know what the same login does without it.
 
 ---

@@ -1,0 +1,66 @@
+---
+title: "Control Plane"
+description: "The brain of the operation. Centralizes Sidecars and delivers rule sets to all of them."
+---
+
+A single [Sidecar](/core-concepts/sidecar) reads one config file and needs nothing else. That is deliberate, and it stops working the moment you run twenty of them: twenty files, twenty deploys to change one rule, and no single place that says which rules are actually live.
+
+The Control Plane is that place. Sidecars register with it, ask it for their configuration, and it answers. Rules are written once and delivered everywhere.
+
+<Note>
+  The Control Plane is an **Enterprise** feature. Sidecars keep working without one — they just read their config from disk. [Talk to us](https://hoop.dev/start).
+</Note>
+
+---
+
+## How it works
+
+The Sidecar is always the side that reaches out, and what it asks for is its configuration.
+
+- **Nothing to maintain:** the Sidecar boots, finds its server host, loads the configuration available to it into memory, and keeps running. There is no session to hold open and nothing to reconnect.
+- **The token is the authentication:** the Sidecar pings with its token, and the Control Plane answers — *I know which Sidecar you are, use this configuration.*
+- **Ordinary HTTP:** configuration moves over a plain request and response. Nothing is tunnelled, so neither side has to know the other's physical address.
+
+A Sidecar that loses contact keeps serving traffic with the configuration it already holds, so a Control Plane restart is not an outage for the resources behind it.
+
+---
+
+## What it solves
+
+### Rule combinations decided once
+
+Features apply per resource, and the combination is decided in one place rather than reconstructed from whatever each config file happens to say. The cost of understanding the whole environment drops to reading one screen.
+
+### Pre-configured rule sets
+
+Without a Control Plane, protecting a resource means writing a Guardrail, then configuring an Analyzer, then adding Data Masking — three separate edits that have to agree with each other. The Control Plane ships them as sets: one action applies a whole posture to a resource.
+
+### One view of every Sidecar
+
+Which Sidecars are running, what each one resolved, and when it last checked in.
+
+---
+
+## When you need one
+
+Start with a Sidecar. Add the Control Plane when there is more than one to manage.
+
+| | Sidecar alone | Sidecar + Control Plane |
+|---|---|---|
+| Configuration | one file per Sidecar, on disk | written once, delivered to every Sidecar |
+| Rules | one Data Masking rule and one Guardrail, free | unlimited, plus pre-configured rule sets |
+| Visibility | that Sidecar's local admin API | every Sidecar in one place |
+| Licensing | free | Enterprise |
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Install the Control Plane" icon="server" href="/control-plane/install">
+    Deploy it with Docker Compose, Kubernetes or AWS.
+  </Card>
+  <Card title="Connect a Sidecar" icon="link" href="/control-plane/connect-sidecar">
+    Issue a token, point a Sidecar at the server host, and confirm it picked up its configuration.
+  </Card>
+</CardGroup>
