@@ -87,10 +87,63 @@ The Sidecar ships in the `hoop` CLI.
 
 ---
 
+## Run it
+
+One file describes a Sidecar: where it listens, what it sits in front of, and the rules it applies. This one masks emails in every response and refuses destructive statements.
+
+```yaml config.yaml
+log_level: info
+
+admin:
+  listen: 127.0.0.1:19000        # /healthz /stats /config /events
+
+audit:
+  file: "-"                      # JSON lines on stdout
+  memory_buffer: 256             # last N events, readable at /events
+  query_sessions: 500            # backs /api/sessions
+
+pii:
+  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD]
+
+mask:                            # one Data Masking rule
+  enabled: true
+  rules:
+    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+
+policy:                          # one Guardrail
+  enforce: true
+  rules:
+    - name: no-destructive-sql
+      type: operation
+      operations: [drop, delete, truncate]
+      message: destructive statements are not permitted
+
+listeners:
+  - name: localdb
+    protocol: postgres           # postgres | mssql | http
+    listen: 127.0.0.1:15432      # where clients connect
+    upstream: 127.0.0.1:5432     # your real resource
+    connection: localdb
+```
+
+<Note>
+  This file sits exactly at the free tier: one Data Masking rule, one Guardrail. Both features are free at that size, forever.
+</Note>
+
+Start it:
+
+```bash
+hoop start sidecar --config config.yaml
+```
+
+That is the whole setup. Point a client at `127.0.0.1:15432` instead of the database, and every statement it sends is inspected against the rules above.
+
+---
+
 ## Next step
 
 <Card title="Quickstart" icon="rocket" href="/introduction/quickstart">
-  Write your first config file and run a Sidecar in front of a local database. You will watch it mask a value on the way out and refuse a destructive statement on the way in.
+  Watch the rules fire, read the audit trail, and reshape the file: other protocols, more listeners, and a rollout that denies nothing until you say so.
 
   <br />
 

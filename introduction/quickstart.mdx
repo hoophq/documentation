@@ -1,118 +1,218 @@
 ---
 title: "Quickstart"
-description: "Run your first Sidecar in front of a local database"
+description: "What to do with a running Sidecar"
 ---
 
-One config file describes a Sidecar: where it listens, what it sits in front of, and the rules it applies. The one below masks emails in every response and refuses destructive statements.
+You have a Sidecar running from the file in [Overview](/introduction/getting-started#run-it). This page is what to do with it: confirm what it resolved, watch the rules fire, read what it recorded, and reshape the file as your setup grows.
 
-You need the `hoop` CLI — see [Install the Sidecar](/introduction/getting-started#install-the-sidecar) — and a resource to put it in front of. This example uses a local database; an HTTP API works the same way, with the `protocol` line changed.
+Every command below assumes that file and a Sidecar started with it.
 
 ---
 
-## Run your first Sidecar
+## Confirm what it resolved
 
-<Steps>
-  <Step title="Write config.yaml">
-    ```yaml config.yaml
-    log_level: info
+Inheritance is merged at startup, so the file tells you what you asked for and the Sidecar tells you what it built. Ask before you deploy — nothing needs to be running:
 
-    admin:
-      listen: 127.0.0.1:19000        # /healthz /stats /config /events
+```bash
+hoop start sidecar --config config.yaml --validate
+```
 
-    audit:
-      file: "-"                      # JSON lines on stdout
+```
+config OK: 1 listener(s)
+  localdb          postgres  enforcing 1 rule(s) + masking
+```
 
-    pii:
-      entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD]
+One line per listener, already resolved: the rule count includes anything inherited from the top level, `+ masking` means a `mask` block reached it, and `observe-only` means it is not denying. Ask a running process the same question:
 
-    mask:                            # one Data Masking rule
-      enabled: true
+```bash
+curl -s localhost:19000/config | jq '.lanes[] | {name, rules}'
+```
+
+This is the first thing to check when a rule you wrote never fires.
+
+---
+
+## Connect through it
+
+Point the client at the Sidecar's port instead of the resource's. Nothing else about the client changes:
+
+```bash
+PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U postgres
+```
+
+The Sidecar reads the wire protocol, so it needs the connection in the clear. Terminate TLS in front of it — see [Running the Sidecar](/setup/configuration/hoop-inspect/get-started) for the Envoy shapes.
+
+---
+
+## Watch masking work
+
+The rule in the file rewrites emails on the way out. The client never receives the real value:
+
+```
+ SELECT name, email FROM customers;
+
+     name     |          email
+--------------+--------------------------
+ Ada Lovelace | [REDACTED:EMAIL_ADDRESS]
+ Grace Hopper | [REDACTED:EMAIL_ADDRESS]
+```
+
+`redact` is one of four strategies, and swapping it is a one-line change:
+
+```yaml
+mask:
+  enabled: true
+  rules:
+    - {name: cards, entity: CREDIT_CARD, strategy: partial, keep_last: 4}
+```
+
+| Strategy | `4111111111111111` becomes |
+|---|---|
+| `redact` | `[REDACTED:CREDIT_CARD]` |
+| `mask` | `****************` |
+| `partial` | `************1111` |
+| `hash` | `sha256:<first 16 hex>`, so a masked column still joins |
+
+A rule can also name result columns instead of an entity, which catches a value no detector recognizes:
+
+```yaml
+    - {name: internal-id, columns: [customer_ref], strategy: hash}
+```
+
+More in [Data Masking](/features/data-masking).
+
+---
+
+## Watch a guardrail refuse
+
+The `operation` rule denies `drop`, `delete` and `truncate`, and the statement never reaches the resource:
+
+```
+ DELETE FROM customers WHERE id = 1;
+
+FATAL:  destructive statements are not permitted
+```
+
+That is a real pgwire error carrying the `message` you wrote in the config, so the developer reads the reason in `psql` instead of watching a connection drop. On an HTTP listener the same denial arrives as `403` with an `X-Hoop-Denied` header.
+
+`operation` is one of eight rule types. Deny by table, by pattern, by detected PII, by HTTP resource or status, by word list, or by AI verdict — all in [Guardrails](/features/guardrails).
+
+---
+
+## Measure before you deny
+
+Turning rules on against real traffic is easier when nothing breaks first. Set enforcement off and every statement is still inspected and recorded, but nothing is refused:
+
+```yaml
+policy:
+  enforce: false
+```
+
+```
+config OK: 1 listener(s)
+  localdb          postgres  observe-only
+```
+
+Then read what *would* have been denied:
+
+```bash
+curl -s 'localhost:19000/api/events?kind=violation' | python3 -m json.tool
+```
+
+When that list holds nothing you did not expect, set `enforce: true`.
+
+---
+
+## Read what it recorded
+
+Every session is recorded whether or not it issues a statement. The admin API is the fast way in:
+
+```bash
+curl -s localhost:19000/api/stats                | python3 -m json.tool
+curl -s 'localhost:19000/api/sessions?limit=1'   | python3 -m json.tool
+```
+
+```json
+{"sessions": [
+  {"id": "98203ccc…", "principal": "anonymous", "protocol": "postgres",
+   "connection": "localdb", "duration_ms": 11,
+   "statement_count": 2, "denied_count": 1, "masked_count": 0, "verdict": "denied"}
+]}
+```
+
+The query endpoints filter on `principal`, `connection`, `protocol`, `since`, `until`, `denied`, `open`, and `q` for a substring, with `limit` and `cursor` for paging. `/api/events` also takes `session_id` and a repeatable `kind`.
+
+The same events go to stdout as JSON lines, which is the durable copy — the admin API reads in-memory buffers sized by `audit.memory_buffer` and `audit.query_sessions`. Full detail in [Audit](/core-concepts/sidecar#audit).
+
+---
+
+## Put it in front of something else
+
+`protocol` picks the codec, and the rest of the listener keeps its shape. SQL Server:
+
+```yaml
+  - name: reporting
+    protocol: mssql
+    listen: 127.0.0.1:11433
+    upstream: mssql.internal:1433
+    connection: reporting
+```
+
+An HTTP API, which captures nothing until you ask it to:
+
+```yaml
+  - name: billing-api
+    protocol: http
+    listen: 127.0.0.1:18080
+    upstream: billing.internal:8080
+    connection: billing-api
+    http:
+      capture_body: true          # off by default: no bodies, no headers
+```
+
+---
+
+## Protect more than one resource
+
+`listeners` is a list, so a second resource is a second entry rather than a second process. Each one carries its own rules and can override the top-level defaults:
+
+```yaml
+listeners:
+  - name: localdb
+    protocol: postgres
+    listen: 127.0.0.1:15432
+    upstream: 127.0.0.1:5432
+    connection: localdb
+
+  - name: billing-api
+    protocol: http
+    listen: 127.0.0.1:18080
+    upstream: billing.internal:8080
+    connection: billing-api
+    policy:
       rules:
-        - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+        - name: no-admin-api
+          type: http_resource
+          resources: ["/admin/**"]
+          message: the admin API is not reachable through this proxy
+```
 
-    policy:                          # one Guardrail
-      enforce: true
-      rules:
-        - name: no-destructive-sql
-          type: operation
-          operations: [drop, delete, truncate]
-          message: destructive statements are not permitted
+```
+config OK: 2 listener(s)
+```
 
-    listeners:
-      - name: localdb
-        protocol: postgres           # postgres | mssql | http
-        listen: 127.0.0.1:15432      # where clients connect
-        upstream: 127.0.0.1:5432     # your real database
-        connection: localdb
-    ```
+One caveat worth knowing before you split rules across levels: `policy.rules` concatenate with the listener's first, while a listener's `mask` block **replaces** the top-level list rather than extending it.
 
-    <Note>
-      This file sits exactly at the free tier: one Data Masking rule, one Guardrail. Both features are free at that size, forever.
-    </Note>
-  </Step>
+---
 
-  <Step title="Validate it">
-    Nothing needs to be running. The validator builds every listener and reports every problem in one pass:
+## Pass the config another way
 
-    ```bash
-    hoop start sidecar --config config.yaml --validate
-    ```
+`--config` also reads `HOOP_SIDECAR_CONFIG`, which is the shape a Kubernetes deployment wants — mount the ConfigMap, set the variable, pass no arguments:
 
-    ```
-    config OK: 1 listener(s)
-      localdb          postgres  enforcing 1 rule(s) + masking
-    ```
-  </Step>
-
-  <Step title="Start it">
-    ```bash
-    hoop start sidecar --config config.yaml
-    ```
-
-    Confirm it came up:
-
-    ```bash
-    curl -s localhost:19000/healthz     # ok
-    ```
-  </Step>
-
-  <Step title="Connect through it">
-    Point your client at the Sidecar's port instead of the database's:
-
-    ```bash
-    PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U postgres
-    ```
-  </Step>
-
-  <Step title="Watch it work">
-    Emails come back rewritten, and the client never sees the real value:
-
-    ```
-     SELECT name, email FROM customers;
-
-         name     |          email
-    --------------+--------------------------
-     Ada Lovelace | [REDACTED:EMAIL_ADDRESS]
-     Grace Hopper | [REDACTED:EMAIL_ADDRESS]
-    ```
-
-    A destructive statement never reaches the database:
-
-    ```
-     DELETE FROM customers WHERE id = 1;
-
-    FATAL:  destructive statements are not permitted
-    ```
-
-    That is a real pgwire error carrying the message you wrote in `config.yaml`, so the developer reads the reason in `psql` instead of watching a connection drop.
-
-    Read what was recorded:
-
-    ```bash
-    curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
-    ```
-  </Step>
-</Steps>
+```bash
+export HOOP_SIDECAR_CONFIG=/etc/hoop/config.yaml
+hoop start sidecar
+```
 
 ---
 
@@ -125,7 +225,7 @@ You need the `hoop` CLI — see [Install the Sidecar](/introduction/getting-star
   <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
     Every section, every field, and what startup refuses.
   </Card>
-  <Card title="Hoop Gateway" icon="server" href="/gateway/overview">
-    The full platform: web app, agents, session recording, access requests, runbooks and integrations.
+  <Card title="Agentic Access" icon="robot" href="/features/agentic-access">
+    Put an AI Analyzer in front of the rules and let the risk level pick what happens.
   </Card>
 </CardGroup>
