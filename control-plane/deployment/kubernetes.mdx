@@ -1,0 +1,751 @@
+---
+title: "Kubernetes"
+description: "Deploy the Control Plane with the Helm chart, on any cloud provider."
+---
+
+The Control Plane ships as a Helm chart. This page covers the quick start, then every value worth setting.
+
+## Quick start
+
+<Tabs>
+  <Tab title="Standard installation">
+    Use this to evaluate the Control Plane — proofs of concept and test environments.
+
+    <Warning>
+      This installation serves plaintext. Deploy it on a trusted network and keep production resources out of it until you have TLS configured.
+    </Warning>
+
+    <Steps>
+      <Step title="Deploy it">
+        ```sh
+        VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+        helm upgrade hoop --install oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+          --namespace hoopdev --create-namespace \
+          --set postgres.enabled=true \
+          --set 'config.POSTGRES_DB_URI=postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable' \
+          --set config.API_URL=http://localhost:8009
+        ```
+      </Step>
+
+      <Step title="Access it">
+        1. Forward the service port to your machine:
+
+        ```sh
+        kubectl port-forward service/hoopgateway 8009:8009 -n hoopdev
+        ```
+
+        2. [Open the web app at http://127.0.0.1:8009/login](http://127.0.0.1:8009/login)
+
+        <Note>
+          `postgres.enabled=true` provisions a Postgres with host-mounted storage. If the node is decommissioned, the data goes with it.
+
+          For anything durable, pass a storage class so it uses a Persistent Volume instead:
+          - `--set postgres.storageClassName=<your-storage-class>`
+        </Note>
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Secure installation (TLS)">
+    Recommended for production. TLS terminates on the Control Plane itself.
+
+    <Note>
+      For the quick start we generate a certificate signed by an untrusted CA with `openssl`. Installing and configuring works the same way with certificates from a trusted issuer — if you already have yours, skip to step 2 with the files from step 1 in hand.
+    </Note>
+
+    <Steps>
+      <Step title="Obtain a certificate for your domain">
+        1. Export the domain name of the Control Plane:
+
+        ```sh
+        export DOMAIN_HOSTNAME=<your-control-plane-domain-name-goes-here>
+        ```
+
+        2. Generate and sign the certificates:
+
+        ```sh
+        mkdir ./tls && cd ./tls
+        openssl genrsa -out ca.key 4096
+        openssl req -x509 -new -nodes -key ca.key -sha256 -days 1826 -out ca.crt -subj '/CN=MyOrg CA/C=AT/ST=Vienna/L=Vienna/O=MyOrg'
+        openssl req -new -nodes -out server.csr -newkey rsa:4096 -keyout server.key -subj '/CN=ControlPlane/C=AT/ST=Vienna/L=Vienna/O=MyOrg'
+        # create a v3 ext file for SAN properties
+        cat > server.v3.ext <<EOF
+        authorityKeyIdentifier=keyid,issuer
+        basicConstraints=CA:FALSE
+        keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+        subjectAltName = @alt_names
+        [alt_names]
+        DNS.1 = $DOMAIN_HOSTNAME
+        IP.1 = 127.0.0.1
+        EOF
+
+        openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 730 -sha256 -extfile server.v3.ext
+        ```
+
+        3. Join the root CA to your certificate:
+
+        ```sh
+        cat server.crt ca.crt > server-full.crt
+        ```
+
+        <Note>
+          With a certificate from a trusted issuer, include the root and any intermediate certificates if they were provided.
+        </Note>
+
+        4. (optional) Add the root CA to your system keychain. This is only needed for certificates from an untrusted issuer, and it makes your system trust what that CA signed.
+
+        **Before the next step, make sure you have these three files:**
+
+        - `server.crt` — the server certificate
+        - `ca.crt` — the root, plus intermediates if you have them
+        - `server.key` — the private key
+      </Step>
+
+      <Step title="Generate the values.yaml file">
+        Base64-encode the certificate files so they can be passed inline to the chart.
+
+        <Note>
+          The DNS name on the certificate has to match your domain. This example exposes the service through an AWS load balancer — adapt the annotations to whatever your infrastructure provisions.
+        </Note>
+
+        1. Export the hostname and the certificates:
+
+        ```sh
+        export DOMAIN_HOSTNAME=<your-control-plane-domain-name-goes-here>
+        export TLS_KEY_ENC=$(cat server.key | base64)
+        export TLS_CERT_ENC=$(cat server-full.crt | base64)
+        ```
+
+        2. Write the `values.yaml` file:
+
+        ```sh
+        cat - > values.yaml <<EOF
+        # base configuration
+        config:
+          POSTGRES_DB_URI: 'postgres://root:default-pwd@hoopgateway-pg/postgres?sslmode=disable'
+          API_URL: "https://$DOMAIN_HOSTNAME"
+          TLS_KEY: "base64://$TLS_KEY_ENC"
+          TLS_CERT: "base64://$TLS_CERT_ENC"
+
+        # a local Postgres with host-mounted storage
+        # set a storage class name for a more durable setup
+        postgres:
+          enabled: true
+          storageClassName: null
+
+        # exposes the service through a network load balancer
+        proxyService:
+          enabled: true
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: nlb
+            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+          ports:
+          - name: api
+            port: 443
+            targetPort: 8009
+        EOF
+        ```
+      </Step>
+
+      <Step title="Deploy it">
+        ```sh
+        VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+        helm upgrade hoop \
+          --install oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+          --namespace hoopdev \
+          --create-namespace \
+          --values values.yaml
+        ```
+      </Step>
+
+      <Step title="Access it">
+        <Tabs>
+          <Tab title="Via public URL">
+            1. Read the address of your load balancer:
+
+            ```sh
+            kubectl get svc -n hoopdev hoopgateway-proxy \
+              -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+            ```
+
+            2. Create a CNAME record for `$DOMAIN_HOSTNAME` pointing at that address.
+            3. Open `https://$DOMAIN_HOSTNAME/login`.
+          </Tab>
+          <Tab title="Via port forward">
+            To validate the installation without exposing anything to the internet:
+
+            ```sh
+            kubectl port-forward service/hoopgateway 8009:8009 -n hoopdev
+            ```
+
+            Then open [http://127.0.0.1:8009/login](http://127.0.0.1:8009/login).
+          </Tab>
+        </Tabs>
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+---
+
+## Helm install
+
+To install the latest version into a namespace:
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm upgrade --install hoop \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+  -f values.yaml \
+  --namespace hoopdev
+```
+
+### Overriding values
+
+You can add or override attributes from a base `values.yaml` on the command line. Here, pinning a specific version:
+
+```bash
+helm upgrade --install hoop \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+  -f values.yaml \
+  --set image.gw.tag=1.45.0
+```
+
+---
+
+## Database configuration
+
+The Control Plane stores its state in Postgres, using the `private` schema for its own tables. This creates the database and a user with the privileges it needs:
+
+```sql
+CREATE DATABASE hoopdb;
+CREATE USER hoopuser WITH ENCRYPTED PASSWORD 'my-secure-password';
+-- switch to the created database
+\c hoopdb
+CREATE SCHEMA IF NOT EXISTS private;
+GRANT ALL PRIVILEGES ON DATABASE hoopdb TO hoopuser;
+GRANT ALL PRIVILEGES ON SCHEMA public to hoopuser;
+GRANT ALL PRIVILEGES ON SCHEMA private to hoopuser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO hoopuser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA private TO hoopuser;
+```
+
+<Note>
+  If the password contains special characters, URL-encode it in the connection string.
+</Note>
+
+Assemble `POSTGRES_DB_URI` from those values:
+
+- `POSTGRES_DB_URI=postgres://hoopuser:<passwd>@<db-host>:5432/hoopdb`
+
+<Tip>
+Append `?sslmode=disable` if your database does not support TLS.
+</Tip>
+
+---
+
+## Chart configuration
+
+Everything under `config` maps to an environment variable — see [Environment Variables](/setup/configuration/env-vars) for the full list.
+
+```yaml
+config:
+  POSTGRES_DB_URI: 'postgres://user:pwd@host:port/db'
+  (...)
+```
+
+### Authentication
+
+Authentication is local by default. The Control Plane manages users and passwords itself and signs its own JWT access tokens, so the minimum configuration is a database and a public address:
+
+```yaml
+config:
+  POSTGRES_DB_URI: 'postgres://<user>:<pwd>@<db-host>:<port>/<dbname>'
+  API_URL: 'https://hoopdev.yourdomain.tld'
+```
+
+### TLS
+
+Set `TLS_KEY` and `TLS_CERT` to terminate TLS on the Control Plane.
+
+<Note>
+  The certificate file may carry the **root** and **intermediate CAs** as well. Order matters:
+
+  ```
+  <SERVER-CERT>
+  <INTERMEDIATE-CA>
+  <ROOT_CA>
+  ```
+</Note>
+
+<Tabs>
+  <Tab title="Base64 encoded">
+    ```yaml
+    config:
+      TLS_KEY: 'base64://<pem-encoded-private-key>'
+      TLS_CERT: 'base64://<pem-encoded-full-certificate>'
+    ```
+
+    Encode the files like this, and use each output as the value above:
+
+    ```sh
+    echo "base64://$(cat /tmp/tls/server.key |base64)
+    echo "base64://$(cat /tmp/tls/server.crt |base64)
+    ```
+  </Tab>
+  <Tab title="Path based">
+    ```yaml
+    config:
+      TLS_KEY: 'file:///path/to/server.key'
+      TLS_CERT: 'file:///path/to/server.crt'
+    ```
+  </Tab>
+</Tabs>
+
+### Bundled database
+
+The chart can deploy Postgres as part of the installation.
+
+```yaml
+# -- Enable PostgreSQL
+postgres:
+  # it defaults to host mount when enabled
+  enabled: false
+
+  # set a storage class name to use a Persistent Volume Claim
+  storageClassName: null
+
+  # -- Size of PVC
+  size: 10Gi
+  # annotations: {}
+```
+
+<Tip>
+  This creates a Service named `hoopgateway-pg`. Use that name as the host in `POSTGRES_DB_URI`.
+</Tip>
+
+### Persistence
+
+Use SSD for large deployments — it speeds up I/O under concurrent load. This enables a 50GB persistent volume on AWS/EKS:
+
+```yaml
+persistence:
+  # -- Use persistent volume for write ahead log sessions
+  enabled: true
+  storageClassName: gp2
+
+  # -- Size of persistent volume claim
+  size: 50Gi
+```
+
+### Ingress
+
+The Control Plane serves **HTTP/8009**. That is the port the web app uses and the port Sidecars reach.
+
+<Tabs>
+  <Tab title="AWS ALB">
+    The AWS Load Balancer Controller manages Elastic Load Balancers for a Kubernetes cluster.
+
+    <Steps>
+      <Step title="Deploy the AWS Load Balancer Controller">
+        - https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
+      </Step>
+      <Step title="Configure the ingress">
+        ```yaml
+        # HTTP/8009 - API / WebApp
+        ingressApi:
+          enabled: true
+          # the public DNS name
+          host: 'hoop.yourdomain.tld'
+          # the ingress class, in this case alb
+          ingressClassName: 'alb'
+          annotations:
+            # uses ACM for a valid public certificate issued by AWS
+            alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:...'
+            alb.ingress.kubernetes.io/group.name: 'hoopdev'
+            alb.ingress.kubernetes.io/healthcheck-path: '/'
+            alb.ingress.kubernetes.io/healthcheck-protocol: 'HTTP'
+            alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+            alb.ingress.kubernetes.io/scheme: 'internet-facing'
+            alb.ingress.kubernetes.io/ssl-redirect: '443'
+            alb.ingress.kubernetes.io/target-type: 'ip'
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Nginx Ingress Controller">
+    An Ingress controller for Kubernetes using NGINX as a reverse proxy and load balancer.
+
+    <Steps>
+      <Step title="Deploy the Nginx Ingress Controller">
+        - https://kubernetes.github.io/ingress-nginx/deploy/
+      </Step>
+      <Step title="Configure the ingress">
+        TLS terminating on Nginx:
+
+        ```yaml
+        ingressApi:
+          enabled: true
+          host: hoop.yourdomain.tld
+          ingressClassName: 'nginx'
+          tls:
+          - hosts:
+              - hoop.yourdomain.tld
+            secretName: hoopserver-tls
+        ```
+
+        <Note>
+          This setup requires a Layer 4 load balancer in your cloud provider.
+        </Note>
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="GCP Classic ALB">
+    The external Application Load Balancer is a proxy-based Layer 7 load balancer that runs your service behind a single external IP address. [See the architecture overview](https://cloud.google.com/load-balancing/docs/https).
+
+    <Steps>
+      <Step title="Deploy a GKE cluster">
+        - Follow the [GKE quick start guide](https://cloud.google.com/kubernetes-engine/docs/quickstarts/create-cluster)
+        - [Get kubectl access to your cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl)
+      </Step>
+      <Step title="Export your domain name">
+        ```sh
+        export DOMAIN_HOSTNAME=hoop.yourdomain.tld
+        ```
+      </Step>
+      <Step title="Set up certificates">
+        <AccordionGroup>
+          <Accordion title="Generate self-signed certificates">
+            <Note>
+              Skip this if you already have certificates from a known issuer.
+            </Note>
+
+            - Create the CA private key:
+
+            ```sh
+            mkdir -p /tmp/hoopdemo && cd /tmp/hoopdemo
+            openssl genrsa -aes256 -out ca.key 2048
+            ```
+
+            - Create the root Certificate Authority:
+
+            ```sh
+            openssl req -x509 -new -nodes -key ca.key -sha256 -days 1826 -out ca.crt -subj '/CN=Hoop Root CA'
+            ```
+
+            - Create the Certificate Signing Request:
+
+            ```sh
+            openssl req -new -nodes -out server.csr -newkey rsa:2048 -keyout server.key -subj '/CN=HoopControlPlane'
+            ```
+
+            - Sign the certificate:
+
+            ```sh
+            # create a v3 ext file for SAN properties
+            cat > server.v3.ext << EOF
+            authorityKeyIdentifier=keyid,issuer
+            basicConstraints=CA:FALSE
+            keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+            subjectAltName = @alt_names
+            [alt_names]
+            DNS.1 = $DOMAIN_HOSTNAME
+            IP.1 = 127.0.0.1
+            EOF
+            ```
+
+            ```sh
+            openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \
+                -CAcreateserial -out server.crt -days 730 -sha256 -extfile server.v3.ext
+            ```
+
+            <Note>
+              Install the root CA in your browser or system before visiting the web app — HSTS policy will otherwise refuse the connection. Not needed with certificates from a known issuer.
+            </Note>
+          </Accordion>
+        </AccordionGroup>
+
+        - Export the certificates for the chart:
+
+        ```sh
+        export TLS_CA="base64://$(cat ca.crt | base64)"
+        export TLS_KEY="base64://$(cat server.key | base64)"
+        export TLS_CERT="base64://$(cat server.crt | base64)"
+        ```
+
+        <Note>
+          The `base64://<inline-certificate-content>` format is how you pass a certificate inline.
+        </Note>
+
+        - Upload them into GCP:
+
+        ```sh
+        gcloud compute ssl-certificates create hoopserver \
+          --certificate=server.crt \
+          --private-key=server.key
+        ```
+
+        <Tip>
+          Use certificates from a known issuer for production workloads.
+        </Tip>
+      </Step>
+      <Step title="Configure DNS and a static global IP">
+        - Create the load balancer address:
+
+        ```sh
+        gcloud compute addresses create hoopgateway-http --global
+        ```
+
+        - Point your domain at it in your DNS provider:
+
+        | Public DNS | IP Address |
+        | ---------- | ---------- |
+        | `$DOMAIN_HOSTNAME` | `<hoopgateway-http-ip-address>` |
+      </Step>
+      <Step title="Deploy the Control Plane">
+        - Create a namespace:
+
+        ```sh
+        kubectl create ns hoopdemo
+        ```
+
+        <AccordionGroup>
+          <Accordion title="Deploy a Postgres server">
+            - Generate the specification:
+
+            ```sh
+            cat - > /tmp/hoopdemo/postgres-spec.yaml <<EOF
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: postgres
+            spec:
+              replicas: 1
+              selector:
+                matchLabels:
+                  app: postgres
+              strategy:
+                type: Recreate
+              template:
+                metadata:
+                  labels:
+                    app: postgres
+                spec:
+                  containers:
+                  - env:
+                    - name: POSTGRES_USER
+                      value: root
+                    - name: POSTGRES_PASSWORD
+                      value: 1a2b3c4d
+                    - name: POSTGRES_DB
+                      value: hoopdb
+                    image: postgres
+                    name: postgres
+                    ports:
+                    - containerPort: 5432
+                      name: pg
+                      protocol: TCP
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: postgres
+            spec:
+              ports:
+              - name: postgres
+                port: 5432
+                protocol: TCP
+                targetPort: 5432
+              selector:
+                app: postgres
+            EOF
+            ```
+
+            - Deploy it:
+
+            ```sh
+            kubectl apply -n hoopdemo -f /tmp/hoopdemo/postgres-spec.yaml
+            ```
+          </Accordion>
+        </AccordionGroup>
+
+        <AccordionGroup>
+          <Accordion title="Deploy the Control Plane">
+            - Generate the Helm `values.yaml`:
+
+            ```sh
+            cat - > /tmp/hoopdemo/values.yaml <<EOF
+            config:
+              POSTGRES_DB_URI: 'postgres://root:1a2b3c4d@postgres:5432/hoopdb?sslmode=disable'
+              API_URL: "https://$DOMAIN_HOSTNAME"
+
+            mainService:
+              annotations:
+                beta.cloud.google.com/backend-config: '{"ports": {"http": "hoopgateway-http"}}'
+                cloud.google.com/app-protocols: '{"http":"HTTPS"}'
+              httpBackendConfig:
+                healthCheckType: HTTPS
+
+            ingressApi:
+              enabled: true
+              host: "$DOMAIN_HOSTNAME"
+              annotations:
+                kubernetes.io/ingress.class: 'gce'
+                ingress.gcp.kubernetes.io/pre-shared-cert: 'hoopserver'
+                kubernetes.io/ingress.global-static-ip-name: 'hoopgateway-http'
+            EOF
+            ```
+
+            - Deploy it:
+
+            ```sh
+            helm upgrade --install hoop oci://ghcr.io/hoophq/helm-charts/hoop-chart -f values.yaml --namespace hoopdemo \
+              --set config.TLS_CA=$TLS_CA \
+              --set config.TLS_KEY=$TLS_KEY \
+              --set config.TLS_CERT=$TLS_CERT
+            ```
+          </Accordion>
+        </AccordionGroup>
+      </Step>
+      <Step title="Access it">
+        - Wait for the resources to be provisioned. This lists anything still pending:
+
+        ```sh
+        gcloud compute operations list |grep -v DONE
+        ```
+
+        - Check that the ingress has an address:
+
+        ```sh
+        kubectl get ing -n hoopdemo
+        ```
+
+        ```
+        NAME              CLASS    HOSTS              ADDRESS
+        hoopgateway-web   <none>   $DOMAIN_HOSTNAME   XX.XXX.XXX.X
+        ```
+
+        - Open `https://$DOMAIN_HOSTNAME/login`.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### Exposing it through a load balancer
+
+If you prefer a Service over an Ingress, `proxyService` provisions one:
+
+```yaml
+proxyService:
+  enabled: true
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+  ports:
+  - name: api
+    port: 443
+    targetPort: 8009
+```
+
+<Note>
+  This setup requires TLS configured directly on the Control Plane.
+</Note>
+
+### Computing resources
+
+The chart defaults to 1 vCPU and 1GB, which is enough to evaluate and nothing more. For production, allocate at least 4 vCPU and 8GB.
+
+```yaml
+resources:
+  gw:
+    limits:
+      cpu: 4096m
+      memory: 8Gi
+    requests:
+      cpu: 4096m
+      memory: 8Gi
+```
+
+### Image
+
+The latest version of every image is used by default. Pin it with the `image` section:
+
+```yaml
+image:
+  gw:
+    repository: hoophq/hoop
+    pullPolicy: Always
+    tag: latest
+```
+
+### Node selector
+
+Schedules the pod onto nodes carrying a `disktype=ssd` label. See [the Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/).
+
+```yaml
+# -- Node labels for pod assignment
+nodeSelector:
+  disktype: ssd
+```
+
+### Tolerations
+
+See [taints and tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/).
+
+```yaml
+# -- Toleration labels for pod assignment
+tolerations:
+- effect: NoExecute
+  key: spot
+  value: "true"
+- effect: NoSchedule
+  key: spot
+  value: "true"
+```
+
+### Node affinity
+
+See [affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
+
+```yaml
+# -- Affinity settings for pod assignment
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+          - antarctica-east1
+          - antarctica-west1
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
+        - key: another-node-label-key
+          operator: In
+          values:
+          - another-node-label-value
+```
+
+---
+
+## Generating manifests
+
+If you would rather apply manifests than run Helm, render them. This lets you diff a new chart version against your versioned files and see exactly what changed.
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm template hoop \
+  oci://ghcr.io/hoophq/helm-charts/hoop-chart --version $VERSION \
+  -f values.yaml
+```
+
+---
+
+## Next
+
+<Card title="Connect a Sidecar" icon="link" href="/control-plane/connect-sidecar">
+  Issue a token, point a Sidecar at the server host, and confirm it picked up its configuration.
+</Card>

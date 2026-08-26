@@ -73,6 +73,14 @@
             "group": "Control Plane Setup",
             "pages": [
               "control-plane/install",
+              {
+                "group": "Deployment",
+                "pages": [
+                  "control-plane/deployment/docker-compose",
+                  "control-plane/deployment/kubernetes",
+                  "control-plane/deployment/aws"
+                ]
+              },
               "control-plane/connect-sidecar"
             ]
           },

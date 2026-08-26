@@ -1,0 +1,156 @@
+---
+title: "Docker Compose"
+description: "Stand up a Control Plane on a single host with docker compose."
+---
+
+The fastest way to get a Control Plane running. Good for evaluation, and good enough for a single-host production install.
+
+## Supported operating systems
+
+<CardGroup cols={2}>
+  <Card title="Linux" icon="linux">
+    Tested on Ubuntu 24.04 and Amazon Linux 2.
+  </Card>
+  <Card title="MacOS" icon="apple">
+    Intel and Apple Silicon (M1/M2).
+  </Card>
+</CardGroup>
+
+## Required tooling
+
+<Steps titleSize="h3">
+  <Step title="Docker">
+    Install or update to Docker 20.10.0 or greater.
+    <CardGroup cols={2}>
+      <Card
+        title="Install Docker for Linux"
+        icon="linux"
+        iconType="brands"
+        href="https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script"
+      />
+      <Card
+        title="Install Docker for MacOS"
+        iconType="brands"
+        icon="apple"
+        href="https://docs.docker.com/desktop/install/mac-install/"
+      />
+    </CardGroup>
+  </Step>
+  <Step title="Docker Compose">
+    Install or update Docker Compose to 2.11.x or greater.
+    <Info>Run `docker compose version` to check which version you have installed.</Info>
+    <CardGroup cols={2}>
+      <Card
+        title="Install Docker Compose for Linux"
+        icon="linux"
+        iconType="brands"
+        href="https://docs.docker.com/desktop/install/linux-install/"
+      >
+        It ships with the Docker engine, but a standalone installation also works.
+      </Card>
+      <Card
+        title="Docker Compose for MacOS"
+        iconType="brands"
+        icon="apple"
+      >
+        Nothing to install — it comes with Docker Desktop.
+      </Card>
+    </CardGroup>
+  </Step>
+</Steps>
+
+---
+
+## Run it on your machine
+
+No configuration needed. This runs everything on localhost:
+
+```sh
+touch .env && curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && \
+  docker compose up
+```
+
+Open `http://localhost:8009` in your browser.
+
+To run it on a host your Sidecars can reach, follow the section below instead.
+
+---
+
+## Run it on a remote machine
+
+<Steps>
+  <Step title="Download the compose file">
+    ```sh
+    curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml
+    ```
+  </Step>
+
+  <Step title="Write the .env file">
+    The Control Plane needs to know its own public address, so it can serve the web app assets and tell Sidecars where to come back to.
+
+    <Note>
+      The `.env` file must sit next to `docker-compose.yml`.
+    </Note>
+
+    ```sh .env
+    API_URL=http://<your-vm-ip-or-host>:8009
+    ```
+
+    Every other setting is optional — see [Environment Variables](/setup/configuration/env-vars) for the full list.
+
+    <Info>
+      If you cannot reach the web app from outside the VM, check your firewall rules and make sure TCP/8009 is open or bound so it is reachable from your network.
+    </Info>
+  </Step>
+
+  <Step title="Run">
+    The first run pulls the images, so it can take a few minutes.
+
+    ```sh
+    docker compose up
+    ```
+  </Step>
+
+  <Step title="Manage the containers">
+    Follow the logs:
+
+    ```sh
+    docker compose logs -f
+    ```
+
+    Stop everything:
+
+    ```sh
+    docker compose down
+    ```
+  </Step>
+
+  <Step title="Sign in">
+    Visit `http://<vm-public-dns>:8009` and create the first account. Authentication is local by default: the Control Plane manages users and passwords itself and signs its own access tokens, so there is nothing else to wire up before you can log in.
+  </Step>
+</Steps>
+
+---
+
+## Troubleshooting
+
+### Assets fail to load behind a domain
+
+`API_URL` defaults to `127.0.0.1`, which only works from inside the VM. In production it has to carry the full scheme and host:
+
+```sh
+API_URL=https://yourdomain.com
+```
+
+Two things go wrong most often:
+
+- **Scheme omitted.** `yourdomain.com` is not enough — assets are served with the scheme from this value.
+- **An IP behind DNS forwarding.** If you set an IP and later put a domain in front of it, the assets still point at the IP. `API_URL` has to be the domain users actually reach.
+
+---
+
+## Next
+
+<Card title="Connect a Sidecar" icon="link" href="/control-plane/connect-sidecar">
+  Issue a token, point a Sidecar at the server host, and confirm it picked up its configuration.
+</Card>

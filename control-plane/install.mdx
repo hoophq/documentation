@@ -1,5 +1,5 @@
 ---
-title: "Install the Control Plane"
+title: "Overview"
 description: "Deploy the Control Plane in your own infrastructure with Docker Compose, Kubernetes or AWS."
 ---
 
@@ -14,26 +14,21 @@ The [Control Plane](/core-concepts/control-plane) is the service your Sidecars r
 ## Before you start
 
 - A license key.
-- A PostgreSQL database the Control Plane can reach.
-- An identity provider — see [Identity Providers](/setup/configuration/idp/get-started) for the supported list and per-provider setup.
 - A hostname your Sidecars can reach over HTTPS. Sidecars only ever make outbound requests, so the Control Plane does not need to reach *them*.
-
-<Warning>
-The deployment guides below say "gateway" throughout. Read it as "Control Plane": the container image, the Helm chart and the environment variables are the ones you want.
-</Warning>
+- A PostgreSQL database. Both the Kubernetes chart and the AWS stack can provision one for you, so this is only something to arrange if you want to bring your own.
 
 ---
 
 ## Deployment options
 
 <CardGroup cols={3}>
-  <Card title="Docker Compose" icon="docker" href="/setup/deployment/docker-compose">
+  <Card title="Docker Compose" icon="docker" href="/control-plane/deployment/docker-compose">
     The fastest way to stand one up. Good for evaluation and for single-host production.
   </Card>
-  <Card title="Kubernetes" icon="dharmachakra" href="/setup/deployment/kubernetes">
-    Helm chart, with the full set of values for ingress, database and secrets.
+  <Card title="Kubernetes" icon="dharmachakra" href="/control-plane/deployment/kubernetes">
+    Helm chart, with the full set of values for ingress, database and TLS.
   </Card>
-  <Card title="AWS" icon="aws" href="/setup/deployment/AWS">
+  <Card title="AWS" icon="aws" href="/control-plane/deployment/aws">
     A CloudFormation stack that provisions the network, database and service.
   </Card>
 </CardGroup>
@@ -43,8 +38,8 @@ The deployment guides below say "gateway" throughout. Read it as "Control Plane"
 ## After it is running
 
 <Steps>
-  <Step title="Connect your identity provider">
-    Nobody can sign in until this is done. Each provider has its own guide under [Identity Providers](/setup/configuration/idp/get-started) — Auth0, Okta, Google, Azure, JumpCloud, AWS Cognito, OneLogin and Keycloak are all supported.
+  <Step title="Create the first account">
+    Authentication is local by default — the Control Plane manages users and passwords itself, so you can sign in as soon as it is up.
   </Step>
   <Step title="Apply your license">
     See [License Management](/setup/license-management).

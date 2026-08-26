@@ -1,0 +1,205 @@
+---
+title: "AWS"
+description: "Deploy the Control Plane into your own AWS account with CloudFormation."
+---
+
+A CloudFormation stack that provisions the network, the database and the service in one go.
+
+## Requirements
+
+<Steps>
+  <Step title="Admin permissions">
+    Deploying the stack creates resources across several services, so the deploying user needs Admin permissions. The exact resource set changes between releases, which is why we do not publish a narrower policy.
+  </Step>
+  <Step title="A dedicated AWS account">
+    We recommend an isolated account. It keeps service quota collisions out of the picture and makes the install easier to reason about.
+  </Step>
+</Steps>
+
+---
+
+## Deploy the stack
+
+Pick your region and click through the CloudFormation console:
+
+<CardGroup cols={4}>
+  <Card title="us-east-1" icon="aws" href="https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-east-1.s3.us-east-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  N. Virginia
+</Card>
+<Card title="us-east-2" icon="aws" href="https://us-east-2.console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-east-2.s3.us-east-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  Ohio
+</Card>
+<Card title="us-west-1" icon="aws" href="https://us-west-1.console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-west-1.s3.us-west-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  N. California
+</Card>
+<Card title="us-west-2" icon="aws" href="https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-us-west-2.s3.us-west-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  Oregon
+</Card>
+<Card title="eu-west-1" icon="aws" href="https://eu-west-1.console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-eu-west-1.s3.eu-west-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  Ireland
+</Card>
+<Card title="eu-west-2" icon="aws" href="https://eu-west-2.console.aws.amazon.com/cloudformation/home?region=eu-west-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-eu-west-2.s3.eu-west-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  London
+</Card>
+<Card title="eu-central-1" icon="aws" href="https://eu-central-1.console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-eu-central-1.s3.eu-central-1.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  Frankfurt
+</Card>
+<Card title="ap-southeast-2" icon="aws" href="https://ap-southeast-2.console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/quickcreate?templateURL=https%3A%2F%2Fhoopdev-platform-cf-ap-southeast-2.s3.ap-southeast-2.amazonaws.com%2Flatest%2Fhoopdev-platform.template.yaml">
+  Sydney
+</Card>
+</CardGroup>
+
+The default parameters suit most organizations. The one thing you have to supply is an ACM certificate matching a public DNS record.
+
+### Issue the certificate
+
+1. Open the ACM console in your region.
+2. Click **Request a certificate**.
+3. Click **Next** to request a public certificate.
+4. Choose your domain and a validation method, then click **Request**.
+
+The certificate stays pending until you validate it, and how you validate depends on the method you picked.
+
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/acm-creating-valid-certificate.png"
+    alt="Requesting a certificate in ACM"
+  />
+</Frame>
+
+Open the certificate entry, follow the validation instructions, and copy its ARN. The status turns green once validation completes.
+
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/acm-creating-valid-certificate2.png"
+    alt="A validated ACM certificate"
+  />
+</Frame>
+
+Pass that ARN as the `AwsCertificateArn` parameter when you deploy.
+
+### Point DNS at it
+
+1. Wait for every item under **Stacks** to read `CREATE_COMPLETE`, then click the stack.
+
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/stack-create-completed.png"
+    alt="A completed CloudFormation stack"
+  />
+</Frame>
+
+2. Open the **Outputs** tab and copy the load balancer address. Create a **CNAME record** pointing the domain on your certificate at that address.
+
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/stack-completed-output-tab.png"
+    alt="The stack outputs tab"
+  />
+</Frame>
+
+<Tip>
+  To test before publishing anything to DNS, resolve the load balancer's public IP and add it to your hosts file:
+
+  ```hosts
+  <load_balancer_ip> app-public-domain.tld
+  ```
+</Tip>
+
+---
+
+## Sign in
+
+Visit the public DNS you set in the `AppPublicDNS` parameter — `https://yourdomain.tld`.
+
+Click **Create one** to create the first user. Authentication is local by default: the Control Plane manages users and passwords itself, so there is nothing to configure before you can log in.
+
+<Frame>
+  <img
+    className="block"
+    src="/images/aws/hoop-signup-page.png"
+    alt="The sign-up page"
+  />
+</Frame>
+
+---
+
+## What the stack creates
+
+- A Virtual Private Cloud (VPC)
+- Two public subnets
+- Two private subnets, with NAT gateways
+- Two isolated subnets
+- An RDS Postgres database
+- An Auto Scaling group with EC2 instances
+- Secrets Manager secrets for the Postgres password and access credentials
+- An Application Load Balancer
+- Security groups restricting access to the infrastructure — only 443 and 8443 reach the load balancer, and nothing reaches RDS directly
+
+---
+
+## Updating
+
+Keep the installation in sync with the releases you want. Read the release notes first so you know what is changing.
+
+<Steps>
+  <Step title="Start the update">
+    CloudFormation → select the installed stack → **Update**.
+
+    <Frame>
+      <img
+        className="block"
+        src="/images/aws/how-to-update-1.png"
+        alt="Updating the stack"
+      />
+    </Frame>
+  </Step>
+  <Step title="Replace the template">
+    Choose **Replace Existing Template** and enter the URL for your region:
+
+    - us-east-1 https://hoopdev-platform-cf-us-east-1.s3.us-east-1.amazonaws.com/latest/hoopdev-platform.template.yaml
+    - us-east-2 https://hoopdev-platform-cf-us-east-2.s3.us-east-2.amazonaws.com/latest/hoopdev-platform.template.yaml
+    - us-west-1 https://hoopdev-platform-cf-us-west-1.s3.us-west-1.amazonaws.com/latest/hoopdev-platform.template.yaml
+    - us-west-2 https://hoopdev-platform-cf-us-west-2.s3.us-west-2.amazonaws.com/latest/hoopdev-platform.template.yaml
+    - eu-west-1 https://hoopdev-platform-cf-eu-west-1.s3.eu-west-1.amazonaws.com/latest/hoopdev-platform.template.yaml
+    - eu-west-2 https://hoopdev-platform-cf-eu-west-2.s3.eu-west-2.amazonaws.com/latest/hoopdev-platform.template.yaml
+    - eu-central-1 https://hoopdev-platform-cf-eu-central-1.s3.eu-central-1.amazonaws.com/latest/hoopdev-platform.template.yaml
+    - ap-southeast-2 https://hoopdev-platform-cf-ap-southeast-2.s3.ap-southeast-2.amazonaws.com/latest/hoopdev-platform.template.yaml
+
+    Check that the region in the URL matches the region in the console's top-right selector. If the console says "Virginia" and the dropdown highlights us-east-1, then us-east-1 should appear in the URL — three times.
+  </Step>
+  <Step title="Set failure handling">
+    Set **Stack failure options** to **Roll back all stack resources**, then click **Next**. With it set to preserve, CloudFormation refuses to deploy certain kinds of change.
+
+    <Frame>
+      <img
+        className="block"
+        src="/images/aws/how-to-update-2.png"
+        alt="Stack failure options"
+      />
+    </Frame>
+  </Step>
+  <Step title="Apply it">
+    Check both permission boxes at the bottom and click **Update Stack**. You do not need to wait for the change set to load.
+
+    Some updates finish in minutes and some take hours. If the update fails, screenshot the failure under **Events** in the stack — and if a nested stack is what failed, screenshot the **Events** of that nested stack too.
+  </Step>
+</Steps>
+
+---
+
+## Uninstalling
+
+CloudFormation → select the installed stack → **Delete**.
+
+---
+
+## Next
+
+<Card title="Connect a Sidecar" icon="link" href="/control-plane/connect-sidecar">
+  Issue a token, point a Sidecar at the server host, and confirm it picked up its configuration.
+</Card>
