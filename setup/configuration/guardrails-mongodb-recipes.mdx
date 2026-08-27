@@ -1,9 +1,9 @@
 ---
 title: "MongoDB Guardrail Recipes"
-description: "Patterns for MongoDB connections: drops, unscoped deletes, pipeline writes, and server-side JavaScript"
+description: "Patterns for MongoDB connections: drops, unscoped deletes, pipeline writes, and server-side JavaScript — for native and Web App access"
 ---
 
-MongoDB guardrails work differently from SQL ones. There is no query text on the wire, so a pattern written for SQL never matches. This page explains what your patterns actually see, then gives **tested recipes** for the operations people usually want to block.
+MongoDB guardrails work differently from SQL ones, and what a pattern sees depends on how the connection was made. On a native connection there is no query text on the wire, so a pattern written for SQL never matches. On Web App / one-off access, the reverse is true — your literal shell text is exactly what the guardrail sees. This page explains both, then gives **tested recipes** for the operations people usually want to block, written for each.
 
 <Note>
 For rule creation, actions, and pattern syntax basics, see [Guardrails Configuration](/setup/configuration/guardrails-configuration).
@@ -37,26 +37,37 @@ So you write patterns against MongoDB's command grammar — the same names in th
 The payload also contains the driver's session envelope — `lsid`, `$clusterTime` and `signature`, each carrying base64 blobs on **every** command. Do not assign generic secret-detection or high-entropy patterns to MongoDB connections as input rules: they will match constantly.
 </Warning>
 
-### Coming from SQL
-
-None of your SQL patterns transfer, because the keywords they match are text your client never sends. The operations still exist — they just have different names:
-
-| SQL pattern | Equivalent MongoDB operation | Pattern to use |
-|-------------|------------------------------|----------------|
-| `DROP\s+TABLE` | `db.users.drop()` | `\{"drop":` |
-| `DROP\s+DATABASE` | `db.dropDatabase()` | `\{"dropDatabase":` |
-| `TRUNCATE` | `db.users.deleteMany({})` | `("q":\{\},"limit":0\|"filter":\{\},"multi":true)` |
-| `DELETE\s+FROM` | `db.users.deleteMany({status:"old"})` | `\{"delete":` |
-| `UPDATE` | `db.users.updateMany({a:1},{$set:{b:2}})` | `\{"update":` |
-| `INSERT\s+INTO` | `db.users.insertMany([{a:1}])` | `\{"insert":` |
-| `SELECT\s+\*` with no `WHERE` | `db.users.find({})` | `"filter":\{\}` |
-| `ALTER\s+TABLE` | `collMod`, `createIndex` | `\{"(collMod\|createIndexes)":` |
-
-MongoDB has no command named `truncate`, but the operation exists: `deleteMany({})` empties a collection and keeps it, while `drop()` removes the collection and its indexes. They map to `TRUNCATE TABLE` and `DROP TABLE` respectively — worth keeping straight, since a rule for one does not cover the other.
-
 <Tip>
 `$` means end-of-string in a regex, and every MongoDB operator starts with `$`. Escape it as `\$` or the pattern silently matches nothing.
 </Tip>
+
+---
+
+## Webapp access: raw text, not command documents
+
+Everything above assumes a **native connection** — a real `mongosh` or Compass process, proxied by Hoop, evaluating your JavaScript locally and sending only the resulting command document. **Web App and one-off access work differently.**
+
+When a resource role permits **Web App / one-off** access — the query box in the Hoop Web Console, or `hoop exec <role> -i "..."` from the CLI — there is no local shell to evaluate your input first. What you type is what the guardrail sees, verbatim:
+
+```js
+db.users.drop()
+```
+
+The guardrail matches against that literal text, not `{"drop":"users","$db":"..."}`. Recipes written for the command grammar (`\{"drop":`) never fire here — that exact string never appears, because the payload is shaped like JavaScript, not JSON.
+
+<Warning>
+A resource role that allows **both** native and Web App access needs **two rules per operation** — one written against the command document, one against the raw text. Assigning only one leaves the other path open. If a role doesn't need native access, turning it off under that resource role's [Access Modes](/clients/webapp/managing-access#access-modes) removes the wire-protocol path entirely, so only the raw-text rule is needed.
+</Warning>
+
+Three things follow from the text being literal and unevaluated:
+
+**Quoting is optional and inconsistent.** `mongosh` accepts unquoted object keys (`{drop: "users"}`), single quotes, double quotes, and whitespace anywhere. A pattern anchored to `"drop":` misses `{drop:"users"}` and `{ drop : "users" }` alike — anchor on the method call instead (`\.drop\s*\(`), and treat a quote around a key as optional (`["']?`) rather than assumed.
+
+**There is no reliable command-position anchor.** The wire JSON always puts the command name first, which is what makes `\{"drop":` safe — an ordinary document can never open with that. Raw text has no such guarantee: `$where` can appear inside a live query, a comment, or a string a user is inserting, and a pattern can't tell those apart. Anchor as tightly as the syntax allows (a leading `.` for a method call, `db.` for a namespace), and accept that some raw-text recipes are blunter than their command-document equivalents.
+
+**Variable indirection defeats literal matching.** A native connection always sends the final evaluated command, however it was built locally. Web App / one-off input is matched as typed, before anything would be evaluated — `var f = {}; db.users.deleteMany(f)` never contains the text `deleteMany({})`, so it slips past a pattern written for the literal call. There is no fix at the pattern layer; where this risk matters, pair the rule with [Require Approval](/setup/configuration/access-requests/action-configuration) or restrict the resource role to native access only.
+
+**Database context comes from a separate statement.** There is no `$db` field to anchor on. `use reporting` or `db.getSiblingDB("reporting")` sets the database for whatever follows, but arrives as its own line — a rule scoped to one database needs to match that statement directly, not assume the name travels with every command.
 
 ---
 
@@ -77,19 +88,30 @@ Use a word list when the thing you want to block genuinely *is* a whole word:
 
 A word list is the blunter of the two. `salaries` as a word list also fires when a document merely mentions the word, so prefer a Pattern whenever you need the match tied to a specific place in the command.
 
+The same logic carries over to raw text: punctuation is still what ties a match to a method call (`\.drop\(`) or an operator (`\$where\b`) rather than incidental text, so the recipes below stay Pattern rules in both forms.
+
 ---
 
 ## Recipes
 
-Each recipe is one input rule with the **Pattern** field and the **Block** action, unless noted. Every pattern was validated against real command payloads, checking both the commands that must be blocked and the ones that must pass.
+Each recipe gives the **Block** rule for the same operation in both forms — switch the tab to match how the resource role is accessed: **Native** for the command-document Pattern (validated against real payloads), **Raw Text** for the Web App / one-off Pattern written against `mongosh` syntax. A role that allows both access modes needs both rules assigned. Shell syntax has more valid spellings than the wire protocol has encodings — run every raw-text rule through *Test before you deploy* below before assigning it widely.
 
 ### block-collection-drop
 
 Blocks dropping a collection.
 
-```regex
-\{"drop":
-```
+<Tabs>
+  <Tab title="Native">
+    ```regex
+    \{"drop":
+    ```
+  </Tab>
+  <Tab title="Raw Text">
+    ```regex
+    \.drop\s*\(\s*\)
+    ```
+  </Tab>
+</Tabs>
 
 | Command | Result |
 |---------|--------|
@@ -103,9 +125,18 @@ The leading `\{"` ties the match to the command position, so an ordinary documen
 
 Blocks every irreversible namespace or index operation.
 
-```regex
-\{"(drop|dropDatabase|dropIndexes|renameCollection|collMod)":
-```
+<Tabs>
+  <Tab title="Native">
+    ```regex
+    \{"(drop|dropDatabase|dropIndexes|renameCollection|collMod)":
+    ```
+  </Tab>
+  <Tab title="Raw Text">
+    ```regex
+    \.(drop|dropDatabase|dropIndex|dropIndexes|renameCollection)\s*\(|\bcollMod\b["']?\s*:
+    ```
+  </Tab>
+</Tabs>
 
 | Command | Result |
 |---------|--------|
@@ -118,17 +149,26 @@ Blocks every irreversible namespace or index operation.
 
 ### block-writes
 
-A read-only connection needs **two** rules. This one covers write commands:
+A read-only connection needs **two** rules. This one covers write commands, and the other covers writes hidden inside an aggregation pipeline:
 
-```regex
-\{"(insert|update|delete|findAndModify|bulkWrite|drop|dropDatabase|dropIndexes|create|createIndexes|renameCollection|collMod|mapReduce)":
-```
-
-And this one covers writes hidden inside an aggregation pipeline:
-
-```regex
-"\$(out|merge)"
-```
+<Tabs>
+  <Tab title="Native">
+    ```regex
+    \{"(insert|update|delete|findAndModify|bulkWrite|drop|dropDatabase|dropIndexes|create|createIndexes|renameCollection|collMod|mapReduce)":
+    ```
+    ```regex
+    "\$(out|merge)"
+    ```
+  </Tab>
+  <Tab title="Raw Text">
+    ```regex
+    \.(insertOne|insertMany|updateOne|updateMany|replaceOne|deleteOne|deleteMany|findOneAndUpdate|findOneAndReplace|findOneAndDelete|bulkWrite|save|remove|createIndex|createIndexes|mapReduce)\s*\(
+    ```
+    ```regex
+    \$(out|merge)\b
+    ```
+  </Tab>
+</Tabs>
 
 | Command | Blocked by |
 |---------|-----------|
@@ -150,9 +190,18 @@ The command name is `aggregate` — a read command — so rule 1 does not match 
 
 Blocks deleting every document in a collection, while allowing scoped deletes.
 
-```regex
-("q":\{\},"limit":0|"filter":\{\},"multi":true)
-```
+<Tabs>
+  <Tab title="Native">
+    ```regex
+    ("q":\{\},"limit":0|"filter":\{\},"multi":true)
+    ```
+  </Tab>
+  <Tab title="Raw Text">
+    ```regex
+    \.deleteMany\s*\(\s*\{\s*\}\s*\)
+    ```
+  </Tab>
+</Tabs>
 
 | Command | Result |
 |---------|--------|
@@ -192,9 +241,18 @@ To catch any multi-document delete regardless of its filter, scope the pattern t
 
 Blocks updating every document in a collection.
 
-```regex
-"q":\{\},"u":.*"multi":true
-```
+<Tabs>
+  <Tab title="Native">
+    ```regex
+    "q":\{\},"u":.*"multi":true
+    ```
+  </Tab>
+  <Tab title="Raw Text">
+    ```regex
+    \.updateMany\s*\(\s*\{\s*\}\s*,
+    ```
+  </Tab>
+</Tabs>
 
 | Command | Result |
 |---------|--------|
@@ -212,9 +270,18 @@ This pattern depends on field order (`q`, then `u`, then `multi`), which is driv
 
 Blocks server-side JavaScript execution.
 
-```regex
-"(\$where|\$function|\$accumulator|\$code)"
-```
+<Tabs>
+  <Tab title="Native">
+    ```regex
+    "(\$where|\$function|\$accumulator|\$code)"
+    ```
+  </Tab>
+  <Tab title="Raw Text">
+    ```regex
+    \$where\b|\$function\b|\$accumulator\b|\.mapReduce\s*\(
+    ```
+  </Tab>
+</Tabs>
 
 | Command | Result |
 |---------|--------|
@@ -251,9 +318,18 @@ db.runCommand({
 
 Blocks one collection by name, without matching documents that merely mention it.
 
-```regex
-\{"(find|aggregate|count|distinct|insert|update|delete|findAndModify)":"salaries"
-```
+<Tabs>
+  <Tab title="Native">
+    ```regex
+    \{"(find|aggregate|count|distinct|insert|update|delete|findAndModify)":"salaries"
+    ```
+  </Tab>
+  <Tab title="Raw Text">
+    ```regex
+    \bdb\.salaries\b
+    ```
+  </Tab>
+</Tabs>
 
 | Command | Result |
 |---------|--------|
@@ -313,6 +389,10 @@ Two extra checks worth running:
 <Note>
 Test in `mongosh` before Compass. Compass issues its own `listCollections`, `$collStats` and schema-analysis `aggregate` calls alongside your actions, so a broad rule can block Compass's own metadata queries and make the session look broken rather than guarded.
 </Note>
+
+<Tip>
+Raw-text rules need their own pass through the same canary commands. Run them through the Web App query box, or `hoop exec <role> -i "db.gr_test_zz.drop()"` from the CLI — a rule tuned against the command document does not automatically cover the literal text, and vice versa.
+</Tip>
 
 ---
 
