@@ -41,13 +41,13 @@ An `ai_analysis` rule maps each risk level the model can report to a tool.
 | `allow` | Forward. The verdict is still recorded. |
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
-| `defer` | Forward, and hand the decision to an external policy endpoint that reads the risk level alongside the actor, the hour and the table. |
+| `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-inspect/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
 | `review` | Hold the statement for a human to approve. **Coming soon.** |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
 <Warning>
-`review` is not available yet — `require_review` is refused at startup, because holding a statement for approval needs a review backend the current build does not ship. Until it lands, `defer` is the closest working thing: the statement is classified and annotated, and an external policy makes the call.
+`review` is not available yet — `require_review` is refused at startup, because holding a statement for approval needs a review backend the current build does not ship. Until it lands, `defer` is the closest working thing: the statement is classified and annotated, and Rego makes the call.
 </Warning>
 
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
@@ -59,7 +59,7 @@ A risk level you do not name defaults to `allow`, so you opt into blocking a tie
 Two pieces: an `analyzer` block that says which model to call, and an `ai_analysis` rule that says when to call it and what to do with the answer.
 
 ```yaml config.yaml
-pii:
+pii:                               # optional: omit it and every entity is enabled
   entities: [EMAIL_ADDRESS, US_SSN, BR_CPF]
 
 analyzer:
@@ -79,7 +79,7 @@ listeners:
     protocol: postgres
     listen: 0.0.0.0:15432
     upstream: appdb:5432
-    policy:
+    guardrails:
       rules:
         - name: risky-writes
           type: ai_analysis
@@ -103,8 +103,10 @@ FATAL:  unbounded delete against the customer ledger
 | `send` | Behavior |
 |---|---|
 | `raw` | The statement text as written. |
-| `redacted` | Detected entities are named, their values withheld. Requires a `pii` block. |
-| `refuse` | Deny locally rather than call out at all. Requires a `pii` block. |
+| `redacted` | Detected entities are named, their values withheld. |
+| `refuse` | Deny locally rather than call out at all. |
+
+Neither mode needs a `pii` section: with the section omitted every supported entity is enabled, and a `pii.entities` list only narrows what the redactor looks for before the statement leaves the process.
 
 The credential is always a path (`credentials_file`), never inline, and the file must be `0600` or stricter.
 
@@ -121,7 +123,7 @@ The HTTP codec captures nothing by default, so an `ai_analysis` rule on an HTTP 
       capture_body: true
       max_body_bytes: 8192
       headers: [Content-Type]
-    policy:
+    guardrails:
       rules:
         - name: risky-payloads
           type: ai_analysis
@@ -164,7 +166,7 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 
 ## It fails open, and everything else fails closed
 
-The analyzer defaults to `fail_open: true`. It depends on a third-party API, and a provider outage that closes every database connection in your fleet is a worse incident than the one it prevents. The rules engine and the policy endpoint fail closed, as they should — they depend on nothing.
+The analyzer defaults to `fail_open: true`. It depends on a third-party API, and a provider outage that closes every database connection in your fleet is a worse incident than the one it prevents. Guardrails and OPA fail closed, as they should — they depend on nothing outside your own infrastructure.
 
 Decide which you want per environment, and know that `fail_open: false` makes your model provider a hard dependency of your database.
 

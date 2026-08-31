@@ -19,17 +19,26 @@ Masking runs on **responses only**. Requests are never rewritten: changing the s
 
 ## Configuration
 
-Two blocks, and both are required. `pii` turns detection on; `mask` says what to do with what was detected.
+One block. `mask` says what to rewrite, and a `mask` block carrying rules masks — there is no second switch to set.
 
 ```yaml config.yaml
-pii:
-  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
-
 mask:
-  enabled: true
   rules:
-    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
-    - {name: ssn,    entity: US_SSN, strategy: partial, keep_last: 4}
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: ssn,    entities: [US_SSN], strategy: partial, keep_last: 4}
+```
+
+`entities` is **a list**, even for one type, and one rule can name several:
+
+```yaml
+- {name: national-ids, entities: [US_SSN, BR_CPF], strategy: redact}
+```
+
+Detection needs no configuration of its own: **omit `pii` and every supported entity is enabled.** Add the section only to narrow the set, which also makes it exhaustive — a `mask` rule naming a type outside the list is then refused at startup rather than silently masking nothing.
+
+```yaml config.yaml
+pii:                              # optional
+  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
 ```
 
 The same query now comes back rewritten:
@@ -42,16 +51,20 @@ The same query now comes back rewritten:
 ```
 
 <Warning>
-`pii.entities` is required and there is no all-entities default. A `mask` rule naming an entity that detection was never told to look for loads cleanly, evaluates, and masks nothing — the config looks live while everything leaks. Name the types your data actually contains.
+Breadth has a cost. `US_SSN` carries no checksum, so nine digits in a legal range is a valid one as far as any detector can tell, and a `mask` rule naming it rewrites ordinary numeric columns:
 
-The opposite is also a real cost: turning on every recognizer rewrites ordinary numeric columns, because nine digits in a legal range is a valid `US_SSN` as far as any detector can tell.
+```json
+{"order_id": 457555462, "customer_id": 123456781}
+```
+
+Both are reported as `US_SSN`. Prefer a `columns` rule for a column you can name, and reach for a narrowing `pii.entities` list when a lane's data makes a type genuinely ambiguous.
 </Warning>
 
 ### Rule fields
 
 | Field | Meaning |
 |---|---|
-| `entity` | Entity type to rewrite wherever it appears. Required unless `columns` is set. |
+| `entities` | List of entity types to rewrite wherever they appear. **A list**, even for one type. Required unless `columns` is set. |
 | `columns` | Result-set column names to mask outright, compared case-insensitively. |
 | `strategy` | `redact`, `mask`, `partial` or `hash`. Empty means `redact`. |
 | `keep_last` | Tail length for `partial`. Default `4`. |
@@ -93,10 +106,9 @@ This is the single most common way a working config quietly stops masking:
 
 ```yaml config.yaml
 mask:                                    # top-level defaults
-  enabled: true
   rules:
-    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
-    - {name: ssn, entity: US_SSN, strategy: partial, keep_last: 4}
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: ssn, entities: [US_SSN], strategy: partial, keep_last: 4}
 
 listeners:
   - name: appdb
@@ -106,12 +118,12 @@ listeners:
     mask:
       rules:
         - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
-        - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}   # relisted on purpose
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}   # relisted on purpose
 ```
 
 A listener's `mask` block **replaces** the top-level list rather than extending it. Adding one column rule drops every inherited entity rule, so list those again alongside it. This is deliberate: a rule owns an entity type, and two concatenated lists would leave two rules competing for one entity.
 
-[`policy.rules` behaves the opposite way](/features/guardrails) — it concatenates.
+[`guardrails.rules` behaves the opposite way](/features/guardrails#inheritance-guardrail-rules-concatenate) — it concatenates.
 
 ---
 
@@ -125,7 +137,7 @@ hoop start sidecar --config config.yaml --validate
 
 ```
 config OK: 1 listener(s)
-  appdb            postgres  enforcing 1 rule(s) + masking
+  appdb            postgres  1 rule(s) + masking
 ```
 
 ```bash
@@ -133,7 +145,7 @@ curl -s localhost:19000/config | python3 -m json.tool
 ```
 
 <Tip>
-If a value comes back unmasked, the detector probably refused it rather than missed it — obvious test fixtures like `123-45-6789` are deliberately not reported. Add a column rule, or widen `pii.entities`.
+If a value comes back unmasked, the detector probably refused it rather than missed it — obvious test fixtures like `123-45-6789` are deliberately not reported. Add a `columns` rule, or check whether a `pii.entities` list is narrowing detection past the type you expected.
 </Tip>
 
 ---

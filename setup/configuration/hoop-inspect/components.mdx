@@ -3,7 +3,7 @@ title: "Architecture"
 description: "How a request flows through the Sidecar, and how to place it in a real deployment"
 ---
 
-This page traces one connection from the client through Envoy, through the Sidecar, to the upstream and back. Read it to find out where a policy denial happens, why Postgres masking takes a different path from HTTP masking, and which knob in `config.yaml` controls which behavior.
+This page traces one connection from the client through Envoy, through the Sidecar, to the upstream and back. Read it to find out where a guardrail denial happens, why Postgres masking takes a different path from HTTP masking, and which knob in `config.yaml` controls which behavior.
 
 <Note>
 For the commands, start at [Get Started](/setup/configuration/hoop-inspect/get-started). For every config field, see the [Config File reference](/setup/configuration/hoop-inspect/config-file).
@@ -72,7 +72,7 @@ Envoy is not blind here, and an argument that says otherwise loses a technical r
 
 ## One process, one lane per Envoy cluster
 
-The Sidecar serves one listener per Envoy cluster. Each listener resolves its own rules, its own masking and its own OPA endpoint.
+The Sidecar serves one listener per Envoy cluster. Each listener resolves its own guardrails, its own masking and its own OPA endpoint.
 
 ```
 envoy :8443 ──cluster hoop_inspect_http──> lane "httpbin"   http
@@ -194,7 +194,7 @@ Three fields come out of it, and a rule can key on any of them:
 | `Effects` | Every operation the statement performs, anywhere in the tree. |
 | `Relations` | Each relation with `read` or `write`, so `INSERT INTO staging SELECT * FROM customers` writes one and reads the other. |
 
-Comments and string literals never reach the token stream, so `SELECT 'DROP TABLE customers'` is a `select` and a `deny_words_list` rule on `DROP` denies that harmless query. Prefer `type: operation`, and see [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) for what each rule type reads.
+Comments and string literals never reach the token stream, so `SELECT 'DROP TABLE customers'` is a `select` and a `deny_words_list` rule on `DROP` denies that harmless query. Prefer `type: operation`, and see [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) for what each rule type reads.
 
 A statement whose body the scanner cannot reach reports `Operation: unknown` and sets `Metadata["sql.incomplete"]` to the reason: `CALL purge()` gives "stored procedure; body is in the catalog", `EXECUTE p` gives "prepared statement; the text was supplied elsewhere", `DO $$…$$` gives "anonymous code block; body is interpreted at runtime". That pair is the fail-closed signal. Name `unknown` in a rule and the Sidecar refuses what nobody can read.
 
@@ -233,7 +233,7 @@ Both database codecs are stateful: one Postgres `RowDescription` describes every
 Evaluators compose in ascending order of cost, so a statement an earlier one already forbids never pays for a later one.
 
 ```
-Statement ──> policy.Chain{ Rules, OPAClient, analyzer, OPAClient }
+Statement ──> policy.Chain{ Guardrails, OPAClient, analyzer, OPAClient }
                    │           │            │            │
                    │           │            │            └─> decide phase
                    │           │            │                reads input.findings
@@ -251,24 +251,24 @@ Statement ──> policy.Chain{ Rules, OPAClient, analyzer, OPAClient }
              http_resource · http_status · pii
 ```
 
-The chain stops at the first denial, so a `DELETE` a local `operation` rule already refuses never reaches a model. That ordering is load-bearing.
+The chain stops at the first denial, so a `DELETE` an `operation` guardrail already refuses never reaches a model. That ordering is load-bearing.
 
 A rule carrying `action: defer` reports its match as a **finding** and evaluation continues. The finding travels in-process on the evaluation context and reaches the decide-phase OPA call as `input.findings`, keyed by the rule's type. A producer that ran and could not answer still appears, carrying a status, because "no answer" is the case a policy most needs to see and the case an absent key hides.
 
 | Lane | Chain |
 |---|---|
-| Nothing defers, no gate | `rules` → `opa` |
-| Something defers | `rules` → producers → `opa(decide)` |
-| `policy.opa.gate: true` | `rules` → `opa(gate)` → producers → `opa(decide)` |
+| Nothing defers, no gate | `guardrails` → `opa` |
+| Something defers | `guardrails` → producers → `opa(decide)` |
+| `opa.gate: true` | `guardrails` → `opa(gate)` → producers → `opa(decide)` |
 
-The gate runs before the producers and answers whether they are worth running, which is how the cost control survives moving a determination into Rego. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) carries the finding shape, the status vocabulary and the Rego that reads it.
+The gate runs before the producers and answers whether they are worth running, which is how the cost control survives moving a determination into Rego. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) carries the finding shape, the status vocabulary and the Rego that reads it.
 
-An `ai_analysis` rule is **not** evaluated by the local rules engine. It needs a provider, a deadline and a cache, none of which belong to a text matcher, so the sidecar lifts those rules out of the set at startup and builds one evaluator per rule, appended after OPA. Two consequences worth knowing:
+An `ai_analysis` rule is **not** evaluated by the guardrails engine. It needs a provider, a deadline and a cache, none of which belong to a text matcher, so the sidecar lifts those rules out of the set at startup and builds one evaluator per rule, appended after OPA. Two consequences worth knowing:
 
-- Ordering between an `ai_analysis` rule and the local rules in the same list does not matter. Local rules always run first.
+- Ordering between an `ai_analysis` rule and the other rules in the same list does not matter. Guardrails always run first.
 - A lane can carry several `ai_analysis` rules. Each is its own evaluator with its own trigger, actions and prompt; if more than one classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
 
-The rules engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#why-this-one-fails-open).
+The guardrails engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#why-this-one-fails-open).
 
 The `pii` rule type dispatches at the rule-set level rather than per rule, because the detector belongs to the rule set and not to any single rule.
 
@@ -315,11 +315,11 @@ alcatraz.Detector ┤                        ↓ response masking
                                            ↓ request guardrails
 ```
 
-One detector drives both paths: masking rewrites what comes back, and the `pii` policy rule denies what goes in. [alcatraz](https://github.com/hoophq/alcatraz) supplies 45 entity types across 12 countries, 25 of them checksum-verified.
+One detector drives both paths: masking rewrites what comes back, and the `pii` guardrail rule denies what goes in. [alcatraz](https://github.com/hoophq/alcatraz) supplies 45 entity types across 12 countries, 25 of them checksum-verified. All 45 are enabled unless a `pii.entities` list narrows them.
 
-It also carries three secret recognizers, which you name in config like any other entity: `AWS_ACCESS_KEY`, `JWT` (decodes the header rather than matching its shape) and `PRIVATE_KEY`.
+It also carries three secret recognizers, which a rule names like any other entity: `AWS_ACCESS_KEY`, `JWT` (decodes the header rather than matching its shape) and `PRIVATE_KEY`.
 
-There are no build tags. The config file decides every capability, so an operator turning on PII detection does not also have to swap the binary.
+There are no build tags. The config file decides every capability, so an operator narrowing or tuning PII detection does not also have to swap the binary.
 
 **Source:** [`hoopinspect/pii/alcatraz/`](https://github.com/hoophq/hoop/tree/main/hoopinspect/pii/alcatraz)
 
@@ -370,7 +370,7 @@ sequenceDiagram
 
 | Kind | Fires | Carries |
 |---|---|---|
-| `session_start` | connection accepted | principal, protocol, connection |
+| `session_start` | connection accepted | principal, protocol, listener name |
 | `statement` | each inspected statement | text, operation, tables, `allowed=true` |
 | `violation` | a denied statement | same, plus `rule` and `message` |
 | `masked` | response data rewritten | entity names and a count, never values |
@@ -576,7 +576,7 @@ Mount the config as a ConfigMap and set `HOOP_SIDECAR_CONFIG` instead of passing
 
 Every session records `principal: anonymous` unless a deployment fills it. The plumbing runs end to end: the session carries a subject, and the proxy exposes a seam a deployment fills from a verified JWT, an mTLS peer cert or a credential token. A listener names its `identity_header`, and the current implementation contributes only the peer address.
 
-The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. Until that seam is filled, a policy keyed on `input.context.principal` reads `anonymous` from every lane.
+The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` — the listener's name — on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. Until that seam is filled, a policy keyed on `input.context.principal` reads `anonymous` from every lane.
 
 <Note>
 A sidecar lane used to send an **empty** `input.context`. The gate looked for a bare `*policy.OPAClient` to stamp the session onto, and a lane's policy is a `policy.Chain`, so the assertion never matched and the facts never left the process. The gate now seeds the evaluation context instead, which every evaluator in the chain reads, including both calls on a two-phase lane.
@@ -611,7 +611,7 @@ The repository ships a compose stack that runs every component on this page end 
 | [`docker-compose.yml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/docker-compose.yml) | Six containers: Envoy, OPA, the Sidecar, Postgres, an HTTP service, a client |
 | [`envoy/envoy.yaml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/envoy/envoy.yaml) | Both listeners, the `ext_authz` filter, and the Sidecar clusters |
 | [`opa/authz.rego`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/opa/authz.rego) | Tier-1 reachability policy |
-| [`hoopinspect/config.yaml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/hoopinspect/config.yaml) | Two lanes with rules, masking and upstream TLS |
+| [`hoopinspect/config.yaml`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/hoopinspect/config.yaml) | Two lanes with guardrails, masking and upstream TLS |
 | [`uds/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/uds) | The socket overlay: `pipe:` clusters, the init container, and both permission traps solved |
 | [`demo.sh`](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/demo.sh) | Walks every lane and prints the audit trail |
 
@@ -620,7 +620,7 @@ The repository ships a compose stack that runs every component on this page end 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
   <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">

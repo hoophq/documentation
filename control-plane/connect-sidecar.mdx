@@ -57,7 +57,7 @@ Four properties fall out of this shape, and they are the reason it looks like th
     hoop start sidecar --config config.yaml
     ```
 
-    Listeners still come from the local file. Everything the Control Plane manages — rule sets, masking policies, analyzer settings — arrives over the ping.
+    Listeners still come from the local file. Everything the Control Plane manages — guardrails, masking, analyzer settings — arrives over the ping.
   </Step>
   <Step title="Confirm what it resolved">
     The admin API reports the merged, live configuration. This is the only place you can see what the Sidecar actually ended up running:
@@ -78,7 +78,7 @@ Four properties fall out of this shape, and they are the reason it looks like th
 | Symptom | Check |
 |---|---|
 | The Sidecar starts but never appears in the Control Plane | Outbound HTTPS to the Control Plane host. The Sidecar dials out; nothing dials in. |
-| It appears, but runs no managed rules | Read `/config` on the admin API. A Sidecar that could not fetch falls back to its local file. |
+| It appears, but runs no managed guardrails | Read `/config` on the admin API. A Sidecar that could not fetch falls back to its local file. |
 | Authentication fails | The token is per-Sidecar. Reusing one across two Sidecars is not a supported shape. |
 | Rules changed centrally but the Sidecar did not | Configuration is picked up on the ping, not pushed. Wait for the next interval or restart the Sidecar. |
 

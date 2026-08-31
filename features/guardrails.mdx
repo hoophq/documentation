@@ -28,8 +28,7 @@ Three sentences cover the entire semantics:
 3. A rule set is an ordered deny list. No match means allowed.
 
 ```yaml config.yaml
-policy:
-  enforce: true
+guardrails:
   rules:
     - name: no-destructive-sql
       type: operation
@@ -39,8 +38,12 @@ policy:
 
 Every rule takes `name`, `message` and `action` in addition to its own fields.
 
+<Note>
+`guardrails` is Hoop's own rule engine, evaluated in-process. It was previously spelled `policy`, which still loads and warns at startup — see [Migrating from `policy`](/setup/configuration/hoop-inspect/config-file#migrating-from-policy). The separate `opa` section configures the optional external endpoint a `defer` hands to.
+</Note>
+
 <Warning>
-`policy.enforce` defaults to **false**. Without it every listener inspects and audits but denies nothing — which is exactly how you want to roll out, and not how you want to leave it. `/config` on the admin API reports `enforcing` per listener.
+**A rule set that reaches a listener enforces.** There is no observe-only switch to forget: a rule you wrote denies from the moment the process starts. Roll out on a staging lane, or hand the call to Rego with `action: defer`.
 </Warning>
 
 ---
@@ -110,7 +113,7 @@ Every rule takes `name`, `message` and `action` in addition to its own fields.
       message: do not put a national ID in a query; it lands in the database's own logs
     ```
 
-    Requires a top-level `pii.entities` block. A rule naming an entity absent from that list is **refused at startup** — otherwise the guardrail would look live while allowing through everything it was written to stop.
+    Every supported entity is detected unless a top-level `pii.entities` list narrows the set. Once that list exists it is exhaustive, and a rule naming an entity absent from it is **refused at startup** — otherwise the guardrail would look live while allowing through everything it was written to stop.
   </Accordion>
   <Accordion title="http_resource and http_status">
     ```yaml
@@ -125,7 +128,7 @@ Every rule takes `name`, `message` and `action` in addition to its own fields.
     - name: no-upstream-5xx
       type: http_status
       statuses: ["5xx"]
-      message: upstream failure suppressed by policy
+      message: upstream failure suppressed by this listener
     ```
 
     `http_status` is response-side, which is why an authorization filter running before the upstream can never ask it.
@@ -156,16 +159,16 @@ Every rule takes `name`, `message` and `action` in addition to its own fields.
 | `action` | Effect |
 |---|---|
 | *(empty)* | Deny. First match wins. |
-| `defer` | Record a finding, keep evaluating, and hand the decision to an external policy endpoint. |
+| `defer` | Record a finding, keep evaluating, and hand the decision to OPA. |
 
 ```yaml
 - name: cpf
   type: pii
   entities: [BR_CPF]
-  action: defer          # the policy endpoint rules on it
+  action: defer          # OPA rules on it
 ```
 
-`defer` with no `policy.opa.url` configured is refused at startup — a finding nobody reads forwards every statement while looking like enforcement.
+`defer` with no `opa.url` configured is refused at startup — a finding nobody reads forwards every statement while looking like enforcement.
 
 <Note>
 `action: warn` and `require_review` are **refused at startup**. `warn` exists only as a per-tier action on `ai_analysis` rules. Human review needs a review backend the current build does not ship — see [Agentic Access](/features/agentic-access#the-tools). For everything else, `defer` is how a rule stops short of deciding.
@@ -173,13 +176,12 @@ Every rule takes `name`, `message` and `action` in addition to its own fields.
 
 ---
 
-## Inheritance: policy rules concatenate
+## Inheritance: guardrail rules concatenate
 
 A listener's rules are evaluated **first**, then the top-level defaults:
 
 ```yaml config.yaml
-policy:                          # inherited by every listener
-  enforce: true
+guardrails:                      # inherited by every listener
   rules:
     - name: no-cpf-in-query
       type: pii
@@ -191,7 +193,7 @@ listeners:
     protocol: postgres
     listen: 0.0.0.0:15432
     upstream: appdb:5432
-    policy:
+    guardrails:
       rules:                     # runs before the inherited rule above
         - name: no-destructive-sql
           type: operation
@@ -199,33 +201,40 @@ listeners:
           message: destructive statements are not permitted on appdb
 ```
 
-Concatenation is safe here precisely because first-match-wins applies to denials: adding rules can never turn a deny into an allow, only change which message the user reads. `policy.opa` and `policy.enforce` replace rather than merge, and [`mask` replaces too](/features/data-masking#inheritance-a-listeners-mask-block-replaces-the-defaults).
+Concatenation is safe here precisely because first-match-wins applies to denials: adding rules can never turn a deny into an allow, only change which message the user reads. `opa` replaces rather than merges, and [`mask` replaces too](/features/data-masking#inheritance-a-listeners-mask-block-replaces-the-defaults).
 
 ---
 
 ## Roll out without breaking anything
 
 <Steps>
-  <Step title="Start observe-only">
-    Leave `policy.enforce: false`. Every statement is inspected and audited, nothing is denied.
-  </Step>
   <Step title="Validate the config">
+    Nothing binds and nothing is denied. Startup refusals — a bad regex, a rule naming an entity outside `pii.entities`, a `defer` with no `opa.url` — surface here rather than in front of users.
+
     ```bash
     hoop start sidecar --config config.yaml --validate
     ```
 
     ```
     config OK: 1 listener(s)
-      appdb            postgres  observe-only
+      appdb            postgres  3 rule(s)
     ```
   </Step>
-  <Step title="Read what would have been denied">
+  <Step title="Run the rule set on a staging lane first">
+    Point a listener carrying the new rules at a staging copy of the upstream and send real query shapes through it. This is what replaces an observe-only flag: the rules are live, but on a lane whose denials cost nothing.
+  </Step>
+  <Step title="Read what got denied">
     ```bash
     curl -s 'localhost:19000/api/events?kind=violation' | python3 -m json.tool
     ```
+
+    Each `violation` names the rule that fired and the message the client read, so an over-broad rule is visible by name before it reaches production.
   </Step>
-  <Step title="Turn on enforcement">
-    Set `policy.enforce: true`. `/config` confirms `enforcing` per listener.
+  <Step title="Defer anything you are not ready to decide">
+    A rule with `action: defer` records a finding and hands the call to [OPA](/setup/configuration/hoop-inspect/policy-rules#deferring-to-opa) instead of denying on its own. Rego that returns `allow` while you watch the findings gives you the same visibility on the production lane.
+  </Step>
+  <Step title="Move production traffic to the lane">
+    Nothing changes in the rule set. `/config` reports the resolved rules per listener, which is what to compare against the file when a rule you wrote never fires.
   </Step>
 </Steps>
 
@@ -238,7 +247,7 @@ Looking for guardrails on the **Hoop Gateway** instead? That is a different impl
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Policy Rules Reference" icon="scale-balanced" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules Reference" icon="scale-balanced" href="/setup/configuration/hoop-inspect/policy-rules">
     Every field of every rule type, deferring to Rego, and the full findings vocabulary.
   </Card>
   <Card title="Data Masking" icon="mask" href="/features/data-masking">

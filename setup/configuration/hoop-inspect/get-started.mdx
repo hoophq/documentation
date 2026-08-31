@@ -55,17 +55,13 @@ Pick a transport first. One field decides it, and the rest of the file is identi
     audit:
       file: "-"                   # JSON lines on stdout
 
-    policy:
-      enforce: true               # false is observe-only: inspect and audit, deny nothing
-
     listeners:
-      - name: appdb
+      - name: appdb                            # the name audit rows and rules key on
         protocol: postgres
         network: unix                          # no port is opened at all
         listen: /run/hoop-inspect/pg.sock      # where Envoy sends bytes
         upstream: appdb:5432                   # the real database
-        connection: appdb                      # the name audit rows and policy key on
-        policy:
+        guardrails:
           rules:
             - name: no-destructive-sql
               type: operation
@@ -85,16 +81,12 @@ Pick a transport first. One field decides it, and the rest of the file is identi
     audit:
       file: "-"                   # JSON lines on stdout
 
-    policy:
-      enforce: true               # false is observe-only: inspect and audit, deny nothing
-
     listeners:
-      - name: appdb
+      - name: appdb               # the name audit rows and rules key on
         protocol: postgres
         listen: 127.0.0.1:15432   # network omitted -> tcp
         upstream: appdb:5432      # the real database
-        connection: appdb         # the name audit rows and policy key on
-        policy:
+        guardrails:
           rules:
             - name: no-destructive-sql
               type: operation
@@ -106,7 +98,7 @@ Pick a transport first. One field decides it, and the rest of the file is identi
   </Tab>
 </Tabs>
 
-Nothing above the transport changes. Policy, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is. See [Transport](/setup/configuration/hoop-inspect/config-file#transport) for the full comparison.
+Nothing above the transport changes. Guardrails, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is. See [Transport](/setup/configuration/hoop-inspect/config-file#transport) for the full comparison.
 
 ### Another protocol is one field
 
@@ -118,8 +110,7 @@ listeners:
     protocol: mssql             # postgres | mssql | http
     listen: 127.0.0.1:11433     # network: unix works here too
     upstream: mssql:1433
-    connection: mssqldb
-    policy:
+    guardrails:
       rules:
         - name: no-destructive-tsql
           type: operation
@@ -127,14 +118,14 @@ listeners:
           message: destructive statements are not permitted on mssqldb
 ```
 
-Policy, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the Sidecar can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos).
+Guardrails, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the Sidecar can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos).
 
 <Warning>
-`policy.enforce` defaults to **false**. Without it every lane inspects and audits but denies nothing, so a misconfigured rule cannot take production down on first deploy. Set it to `true` when you want the rules to bite.
+**A lane always enforces.** There is no observe-only switch: a rule you write denies from the first statement that matches it. Deploy a new rule set against a staging listener, or [validate](#step-2-validate-before-you-deploy) and read `/api/events?kind=violation` there, before it fronts production.
 </Warning>
 
 <Note>
-`type: operation` matches the statement's most consequential **effect**, so `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` counts as a `delete` and the rule above catches it. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) covers every rule type, including deferring a match to a Rego policy instead of denying it.
+`type: operation` matches the statement's most consequential **effect**, so `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` counts as a `delete` and the rule above catches it. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) covers every rule type, including deferring a match to a Rego policy instead of denying it.
 </Note>
 
 ---
@@ -149,10 +140,10 @@ hoop start sidecar --config config.yaml --validate
 
 ```
 config OK: 1 listener(s)
-  appdb            postgres  enforcing 1 rule(s)
+  appdb            postgres  1 rule(s)
 ```
 
-Each line is the **resolved** lane, so the rule count includes anything it inherited. A lane with an `opa` block reads `+ opa`, one with masking reads `+ masking`, and one with `enforce: false` reads `observe-only`.
+Each line is the **resolved** lane, so the rule count includes anything it inherited. A lane with an `opa` block reads `+ opa`, and one with masking reads `+ masking`.
 
 ---
 
@@ -476,17 +467,13 @@ Check with `nc`, not `(echo > /dev/tcp/host/port)`. The latter is a bash builtin
 
 ## Step 6: Add masking
 
-Masking runs on responses. Turn on detection by naming the entity types your data holds, then say how each is rewritten:
+Masking runs on responses. Detection needs no setup — every supported entity is enabled unless a `pii` section narrows the list — so one block says what gets rewritten and how:
 
 ```yaml config.yaml
-pii:
-  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
-
 mask:
-  enabled: true
   rules:
-    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
-    - {name: ssn,    entity: US_SSN, strategy: partial, keep_last: 4}
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: ssn,    entities: [US_SSN], strategy: partial, keep_last: 4}
 ```
 
 The same query now comes back rewritten:
@@ -498,8 +485,15 @@ The same query now comes back rewritten:
  Grace Hopper | [REDACTED:EMAIL_ADDRESS] | ***-**-4321 | ******************3000
 ```
 
+`entities` is a list, so one rule can cover several types that share a strategy: `{name: ids, entities: [US_SSN, BR_CPF], strategy: hash}`.
+
 <Warning>
-`pii.entities` is required and there is no all-entities default. Turning on all 45 recognizers rewrites ordinary numeric columns: nine digits in a legal range is a valid `US_SSN` as far as any detector can tell, and it fires on about a third of random nine-digit business ids. Name the types your data contains.
+Only the types a `mask` rule names are rewritten, and `US_SSN` is the one to be careful with: it carries no checksum, so nine digits in a legal range is a valid SSN as far as any detector can tell, and it fires on about a third of random nine-digit business ids. Where a lane carries ids like that, mask the column by name instead, and add a `pii` section naming the types your data really holds:
+
+```yaml config.yaml
+pii:
+  entities: [EMAIL_ADDRESS, CREDIT_CARD, BR_CPF, IBAN_CODE]
+```
 </Warning>
 
 ---
@@ -572,11 +566,11 @@ SQL Server runs in two stacks of its own, and what separates them is who termina
 | Symptom | Check |
 |---|---|
 | A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
-| Masking leaves a value alone | The detector may refuse it. Add a column rule, or widen `pii.entities`. |
+| Masking leaves a value alone | The detector may refuse it. Add a column rule, or check that no `pii.entities` list is narrowing the type out. |
 | The Sidecar refuses to start | It prints every config problem at once, each naming its lane |
 | psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The Sidecar reads plaintext either way. |
 | Envoy returns 503 with `flags=UF` | On a socket lane, Envoy lacks write permission on the socket file. Check `ls -l` on the directory and the Sidecar's umask. On TCP, check the cluster address. |
-| Everything is allowed | `policy.enforce` defaults to false. `/config` reports `enforcing` per lane. |
+| Everything is allowed | Read the lane's resolved `rules` at `/config`. A rule set that reached no lane, or a `guardrails` block still written as `policy`, allows everything. |
 | `bind: permission denied` at startup | The Sidecar cannot write to the socket directory. Chown it, or set `fsGroup` on the pod. |
 | `is a live socket; another relay is already listening on it` | A second Sidecar tried to bind a path in use. Stop the first one. |
 | Envoy rejects the cluster config | A `pipe:` endpoint needs `type: STATIC`; `STRICT_DNS` tries to resolve a filesystem path. A `socket_address` endpoint needs `STRICT_DNS` or `STATIC` with an IP. |
@@ -586,7 +580,7 @@ SQL Server runs in two stacks of its own, and what separates them is who termina
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
   <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">

@@ -16,7 +16,7 @@ This runs entirely in the sidecar. There is no gateway call and no control plane
 ## A working config
 
 ```yaml config.yaml
-pii:
+pii:                               # optional: omit it and every entity is enabled
   entities: [EMAIL_ADDRESS, US_SSN, BR_CPF]
 
 analyzer:
@@ -36,7 +36,7 @@ listeners:
     protocol: postgres
     listen: 0.0.0.0:15432
     upstream: appdb:5432
-    policy:
+    guardrails:
       rules:
         - name: risky-writes
           type: ai_analysis
@@ -54,7 +54,7 @@ listeners:
       capture_body: true
       max_body_bytes: 8192
       headers: [Content-Type]
-    policy:
+    guardrails:
       rules:
         - name: risky-payloads
           type: ai_analysis
@@ -70,14 +70,14 @@ listeners:
 Evaluators compose in ascending order of cost, and the chain stops at the first denial:
 
 ```
-Statement ──> local rules ──> OPA ──> analyzer ──> OPA (decide)
-              free            ~2ms    ~100ms-2s    only where something defers
-                                      costs money
+Statement ──> guardrails ──> OPA ──> analyzer ──> OPA (decide)
+              free           ~2ms    ~100ms-2s    only where something defers
+                                     costs money
 ```
 
-A `DELETE` that a `type: operation` rule already refuses never reaches a model. That ordering is fixed.
+A `DELETE` that a `type: operation` guardrail already refuses never reaches a model. That ordering is fixed.
 
-The trailing decide-phase call appears only on a lane where a risk level or a local rule defers. [The gate phase](#the-gate-phase) puts a second decision in front of the analyzer as well.
+The trailing decide-phase call appears only on a lane where a risk level or a guardrail rule defers. [The gate phase](#the-gate-phase) puts a second decision in front of the analyzer as well.
 
 ---
 
@@ -97,7 +97,7 @@ An ORM issues the same statement shape thousands of times in one session. Withou
     This is also more correct than caching on bytes. The shape is what is risky, not the parameter.
   </Step>
   <Step title="max_calls is a backstop">
-    A process-lifetime budget. Past it, statements fall through to the local rules and OPA, the same outcome as a lane with no analyzer.
+    A process-lifetime budget. Past it, statements fall through to the guardrails and OPA, the same outcome as a lane with no analyzer.
   </Step>
 </Steps>
 
@@ -108,7 +108,7 @@ curl -s localhost:19000/stats | python3 -m json.tool
 ```
 
 <Tip>
-Trigger on `operations` for anything load-bearing. `tables` comes from a scanner rather than a full SQL grammar, and a statement whose relations it could not determine does **not** match a table trigger. `operations` reads the statement's most consequential effect, so a data-modifying CTE triggers on the `delete` it performs. See [Policy Rules](/setup/configuration/hoop-inspect/policy-rules).
+Trigger on `operations` for anything load-bearing. `tables` comes from a scanner rather than a full SQL grammar, and a statement whose relations it could not determine does **not** match a table trigger. `operations` reads the statement's most consequential effect, so a data-modifying CTE triggers on the `delete` it performs. See [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules).
 </Tip>
 
 ---
@@ -175,9 +175,9 @@ blocked if {
 }
 ```
 
-Guard on `status` before reading `values`. An absent `risk_level` means "found nothing", "never ran", "budget spent" and "provider down" all at once, and only the status tells them apart. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) has the full status vocabulary.
+Guard on `status` before reading `values`. An absent `risk_level` means "found nothing", "never ran", "budget spent" and "provider down" all at once, and only the status tells them apart. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) has the full status vocabulary.
 
-`defer` on a lane with no `policy.opa.url` is **refused at startup**. A finding nobody reads forwards every statement while looking like enforcement.
+`defer` on a lane with no `opa.url` is **refused at startup**. A finding nobody reads forwards every statement while looking like enforcement.
 
 <Warning>
 `require_review` is **refused at startup**. Holding a statement for human approval needs a review backend this build does not have, and a config that reads as an approval gate while forwarding every statement is worse than one that fails.
@@ -189,13 +189,14 @@ Guard on `status` before reading `values`. An absent `risk_level` means "found n
 
 `trigger` is a static filter written in YAML. A lane wanting "classify an UPDATE, but only outside business hours, and only against a table the policy calls sensitive" cannot say that in a trigger, and widening the trigger until it can pays for every statement in between.
 
-`policy.opa.gate: true` adds an OPA decision **before** the analyzer runs, so the policy answers whether the call is worth making:
+`opa.gate: true` adds an OPA decision **before** the analyzer runs, so the policy answers whether the call is worth making:
 
 ```yaml
-policy:
-  opa:
-    url: http://opa:8181/v1/data/hoop/inspect
-    gate: true
+opa:
+  url: http://opa:8181/v1/data/hoop/inspect
+  gate: true
+
+guardrails:
   rules:
     - name: risky-writes
       type: ai_analysis
@@ -241,7 +242,7 @@ Every other evaluator in the Sidecar fails **closed**. This one defaults to `fai
 
 OPA is a service you run, usually on the same host. A language model is a third-party API over the public internet. Fail closed there and a vendor outage refuses every `UPDATE` on the lane: you have turned "we could not score this statement" into "the database is down", which is a bigger incident than the one you were guarding against.
 
-The verdict still carries the error, so it reaches the audit trail and `/stats` counts it. The local rules and OPA both ran and both allowed, so a lane whose analyzer is down keeps every guardrail except the paid one.
+The verdict still carries the error, so it reaches the audit trail and `/stats` counts it. The guardrails and OPA both ran and both allowed, so a lane whose analyzer is down keeps every control except the paid one.
 
 <Note>
 Set `fail_open: false` where the classification is a compliance requirement, and accept that a provider outage then stops traffic.
@@ -259,7 +260,7 @@ Set `fail_open: false` where the classification is a compliance requirement, and
 | `redacted` | Detected entities are named; their values are withheld. |
 | `refuse` | A statement containing a detected entity is denied locally. No call is made. |
 
-`redacted` and `refuse` are refused at startup without a `pii` section, because a mode that cannot do what its name says is worse than one that is off.
+Neither mode needs a `pii` section: with the section omitted every supported entity is enabled, so a detector is always there to redact with. Set `pii.entities` to narrow what those modes look for.
 
 <Warning>
 A Sidecar whose job is keeping taxpayer IDs out of a database's own query log must not post them to a model vendor. If you run PII detection, run `send: redacted`.
@@ -288,7 +289,7 @@ analyzer:
 
 listeners:
   - name: appdb
-    policy:
+    guardrails:
       rules:
         - name: risky-writes
           type: ai_analysis
@@ -600,12 +601,11 @@ Each of these would otherwise load, evaluate and do nothing:
 | An `ai_analysis` rule with no `trigger` | Refused: it would classify nothing. A gated lane is the exception. |
 | An `ai_analysis` rule naming no action for any risk level | Refused: every verdict would allow |
 | `require_review` as an action | Refused: this build cannot hold a statement |
-| A risk level set to `defer` with no `policy.opa.url` | Refused: a finding nobody reads forwards everything |
+| A risk level set to `defer` with no `opa.url` | Refused: a finding nobody reads forwards everything |
 | `action` set on an `ai_analysis` rule | Refused: this type defers per risk level through `high`, `medium` and `low` |
-| `policy.opa.gate: true` on a lane with no `ai_analysis` rule | Refused: a round trip per statement that gates nothing |
+| `opa.gate: true` on a lane with no `ai_analysis` rule | Refused: a round trip per statement that gates nothing |
 | A `provider` the binary does not link | Refused, listing what it does link |
 | A credential file readable by group or other | Refused, reporting the mode |
-| `send: redacted` or `refuse` with no `pii` section | Refused: nothing to detect with |
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
 | An `ai_analysis` rule on an HTTP lane without `http.capture_body` | Refused: every request would be skipped |
 | A negative `max_calls`, `cache.size`, `cache.ttl_sec` or `max_output_tokens` | Refused: a negative reads as "off" with no warning |
@@ -621,8 +621,8 @@ hoop start sidecar --config config.yaml --validate
 
 ```
 config OK: 2 listener(s)
-  appdb            postgres  enforcing 1 rule(s) + 1 ai rule(s)
-  api              http      enforcing 1 rule(s) + 1 ai rule(s)
+  appdb            postgres  1 rule(s) + 1 ai rule(s)
+  api              http      1 rule(s) + 1 ai rule(s)
 ```
 
 ---
@@ -632,7 +632,7 @@ config OK: 2 listener(s)
 - **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
 - **Requests only.** A response verdict cannot prevent a write that already ran.
 - **A slow classification can outlive the upstream's idle budget.** The Sidecar dials the upstream when it accepts, then holds the request while it classifies. An upstream with a short keep-alive (gunicorn defaults to 2s) hangs up before a 3s model call returns, and the client reads an empty reply. Raise the upstream's idle timeout above your analyzer's p99. The cache hides this after the first call for a given shape, so it shows up as a rare first-request failure.
-- **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. The Sidecar records `model refused to classify this statement`. Watch for these in the audit trail during an observe-only rollout: a model that refuses is the wrong model for this job.
+- **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. The Sidecar records `model refused to classify this statement`. Watch for these in the audit trail while the lane is still on staging: a model that refuses is the wrong model for this job.
 - **No human review.** `require_review` is declared in the schema and refused at startup, so a config you write today stays valid when a review backend lands. `defer` is the closest thing that works now: a decide-phase policy holds the decision, though it still answers in milliseconds rather than waiting for a person.
 
 ---
@@ -640,7 +640,7 @@ config OK: 2 listener(s)
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
   <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">

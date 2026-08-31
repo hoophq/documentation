@@ -102,16 +102,14 @@ audit:
   memory_buffer: 256             # last N events, readable at /events
   query_sessions: 500            # backs /api/sessions
 
-pii:
+pii:                             # optional: omit it and every entity is enabled
   entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD]
 
 mask:                            # one Data Masking rule
-  enabled: true
   rules:
-    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
 
-policy:                          # one Guardrail
-  enforce: true
+guardrails:                      # one Guardrail
   rules:
     - name: no-destructive-sql
       type: operation
@@ -119,11 +117,10 @@ policy:                          # one Guardrail
       message: destructive statements are not permitted
 
 listeners:
-  - name: localdb
+  - name: localdb                # the name audit rows and rules key on
     protocol: postgres           # postgres | mssql | http
     listen: 127.0.0.1:15432      # where clients connect
     upstream: 127.0.0.1:5432     # your real resource
-    connection: localdb
 ```
 
 <Note>

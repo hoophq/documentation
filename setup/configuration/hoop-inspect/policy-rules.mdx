@@ -1,9 +1,9 @@
 ---
-title: "Policy Rules Reference"
-description: "Write a rule, pick deny or defer, and hand the judgement call to Rego"
+title: "Guardrail Rules Reference"
+description: "Write a guardrail rule, pick deny or defer, and hand the judgement call to Rego"
 ---
 
-A rule makes two decisions. It decides what it MATCHES, and it decides what happens on a match.
+Guardrails are Hoop's own rule engine, configured under `guardrails` and evaluated in-process. A rule makes two decisions. It decides what it MATCHES, and it decides what happens on a match.
 
 The first decision is a `type` and a list. The second is the `action` field: leave it unset and a match denies, set `action: defer` and the match becomes a **finding** that a Rego policy rules on.
 
@@ -22,10 +22,10 @@ The first decision is a `type` and a list. The second is the `action` field: lea
 Deferring moves the DETERMINATION and leaves the matching where it is. The local engine still runs the detector, the regex and the word list, in microseconds with no network. Rego gets the answer and decides what it means for this actor, this table and this hour.
 
 <Note>
-`action: defer` on a lane with no `policy.opa.url` is refused at startup. A finding nobody reads is a rule that matches and then allows, which looks like enforcement from the config file.
+`action: defer` on a lane with no `opa.url` is refused at startup. A finding nobody reads is a rule that matches and then allows, which looks like enforcement from the config file.
 </Note>
 
-[Config File](/setup/configuration/hoop-inspect/config-file#policy-rules) carries the exhaustive schema for every field named below.
+[Config File](/setup/configuration/hoop-inspect/config-file#guardrail-rules) carries the exhaustive schema for every field named below, and [Migrating from `policy`](/setup/configuration/hoop-inspect/config-file#migrating-from-policy) maps the deprecated `policy` spellings onto `guardrails` and `opa`.
 
 ---
 
@@ -44,7 +44,7 @@ Deferring moves the DETERMINATION and leaves the matching where it is. The local
 
 Every rule also takes `name` and `message`. `message` reaches the user in the protocol's own error frame, so write one: the fallback names the rule and the operation and nothing else.
 
-Each block below is one entry in a lane's `policy.rules` list.
+Each block below is one entry in a lane's `guardrails.rules` list.
 
 ### operation
 
@@ -122,18 +122,20 @@ RE2, compiled at startup, so a bad pattern names the lane and the rule and stops
 ### pii
 
 ```yaml
-pii:
-  entities: [BR_CPF, US_SSN]        # top-level: turns detection on
-```
-
-```yaml
 - name: no-national-id-in-query
   type: pii
-  entities: [BR_CPF, US_SSN]        # a rule may name a subset
+  entities: [BR_CPF, US_SSN]
   message: do not put a national ID in a query
 ```
 
-The guardrail half of PII detection, and it runs on the REQUEST. Masking rewrites a response, and a taxpayer ID in a `WHERE` clause has already landed in the database's own query log, its slow-query log and its `EXPLAIN` output. A rule naming an entity absent from `pii.entities` is refused at startup, because it would load, evaluate and match nothing.
+The guardrail half of PII detection, and it runs on the REQUEST. Masking rewrites a response, and a taxpayer ID in a `WHERE` clause has already landed in the database's own query log, its slow-query log and its `EXPLAIN` output.
+
+The rule needs no top-level declaration: omit `pii` and every supported entity is enabled. Set `pii.entities` to narrow the engine, and it becomes exhaustive — a rule naming a type outside that list is refused at startup, because it would load, evaluate and match nothing.
+
+```yaml
+pii:
+  entities: [BR_CPF, US_SSN]        # optional: narrows the engine to two types
+```
 
 The denial message never quotes the value it found.
 
@@ -183,7 +185,7 @@ The local engine does not evaluate this type. The sidecar lifts it out of the ru
 It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis) before enabling it anywhere real.
 
 <Note>
-`ai_analysis` expresses deferral per risk level: `high: defer`. An `action` field on this rule type is refused at startup, and so are `require_review` and a `defer` on a lane with no `policy.opa.url`.
+`ai_analysis` expresses deferral per risk level: `high: defer`. An `action` field on this rule type is refused at startup, and so are `require_review` and a `defer` on a lane with no `opa.url`.
 </Note>
 
 ---
@@ -227,20 +229,16 @@ A `pii` rule knows which entity classes a statement carries. Whether a statement
     pii:
       entities: [BR_CPF, US_SSN]
 
-    policy:
-      enforce: true
-
     listeners:
       - name: appdb
         protocol: postgres
         listen: 127.0.0.1:15432
         upstream: appdb:5432
-        connection: appdb
-        policy:
-          opa:
-            url: http://opa:8181/v1/data/hoop/inspect/decision
-            timeout_sec: 2
-            fail_open: false
+        opa:
+          url: http://opa:8181/v1/data/hoop/inspect/decision
+          timeout_sec: 2
+          fail_open: false
+        guardrails:
           rules:
             - name: no-national-id
               type: pii
@@ -362,17 +360,16 @@ Write it in every policy. A single-call lane sends **no** `phase` field, so a po
 A lane that defers calls its producers first and OPA second, so a statement Rego would have refused for free has already cost a model call. `gate: true` buys the cost control back by consulting OPA on both sides of the producers:
 
 ```yaml
-policy:
-  opa:
-    url: http://opa:8181/v1/data/hoop/inspect/decision
-    gate: true
+opa:
+  url: http://opa:8181/v1/data/hoop/inspect/decision
+  gate: true
 ```
 
 | Lane | Chain |
 |---|---|
-| `gate: true` | `rules → opa(gate) → producers → opa(decide)` |
-| something defers, no gate | `rules → producers → opa(decide)` |
-| neither | `rules → opa` |
+| `gate: true` | `guardrails → opa(gate) → producers → opa(decide)` |
+| something defers, no gate | `guardrails → producers → opa(decide)` |
+| neither | `guardrails → opa` |
 
 Both calls hit the same URL and carry `input.phase`, so a policy that ignores the field answers both identically and turning the gate on costs one round trip rather than a rewrite.
 
@@ -406,8 +403,7 @@ An UNDEFINED gate decision allows and requests nothing, even under `fail_open: f
 **Top-level rules concatenate with a listener's, listener first.** Every rule denies and evaluation is first-match-wins, so concatenating cannot change the outcome, and putting the listener's rules in front lets a lane's specific message beat a generic default for the same statement.
 
 ```yaml config.yaml
-policy:
-  enforce: true
+guardrails:
   rules:
     - name: unreadable-sql              # every lane inherits this
       type: operation
@@ -419,8 +415,7 @@ listeners:
     protocol: postgres
     listen: 127.0.0.1:15432
     upstream: appdb:5432
-    connection: appdb
-    policy:
+    guardrails:
       rules:
         - name: customers-is-read-only  # evaluated first
           type: table
@@ -429,7 +424,7 @@ listeners:
           message: customers is read-only through appdb
 ```
 
-`policy.opa` and `policy.enforce` REPLACE instead of merging: two decision endpoints cannot become one, and a lane saying `enforce: false` means it.
+`opa` REPLACES instead of merging: two decision endpoints cannot become one. So does `mask`. There is no enforcement switch at either level — every lane enforces its resolved rule set.
 
 Reading the file will not tell you what a lane ended up with, because the merge happens at startup. Ask the running process, which reports rule names per resolved lane:
 
@@ -454,16 +449,12 @@ Four complete lane configs. Each one validates with `hoop start sidecar --valida
     audit:
       file: "-"
 
-    policy:
-      enforce: true
-
     listeners:
-      - name: replica
+      - name: analytics-replica
         protocol: postgres
         listen: 127.0.0.1:15432
         upstream: replica:5432
-        connection: analytics-replica
-        policy:
+        guardrails:
           rules:
             - name: this-replica-serves-reads
               type: operation
@@ -492,16 +483,12 @@ Four complete lane configs. Each one validates with `hoop start sidecar --valida
     audit:
       file: "-"
 
-    policy:
-      enforce: true
-
     listeners:
       - name: appdb
         protocol: postgres
         listen: 127.0.0.1:15432
         upstream: appdb:5432
-        connection: appdb
-        policy:
+        guardrails:
           rules:
             - name: customers-is-read-only
               type: table
@@ -533,20 +520,16 @@ Four complete lane configs. Each one validates with `hoop start sidecar --valida
     pii:
       entities: [BR_CPF, US_SSN, CREDIT_CARD]
 
-    policy:
-      enforce: true
-
     listeners:
       - name: appdb
         protocol: postgres
         listen: 127.0.0.1:15432
         upstream: appdb:5432
-        connection: appdb
-        policy:
-          opa:
-            url: http://opa:8181/v1/data/hoop/inspect/decision
-            timeout_sec: 2
-            fail_open: false
+        opa:
+          url: http://opa:8181/v1/data/hoop/inspect/decision
+          timeout_sec: 2
+          fail_open: false
+        guardrails:
           rules:
             - name: national-ids
               type: pii
@@ -590,20 +573,16 @@ Four complete lane configs. Each one validates with `hoop start sidecar --valida
         size: 2048
         ttl_sec: 900
 
-    policy:
-      enforce: true
-
     listeners:
       - name: appdb
         protocol: postgres
         listen: 127.0.0.1:15432
         upstream: appdb:5432
-        connection: appdb
-        policy:
-          opa:
-            url: http://opa:8181/v1/data/hoop/inspect/decision
-            timeout_sec: 2
-            gate: true
+        opa:
+          url: http://opa:8181/v1/data/hoop/inspect/decision
+          timeout_sec: 2
+          gate: true
+        guardrails:
           rules:
             - name: no-destructive-sql
               type: operation
@@ -673,12 +652,12 @@ Each of these would otherwise load, evaluate and do nothing:
 
 | Config | Message |
 |---|---|
-| `action: defer` with no `policy.opa.url` | `rule "x" defers its match to a policy decision, and the lane has no policy.opa.url to defer to` |
+| `action: defer` with no `opa.url` | `rule "x" defers its match to a policy decision, and the lane has no opa.url to defer to` |
 | `access: readwrite` on a table rule | `unknown access "readwrite" (read, write, or empty for either)` |
 | `action` set to anything but `defer` | `unknown action "warn" (empty denies, "defer" reports a finding)` |
-| `gate: true` with no `ai_analysis` rule | `policy.opa.gate is on but the lane has no ai_analysis rule, so the extra decision would gate nothing` |
-| a `pii` rule naming an entity absent from `pii.entities` | `names entity "US_SSN", which the detector is not configured to find` |
-| `high: defer` with no `policy.opa.url` | `defers high risk to a policy decision, and the lane has no policy.opa.url to defer to` |
+| `gate: true` with no `ai_analysis` rule | `opa.gate is on but the lane has no ai_analysis rule, so the extra decision would gate nothing` |
+| a `pii` rule naming an entity absent from an explicit `pii.entities` | `names entity "US_SSN", which the detector is not configured to find` |
+| `high: defer` with no `opa.url` | `defers high risk to a policy decision, and the lane has no opa.url to defer to` |
 | `action` on an `ai_analysis` rule | `sets action "defer", which this rule type ignores; it defers per risk level through high, medium and low` |
 
 Check before you deploy. Nothing needs to be running:
@@ -689,7 +668,7 @@ hoop start sidecar --validate --config config.yaml
 
 ```
 config OK: 1 listener(s)
-  appdb            postgres  enforcing 3 rule(s) + opa
+  appdb            postgres  3 rule(s) + opa
 ```
 
 The line reports the RESOLVED lane, so the count includes everything it inherited. The full refusal list is in [Config File](/setup/configuration/hoop-inspect/config-file#what-startup-refuses).

@@ -22,21 +22,16 @@ flowchart LR
 
 ## Configuration
 
-A listener is one upstream. Add [`policy`](/features/guardrails) to control what reaches the resource, and [`mask`](/features/data-masking) to control what comes back. Both are optional and independent.
+A listener is one upstream. Add [`guardrails`](/features/guardrails) to control what reaches the resource, and [`mask`](/features/data-masking) to control what comes back. Both are optional and independent.
 
 ```yaml config.yaml
-pii:
-  entities: [EMAIL_ADDRESS, US_SSN]
-
 listeners:
-  - name: appdb
+  - name: appdb                 # the name audit rows and rules key on
     protocol: postgres          # postgres | mssql | http
     listen: 127.0.0.1:15432
     upstream: appdb:5432
-    connection: appdb
 
-    policy:
-      enforce: true
+    guardrails:
       rules:
         - name: no-destructive-sql
           type: operation
@@ -44,10 +39,11 @@ listeners:
           message: destructive statements are not permitted on appdb
 
     mask:
-      enabled: true
       rules:
-        - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
 ```
+
+Neither block takes a switch: a rule set that reaches a lane enforces, and a `mask` block carrying rules masks. Detection needs no `pii` section either — omit it and every supported entity is enabled.
 
 Validate before deploying — nothing needs to be running:
 
@@ -57,11 +53,11 @@ hoop start sidecar --config config.yaml --validate
 
 ```
 config OK: 1 listener(s)
-  appdb            postgres  enforcing 1 rule(s) + masking
+  appdb            postgres  1 rule(s) + masking
 ```
 
 <Warning>
-`policy.enforce` defaults to **false**. Without it a listener inspects and audits but denies nothing, so a misconfigured rule cannot take production down on first deploy. That is the right way to roll out, and the wrong way to leave it.
+**A lane always enforces.** There is no observe-only switch, so a rule that reaches a listener denies from the first request. Roll out on a staging lane, watch `/api/events?kind=violation`, and use `action: defer` for anything you are not ready to decide locally — see [Roll out without breaking anything](/features/guardrails#roll-out-without-breaking-anything).
 </Warning>
 
 ---

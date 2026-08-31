@@ -15,7 +15,7 @@ New to hoop-inspect? Start with [Get Started](/setup/configuration/hoop-inspect/
 
 ## Shape of the file
 
-Top-level `policy` and `mask` are **defaults**. Each listener is one upstream and inherits those defaults unless it overrides them.
+Two concepts that used to share the name `policy` now have sections of their own. `guardrails` is Hoop's own rule engine, running in-process. `opa` is the optional integration with an OPA Data API endpoint you run yourself. Both are **defaults** at the top level, as `mask` is, and each listener inherits them unless it overrides them.
 
 ```yaml config.yaml
 log_level: info
@@ -30,11 +30,10 @@ audit:
   query_sessions: 500       # backs GET /api/sessions
   fail_closed: false        # true refuses a statement whose audit write failed
 
-pii:                        # omit the section to disable detection entirely
+pii:                        # optional: omit it and every supported entity is enabled
   entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
 
-policy:                     # inherited by every listener
-  enforce: true             # false is observe-only: inspect and audit, deny nothing
+guardrails:                 # Hoop's own rules, inherited by every listener
   rules:
     - name: no-cpf-in-query
       type: pii
@@ -42,18 +41,16 @@ policy:                     # inherited by every listener
       message: do not put a taxpayer id in a query; it lands in the database's own logs
 
 mask:                       # inherited by every listener
-  enabled: true
   rules:
-    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
-    - {name: ssn, entity: US_SSN, strategy: partial, keep_last: 4}
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: ssn, entities: [US_SSN], strategy: partial, keep_last: 4}
 
 listeners:
   - name: appdb
     protocol: postgres
     listen: 0.0.0.0:15432
     upstream: appdb:5432
-    connection: appdb
-    policy:
+    guardrails:
       rules:
         - name: no-destructive-sql
           type: operation
@@ -62,14 +59,13 @@ listeners:
     mask:
       rules:                # REPLACES the default list rather than extending it
         - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
-        - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
 
   - name: mssqldb
     protocol: mssql
     listen: 0.0.0.0:11433
     upstream: mssql:1433
-    connection: mssqldb
-    policy:
+    guardrails:
       rules:
         - name: no-destructive-tsql
           type: operation
@@ -80,11 +76,10 @@ listeners:
     protocol: http
     listen: 0.0.0.0:18080
     upstream: httpbin:8080
-    connection: httpbin
-    policy:
-      opa:
-        url: http://opa:8181/v1/data/hoop/inspect
-        fail_open: false
+    opa:                    # optional, and separate from the guardrails below
+      url: http://opa:8181/v1/data/hoop/inspect
+      fail_open: false
+    guardrails:
       rules:
         - name: no-admin-api
           type: http_resource
@@ -93,8 +88,10 @@ listeners:
         - name: no-upstream-5xx
           type: http_status   # response-side, so ext_authz cannot ask it
           statuses: ["5xx"]
-          message: upstream failure suppressed by policy
+          message: upstream failure suppressed by a guardrail
 ```
+
+Every lane enforces, and a `mask` block carrying rules masks. Neither is a second switch you can forget to set.
 
 ---
 
@@ -105,13 +102,18 @@ listeners:
 | `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
 | `admin` | Health, stats and the audit query API. Disabled when `listen` is empty. |
 | `audit` | Where events go and what a failed write means. |
-| `pii` | The detector engine. Omit it and detection is off. |
-| `policy` | Default rules, OPA endpoint and enforcement for every lane. |
+| `pii` | The detector engine. Omit it and every supported entity is enabled. |
+| `guardrails` | Default Hoop rule set for every lane. |
+| `opa` | Default OPA endpoint for every lane. Omit it and no lane calls OPA. |
 | `mask` | Default response rewriting for every lane. |
 | `analyzer` | The AI risk classifier. Omit it and `ai_analysis` rules are a config error. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis). |
 | `listeners` | One entry per upstream. |
 
 Keys starting `x-` are dropped before validation, so a YAML anchor block does not need a matching config field. See [sharing rules between lanes](#sharing-a-rule-block-between-lanes).
+
+<Note>
+`policy` is the previous spelling for both `guardrails` and `opa`, and it is **deprecated**. A file still using it loads and warns at startup. See [Migrating from `policy`](#migrating-from-policy) for the field-by-field mapping.
+</Note>
 
 ---
 
@@ -121,19 +123,19 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 
 | Field | Meaning |
 |---|---|
-| `name` | Identifies the lane in logs and in `/config`. Defaults to `connection`. |
+| `name` | Identifies the lane in logs, in `/config`, in every audit event and in `input.context.connection`. Required. The physical `upstream` may change under it. |
 | `protocol` | `postgres`, `mssql` or `http`. Selects the codec. |
 | `listen` | Bind address, or a filesystem path when `network: unix`. |
 | `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
 | `upstream` | The real backend, `host:port`. |
-| `connection` | Operator-facing resource name recorded in audit and exposed to policy. The physical `upstream` may change under it. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
 | `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane, because pgwire negotiates in-band. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#terminating-the-clients-tls). |
 | `identity_header` | Names an HTTP header carrying the authenticated subject. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
-| `policy` | Overrides the top-level default for this lane. |
-| `mask` | Overrides the top-level default for this lane. |
+| `guardrails` | Adds to the top-level rule set for this lane. |
+| `opa` | Replaces the top-level OPA endpoint for this lane. |
+| `mask` | Replaces the top-level mask rules for this lane. |
 | `http` | What the HTTP codec captures. Only valid on an `http` lane. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#the-http-lane-needs-capture-body). |
 
 <Warning>
@@ -247,9 +249,8 @@ another relay is already listening on it
 
 | Field | Merge | Why |
 |---|---|---|
-| `policy.rules` | concatenate, listener first | Every rule denies and the first match wins, so concatenating cannot change the allow/deny outcome. Order only picks which message the user reads. |
-| `policy.opa` | replace | One lane has one decision endpoint. |
-| `policy.enforce` | replace | A lane rolling out behind an enforcing default has to be able to say observe-only. |
+| `guardrails.rules` | concatenate, listener first | Every rule denies and the first match wins, so concatenating cannot change the allow/deny outcome. Order only picks which message the user reads. |
+| `opa` | replace | One lane has one decision endpoint. |
 | `mask` | replace | A rule owns an entity type, and two concatenated lists leave two rules competing for one entity. |
 
 Reading the file will not tell you which rules a lane ended up with, because inheritance happens at startup. Ask the running process:
@@ -261,13 +262,13 @@ curl -s localhost:19000/config | python3 -m json.tool
 ```json
 {"lanes": [
   {"name": "appdb", "protocol": "postgres", "listen": "0.0.0.0:15432",
-   "upstream": "appdb:5432", "enforcing": true,
+   "upstream": "appdb:5432",
    "rules": ["no-destructive-sql", "no-cpf-in-query"], "masking": true},
   {"name": "mssqldb", "protocol": "mssql", "listen": "0.0.0.0:11433",
-   "upstream": "mssql:1433", "enforcing": true,
+   "upstream": "mssql:1433",
    "rules": ["no-destructive-tsql", "no-cpf-in-query"], "masking": true},
   {"name": "httpbin", "protocol": "http", "listen": "0.0.0.0:18080",
-   "upstream": "httpbin:8080", "enforcing": true,
+   "upstream": "httpbin:8080",
    "rules": ["no-admin-api", "no-internal-ids", "no-upstream-5xx",
              "no-cpf-in-query"], "masking": true}
 ], "version": "0.1.0"}
@@ -277,9 +278,9 @@ Every lane inherited `no-cpf-in-query`. None inherited another lane's rules. Rul
 
 ---
 
-## Policy rules
+## Guardrail rules
 
-A rule matches, and by default it **denies**. First match wins among the rules that deny. A rule set is an ordered deny list.
+Each entry in `guardrails.rules` is one rule. A rule matches, and by default it **denies**. First match wins among the rules that deny. A rule set is an ordered deny list.
 
 | `type` | Matches when | Fields |
 |---|---|---|
@@ -303,7 +304,7 @@ Every rule also takes `name`, `message` and `action`. `message` is what the user
   action: defer      # report a finding; the decide-phase policy rules on it
 ```
 
-Deferring does not stop the rule set. First match wins applies to denials, so a deferring rule records and evaluation continues, and a hard rule further down still denies. [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) covers the producer model, the finding shape and the Rego that reads it.
+Deferring does not stop the rule set. First match wins applies to denials, so a deferring rule records and evaluation continues, and a hard rule further down still denies. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) covers the producer model, the finding shape and the Rego that reads it.
 
 An HTTP rule never matches a SQL statement and vice versa, so one mixed rule set cannot deny the wrong protocol.
 
@@ -324,7 +325,7 @@ The scanner discards comments and string literals before it classifies, so `SELE
   message: destructive statements are not permitted on appdb
 ```
 
-Add `unknown` to that list on a lane where a statement the scanner could not read must not run. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Policy Rules](/setup/configuration/hoop-inspect/policy-rules).
+Add `unknown` to that list on a lane where a statement the scanner could not read must not run. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules).
 
 SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
 
@@ -357,7 +358,7 @@ Short slugs survive normalization intact: merging `/users/alice` with `/users/se
 - name: no-upstream-5xx
   type: http_status
   statuses: ["5xx"]     # exact codes ("404") and classes ("4xx") both work
-  message: upstream failure suppressed by policy
+  message: upstream failure suppressed by a guardrail
 ```
 
 ### pii is a guardrail, not masking
@@ -403,16 +404,22 @@ Set `require_table_match: true` on rules protecting something critical, and acce
 
 ## OPA
 
-A lane can consult an OPA Data API endpoint after its local rules pass, so a statement the local set already forbids costs no network round trip.
+`opa` is its own section, at the top level or on a listener, and it is the only OPA-specific configuration in the file. A lane consults its endpoint after its guardrails pass, so a statement the local set already forbids costs no network round trip.
 
 ```yaml
-policy:
-  opa:
-    url: http://opa:8181/v1/data/hoop/inspect
-    timeout_sec: 2
-    fail_open: false
-    gate: false          # true adds an earlier decision; see Two phases below
+opa:
+  url: http://opa:8181/v1/data/hoop/inspect
+  timeout_sec: 2
+  fail_open: false
+  gate: false          # true adds an earlier decision; see Two phases below
 ```
+
+| Field | Meaning |
+|---|---|
+| `url` | The OPA Data API endpoint. Required; an `opa` block without one is refused at startup. |
+| `timeout_sec` | Deadline for one decision. |
+| `fail_open` | `false`, the default, denies when the endpoint cannot answer. |
+| `gate` | Adds an earlier decision phase. See [Two phases](#two-phases). |
 
 The Sidecar does not own policy; it owns the input document:
 
@@ -452,9 +459,9 @@ OPA **fails closed**. An unreachable endpoint, a 500, or an undefined decision d
 
 | Lane | Chain |
 |---|---|
-| `gate: true` | `rules` → `opa(gate)` → producers → `opa(decide)` |
-| Something defers, no gate | `rules` → producers → `opa(decide)` |
-| Neither | `rules` → `opa` |
+| `gate: true` | `guardrails` → `opa(gate)` → producers → `opa(decide)` |
+| Something defers, no gate | `guardrails` → producers → `opa(decide)` |
+| Neither | `guardrails` → `opa` |
 
 The gate answers with its allow/deny plus a `request` map keyed by producer source:
 
@@ -472,26 +479,26 @@ An **undefined gate decision allows and requests nothing**, even under `fail_ope
 A single-call lane sends **no** `phase` field, so Rego testing `input.phase == "decide"` is undefined there and `fail_open: false` denies everything. Write `phase := object.get(input, "phase", "decide")` and the same policy serves both arrangements.
 </Warning>
 
-See [Policy Rules](/setup/configuration/hoop-inspect/policy-rules) for the finding shape, the status vocabulary and worked Rego.
+See [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) for the finding shape, the status vocabulary and worked Rego.
 
 ---
 
 ## Masking
 
-Masking runs on responses only. Requests are never rewritten: changing the statement the upstream executes is a correctness change wearing a privacy label.
+Masking runs on responses only. Requests are never rewritten: changing the statement the upstream executes is a correctness change wearing a privacy label. A `mask` block carrying rules is on; there is no separate switch.
 
 ```yaml
 mask:
-  enabled: true
   rules:
-    - {name: emails, entity: EMAIL_ADDRESS, strategy: redact}
-    - {name: cards, entity: CREDIT_CARD, strategy: partial, keep_last: 4}
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: cards, entities: [CREDIT_CARD], strategy: partial, keep_last: 4}
+    - {name: ids, entities: [US_SSN, BR_CPF], strategy: hash}
     - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
 ```
 
 | Field | Meaning |
 |---|---|
-| `entity` | The entity type to rewrite wherever it appears. Required unless `columns` is set. |
+| `entities` | Entity types to rewrite wherever they appear. **A list**, even for one type. Required unless `columns` is set. |
 | `columns` | Result-set column names to mask outright, compared case-insensitively. |
 | `strategy` | `redact`, `mask`, `partial` or `hash`. Empty means `redact`. |
 | `keep_last` | Tail length for `partial`. Default 4. |
@@ -503,6 +510,12 @@ mask:
 | `mask` | `****************` |
 | `partial` | `************1111` |
 | `hash` | `sha256:<first 16 hex>`. Equal inputs give equal outputs, so a masked column still works as a join key |
+
+One rule may name several entity types, and they share its strategy. Types needing different strategies need one rule each:
+
+```yaml
+- {name: ids, entities: [US_SSN, BR_CPF], strategy: redact}       # one rule, two types
+```
 
 ### Entity rules versus column rules
 
@@ -519,7 +532,9 @@ A validating detector cuts false positives on ordinary numeric ids and declines 
 
 ### Naming your entities
 
-`pii.entities` is required and there is no all-entities default:
+**Omit `pii` and every supported entity is enabled.** Nothing has to be declared before a `mask` rule or a `pii` guardrail can name a type, which is the whole point of the default: a config that names `US_SSN` in one place should not also have to name it in another.
+
+Set the section to narrow the engine, or to tune it:
 
 ```yaml
 pii:
@@ -529,14 +544,18 @@ pii:
   # allow_list: []   # literal values never reported
 ```
 
-Turning on every recognizer rewrites ordinary numeric columns:
+Naming `entities` makes the list exhaustive: a rule naming a type outside it is refused at startup, so narrowing the engine cannot silently disarm a rule that reads as live.
+
+<Warning>
+The permissive default costs recall nothing and precision something. Some recognizers carry a real checksum — card (Luhn), CPF (mod-11), IBAN (ISO 7064) — and leave lookalike ids alone. `US_SSN` carries none, so nine digits in a legal range is a valid SSN as far as any detector can tell:
 
 ```
 {"order_id":457555462,"customer_id":123456781}
-  → both masked as US_SSN
+  → both reported as US_SSN
 ```
 
-Nine digits in a legal range is a valid SSN as far as any detector can tell, because SSNs carry no checksum. Card, CPF and IBAN carry real checksums (Luhn, mod-11, ISO 7064), so those three leave lookalike ids alone.
+That only reaches a client through a rule you wrote: masking rewrites the types a `mask` rule names, and nothing else. Where a lane carries numeric ids that look like an identifier, prefer a `columns` rule to an entity rule, and set `pii.entities` to what the data actually holds.
+</Warning>
 
 <Note>
 Masking needs a codec that can carry it. HTTP declares its body length in a header the Sidecar corrects; Postgres rebuilds its length-prefixed row frames around the new values, and MSSQL reassembles the TDS token stream and lays fresh packets over the rewritten rows. A protocol offering neither gets its `mask` section **refused at startup**. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
@@ -638,12 +657,9 @@ x-readonly: &readonly
     operations: [insert, update, delete, drop, truncate]
     message: this credential is read-only
 
-policy:
-  enforce: true   # without this every lane below is observe-only
-
 listeners:
-  - {name: replica-a, protocol: postgres, listen: 0.0.0.0:15432, upstream: a:5432, policy: {rules: *readonly}}
-  - {name: replica-b, protocol: postgres, listen: 0.0.0.0:15433, upstream: b:5432, policy: {rules: *readonly}}
+  - {name: replica-a, protocol: postgres, listen: 0.0.0.0:15432, upstream: a:5432, guardrails: {rules: *readonly}}
+  - {name: replica-b, protocol: postgres, listen: 0.0.0.0:15433, upstream: b:5432, guardrails: {rules: *readonly}}
 ```
 
 ---
@@ -658,8 +674,8 @@ hoop start sidecar --config config.yaml --validate
 
 ```
 config OK: 2 listener(s)
-  appdb            postgres  enforcing 2 rule(s) + masking
-  httpbin          http      enforcing 4 rule(s) + masking
+  appdb            postgres  2 rule(s) + masking
+  httpbin          http      4 rule(s) + masking + opa
 ```
 
 Validation builds every lane, so it catches what a syntax check cannot, and it reports every problem in one run rather than one per restart.
@@ -676,10 +692,10 @@ Error: parse config: json: unknown field "logLevel"
 
 ```
 Error: invalid config:
-  - appdb: policy: invalid rules: broken: bad pattern: error parsing regexp: missing closing ]: `[unclosed`
+  - appdb: guardrails: invalid rules: broken: bad pattern: error parsing regexp: missing closing ]: `[unclosed`
 ```
 
-**A `pii` rule naming an entity absent from `pii.entities`:**
+**A `pii` rule naming an entity absent from an explicit `pii.entities`:**
 
 ```
 Error: invalid config:
@@ -687,7 +703,7 @@ Error: invalid config:
     configured to find; add it to pii.entities or the rule will never match
 ```
 
-That last check matters more than it looks. Without it the rule loads, evaluates, and matches nothing, so a guardrail looks live while allowing through everything it was written to stop.
+That last check matters more than it looks. Without it the rule loads, evaluates, and matches nothing, so a guardrail looks live while allowing through everything it was written to stop. It only fires where `pii.entities` is set: with the section omitted, every supported entity is enabled and no rule can name one that is missing.
 
 **An `ai_analysis` rule that would classify nothing:**
 
@@ -704,14 +720,14 @@ Every analyzer refusal follows the same argument, applied to a control that also
 ```
 Error: invalid config:
   - appdb: rule "cpf" defers its match to a policy decision, and the lane has
-    no policy.opa.url to defer to; set one or drop the action
+    no opa.url to defer to; set one or drop the action
 ```
 
 **A gate over nothing:**
 
 ```
 Error: invalid config:
-  - appdb: policy.opa.gate is on but the lane has no ai_analysis rule, so the
+  - appdb: opa.gate is on but the lane has no ai_analysis rule, so the
     extra decision would gate nothing
 ```
 
@@ -722,16 +738,40 @@ Four more refusals arrived with findings, each one a config that would load and 
 | `action` set to anything but `defer` | Unknown action, naming the rule. Empty denies; `defer` reports a finding. |
 | `action` set at all on an `ai_analysis` rule | That type defers per risk level through `high`, `medium` and `low`, and two spellings would leave two answers for one question. |
 | `access` set to anything but `read` or `write` | Unknown access, naming the rule. Empty matches either. |
-| A risk level set to `defer` with no `policy.opa.url` | Same argument as a local rule deferring to nothing: use `block`, `warn` or `allow`. |
+| A risk level set to `defer` with no `opa.url` | Same argument as a local rule deferring to nothing: use `block`, `warn` or `allow`. |
 
-**`mask.enabled` on a protocol whose codec can carry neither masking mechanism**, naming the lane, plus empty rule lists, duplicate listen addresses, missing upstreams and an `opa` block with no URL.
+**A `mask` block on a protocol whose codec can carry neither masking mechanism**, naming the lane, plus a `mask.rules` entry with neither `entities` nor `columns`, empty rule lists, duplicate listen addresses, missing upstreams and an `opa` block with no URL.
+
+---
+
+## Migrating from `policy`
+
+The old `policy` section split into `guardrails` and `opa`, and four fields went away. Deprecated spellings still load and log a warning at startup, so an existing file keeps working; they are not part of the specification above and will be removed. Do not write both spellings of one concept into the same file.
+
+| Deprecated | Replacement | Notes |
+|---|---|---|
+| `policy.rules` | `guardrails.rules` | Same rule types, same fields, same first-match-wins. |
+| `policy.opa` | `opa`, top level or per listener | Same fields. It is now a sibling of `guardrails`, not a child. |
+| `policy.enforce` | *(removed)* | Every lane enforces. |
+| `mask.enabled` | *(removed)* | A `mask` block with rules masks. |
+| `mask.rules[].entity` | `mask.rules[].entities` | A list, even for one type. `entity: US_SSN` becomes `entities: [US_SSN]`. |
+| `listeners[].connection` | *(removed)* — use `name` | The listener's `name` is the label audit events and `input.context.connection` carry. |
+| `pii` *(required)* | `pii` *(optional)* | Omitted, every supported entity is enabled. |
+
+Three of those changes alter behavior rather than spelling:
+
+- **Enforcement is unconditional.** A lane that used to run with `enforce: false` starts denying the moment the field is dropped. Read `/api/events?kind=violation` on the observe-only deployment first, and move rules you are still evaluating to a staging listener or to `action: defer` behind a policy that allows them.
+- **A `mask` block is live on sight.** A block left in place with `enabled: false` used to be inert. Delete the rules to keep it off.
+- **PII detection is on by default.** A config that omitted `pii` detected nothing; the same file now enables every supported entity. Detection alone changes no traffic, since masking rewrites only what a `mask` rule names, but `analyzer.send: redacted` now has a detector to work with and `pii` guardrail rules can name any supported type.
+
+`/config` no longer reports an `enforcing` flag per lane, and `--validate` no longer prints `observe-only`.
 
 ---
 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Policy Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
     Every rule type in depth, deferring to Rego, and the findings a policy reads.
   </Card>
   <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
