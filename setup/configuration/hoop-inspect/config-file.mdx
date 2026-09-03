@@ -20,6 +20,10 @@ Two concepts that used to share the name `policy` now have sections of their own
 ```yaml config.yaml
 log_level: info
 
+# A path to the license Hoop issued, or the document itself. --license and
+# HOOP_LICENSE both outrank this. Omit it to run the free tier.
+license: /etc/hoop-inspect/license.json
+
 admin:
   listen: 127.0.0.1:19000   # /healthz /stats /config /events /api/*
 
@@ -100,6 +104,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | Key | Purpose |
 |---|---|
 | `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
+| `license` | The license this process runs under. A path or the document itself. `--license` and `HOOP_LICENSE` outrank it. See [Licensing](#licensing). |
 | `admin` | Health, stats and the audit query API. Disabled when `listen` is empty. |
 | `audit` | Where events go and what a failed write means. |
 | `pii` | The detector engine. Omit it and every supported entity is enabled. |
@@ -563,6 +568,95 @@ Masking needs a codec that can carry it. HTTP declares its body length in a head
 
 ---
 
+## Licensing
+
+Unlicensed, the Sidecar enforces **one guardrail rule and one data masking rule**. The cap is per process, not per lane: one rule in the top-level `guardrails` block counts once however many listeners inherit it, and `mask.rules` on a lane counts against the same budget as the default block it replaces. `ai_analysis` rules are counted apart and never capped, because their controls are the trigger and `analyzer.max_calls` rather than a number of rules.
+
+A license Hoop signed lifts the caps for the features it names.
+
+### Three places carry a license
+
+| Precedence | Source | Spelling |
+|---|---|---|
+| 1 | Command line | `hoop start sidecar --license …`, or `hoop-inspect -license …` on the standalone binary |
+| 2 | Environment | `HOOP_LICENSE` |
+| 3 | Config file | the top-level `license` key |
+
+`HOOP_LICENSE` is not `HOOP_SIDECAR_LICENSE`: the same document Hoop issues verifies on the gateway too, and a deployment that spells it two ways sets one of them wrong. Installing it on the gateway is a separate step, covered in [License Management](/setup/license-management).
+
+### A path or the document itself
+
+All three sources take the same two shapes. A value whose first non-blank character is `{` is read as the license document; anything else is read as a filename. One field serves a mounted secret and an inline value, so moving a license between the two is not also a rename.
+
+```yaml
+license: /etc/hoop-inspect/license.json
+```
+
+```yaml
+license: '{"payload":{"type":"enterprise","description":"Acme Corp",...},"key_id":"743420a…","signature":"…"}'
+```
+
+The same holds for the flag and the environment variable, which is what makes a Kubernetes secret work without a volume:
+
+```bash
+hoop start sidecar --config config.yaml --license /etc/hoop-inspect/license.json
+HOOP_LICENSE="$(cat license.json)" hoop start sidecar --config config.yaml
+```
+
+<Warning>
+**First wins, not first valid.** A `HOOP_LICENSE` pointing at a file that does not exist is an error, not a reason to fall back to the `license` key. A process that quietly ignored your environment variable would surprise you on the restart after somebody edits the config file.
+</Warning>
+
+### What a license lifts
+
+Each feature named in the license lifts its own cap. The Sidecar reads two of them, `guardrails` and `data-masking`. A license naming neither covers both; one naming only `data-masking` leaves the guardrail cap where it was. An `oss` license verifies and grants nothing, matching what the control plane does with the same document.
+
+### What the process concluded
+
+One line, first in the startup log and first in `--validate`:
+
+```
+license: valid. enterprise "Acme Corp", expires 2027-01-30, features: all (from HOOP_LICENSE)
+license: expired. "Acme Corp" expired on 2026-05-01, running the free tier. Renew it at https://help.hoop.dev (from the license flag)
+license: missing, running the free tier. Add one with the license flag, the HOOP_LICENSE environment variable, or the "license" key in the config file
+```
+
+`GET /config` on the admin listener serves the same verdict under `license` and the caps under `limits`, where `null` means the license lifted one. It never returns the signature:
+
+```json
+{
+  "limits": {"guardrail_rules": null, "mask_rules": 1},
+  "license": {
+    "state": "valid",
+    "source": "HOOP_LICENSE",
+    "type": "enterprise",
+    "description": "Acme Corp",
+    "key_id": "743420a…",
+    "expire_at": 1801526400,
+    "features": ["guardrails"]
+  }
+}
+```
+
+Missing and expired are states, not failures: the process starts and the caps stay in force. A license that cannot be **read** stops startup instead — a path to nothing, malformed JSON, or a signature that does not verify — and the error names the source it came from. Dropping to the free tier over a typo in a path would be a silent downgrade.
+
+### When a term ends under a running process
+
+The verdict is a function of the clock rather than a flag set at startup, so a relay that has been up for months flips `/config` and its caps to the free tier the second its term lapses. Nothing reloads.
+
+- **A config inside the free tier keeps serving.** Expiry took nothing from it, and stopping the relay would be an outage with no revenue behind it.
+- **A config over the free tier stops.** The relay logs the expiry, drains open connections, flushes the audit trail and exits non-zero. Startup then refuses the config by name until somebody renews or removes rules.
+
+The log counts the term down once a day through its last fortnight, so the stop is not the first warning you get:
+
+```
+WARN license expires soon, and this config needs it: the relay stops when the term ends days_left=6 expires=2026-05-01T00:00:00Z renew=https://help.hoop.dev
+```
+
+Re-applying the caps to a running relay would mean deleting rules, and that is worse than the stop. Lanes are built once and hold their rules for the life of the process; dropping a guardrail lets through statements it was refusing, and dropping a mask rule leaks the values it was hiding. A billing event must never widen what a proxy allows.
+
+---
+
 ## Audit
 
 | Field | Default | Meaning |
@@ -674,8 +768,10 @@ hoop start sidecar --config config.yaml --validate
 
 ```
 config OK: 2 listener(s)
-  appdb            postgres  2 rule(s) + masking
-  httpbin          http      4 rule(s) + masking + opa
+  license: missing, running the free tier. Add one with the license flag, the HOOP_LICENSE environment variable, or the "license" key in the config file
+  limits: 1 guardrail rule(s), 1 data masking rule(s)
+  appdb            postgres  enforcing 2 rule(s) + masking
+  httpbin          http      enforcing 4 rule(s) + opa + masking
 ```
 
 Validation builds every lane, so it catches what a syntax check cannot, and it reports every problem in one run rather than one per restart.
@@ -730,6 +826,20 @@ Error: invalid config:
   - appdb: opa.gate is on but the lane has no ai_analysis rule, so the
     extra decision would gate nothing
 ```
+
+**A config over the free-tier caps**, naming every block that authored rules so the message reads as a map of what to merge:
+
+```
+Error: invalid config:
+  - 2 guardrail rules are configured (guardrails: 1, appdb: 1) and this
+    process enforces at most 1; merge them into one rule. A license lifts
+    this cap: add one with the license flag, the HOOP_LICENSE environment
+    variable, or the "license" key in the config file. Contact our support
+    at https://help.hoop.dev. ai_analysis rules are counted separately and
+    are not limited
+```
+
+This one is checked after the license resolves rather than while the file parses, so a config a license makes legal is never refused before anyone read the license. See [Licensing](#licensing).
 
 Four more refusals arrived with findings, each one a config that would load and then mean something other than what it says:
 
