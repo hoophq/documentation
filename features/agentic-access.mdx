@@ -41,7 +41,7 @@ An `ai_analysis` rule maps each risk level the model can report to a tool.
 | `allow` | Forward. The verdict is still recorded. |
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
-| `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-inspect/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
+| `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
 | `review` | Hold the statement for a human to approve. **Coming soon.** |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
@@ -175,7 +175,7 @@ Decide which you want per environment, and know that `fail_open: false` makes yo
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="AI Analyzer Reference" icon="brain" href="/setup/configuration/hoop-inspect/risk-analysis">
+  <Card title="AI Analyzer Reference" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis">
     Every field, the gate phase, prompt precedence and the full findings vocabulary.
   </Card>
   <Card title="Direct Access" icon="bolt" href="/features/direct-access">

@@ -6,7 +6,7 @@ description: "How a request flows through the Sidecar, and how to place it in a 
 This page traces one connection from the client through Envoy, through the Sidecar, to the upstream and back. Read it to find out where a guardrail denial happens, why Postgres masking takes a different path from HTTP masking, and which knob in `config.yaml` controls which behavior.
 
 <Note>
-For the commands, start at [Get Started](/setup/configuration/hoop-inspect/get-started). For every config field, see the [Config File reference](/setup/configuration/hoop-inspect/config-file).
+For the commands, start at [Get Started](/setup/configuration/hoop-sidecar/get-started). For every config field, see the [Config File reference](/setup/configuration/hoop-sidecar/config-file).
 </Note>
 
 ---
@@ -52,7 +52,7 @@ Envoy sees less on each lane going down the table.
 On HTTP, `ext_authz` handles request-side authorization well. The gap sits on the response: `ext_authz` decides **before** Envoy calls the upstream, so no configuration of it reaches a response status or a response body. On Postgres the gap is wider. Envoy forwards bytes it cannot parse, so OPA never receives a statement to judge.
 
 <Note>
-The HTTP codec captures **nothing** by default: no bodies, no headers. Everything captured reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so a lane opts in per listener with an `http:` block. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#the-http-lane-needs-capture-body).
+The HTTP codec captures **nothing** by default: no bodies, no headers. Everything captured reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so a lane opts in per listener with an `http:` block. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#the-http-lane-needs-capture-body).
 </Note>
 
 ### Where Envoy ends and the Sidecar begins
@@ -194,7 +194,7 @@ Three fields come out of it, and a rule can key on any of them:
 | `Effects` | Every operation the statement performs, anywhere in the tree. |
 | `Relations` | Each relation with `read` or `write`, so `INSERT INTO staging SELECT * FROM customers` writes one and reads the other. |
 
-Comments and string literals never reach the token stream, so `SELECT 'DROP TABLE customers'` is a `select` and a `deny_words_list` rule on `DROP` denies that harmless query. Prefer `type: operation`, and see [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) for what each rule type reads.
+Comments and string literals never reach the token stream, so `SELECT 'DROP TABLE customers'` is a `select` and a `deny_words_list` rule on `DROP` denies that harmless query. Prefer `type: operation`, and see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) for what each rule type reads.
 
 A statement whose body the scanner cannot reach reports `Operation: unknown` and sets `Metadata["sql.incomplete"]` to the reason: `CALL purge()` gives "stored procedure; body is in the catalog", `EXECUTE p` gives "prepared statement; the text was supplied elsewhere", `DO $$…$$` gives "anonymous code block; body is interpreted at runtime". That pair is the fail-closed signal. Name `unknown` in a rule and the Sidecar refuses what nobody can read.
 
@@ -261,14 +261,14 @@ A rule carrying `action: defer` reports its match as a **finding** and evaluatio
 | Something defers | `guardrails` → producers → `opa(decide)` |
 | `opa.gate: true` | `guardrails` → `opa(gate)` → producers → `opa(decide)` |
 
-The gate runs before the producers and answers whether they are worth running, which is how the cost control survives moving a determination into Rego. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) carries the finding shape, the status vocabulary and the Rego that reads it.
+The gate runs before the producers and answers whether they are worth running, which is how the cost control survives moving a determination into Rego. [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) carries the finding shape, the status vocabulary and the Rego that reads it.
 
 An `ai_analysis` rule is **not** evaluated by the guardrails engine. It needs a provider, a deadline and a cache, none of which belong to a text matcher, so the sidecar lifts those rules out of the set at startup and builds one evaluator per rule, appended after OPA. Two consequences worth knowing:
 
 - Ordering between an `ai_analysis` rule and the other rules in the same list does not matter. Guardrails always run first.
 - A lane can carry several `ai_analysis` rules. Each is its own evaluator with its own trigger, actions and prompt; if more than one classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
 
-The guardrails engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#why-this-one-fails-open).
+The guardrails engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#why-this-one-fails-open).
 
 The `pii` rule type dispatches at the rule-set level rather than per rule, because the detector belongs to the rule set and not to any single rule.
 
@@ -595,7 +595,7 @@ Read these before writing a policy against the Sidecar.
 - **MSSQL statement extraction covers `sp_executesql`.** `sp_prepare`, `sp_prepexec` and the cursor family yield no statement, which is how JDBC and .NET send prepared statements. `EXEC('DELETE ...')` reports `unknown` with the reason "stored procedure; body is in the catalog", so a rule naming `unknown` refuses it and one naming `call` no longer matches.
 - **PII detection is neither sound nor complete.** A checksum-verified identifier holds up. Everything else is a pattern. Detecting a name column needs NER, which this does not wire, and a caller can split a value across two responses. Masking raises the cost of accidental exposure without replacing "do not grant access to that table".
 - **HTTP/1.x only for stream decoding.** HTTP/2 and HTTP/3 framing belongs to whatever terminated the connection.
-- **Plaintext at the Sidecar, with one exception.** A client negotiating TLS end to end past the Sidecar leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the Sidecar walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the Sidecar originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the Sidecar can start.
+- **Plaintext at the Sidecar, with one exception.** A client negotiating TLS end to end past the Sidecar leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the Sidecar walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the Sidecar originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the Sidecar can start.
 - **A session encrypted end to end is refused, not forwarded.** `ENCRYPT_ON`, or a TDS 8.0 client reaching the Sidecar with nothing terminating in front, leaves no statement that can be classified, masked or audited. Both report `rule: stream-unsafe` and name the cause. Such a session used to connect and run uninspected, so check what your driver sets for `Encrypt` before putting an existing MSSQL lane behind this: ODBC Driver 18 and SqlClient 5+ default to `Mandatory`, go-mssqldb to `ENCRYPT_OFF`.
 - **Statements are not transactions.** Each one gets its own verdict, and no cross-statement session state exists.
 - **No SSH lane.** No SSH codec ships. Envoy ships no SSH filter at any fidelity either, so every service reached over SSH sits unpoliced by the Envoy and OPA layer.
@@ -620,13 +620,13 @@ The repository ships a compose stack that runs every component on this page end 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
-  <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
+  <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-sidecar/get-started">
     Configure Envoy, run the Sidecar, and watch a denial land in psql.
   </Card>
-  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
     Every section, every rule type, and what startup refuses.
   </Card>
 </CardGroup>

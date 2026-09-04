@@ -40,7 +40,7 @@ Point the client at the Sidecar's port instead of the resource's. Nothing else a
 PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U postgres
 ```
 
-The Sidecar reads the wire protocol, so it needs the connection in the clear. Terminate TLS in front of it — see [Running the Sidecar](/setup/configuration/hoop-inspect/get-started) for the Envoy shapes.
+The Sidecar reads the wire protocol, so it needs the connection in the clear. Terminate TLS in front of it — see [Running the Sidecar](/setup/configuration/hoop-sidecar/get-started) for the Envoy shapes.
 
 ---
 
@@ -106,7 +106,7 @@ A rule set that reaches a lane enforces — there is no observe-only switch to l
 curl -s 'localhost:19000/api/events?kind=violation' | python3 -m json.tool
 ```
 
-Each `violation` names the rule that fired and the message the client read, so an over-broad rule is visible by name before it reaches production. For a rule you want live on production without deciding on its own, give it `action: defer` and let [OPA](/setup/configuration/hoop-inspect/policy-rules#deferring-to-opa) allow it while you watch the findings.
+Each `violation` names the rule that fired and the message the client read, so an over-broad rule is visible by name before it reaches production. For a rule you want live on production without deciding on its own, give it `action: defer` and let [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa) allow it while you watch the findings.
 
 ---
 
@@ -202,10 +202,10 @@ hoop start sidecar
 ## Where to go next
 
 <CardGroup cols={3}>
-  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-inspect/get-started">
+  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-sidecar/get-started">
     Transports, putting it behind Envoy, and a compose stack that runs the whole thing on your laptop.
   </Card>
-  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
     Every section, every field, and what startup refuses.
   </Card>
   <Card title="Agentic Access" icon="robot" href="/features/agentic-access">

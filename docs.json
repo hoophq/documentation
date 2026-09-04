@@ -87,12 +87,12 @@
           {
             "group": "Sidecar Reference",
             "pages": [
-              "setup/configuration/hoop-inspect/get-started",
-              "setup/configuration/hoop-inspect/config-file",
-              "setup/configuration/hoop-inspect/policy-rules",
-              "setup/configuration/hoop-inspect/risk-analysis",
-              "setup/configuration/hoop-inspect/components",
-              "setup/configuration/hoop-inspect/kerberos"
+              "setup/configuration/hoop-sidecar/get-started",
+              "setup/configuration/hoop-sidecar/config-file",
+              "setup/configuration/hoop-sidecar/policy-rules",
+              "setup/configuration/hoop-sidecar/risk-analysis",
+              "setup/configuration/hoop-sidecar/components",
+              "setup/configuration/hoop-sidecar/kerberos"
             ]
           }
         ]

@@ -37,24 +37,26 @@ Four properties fall out of this shape, and they are the reason it looks like th
     Create a Sidecar registration and copy the token it returns. The token identifies this Sidecar and authenticates it — treat it as a credential.
   </Step>
   <Step title="Point the Sidecar at the Control Plane">
-    Add the server host and token to the Sidecar's config file:
+    Add the Control Plane's URL to the Sidecar's config file. The token is never written to disk — it goes on the command line or in an environment variable:
 
     ```yaml config.yaml
-    control_plane:
-      url: https://hoop.your-company.com
-      token_file: /etc/hoop/sidecar.token    # a path, never an inline secret
+    control_plane_url: https://hoop.your-company.com
     ```
 
-    Or supply them through the environment, which is the shape a Kubernetes deployment wants — mount the secret, set the variables, pass no arguments:
+    ```bash
+    hoop start sidecar --config config.yaml --token "<the token you copied>"
+    ```
+
+    Or supply both through the environment, which is the shape a Kubernetes deployment wants — mount the secret, set the variables, pass no arguments:
 
     ```bash
     export HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com
-    export HOOP_SIDECAR_TOKEN_FILE=/etc/hoop/sidecar.token
+    export HOOP_SIDECAR_TOKEN=<the token you copied>
     ```
   </Step>
   <Step title="Start it">
     ```bash
-    hoop start sidecar --config config.yaml
+    hoop start sidecar --config config.yaml --token "<the token you copied>"
     ```
 
     Listeners still come from the local file. Everything the Control Plane manages — guardrails, masking, analyzer settings — arrives over the ping.
@@ -92,5 +94,8 @@ Four properties fall out of this shape, and they are the reason it looks like th
   </Card>
   <Card title="Install the Control Plane" icon="server" href="/control-plane/install">
     Docker Compose, Kubernetes and AWS.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file#control-plane">
+    Every source for `control_plane_url` and the token, in precedence order.
   </Card>
 </CardGroup>

@@ -98,7 +98,7 @@ Pick a transport first. One field decides it, and the rest of the file is identi
   </Tab>
 </Tabs>
 
-Nothing above the transport changes. Guardrails, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is. See [Transport](/setup/configuration/hoop-inspect/config-file#transport) for the full comparison.
+Nothing above the transport changes. Guardrails, masking, audit and `upstream_tls` behave the same way, because the gate reads a `net.Conn` and never asks what kind it is. See [Transport](/setup/configuration/hoop-sidecar/config-file#transport) for the full comparison.
 
 ### Another protocol is one field
 
@@ -118,14 +118,14 @@ listeners:
           message: destructive statements are not permitted on mssqldb
 ```
 
-Guardrails, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the Sidecar can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos).
+Guardrails, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the Sidecar can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos).
 
 <Warning>
 **A lane always enforces.** There is no observe-only switch: a rule you write denies from the first statement that matches it. Deploy a new rule set against a staging listener, or [validate](#step-2-validate-before-you-deploy) and read `/api/events?kind=violation` there, before it fronts production.
 </Warning>
 
 <Note>
-`type: operation` matches the statement's most consequential **effect**, so `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` counts as a `delete` and the rule above catches it. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) covers every rule type, including deferring a match to a Rego policy instead of denying it.
+`type: operation` matches the statement's most consequential **effect**, so `WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d` counts as a `delete` and the rule above catches it. [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) covers every rule type, including deferring a match to a Rego policy instead of denying it.
 </Note>
 
 ---
@@ -285,7 +285,7 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
                         socket_address: { address: hoop-inspect, port_value: 11433 }
     ```
 
-    Clients connect with `Encrypt=strict`. A TDS 7.x client wraps its TLS handshake inside `0x12` packets, which Envoy cannot speak, so that lane skips Envoy and the Sidecar takes the connection directly: `ENCRYPT_OFF` encrypts the login packet alone and leaves every statement readable. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#tds-7x-encrypts-the-login-and-nothing-else).
+    Clients connect with `Encrypt=strict`. A TDS 7.x client wraps its TLS handshake inside `0x12` packets, which Envoy cannot speak, so that lane skips Envoy and the Sidecar takes the connection directly: `ENCRYPT_OFF` encrypts the login packet alone and leaves every statement readable. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#tds-7x-encrypts-the-login-and-nothing-else).
   </Tab>
   <Tab title="HTTP lane">
     On HTTP you keep your existing `ext_authz` filter. Only the route's cluster changes: it points at the Sidecar instead of at the service.
@@ -378,7 +378,7 @@ With all three legs covered, only the hop the Sidecar reads is ever in the clear
 |---|---|
 | client → Envoy | Envoy, via `starttls` + `postgres_proxy` (HTTPS listener on the HTTP lane, plain `DownstreamTlsContext` on an MSSQL one) |
 | Envoy → relay | nothing, and it must stay that way: the gate parses these bytes |
-| relay → database | the Sidecar, via [`upstream_tls`](/setup/configuration/hoop-inspect/config-file#upstream-tls) |
+| relay → database | the Sidecar, via [`upstream_tls`](/setup/configuration/hoop-sidecar/config-file#upstream-tls) |
 
 Keep the middle leg on loopback or a unix socket. It carries decrypted traffic by design, and a socket is the tighter boundary because no port exists to reach.
 
@@ -556,7 +556,7 @@ The stack ships both transports. TCP is the default because it needs no shared v
 Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the Sidecar's two, which were never published to the host.
 
 <Note>
-SQL Server runs in two stacks of its own, and what separates them is who terminates the client's TLS. `deploy/docker-compose/envoy-stack/mssql/` (`hoopinspect/scripts/dev/mssql-stack.sh`) runs SQL Server 2022 over TDS 8.0, with Envoy terminating, a Samba AD DC and a client holding a ticket. `deploy/docker-compose/envoy-stack/mssql2019/` (`mssql2019-stack.sh`) runs TDS 7.4 with no Envoy at all, covering the encrypted login; its `MSSQL_TAG` accepts 2017, 2019 and 2022. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#local-testing).
+SQL Server runs in two stacks of its own, and what separates them is who terminates the client's TLS. `deploy/docker-compose/envoy-stack/mssql/` (`hoopinspect/scripts/dev/mssql-stack.sh`) runs SQL Server 2022 over TDS 8.0, with Envoy terminating, a Samba AD DC and a client holding a ticket. `deploy/docker-compose/envoy-stack/mssql2019/` (`mssql2019-stack.sh`) runs TDS 7.4 with no Envoy at all, covering the encrypted login; its `MSSQL_TAG` accepts 2017, 2019 and 2022. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#local-testing).
 </Note>
 
 ---
@@ -580,13 +580,13 @@ SQL Server runs in two stacks of its own, and what separates them is who termina
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
-  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
     Every section, every rule type, inheritance between lanes, and what startup refuses.
   </Card>
-  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
+  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
     How a request flows through the Sidecar, multi-lane and unix-socket deployments, Kubernetes.
   </Card>
 </CardGroup>

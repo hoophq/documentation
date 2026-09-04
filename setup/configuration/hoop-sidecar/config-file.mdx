@@ -8,7 +8,7 @@ One file is the whole configuration. The Sidecar reads it at startup, resolves e
 YAML and JSON both work, and the file extension picks the parser: `.yaml` and `.yml` go through the YAML front end, anything else is read as JSON. Decoding is **strict**, so a mistyped key fails startup instead of disabling a control without telling you.
 
 <Note>
-New to hoop-inspect? Start with [Get Started](/setup/configuration/hoop-inspect/get-started), which builds a working config one step at a time.
+New to hoop-inspect? Start with [Get Started](/setup/configuration/hoop-sidecar/get-started), which builds a working config one step at a time.
 </Note>
 
 ---
@@ -23,6 +23,11 @@ log_level: info
 # A path to the license Hoop issued, or the document itself. --license and
 # HOOP_LICENSE both outrank this. Omit it to run the free tier.
 license: /etc/hoop-inspect/license.json
+
+# The Control Plane this Sidecar reports to. Omit it to run standalone.
+# HOOP_CONTROL_PLANE_URL outranks this. The token that authenticates to it
+# is never written here — see --token and HOOP_SIDECAR_TOKEN below.
+control_plane_url: https://hoop.your-company.com
 
 admin:
   listen: 127.0.0.1:19000   # /healthz /stats /config /events /api/*
@@ -105,13 +110,14 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 |---|---|
 | `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
 | `license` | The license this process runs under. A path or the document itself. `--license` and `HOOP_LICENSE` outrank it. See [Licensing](#licensing). |
+| `control_plane_url` | The Control Plane this Sidecar reports to. `HOOP_CONTROL_PLANE_URL` outranks it. Omit it to run standalone from the local config file alone. See [Control Plane](#control-plane). |
 | `admin` | Health, stats and the audit query API. Disabled when `listen` is empty. |
 | `audit` | Where events go and what a failed write means. |
 | `pii` | The detector engine. Omit it and every supported entity is enabled. |
 | `guardrails` | Default Hoop rule set for every lane. |
 | `opa` | Default OPA endpoint for every lane. Omit it and no lane calls OPA. |
 | `mask` | Default response rewriting for every lane. |
-| `analyzer` | The AI risk classifier. Omit it and `ai_analysis` rules are a config error. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis). |
+| `analyzer` | The AI risk classifier. Omit it and `ai_analysis` rules are a config error. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `listeners` | One entry per upstream. |
 
 Keys starting `x-` are dropped before validation, so a YAML anchor block does not need a matching config field. See [sharing rules between lanes](#sharing-a-rule-block-between-lanes).
@@ -134,14 +140,14 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
 | `upstream` | The real backend, `host:port`. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
-| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane, because pgwire negotiates in-band. See [Kerberos and SQL Server](/setup/configuration/hoop-inspect/kerberos#terminating-the-clients-tls). |
+| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane, because pgwire negotiates in-band. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#terminating-the-clients-tls). |
 | `identity_header` | Names an HTTP header carrying the authenticated subject. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
 | `guardrails` | Adds to the top-level rule set for this lane. |
 | `opa` | Replaces the top-level OPA endpoint for this lane. |
 | `mask` | Replaces the top-level mask rules for this lane. |
-| `http` | What the HTTP codec captures. Only valid on an `http` lane. See [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#the-http-lane-needs-capture-body). |
+| `http` | What the HTTP codec captures. Only valid on an `http` lane. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#the-http-lane-needs-capture-body). |
 
 <Warning>
 `identity_header` trusts a header, which is safe only when nothing but your proxy can reach the listener. Bind it to loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
@@ -309,12 +315,12 @@ Every rule also takes `name`, `message` and `action`. `message` is what the user
   action: defer      # report a finding; the decide-phase policy rules on it
 ```
 
-Deferring does not stop the rule set. First match wins applies to denials, so a deferring rule records and evaluation continues, and a hard rule further down still denies. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) covers the producer model, the finding shape and the Rego that reads it.
+Deferring does not stop the rule set. First match wins applies to denials, so a deferring rule records and evaluation continues, and a hard rule further down still denies. [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) covers the producer model, the finding shape and the Rego that reads it.
 
 An HTTP rule never matches a SQL statement and vice versa, so one mixed rule set cannot deny the wrong protocol.
 
 <Note>
-`ai_analysis` is the one type the local rules engine does not evaluate. It is lifted out of the set at startup and runs after the local rules and OPA, so its position in the list has no effect. It also needs an [`analyzer`](/setup/configuration/hoop-inspect/risk-analysis) section, and on an HTTP lane it needs `http.capture_body: true`. Startup refuses a lane missing either. An `ai_analysis` rule spells deferring per risk level (`high: defer`) rather than through `action`.
+`ai_analysis` is the one type the local rules engine does not evaluate. It is lifted out of the set at startup and runs after the local rules and OPA, so its position in the list has no effect. It also needs an [`analyzer`](/setup/configuration/hoop-sidecar/risk-analysis) section, and on an HTTP lane it needs `http.capture_body: true`. Startup refuses a lane missing either. An `ai_analysis` rule spells deferring per risk level (`high: defer`) rather than through `action`.
 </Note>
 
 ### operation reports the worst effect
@@ -330,7 +336,7 @@ The scanner discards comments and string literals before it classifies, so `SELE
   message: destructive statements are not permitted on appdb
 ```
 
-Add `unknown` to that list on a lane where a statement the scanner could not read must not run. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules).
+Add `unknown` to that list on a lane where a statement the scanner could not read must not run. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
 
 SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
 
@@ -484,7 +490,7 @@ An **undefined gate decision allows and requests nothing**, even under `fail_ope
 A single-call lane sends **no** `phase` field, so Rego testing `input.phase == "decide"` is undefined there and `fail_open: false` denies everything. Write `phase := object.get(input, "phase", "decide")` and the same policy serves both arrangements.
 </Warning>
 
-See [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) for the finding shape, the status vocabulary and worked Rego.
+See [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) for the finding shape, the status vocabulary and worked Rego.
 
 ---
 
@@ -657,6 +663,35 @@ Re-applying the caps to a running relay would mean deleting rules, and that is w
 
 ---
 
+## Control Plane
+
+A Sidecar that knows nothing about a Control Plane reads its config file from disk and runs standalone. Pointing it at one is two independent settings: where the Control Plane is, and the token that identifies this Sidecar to it.
+
+| Setting | Source | Spelling |
+|---|---|---|
+| Control Plane URL | Config file | the top-level `control_plane_url` key |
+| Control Plane URL | Environment | `HOOP_CONTROL_PLANE_URL` |
+| Token | Command line | `hoop start sidecar --token …` |
+| Token | Environment | `HOOP_SIDECAR_TOKEN` |
+
+The environment variable outranks the config file for the URL, the same as every other source pair in this file.
+
+There is no config file key for the token. A token is a bearer credential for this Sidecar's identity, and a config file is the thing most likely to end up committed, backed up, or pasted into a support ticket — so the only two sources are the flag and the environment variable, never something written to disk in the file this Sidecar's own diagnostics might echo back.
+
+```yaml config.yaml
+control_plane_url: https://hoop.your-company.com
+```
+
+```bash
+hoop start sidecar --config config.yaml --token "$(cat /etc/hoop/sidecar.token)"
+# or
+HOOP_SIDECAR_TOKEN="$(cat /etc/hoop/sidecar.token)" hoop start sidecar --config config.yaml
+```
+
+See [Connect a Sidecar](/control-plane/connect-sidecar) for the handshake itself and how to issue a token.
+
+---
+
 ## Audit
 
 | Field | Default | Meaning |
@@ -736,7 +771,7 @@ On an MSSQL lane `upstream_tls` performs a plain TLS-on-connect handshake, which
 | Envoy → relay | nothing, by design. These are the bytes the gate parses |
 | relay → backend | the Sidecar, via `upstream_tls` above |
 
-Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/setup/configuration/hoop-inspect/get-started#terminating-client-tls) for the Envoy config.
+Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/setup/configuration/hoop-sidecar/get-started#terminating-client-tls) for the Envoy config.
 
 ---
 
@@ -809,7 +844,7 @@ Error: invalid config:
     classify nothing; name operations, tables or resources
 ```
 
-Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a rule with no trigger, a tier with no action, a provider the binary does not link, or `send: redacted` with no `pii` section all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis#what-startup-refuses).
+Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a rule with no trigger, a tier with no action, a provider the binary does not link, or `send: redacted` with no `pii` section all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-startup-refuses).
 
 **A rule that defers to nothing:**
 
@@ -881,13 +916,13 @@ Three of those changes alter behavior rather than spelling:
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every rule type in depth, deferring to Rego, and the findings a policy reads.
   </Card>
-  <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-inspect/get-started">
+  <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-sidecar/get-started">
     Configure Envoy, run the Sidecar, and watch a denial land in psql.
   </Card>
-  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
+  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
     How a request flows through the Sidecar, and where each config knob takes effect.
   </Card>
 </CardGroup>

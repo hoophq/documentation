@@ -108,7 +108,7 @@ curl -s localhost:19000/stats | python3 -m json.tool
 ```
 
 <Tip>
-Trigger on `operations` for anything load-bearing. `tables` comes from a scanner rather than a full SQL grammar, and a statement whose relations it could not determine does **not** match a table trigger. `operations` reads the statement's most consequential effect, so a data-modifying CTE triggers on the `delete` it performs. See [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules).
+Trigger on `operations` for anything load-bearing. `tables` comes from a scanner rather than a full SQL grammar, and a statement whose relations it could not determine does **not** match a table trigger. `operations` reads the statement's most consequential effect, so a data-modifying CTE triggers on the `delete` it performs. See [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
 </Tip>
 
 ---
@@ -175,7 +175,7 @@ blocked if {
 }
 ```
 
-Guard on `status` before reading `values`. An absent `risk_level` means "found nothing", "never ran", "budget spent" and "provider down" all at once, and only the status tells them apart. [Guardrail Rules](/setup/configuration/hoop-inspect/policy-rules) has the full status vocabulary.
+Guard on `status` before reading `values`. An absent `risk_level` means "found nothing", "never ran", "budget spent" and "provider down" all at once, and only the status tells them apart. [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) has the full status vocabulary.
 
 `defer` on a lane with no `opa.url` is **refused at startup**. A finding nobody reads forwards every statement while looking like enforcement.
 
@@ -232,7 +232,7 @@ An **undefined gate decision allows and requests nothing**, even under `fail_ope
 
 ## Requests only
 
-The analyzer classifies `FromClient` statements and ignores responses. By the time a response comes back the write has already run, so a verdict cannot prevent anything. Read-side exposure is [masking](/setup/configuration/hoop-inspect/config-file#masking)'s job, which costs less and already runs.
+The analyzer classifies `FromClient` statements and ignores responses. By the time a response comes back the write has already run, so a verdict cannot prevent anything. Read-side exposure is [masking](/setup/configuration/hoop-sidecar/config-file#masking)'s job, which costs less and already runs.
 
 ---
 
@@ -640,13 +640,13 @@ config OK: 2 listener(s)
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
-  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
     Every other section of the config, and the full list of what startup refuses.
   </Card>
-  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
+  <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
     How a request flows through the Sidecar and where each verdict is decided.
   </Card>
 </CardGroup>

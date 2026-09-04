@@ -99,7 +99,7 @@ Three rules follow from this:
 
 Most deployments run a single listener. Add a second when the same workload reaches more than one protected resource.
 
-See [Listeners](/setup/configuration/hoop-inspect/config-file#listeners) for every field.
+See [Listeners](/setup/configuration/hoop-sidecar/config-file#listeners) for every field.
 
 ---
 
@@ -173,7 +173,7 @@ Both in-memory views are off by default, and each has its own budget: `audit.mem
 The admin listener has no authentication and no CORS of its own, and it serves a read interface to every statement every user ran. Bind it to loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port.
 </Warning>
 
-Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-inspect/components#audit-six-kinds-one-write-path-three-sinks).
+Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-sidecar/components#audit-six-kinds-one-write-path-three-sinks).
 
 ---
 
@@ -191,13 +191,13 @@ Running many Sidecars, shipping shared rule sets to all of them, and seeing them
   <Card title="Control Plane" icon="tower-control" href="/core-concepts/control-plane">
     Centralize your Sidecars and deliver rule sets to all of them.
   </Card>
-  <Card title="Architecture" icon="sitemap" href="/setup/configuration/hoop-inspect/components">
+  <Card title="Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
     The full trace of one connection, from accept through the gate to the upstream and back.
   </Card>
-  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-inspect/get-started">
+  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-sidecar/get-started">
     Transports, putting it behind Envoy, and a compose stack that runs the whole thing locally.
   </Card>
-  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
     Every section, every field, inheritance between listeners, and what startup refuses.
   </Card>
 </CardGroup>

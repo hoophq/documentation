@@ -39,7 +39,7 @@ guardrails:
 Every rule takes `name`, `message` and `action` in addition to its own fields.
 
 <Note>
-`guardrails` is Hoop's own rule engine, evaluated in-process. It was previously spelled `policy`, which still loads and warns at startup — see [Migrating from `policy`](/setup/configuration/hoop-inspect/config-file#migrating-from-policy). The separate `opa` section configures the optional external endpoint a `defer` hands to.
+`guardrails` is Hoop's own rule engine, evaluated in-process. It was previously spelled `policy`, which still loads and warns at startup — see [Migrating from `policy`](/setup/configuration/hoop-sidecar/config-file#migrating-from-policy). The separate `opa` section configures the optional external endpoint a `defer` hands to.
 </Note>
 
 <Warning>
@@ -231,7 +231,7 @@ Concatenation is safe here precisely because first-match-wins applies to denials
     Each `violation` names the rule that fired and the message the client read, so an over-broad rule is visible by name before it reaches production.
   </Step>
   <Step title="Defer anything you are not ready to decide">
-    A rule with `action: defer` records a finding and hands the call to [OPA](/setup/configuration/hoop-inspect/policy-rules#deferring-to-opa) instead of denying on its own. Rego that returns `allow` while you watch the findings gives you the same visibility on the production lane.
+    A rule with `action: defer` records a finding and hands the call to [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa) instead of denying on its own. Rego that returns `allow` while you watch the findings gives you the same visibility on the production lane.
   </Step>
   <Step title="Move production traffic to the lane">
     Nothing changes in the rule set. `/config` reports the resolved rules per listener, which is what to compare against the file when a rule you wrote never fires.
@@ -247,7 +247,7 @@ Looking for guardrails on the **Hoop Gateway** instead? That is a different impl
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Guardrail Rules Reference" icon="scale-balanced" href="/setup/configuration/hoop-inspect/policy-rules">
+  <Card title="Guardrail Rules Reference" icon="scale-balanced" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every field of every rule type, deferring to Rego, and the full findings vocabulary.
   </Card>
   <Card title="Data Masking" icon="mask" href="/features/data-masking">

@@ -25,7 +25,7 @@ Deferring moves the DETERMINATION and leaves the matching where it is. The local
 `action: defer` on a lane with no `opa.url` is refused at startup. A finding nobody reads is a rule that matches and then allows, which looks like enforcement from the config file.
 </Note>
 
-[Config File](/setup/configuration/hoop-inspect/config-file#guardrail-rules) carries the exhaustive schema for every field named below, and [Migrating from `policy`](/setup/configuration/hoop-inspect/config-file#migrating-from-policy) maps the deprecated `policy` spellings onto `guardrails` and `opa`.
+[Config File](/setup/configuration/hoop-sidecar/config-file#guardrail-rules) carries the exhaustive schema for every field named below, and [Migrating from `policy`](/setup/configuration/hoop-sidecar/config-file#migrating-from-policy) maps the deprecated `policy` spellings onto `guardrails` and `opa`.
 
 ---
 
@@ -182,7 +182,7 @@ analyzer:
 
 The local engine does not evaluate this type. The sidecar lifts it out of the rule set and runs it after the local rules and OPA, so its position in the list changes nothing and a statement a free rule already denied never reaches a paid classifier. Actions are `allow`, `warn`, `block` and `defer`; an unnamed risk level allows.
 
-It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-inspect/risk-analysis) before enabling it anywhere real.
+It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) before enabling it anywhere real.
 
 <Note>
 `ai_analysis` expresses deferral per risk level: `high: defer`. An `action` field on this rule type is refused at startup, and so are `require_review` and a `defer` on a lane with no `opa.url`.
@@ -671,17 +671,17 @@ config OK: 1 listener(s)
   appdb            postgres  3 rule(s) + opa
 ```
 
-The line reports the RESOLVED lane, so the count includes everything it inherited. The full refusal list is in [Config File](/setup/configuration/hoop-inspect/config-file#what-startup-refuses).
+The line reports the RESOLVED lane, so the count includes everything it inherited. The full refusal list is in [Config File](/setup/configuration/hoop-sidecar/config-file#what-startup-refuses).
 
 ---
 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-inspect/config-file">
+  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
     Every field of every section, inheritance between lanes, and the full list of what startup refuses.
   </Card>
-  <Card title="Risk Analysis" icon="robot" href="/setup/configuration/hoop-inspect/risk-analysis">
+  <Card title="Risk Analysis" icon="robot" href="/setup/configuration/hoop-sidecar/risk-analysis">
     Cost controls, providers, prompts and what leaves the process before you enable `ai_analysis`.
   </Card>
 </CardGroup>
