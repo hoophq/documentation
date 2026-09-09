@@ -1,0 +1,128 @@
+---
+title: "HTTP"
+description: "What the HTTP codec inspects beyond ext_authz, and how an http lane masks responses"
+---
+
+An `http` lane inspects requests **and responses**. Envoy's `ext_authz` already hands OPA the method, path and headers of a request, and the lane keeps that arrangement. It adds two things ext_authz cannot do by construction: it reads the response, which is where data leaves the building, and it keys policy on a stable resource identity instead of raw paths.
+
+```yaml config.yaml
+listeners:
+  - name: httpbin
+    protocol: http
+    listen: 127.0.0.1:18080
+    upstream: httpbin:8080
+    identity_header: x-hoop-user      # trust only behind an authenticating proxy
+    guardrails:
+      rules:
+        - name: no-admin-api
+          type: http_resource
+          resources: ["/admin/**"]
+          message: the admin API is not reachable through this proxy
+        - name: no-upstream-5xx
+          type: http_status           # response-side, so ext_authz cannot ask it
+          statuses: ["5xx"]
+          message: upstream failure suppressed by policy
+```
+
+---
+
+## The normalized resource
+
+Policy keyed on raw paths needs a regex per endpoint. The codec collapses dynamic segments to `*`, so `/users/12345/orders/98765` becomes `/users/*/orders/*` and one `http_resource` rule covers the endpoint:
+
+| Segment | Collapses |
+|---|---|
+| All digits (`/users/12345`) | yes |
+| A UUID | yes |
+| A hex string of 12+ characters | yes |
+| A long opaque token (JWT/base64url shapes, 24+ chars) | yes |
+| A short slug (`/users/alice`) | **no** |
+
+The slug survives on purpose: nothing distinguishes `/users/alice` from `/users/settings`, and collapsing it would widen every rule written against either without warning. In doubt the codec keeps the segment, so a policy can end up too narrow but never too broad. File extensions survive too (`/reports/12345.pdf` → `/reports/*.pdf`), because a policy may allow `*.csv` and deny `*.sql`.
+
+---
+
+## The `http` block
+
+The defaults expose nothing: no bodies, no headers. Everything you capture reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so capture is opt-in per field.
+
+```yaml
+listeners:
+  - name: httpbin
+    protocol: http
+    listen: 127.0.0.1:18080
+    upstream: httpbin:8080
+    http:
+      capture_body: true
+      max_body_bytes: 65536       # the default
+      headers: [Content-Type]     # allowlist; there is no capture-all
+```
+
+| Field | Meaning |
+|---|---|
+| `capture_body` | Includes request and response bodies in the statement. Required for `pii`/`pattern_match` rules that must read payloads, and for `ai_analysis` rules. Startup refuses those without it, because they would load and then fire on nothing. |
+| `max_body_bytes` | Truncates a captured body. Default 64 KiB. |
+| `headers` | Headers exposed to policy, matched case-insensitively. `authorization`, `cookie` and `proxy-authorization` can never be listed. |
+
+## Identity
+
+`identity_header` names the header your authenticating proxy sets, and the subject lands in every audit row and in `input.context` for OPA. Trusting a header is safe only when nothing but that proxy can reach the listener, so bind loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
+
+---
+
+## Masking
+
+HTTP declares its body length in a header the gate can correct, so masking works by **substitution**: the gate rewrites values in place and retags `Content-Length` for the size delta. It rewrites only when it can do so soundly, meaning a complete header block, exactly one `Content-Length`, and a declared length matching the bytes present. In any other case it forwards the original bytes, because a wrong `Content-Length` desynchronizes each request that follows on a keep-alive connection.
+
+A **chunked** response has no `Content-Length` and goes through unmasked. Where masking is the control, keep the upstream on plain responses, or put a guardrail on the resource instead.
+
+---
+
+## Denials
+
+A denied request returns `403 Forbidden` with the rule's message and `Connection: close`:
+
+```
+HTTP/1.1 403 Forbidden
+Content-Type: text/plain
+Connection: close
+
+the admin API is not reachable through this proxy
+```
+
+---
+
+## The Envoy lane
+
+Keep your existing `ext_authz` filter, and OPA still answers reachability first. The one change is the route's cluster, which points at the Sidecar instead of at the service:
+
+```yaml envoy.yaml
+route_config:
+  virtual_hosts:
+    - name: inspect
+      domains: ["*"]
+      routes:
+        - match: { prefix: "/" }
+          route:
+            cluster: hoop_inspect_http     # was: the service cluster
+            timeout: 60s
+```
+
+Envoy already terminated the client's TLS on the HTTPS listener, so this lane carries plaintext HTTP/1.1 to the Sidecar and there is nothing extra to configure. The compose stack's `httpbin` lane in [`deploy/docker-compose/envoy-stack/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack) runs exactly this shape:
+
+```bash
+curl -sk https://envoy:8443/anything -H 'x-hoop-user: alice'
+```
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    `http_resource` globs, `http_status` ranges, and deferring a match to Rego.
+  </Card>
+  <Card title="Risk Analysis" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis">
+    Why an `ai_analysis` rule on this lane requires `capture_body`, and what it costs.
+  </Card>
+</CardGroup>

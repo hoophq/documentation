@@ -1,0 +1,136 @@
+---
+title: "PostgreSQL"
+description: "What the pgwire codec decodes, terminates and masks on a postgres lane"
+---
+
+A `postgres` lane decodes the PostgreSQL v3 frontend/backend protocol: every statement a client sends, and every row the server returns. It is the lane the compose stack demonstrates and the one [Running the Sidecar](/setup/configuration/hoop-sidecar/get-started) builds step by step.
+
+```yaml config.yaml
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 127.0.0.1:15432
+    upstream: appdb:5432
+    upstream_tls:                        # optional: encrypt the hop to the database
+      ca_file: /etc/hoop-inspect/certs/appdb.crt
+    guardrails:
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on appdb
+```
+
+---
+
+## What the codec reads
+
+Two message types carry SQL, and the codec reads both:
+
+| Message | Carries |
+|---|---|
+| `Q` Query | The simple protocol: one string, possibly several statements separated by semicolons |
+| `P` Parse | The extended protocol: the prepared statement drivers and ORMs use |
+
+The codec skips everything else by length, so a bulk `COPY` stream costs no memory. It reassembles a statement split across TCP segments before classifying it.
+
+The codec splits a multi-statement `Q` message with PostgreSQL's own lexical rules (dollar quoting, standard-conforming strings, nested comments) and evaluates each statement on its own. `Operation` is the statement's most consequential **effect**, so a `DELETE` hidden inside a CTE classifies as `delete`; see [the worked example](/setup/configuration/hoop-sidecar/get-started#step-5-watch-it-work).
+
+<Warning>
+`CALL` and `EXECUTE` report `unknown`, because their bodies live in the catalog and no parser can say what they touch. To catch them, write `operations: [call, unknown]`.
+</Warning>
+
+---
+
+## TLS on each leg
+
+pgwire negotiates TLS in-band: the client sends an 8-byte `SSLRequest` and waits for a one-byte reply. That shapes both ends of the lane.
+
+| Leg | Options |
+|---|---|
+| client → lane | Plaintext (`PGSSLMODE=disable`), Envoy's contrib `postgres_proxy` + `starttls` socket, or the lane itself via `downstream_tls` |
+| lane → database | Plaintext, or `upstream_tls`: the Sidecar sends the `SSLRequest`, then handshakes as an ordinary TLS client |
+
+`postgres` is one of two protocols that may terminate the **client's** TLS at the lane (the other is `grpc`), because no generic proxy in front can speak the in-band exchange:
+
+```yaml config.yaml
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+    downstream_tls:
+      cert_file: /etc/hoop-inspect/certs/lane.crt
+      key_file: /etc/hoop-inspect/certs/lane.key
+```
+
+Clients then connect with `PGSSLMODE=require` and the gate still reads plaintext, because the lane decrypts what it terminates.
+
+Two upstream details:
+
+- **A refusal fails the connection.** If the server answers `N` to the `SSLRequest`, the lane errors out instead of downgrading. You asked for an encrypted hop, and a downgrade would send credentials in the clear without telling you.
+- **The Sidecar strips channel binding.** It removes `SCRAM-SHA-256-PLUS` from the server's SASL offer, because channel binding ties SCRAM to a single TLS session and a terminating relay has two. Plain `SCRAM-SHA-256` remains and authenticates the same password against the same verifier, so you change no credential and no server setting.
+
+---
+
+## Masking
+
+Every row and column in a pgwire `DataRow` is length-prefixed, so the codec **re-frames**: it rebuilds each message around the rewritten values, and a mask that grows or shrinks a value cannot desynchronize the client. Both rule shapes work:
+
+```yaml
+mask:
+  rules:
+    - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+```
+
+Column rules match the names in the result set's `RowDescription`, and wherever the protocol names its values they beat detection.
+
+---
+
+## Denials
+
+A denied statement returns a real pgwire `ErrorResponse` carrying the rule's `message`, so the developer reads it in `psql` instead of watching the socket drop:
+
+```
+FATAL:  destructive statements are not permitted on appdb
+```
+
+Severity is `FATAL` rather than `ERROR` because the connection closes with the denial; `ERROR` would leave `psql` waiting for a `ReadyForQuery` that never arrives.
+
+---
+
+## The Envoy lane
+
+Envoy has no pgwire parser, so the lane is plain `tcp_proxy` and the Sidecar sees every byte Envoy could not examine:
+
+```yaml envoy.yaml
+listeners:
+  - name: postgres_ingress
+    address:
+      socket_address: { address: 0.0.0.0, port_value: 5432 }
+    filter_chains:
+      - filters:
+          - name: envoy.filters.network.tcp_proxy
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+              stat_prefix: ingress_pg
+              cluster: hoop_inspect_pg
+```
+
+To terminate the client's TLS in Envoy instead of at the lane, use the contrib `postgres_proxy` filter with a `starttls` transport socket. [Terminating client TLS](/setup/configuration/hoop-sidecar/get-started#terminating-client-tls) has the full shape and its caveats.
+
+Try it end to end with the compose stack in [`deploy/docker-compose/envoy-stack/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack): its `appdb` lane runs this protocol with `upstream_tls` on and masking live.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-sidecar/get-started">
+    Builds a Postgres lane from zero, behind Envoy, with the compose stack to prove it.
+  </Card>
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    Every rule type this lane evaluates, including deferring a match to Rego.
+  </Card>
+</CardGroup>

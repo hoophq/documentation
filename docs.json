@@ -88,6 +88,17 @@
             "group": "Sidecar Reference",
             "pages": [
               "setup/configuration/hoop-sidecar/get-started",
+              {
+                "group": "Protocols",
+                "pages": [
+                  "setup/configuration/hoop-sidecar/protocols/postgres",
+                  "setup/configuration/hoop-sidecar/protocols/mysql",
+                  "setup/configuration/hoop-sidecar/protocols/mssql",
+                  "setup/configuration/hoop-sidecar/protocols/mongodb",
+                  "setup/configuration/hoop-sidecar/protocols/grpc",
+                  "setup/configuration/hoop-sidecar/protocols/http"
+                ]
+              },
               "setup/configuration/hoop-sidecar/config-file",
               "setup/configuration/hoop-sidecar/policy-rules",
               "setup/configuration/hoop-sidecar/risk-analysis",
