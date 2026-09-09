@@ -135,19 +135,20 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | Field | Meaning |
 |---|---|
 | `name` | Identifies the lane in logs, in `/config`, in every audit event and in `input.context.connection`. Required. The physical `upstream` may change under it. |
-| `protocol` | `postgres`, `mssql` or `http`. Selects the codec. |
+| `protocol` | `postgres`, `mysql`, `mssql`, `mongodb`, `grpc` or `http`. Selects the codec; see [Protocols](/setup/configuration/hoop-sidecar/protocols/postgres) for what each one decodes. |
 | `listen` | Bind address, or a filesystem path when `network: unix`. |
 | `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
 | `upstream` | The real backend, `host:port`. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
-| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane, because pgwire negotiates in-band. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#terminating-the-clients-tls). |
+| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane (pgwire negotiates in-band) or a `grpc` lane (it is its own HTTP/2 endpoint). See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#terminating-the-clients-tls). |
 | `identity_header` | Names an HTTP header carrying the authenticated subject. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
 | `guardrails` | Adds to the top-level rule set for this lane. |
 | `opa` | Replaces the top-level OPA endpoint for this lane. |
 | `mask` | Replaces the top-level mask rules for this lane. |
-| `http` | What the HTTP codec captures. Only valid on an `http` lane. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#the-http-lane-needs-capture-body). |
+| `http` | What the HTTP codec captures. Only valid on an `http` lane. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#the-http-block). |
+| `grpc` | Descriptor sets and capture for a gRPC lane. Only valid on a `grpc` lane. See [gRPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-grpc-block). |
 
 <Warning>
 `identity_header` trusts a header, which is safe only when nothing but your proxy can reach the listener. Bind it to loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.

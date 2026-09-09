@@ -107,7 +107,7 @@ Nothing above the transport changes. Guardrails, masking, audit and `upstream_tl
 ```yaml config.yaml
 listeners:
   - name: mssqldb
-    protocol: mssql             # postgres | mssql | http
+    protocol: mssql             # postgres | mysql | mssql | mongodb | grpc | http
     listen: 127.0.0.1:11433     # network: unix works here too
     upstream: mssql:1433
     guardrails:
@@ -118,7 +118,7 @@ listeners:
           message: destructive statements are not permitted on mssqldb
 ```
 
-Guardrails, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the Sidecar can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos).
+Guardrails, masking and audit behave as they do on a Postgres lane. Two differences belong to the protocol: the client's TLS is TDS 8.0, which Envoy terminates with a plain listener, and the hop to SQL Server stays plaintext because the Linux build accepts no TLS shape the Sidecar can originate. Both are covered in [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos). What each protocol decodes, refuses and masks has a page of its own under [Protocols](/setup/configuration/hoop-sidecar/protocols/postgres).
 
 <Warning>
 **A lane always enforces.** There is no observe-only switch: a rule you write denies from the first statement that matches it. Deploy a new rule set against a staging listener, or [validate](#step-2-validate-before-you-deploy) and read `/api/events?kind=violation` there, before it fronts production.

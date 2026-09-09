@@ -1,0 +1,120 @@
+---
+title: "SQL Server"
+description: "What the TDS codec decodes on an mssql lane, and who terminates which TLS"
+---
+
+An `mssql` lane decodes Microsoft SQL Server's TDS protocol. Envoy has no TDS filter of any kind, so this protocol is entirely unpoliced by an Envoy+OPA layer on its own — a bigger gap than Postgres, where Envoy's contrib filter at least extracts table-and-verb metadata.
+
+```yaml config.yaml
+listeners:
+  - name: mssqldb
+    protocol: mssql
+    listen: 127.0.0.1:11433
+    upstream: mssql:1433
+    guardrails:
+      rules:
+        - name: no-destructive-tsql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on mssqldb
+```
+
+---
+
+## What the codec reads
+
+A TDS message may span several packets; the codec reassembles them before parsing, because a statement classified from a fragment is the exact failure a policy cannot tolerate. Two message types carry SQL:
+
+| Packet | Carries |
+|---|---|
+| `0x01` SQLBatch | The statement as UCS-2LE, after the ALL_HEADERS block |
+| `0x03` RPCRequest | A proc call; when the proc is `sp_executesql`, the first NVARCHAR parameter holds the statement — which is how every parameterized query from .NET and JDBC arrives |
+
+A batch is handed to the classifier whole, split with T-SQL's own lexical rules (`[` opens a quoted identifier there and is an array subscript in PostgreSQL, so the dialects are not interchangeable).
+
+### Integrated authentication passes through untouched
+
+TDS gives the SSPI exchange its own packet type (`0x11`) and the login its own (`0x10`), so Kerberos works through this codec with no Kerberos code: the AP-REQ the client's OS minted is opaque bytes in a packet type the codec forwards verbatim, and inspection begins at the first SQLBatch after it. The boundary is the protocol's own message typing, not a guess about where login ended. [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos) covers the full deployment.
+
+### The one server reply it refuses
+
+A routing `ENVCHANGE` — the server redirecting the client to another host — would take the connection to a socket the relay does not hold. The codec refuses it and the lane closes the connection rather than forwarding a working bypass.
+
+---
+
+## TLS on each leg
+
+Who terminates the client's TLS depends on which TDS version the client speaks, and that decides the whole deployment shape:
+
+| Client | Shape | Who terminates |
+|---|---|---|
+| TDS 8.0 (`Encrypt=strict`, SQL Server 2022+) | Ordinary TLS-on-connect | Envoy, with a plain `DownstreamTlsContext` — no TDS awareness needed |
+| TDS 7.x, `ENCRYPT_OFF` | Only the login packet is encrypted; every statement is readable | Nobody: the codec passes the encrypted login through and inspects the session after it |
+| TDS 7.x, `ENCRYPT_ON` | The whole session is encrypted inside `0x12` packets, which no generic proxy can unwrap | Nobody can — the lane fails closed rather than forwarding bytes nobody can read |
+
+The hop from the lane to SQL Server stays plaintext: the Linux build accepts no TLS shape the Sidecar can originate, so leave `upstream_tls` unset and keep that hop inside the pod or host boundary. The reasoning and every negotiation detail live in [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#tds-7x-encrypts-the-login-and-nothing-else).
+
+---
+
+## Masking
+
+TDS result sets are re-framed: the codec reads each row against the `COLMETADATA` the server declared, rewrites matching values, and rebuilds the token stream around them. Column rules match those declared names.
+
+One honest limit: if a result set carries a column type whose wire length the codec cannot compute, masking **stops for that connection** rather than guessing at byte boundaries — a wrong guess desynchronizes the client. Statements, policy and audit are unaffected; only the rewrite stands down, and the lane logs it.
+
+---
+
+## Denials
+
+A denied statement returns a synthesized TDS reply — an `ERROR` token followed by `DONE(error)`, the same shape a real SQL Server error takes — so the developer reads the rule's message in `sqlcmd` instead of watching the socket drop:
+
+```
+Msg 50000, Level 16, State 1:
+destructive statements are not permitted on mssqldb
+```
+
+---
+
+## The Envoy lane
+
+TDS 8.0 is TCP, then TLS, then the protocol, so Envoy terminates it with an ordinary `DownstreamTlsContext` in front of `tcp_proxy`:
+
+```yaml envoy.yaml
+listeners:
+  - name: mssql_ingress
+    address:
+      socket_address: { address: 0.0.0.0, port_value: 1433 }
+    filter_chains:
+      - transport_socket:
+          name: envoy.transport_sockets.tls
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+            common_tls_context:
+              tls_certificates:
+                - certificate_chain: { filename: /etc/envoy/certs/server.crt }
+                  private_key: { filename: /etc/envoy/certs/server.key }
+        filters:
+          - name: envoy.filters.network.tcp_proxy
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+              stat_prefix: ingress_mssql
+              cluster: hoop_inspect_mssql
+              idle_timeout: 3600s   # a session idles between keystrokes
+```
+
+Clients connect with `Encrypt=strict`. A TDS 7.x client skips Envoy and reaches the lane directly, because its TLS handshake travels inside `0x12` packets Envoy cannot speak.
+
+Two compose stacks run this end to end, split by who terminates: `deploy/docker-compose/envoy-stack/mssql/` (SQL Server 2022, TDS 8.0, Envoy terminating, a Samba AD DC and a Kerberos client) and `mssql2019/` (TDS 7.4, no Envoy, the encrypted login covered). See [local testing](/setup/configuration/hoop-sidecar/kerberos#local-testing).
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Kerberos and SQL Server" icon="key" href="/setup/configuration/hoop-sidecar/kerberos">
+    Integrated auth end to end, TDS version negotiation, and the two local stacks.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every listener field, inheritance between lanes, and what startup refuses.
+  </Card>
+</CardGroup>

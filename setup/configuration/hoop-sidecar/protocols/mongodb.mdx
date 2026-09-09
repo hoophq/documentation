@@ -1,0 +1,114 @@
+---
+title: "MongoDB"
+description: "What the MongoDB codec decodes, how commands classify, and how a mongodb lane masks BSON"
+---
+
+A `mongodb` lane decodes the MongoDB wire protocol: every command a driver sends over `OP_MSG`, and every result document the server returns. Commands are rendered as deterministic Extended JSON, so the same rule types that read SQL read them — a `pattern_match` matches the rendered command, a `pii` rule scans it, and the audit trail records it.
+
+```yaml config.yaml
+listeners:
+  - name: appdb
+    protocol: mongodb
+    listen: 127.0.0.1:27017
+    upstream: appdb:27017
+    guardrails:
+      rules:
+        - name: no-destructive-mongodb
+          type: operation
+          operations: [drop, delete]
+          message: destructive commands are not permitted on appdb
+    mask:
+      rules:
+        - {name: email-field, columns: [email], strategy: redact}
+```
+
+---
+
+## What the codec reads
+
+Modern `OP_MSG` traffic, plus the one legacy exchange MongoDB still permits: the `OP_QUERY`/`OP_REPLY` initial hello. One codec instance sees both directions, because a server reply identifies the request it answers only by `responseTo`, and that request supplies the command name and result shape the response side needs.
+
+Two wire details matter in production and are handled:
+
+- **Document sequences** (the bulk half of `insert`, `update`, `delete`) are restored into the rendered command, so a policy sees the documents, not just the command header. A sequence that duplicates a command field is refused as stream-unsafe rather than letting two copies of one field disagree about what was evaluated.
+- **Exhaust streams** — the `moreToCome` reply chains MongoDB 7 uses for the streaming hello on every driver's monitoring socket — are followed reply by reply, so heartbeats survive the relay.
+
+### Classification
+
+`operation` rules match the command's most consequential effect:
+
+| Commands | Operation |
+|---|---|
+| `find`, `count`, `distinct`, `aggregate`, `mapReduce` | `select` |
+| `insert` | `insert` |
+| `update`, `findAndModify` | `update` (`delete` when `remove: true`) |
+| `delete` | `delete` |
+| `drop`, `dropIndexes`, `dropDatabase`, `dropUser`, `dropRole` | `drop` |
+| `grantRolesToUser`, `grantPrivilegesToRole` | `grant` |
+
+Effects accumulate: an `aggregate` whose pipeline ends in `$out` or `$merge` classifies as a write to the target collection, not as the read it starts as, and `bulkWrite` contributes one effect per namespace it touches. The `$db` field fills the statement's `Database`, and collection names fill its relations, so `table` rules work against collections.
+
+### What it refuses
+
+Compression (`OP_COMPRESSED`) and the removed legacy write opcodes are refused fail-closed: forwarding either would let commands run outside policy and masking. Drivers leave compression off unless the connection string asks for it, and the refusal names the fix — drop `compressors=` from the client's connection string.
+
+---
+
+## TLS on each leg
+
+MongoDB's TLS is ordinary TLS-on-connect, which keeps both ends simple:
+
+| Leg | Options |
+|---|---|
+| client → lane | Plaintext (`tls=false`, the driver default), or terminate in Envoy with a plain `DownstreamTlsContext` |
+| lane → database | `upstream_tls`: an ordinary TLS client handshake against a `tls`-enabled `mongod` |
+
+Authentication passes through untouched — SCRAM runs client-to-server through the relay, and the codec inspects commands, not credentials.
+
+---
+
+## Masking
+
+Responses are re-framed: the codec rebuilds every changed BSON document, corrects the message length, and recomputes the optional CRC-32C checksum. `columns` rules match BSON **field names** in result documents, and a `null` value stays `null`.
+
+Because a masking rewrite touches the whole reply, the codec correlates each response to the request that provoked it before rewriting — a reply it cannot correlate is not guessed at.
+
+---
+
+## Denials
+
+A denied command returns a correlated `OP_MSG` command error with code 13, `Unauthorized` — MongoDB's statement-level authorization error — so drivers and `mongosh` surface the rule's message as an ordinary command failure rather than an authentication or network outage:
+
+```
+MongoServerError[Unauthorized]: destructive commands are not permitted on appdb
+```
+
+The session stays usable afterwards.
+
+---
+
+## The Envoy lane
+
+Envoy parses no MongoDB, so the lane is plain `tcp_proxy`, the same shape as the [Postgres one](/setup/configuration/hoop-sidecar/protocols/postgres#the-envoy-lane) with the cluster pointed at the `mongodb` listener's port.
+
+Verify from a client:
+
+```bash
+mongosh "mongodb://appuser:apppass@envoy:27017/appdb?authSource=admin&directConnection=true" \
+  --eval 'db.customers.find().toArray()'
+```
+
+`directConnection=true` matters behind a proxy: without it the driver discovers the topology from the server's hello, learns the upstream's own address, and dials around the relay.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    Every rule type, including pattern and PII rules over the rendered command.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every listener field, inheritance between lanes, and what startup refuses.
+  </Card>
+</CardGroup>
