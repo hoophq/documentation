@@ -3,7 +3,7 @@ title: "SQL Server"
 description: "What the TDS codec decodes on an mssql lane, and who terminates which TLS"
 ---
 
-An `mssql` lane decodes Microsoft SQL Server's TDS protocol. Envoy has no TDS filter of any kind, so this protocol is entirely unpoliced by an Envoy+OPA layer on its own — a bigger gap than Postgres, where Envoy's contrib filter at least extracts table-and-verb metadata.
+An `mssql` lane decodes Microsoft SQL Server's TDS protocol. Envoy ships no TDS filter of any kind, so an Envoy+OPA layer on its own polices none of this traffic. Postgres at least gets table-and-verb metadata from Envoy's contrib filter; SQL Server gets nothing.
 
 ```yaml config.yaml
 listeners:
@@ -23,34 +23,34 @@ listeners:
 
 ## What the codec reads
 
-A TDS message may span several packets; the codec reassembles them before parsing, because a statement classified from a fragment is the exact failure a policy cannot tolerate. Two message types carry SQL:
+A TDS message may span several packets, and the codec reassembles them before parsing: a statement classified from a fragment is the exact failure a policy cannot tolerate. Two message types carry SQL:
 
 | Packet | Carries |
 |---|---|
 | `0x01` SQLBatch | The statement as UCS-2LE, after the ALL_HEADERS block |
-| `0x03` RPCRequest | A proc call; when the proc is `sp_executesql`, the first NVARCHAR parameter holds the statement — which is how every parameterized query from .NET and JDBC arrives |
+| `0x03` RPCRequest | A proc call; when the proc is `sp_executesql`, the first NVARCHAR parameter holds the statement, which is how parameterized queries from .NET and JDBC arrive |
 
-A batch is handed to the classifier whole, split with T-SQL's own lexical rules (`[` opens a quoted identifier there and is an array subscript in PostgreSQL, so the dialects are not interchangeable).
+The codec hands a batch to the classifier whole and splits it with T-SQL's own lexical rules (`[` opens a quoted identifier there and is an array subscript in PostgreSQL, so one dialect cannot serve both).
 
 ### Integrated authentication passes through untouched
 
-TDS gives the SSPI exchange its own packet type (`0x11`) and the login its own (`0x10`), so Kerberos works through this codec with no Kerberos code: the AP-REQ the client's OS minted is opaque bytes in a packet type the codec forwards verbatim, and inspection begins at the first SQLBatch after it. The boundary is the protocol's own message typing, not a guess about where login ended. [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos) covers the full deployment.
+TDS gives the SSPI exchange its own packet type (`0x11`) and the login its own (`0x10`), so Kerberos works through this codec with no Kerberos code: the AP-REQ the client's OS minted is opaque bytes in a packet type the codec forwards verbatim, and inspection begins at the first SQLBatch after it. The protocol's own message typing marks the boundary, so the codec never guesses where login ended. [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos) covers the full deployment.
 
 ### The one server reply it refuses
 
-A routing `ENVCHANGE` — the server redirecting the client to another host — would take the connection to a socket the relay does not hold. The codec refuses it and the lane closes the connection rather than forwarding a working bypass.
+A routing `ENVCHANGE`, the server redirecting the client to another host, would take the connection to a socket the relay does not hold. The codec refuses it and the lane closes the connection rather than forwarding a working bypass.
 
 ---
 
 ## TLS on each leg
 
-Who terminates the client's TLS depends on which TDS version the client speaks, and that decides the whole deployment shape:
+The TDS version the client speaks decides who terminates its TLS, and with it the whole deployment shape:
 
 | Client | Shape | Who terminates |
 |---|---|---|
-| TDS 8.0 (`Encrypt=strict`, SQL Server 2022+) | Ordinary TLS-on-connect | Envoy, with a plain `DownstreamTlsContext` — no TDS awareness needed |
-| TDS 7.x, `ENCRYPT_OFF` | Only the login packet is encrypted; every statement is readable | Nobody: the codec passes the encrypted login through and inspects the session after it |
-| TDS 7.x, `ENCRYPT_ON` | The whole session is encrypted inside `0x12` packets, which no generic proxy can unwrap | Nobody can — the lane fails closed rather than forwarding bytes nobody can read |
+| TDS 8.0 (`Encrypt=strict`, SQL Server 2022+) | Ordinary TLS-on-connect | Envoy, with a plain `DownstreamTlsContext` and no TDS awareness |
+| TDS 7.x, `ENCRYPT_OFF` | The server encrypts the login packet alone and leaves the statements readable | No one: the codec passes the encrypted login through and inspects the session after it |
+| TDS 7.x, `ENCRYPT_ON` | The whole session travels encrypted inside `0x12` packets, which no generic proxy can unwrap | No one can, so the lane fails closed instead of forwarding bytes it cannot read |
 
 The hop from the lane to SQL Server stays plaintext: the Linux build accepts no TLS shape the Sidecar can originate, so leave `upstream_tls` unset and keep that hop inside the pod or host boundary. The reasoning and every negotiation detail live in [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#tds-7x-encrypts-the-login-and-nothing-else).
 
@@ -58,15 +58,15 @@ The hop from the lane to SQL Server stays plaintext: the Linux build accepts no 
 
 ## Masking
 
-TDS result sets are re-framed: the codec reads each row against the `COLMETADATA` the server declared, rewrites matching values, and rebuilds the token stream around them. Column rules match those declared names.
+The codec re-frames TDS result sets: it reads each row against the `COLMETADATA` the server declared, rewrites matching values, and rebuilds the token stream around them. Column rules match those declared names.
 
-One honest limit: if a result set carries a column type whose wire length the codec cannot compute, masking **stops for that connection** rather than guessing at byte boundaries — a wrong guess desynchronizes the client. Statements, policy and audit are unaffected; only the rewrite stands down, and the lane logs it.
+One limit: if a result set carries a column type whose wire length the codec cannot compute, masking **stops for that connection** rather than guessing at byte boundaries, because a wrong guess desynchronizes the client. Statements, policy and audit keep running; the rewrite alone stands down, and the lane logs it.
 
 ---
 
 ## Denials
 
-A denied statement returns a synthesized TDS reply — an `ERROR` token followed by `DONE(error)`, the same shape a real SQL Server error takes — so the developer reads the rule's message in `sqlcmd` instead of watching the socket drop:
+A denied statement returns a synthesized TDS reply, an `ERROR` token followed by `DONE(error)`, the same shape a real SQL Server error takes. The developer reads the rule's message in `sqlcmd` instead of watching the socket drop:
 
 ```
 Msg 50000, Level 16, State 1:

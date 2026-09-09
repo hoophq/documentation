@@ -3,7 +3,7 @@ title: "MongoDB"
 description: "What the MongoDB codec decodes, how commands classify, and how a mongodb lane masks BSON"
 ---
 
-A `mongodb` lane decodes the MongoDB wire protocol: every command a driver sends over `OP_MSG`, and every result document the server returns. Commands are rendered as deterministic Extended JSON, so the same rule types that read SQL read them — a `pattern_match` matches the rendered command, a `pii` rule scans it, and the audit trail records it.
+A `mongodb` lane decodes the MongoDB wire protocol: every command a driver sends over `OP_MSG`, and every result document the server returns. The codec renders each command as deterministic Extended JSON, so the same rule types that read SQL read it: a `pattern_match` matches the rendered command, a `pii` rule scans it, and the audit trail records it.
 
 ```yaml config.yaml
 listeners:
@@ -26,12 +26,12 @@ listeners:
 
 ## What the codec reads
 
-Modern `OP_MSG` traffic, plus the one legacy exchange MongoDB still permits: the `OP_QUERY`/`OP_REPLY` initial hello. One codec instance sees both directions, because a server reply identifies the request it answers only by `responseTo`, and that request supplies the command name and result shape the response side needs.
+The codec reads modern `OP_MSG` traffic, plus the one legacy exchange MongoDB still permits: the `OP_QUERY`/`OP_REPLY` initial hello. One codec instance sees both directions, because a server reply identifies the request it answers only by `responseTo`, and that request supplies the command name and result shape the response side needs.
 
-Two wire details matter in production and are handled:
+The codec handles two wire details that show up in production:
 
-- **Document sequences** (the bulk half of `insert`, `update`, `delete`) are restored into the rendered command, so a policy sees the documents, not just the command header. A sequence that duplicates a command field is refused as stream-unsafe rather than letting two copies of one field disagree about what was evaluated.
-- **Exhaust streams** — the `moreToCome` reply chains MongoDB 7 uses for the streaming hello on every driver's monitoring socket — are followed reply by reply, so heartbeats survive the relay.
+- **Document sequences**, the bulk half of `insert`, `update` and `delete`, are restored into the rendered command, so a policy sees the documents as well as the command header. The codec refuses a sequence that duplicates a command field as stream-unsafe, so two copies of one field cannot disagree about what was evaluated.
+- **Exhaust streams**, the `moreToCome` reply chains MongoDB 7 uses for the streaming hello on a driver's monitoring socket, are followed reply by reply, so heartbeats survive the relay.
 
 ### Classification
 
@@ -46,11 +46,11 @@ Two wire details matter in production and are handled:
 | `drop`, `dropIndexes`, `dropDatabase`, `dropUser`, `dropRole` | `drop` |
 | `grantRolesToUser`, `grantPrivilegesToRole` | `grant` |
 
-Effects accumulate: an `aggregate` whose pipeline ends in `$out` or `$merge` classifies as a write to the target collection, not as the read it starts as, and `bulkWrite` contributes one effect per namespace it touches. The `$db` field fills the statement's `Database`, and collection names fill its relations, so `table` rules work against collections.
+Effects accumulate: an `aggregate` whose pipeline ends in `$out` or `$merge` classifies as a write to the target collection rather than a read, and `bulkWrite` contributes one effect per namespace it touches. The `$db` field fills the statement's `Database`, and collection names fill its relations, so `table` rules work against collections.
 
 ### What it refuses
 
-Compression (`OP_COMPRESSED`) and the removed legacy write opcodes are refused fail-closed: forwarding either would let commands run outside policy and masking. Drivers leave compression off unless the connection string asks for it, and the refusal names the fix — drop `compressors=` from the client's connection string.
+The codec refuses compression (`OP_COMPRESSED`) and the removed legacy write opcodes fail-closed: forwarding either would let commands run outside policy and masking. Drivers leave compression off unless the connection string asks for it, and the refusal names the fix: drop `compressors=` from the client's connection string.
 
 ---
 
@@ -63,21 +63,21 @@ MongoDB's TLS is ordinary TLS-on-connect, which keeps both ends simple:
 | client → lane | Plaintext (`tls=false`, the driver default), or terminate in Envoy with a plain `DownstreamTlsContext` |
 | lane → database | `upstream_tls`: an ordinary TLS client handshake against a `tls`-enabled `mongod` |
 
-Authentication passes through untouched — SCRAM runs client-to-server through the relay, and the codec inspects commands, not credentials.
+Authentication passes through untouched. SCRAM runs client-to-server through the relay, and the codec inspects commands rather than credentials.
 
 ---
 
 ## Masking
 
-Responses are re-framed: the codec rebuilds every changed BSON document, corrects the message length, and recomputes the optional CRC-32C checksum. `columns` rules match BSON **field names** in result documents, and a `null` value stays `null`.
+The codec re-frames responses: it rebuilds every changed BSON document, corrects the message length, and recomputes the optional CRC-32C checksum. `columns` rules match BSON **field names** in result documents, and a `null` value stays `null`.
 
-Because a masking rewrite touches the whole reply, the codec correlates each response to the request that provoked it before rewriting — a reply it cannot correlate is not guessed at.
+A masking rewrite touches the whole reply, so the codec correlates each response to the request that provoked it before it rewrites anything.
 
 ---
 
 ## Denials
 
-A denied command returns a correlated `OP_MSG` command error with code 13, `Unauthorized` — MongoDB's statement-level authorization error — so drivers and `mongosh` surface the rule's message as an ordinary command failure rather than an authentication or network outage:
+A denied command returns a correlated `OP_MSG` command error with code 13, `Unauthorized`, MongoDB's statement-level authorization error. Drivers and `mongosh` surface the rule's message as an ordinary command failure rather than an authentication or network outage:
 
 ```
 MongoServerError[Unauthorized]: destructive commands are not permitted on appdb

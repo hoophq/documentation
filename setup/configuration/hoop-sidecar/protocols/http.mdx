@@ -3,7 +3,7 @@ title: "HTTP"
 description: "What the HTTP codec inspects beyond ext_authz, and how an http lane masks responses"
 ---
 
-An `http` lane inspects requests **and responses**. Envoy's `ext_authz` already hands OPA the method, path and headers of a request, and this lane does not replace it — it adds the two things ext_authz structurally cannot do: read the response, which is where data leaves the building, and key policy on a stable resource identity instead of raw paths.
+An `http` lane inspects requests **and responses**. Envoy's `ext_authz` already hands OPA the method, path and headers of a request, and the lane keeps that arrangement. It adds two things ext_authz cannot do by construction: it reads the response, which is where data leaves the building, and it keys policy on a stable resource identity instead of raw paths.
 
 ```yaml config.yaml
 listeners:
@@ -38,13 +38,13 @@ Policy keyed on raw paths needs a regex per endpoint. The codec collapses dynami
 | A long opaque token (JWT/base64url shapes, 24+ chars) | yes |
 | A short slug (`/users/alice`) | **no** |
 
-The slug case is deliberate: nothing distinguishes `/users/alice` from `/users/settings`, and collapsing it would silently widen every rule written against either. In doubt the codec keeps the segment, so a policy can end up too narrow but never too broad. File extensions survive (`/reports/12345.pdf` → `/reports/*.pdf`), because a policy may allow `*.csv` and deny `*.sql`.
+The slug survives on purpose: nothing distinguishes `/users/alice` from `/users/settings`, and collapsing it would widen every rule written against either without warning. In doubt the codec keeps the segment, so a policy can end up too narrow but never too broad. File extensions survive too (`/reports/12345.pdf` → `/reports/*.pdf`), because a policy may allow `*.csv` and deny `*.sql`.
 
 ---
 
 ## The `http` block
 
-The defaults expose nothing: no bodies, no headers. Everything captured reaches the policy engine, the audit trail and, where an analyzer is configured, a third party — so capture is opt-in per field.
+The defaults expose nothing: no bodies, no headers. Everything you capture reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so capture is opt-in per field.
 
 ```yaml
 listeners:
@@ -60,19 +60,19 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `capture_body` | Includes request and response bodies in the statement. Required for `pii`/`pattern_match` rules that must read payloads, and for `ai_analysis` rules — startup refuses those without it, because they would load and silently never fire. |
+| `capture_body` | Includes request and response bodies in the statement. Required for `pii`/`pattern_match` rules that must read payloads, and for `ai_analysis` rules. Startup refuses those without it, because they would load and then fire on nothing. |
 | `max_body_bytes` | Truncates a captured body. Default 64 KiB. |
 | `headers` | Headers exposed to policy, matched case-insensitively. `authorization`, `cookie` and `proxy-authorization` can never be listed. |
 
 ## Identity
 
-`identity_header` names the header your authenticating proxy sets, and the subject lands in every audit row and in `input.context` for OPA. Trusting a header is safe only when nothing but that proxy can reach the listener — bind loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
+`identity_header` names the header your authenticating proxy sets, and the subject lands in every audit row and in `input.context` for OPA. Trusting a header is safe only when nothing but that proxy can reach the listener, so bind loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
 
 ---
 
 ## Masking
 
-HTTP declares its body length in a header the gate can correct, so masking works by **substitution**: values are rewritten in place and `Content-Length` is retagged for the size delta. The gate rewrites only when it can do so soundly — a complete header block, exactly one `Content-Length`, and a declared length matching the bytes present. Any doubt and the original bytes are forwarded, because a wrong `Content-Length` desynchronizes every request that follows on a keep-alive connection.
+HTTP declares its body length in a header the gate can correct, so masking works by **substitution**: the gate rewrites values in place and retags `Content-Length` for the size delta. It rewrites only when it can do so soundly, meaning a complete header block, exactly one `Content-Length`, and a declared length matching the bytes present. In any other case it forwards the original bytes, because a wrong `Content-Length` desynchronizes each request that follows on a keep-alive connection.
 
 A **chunked** response has no `Content-Length` and goes through unmasked. Where masking is the control, keep the upstream on plain responses, or put a guardrail on the resource instead.
 
@@ -94,7 +94,7 @@ the admin API is not reachable through this proxy
 
 ## The Envoy lane
 
-Keep your existing `ext_authz` filter — OPA still answers reachability first. The only change is the route's cluster, which points at the Sidecar instead of at the service:
+Keep your existing `ext_authz` filter, and OPA still answers reachability first. The one change is the route's cluster, which points at the Sidecar instead of at the service:
 
 ```yaml envoy.yaml
 route_config:

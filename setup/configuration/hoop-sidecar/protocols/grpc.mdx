@@ -3,7 +3,7 @@ title: "gRPC"
 description: "The grpc lane: an in-process HTTP/2 endpoint that decodes, evaluates and re-encodes every RPC"
 ---
 
-A `grpc` lane is not a relay lane. The Sidecar terminates HTTP/2 itself — cleartext h2c by default, TLS with `downstream_tls` — decodes each RPC into statements, evaluates policy per message, and re-encodes responses it masked before forwarding to the upstream. Every other protocol here is a byte stream the codec reads in flight; gRPC's multiplexed streams and nested length prefixes rule that shape out, so the lane is its own endpoint.
+A `grpc` lane works differently from the relay lanes: the Sidecar terminates HTTP/2 itself (cleartext h2c by default, TLS with `downstream_tls`), decodes each RPC into statements, evaluates policy per message, and re-encodes responses it masked before forwarding to the upstream. The other protocols arrive as a byte stream a codec reads in flight; gRPC's multiplexed streams and nested length prefixes rule that shape out, so the lane serves as its own endpoint.
 
 ```yaml config.yaml
 listeners:
@@ -24,21 +24,21 @@ listeners:
 | Field | Meaning |
 |---|---|
 | `descriptors` | One serialized `FileDescriptorSet` or a list (`protoc --include_imports --descriptor_set_out`, or `buf build -o`). Required for any payload work: schema-less protobuf walking loses values, so no capture, masking or PII scanning happens without it. |
-| `capture_payload` | Renders decoded request and response messages into per-message statements, so payload rules (`pii`, `pattern_match`) and OPA read field values instead of just the method path. Requires `descriptors`. |
+| `capture_payload` | Renders decoded request and response messages into per-message statements, so payload rules (`pii`, `pattern_match`) and OPA read field values as well as the method path. Requires `descriptors`. |
 | `max_payload_bytes` | Truncates a captured rendering. Masking ignores it: a redactor rewrites decoded fields whatever their size. |
 | `strict` | Refuses what the descriptor set cannot explain; see below. |
 | `metadata` | Request metadata headers exposed to policy, matched case-insensitively. No capture-all, and `authorization`, `cookie` and `proxy-authorization` can never be listed. |
 
-Multiple descriptor sets are the multi-team shape — each service's CI ships its own artifact and the lane lists them all. Sets merge at startup, byte-identical shared imports dedupe, and two diverged copies of one file refuse to load naming both artifacts.
+Multiple descriptor sets fit the multi-team shape: each service's CI ships its own artifact and the lane lists them all. Sets merge at startup, byte-identical shared imports dedupe, and two diverged copies of one file refuse to load naming both artifacts.
 
 ### Lenient, strict, and the masking carve-out
 
 | | default (lenient) | `strict: true` |
 |---|---|---|
 | Method in a listed set | inspected, masked, forwarded | same |
-| Method in no listed set | forwarded with method-level inspection only; the degradation is logged | refused **before the upstream is dialed**: `FAILED_PRECONDITION`, naming the path |
+| Method in no listed set | forwarded with method-level inspection only; the lane logs the degradation | refused **before the upstream is dialed**: `FAILED_PRECONDITION`, naming the path |
 | Message that does not decode as its declared type | forwarded uninspected, logged | ends the RPC with `INTERNAL` |
-| Lane with mask rules, either case | refused regardless — a redactor must not forward what it cannot decode | same |
+| Lane with mask rules, either case | refused regardless: a redactor must not forward what it cannot decode | same |
 
 `strict` without `descriptors` is a startup error: strictness about payloads nothing can decode would refuse every RPC.
 
@@ -46,11 +46,11 @@ Multiple descriptor sets are the multi-team shape — each service's CI ships it
 
 ## Rules on a gRPC lane
 
-A gRPC statement carries its un-normalized RPC path as the resource, so existing rule types cover it with nothing new to learn:
+A gRPC statement carries its un-normalized RPC path as the resource, so the existing rule types cover it:
 
 - `http_resource` matches method identity: `resources: ["/demo.v1.Ledger/ExportAll"]`.
-- `grpc_status` matches the outcome in the `grpc-status` trailer: `statuses: [permission_denied]`. Response-side — the body has already reached the client when trailers arrive, so a deny here replaces the final status rather than retracting data; `action: defer` with an `opa` block is the usual pairing for recording outcomes.
-- `pii` and `pattern_match` read decoded payloads, which is why startup refuses them on a lane without `capture_payload`: they would only ever scan the method path and silently never fire.
+- `grpc_status` matches the outcome in the `grpc-status` trailer: `statuses: [permission_denied]`. It runs response-side, and the body has already reached the client when trailers arrive, so a deny here replaces the final status rather than retracting data. To record outcomes instead, pair `action: defer` with an `opa` block.
+- `pii` and `pattern_match` read decoded payloads, so startup refuses them on a lane without `capture_payload`: they would only ever scan the method path and would fire on nothing.
 
 Denials return `PERMISSION_DENIED` with the rule's message, the shape a gRPC client already handles.
 
@@ -58,7 +58,7 @@ Denials return `PERMISSION_DENIED` with the rule's message, the shape a gRPC cli
 
 ## Identity
 
-Behind an authenticating proxy, `identity_header` names the caller — the same proxy-trust contract as on an [HTTP lane](/setup/configuration/hoop-sidecar/protocols/http#identity), safe only when nothing else can reach the listener. Without the header, a lane terminating TLS falls back to the verified client certificate: the SPIFFE URI SAN where one exists, the subject common name otherwise. With neither, sessions record `principal=anonymous`.
+Behind an authenticating proxy, `identity_header` names the caller, the same proxy-trust contract as on an [HTTP lane](/setup/configuration/hoop-sidecar/protocols/http#identity): safe only when nothing else can reach the listener. Without the header, a lane terminating TLS falls back to the verified client certificate, the SPIFFE URI SAN where one exists and the subject common name otherwise. With neither, sessions record `principal=anonymous`.
 
 ---
 
@@ -78,15 +78,15 @@ The hop to the upstream is h2c by default; `upstream_tls` turns it into TLS with
 
 ## The Envoy lane
 
-gRPC is HTTP/2, so unlike the database lanes Envoy is not blind here: the same `http_connection_manager` and `ext_authz` filter run, and OPA answers method-level reachability on `:path` before the Sidecar ever sees the RPC. Two things distinguish the lane from a plain HTTP one:
+gRPC is HTTP/2, so Envoy sees more here than on the database lanes: the same `http_connection_manager` and `ext_authz` filter run, and OPA answers method-level reachability on `:path` before the Sidecar sees the RPC. Two settings distinguish the lane from a plain HTTP one:
 
 ```yaml envoy.yaml
 routes:
   - match: { prefix: "/" }
     route:
       cluster: hoop_inspect_grpc
-      timeout: 0s               # gRPC convention: the deadline is the client's
-                                # grpc-timeout header, not a router guess
+      timeout: 0s               # gRPC convention: the client's grpc-timeout
+                                # header sets the deadline, not the router
 
 clusters:
   - name: hoop_inspect_grpc
@@ -106,7 +106,7 @@ clusters:
                   socket_address: { address: hoop-inspect, port_value: 18443 }
 ```
 
-The gRPC overlay in [`deploy/docker-compose/envoy-stack/grpc/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/grpc) runs all of this: the lane through Envoy and without it, two descriptor sets merged, the strict/lenient contrast, and a standalone stack where the lane owns TLS. Its demo drives every beat with `grpcurl`:
+The gRPC overlay in [`deploy/docker-compose/envoy-stack/grpc/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/grpc) runs all of this: the lane through Envoy and without it, two descriptor sets merged, the strict/lenient contrast, and a standalone stack where the lane owns TLS. Its demo drives each beat with `grpcurl`:
 
 ```bash
 ./run.sh

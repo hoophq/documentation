@@ -30,14 +30,14 @@ Two message types carry SQL, and the codec reads both:
 | Message | Carries |
 |---|---|
 | `Q` Query | The simple protocol: one string, possibly several statements separated by semicolons |
-| `P` Parse | The extended protocol: the prepared statement every driver and ORM actually uses |
+| `P` Parse | The extended protocol: the prepared statement drivers and ORMs use |
 
-Everything else is skipped by length, so the `COPY` stream of a bulk load is never buffered into memory. A statement split across TCP segments is reassembled before it is classified.
+The codec skips everything else by length, so a bulk `COPY` stream costs no memory. It reassembles a statement split across TCP segments before classifying it.
 
-A multi-statement `Q` message is split with PostgreSQL's own lexical rules — dollar quoting, standard-conforming strings, nested comments — and each statement is evaluated on its own. `Operation` is the statement's most consequential **effect**, so a `DELETE` hidden inside a CTE classifies as `delete`; see [the worked example](/setup/configuration/hoop-sidecar/get-started#step-5-watch-it-work).
+The codec splits a multi-statement `Q` message with PostgreSQL's own lexical rules (dollar quoting, standard-conforming strings, nested comments) and evaluates each statement on its own. `Operation` is the statement's most consequential **effect**, so a `DELETE` hidden inside a CTE classifies as `delete`; see [the worked example](/setup/configuration/hoop-sidecar/get-started#step-5-watch-it-work).
 
 <Warning>
-`CALL` and `EXECUTE` report `unknown`, because their bodies live in the catalog and no parser can say what they touch. A rule that must catch them writes `operations: [call, unknown]`.
+`CALL` and `EXECUTE` report `unknown`, because their bodies live in the catalog and no parser can say what they touch. To catch them, write `operations: [call, unknown]`.
 </Warning>
 
 ---
@@ -51,7 +51,7 @@ pgwire negotiates TLS in-band: the client sends an 8-byte `SSLRequest` and waits
 | client → lane | Plaintext (`PGSSLMODE=disable`), Envoy's contrib `postgres_proxy` + `starttls` socket, or the lane itself via `downstream_tls` |
 | lane → database | Plaintext, or `upstream_tls`: the Sidecar sends the `SSLRequest`, then handshakes as an ordinary TLS client |
 
-`postgres` is one of two protocols that may terminate the **client's** TLS at the lane (the other is `grpc`), precisely because nothing generic in front can speak the in-band exchange:
+`postgres` is one of two protocols that may terminate the **client's** TLS at the lane (the other is `grpc`), because no generic proxy in front can speak the in-band exchange:
 
 ```yaml config.yaml
 listeners:
@@ -66,10 +66,10 @@ listeners:
 
 Clients then connect with `PGSSLMODE=require` and the gate still reads plaintext, because the lane decrypts what it terminates.
 
-On the upstream side two details are deliberate:
+Two upstream details:
 
-- **A refusal is an error, not a downgrade.** A server answering `N` to the `SSLRequest` fails the connection. You asked for an encrypted hop; silently sending credentials in the clear is the failure you were preventing.
-- **Channel binding is stripped.** The Sidecar removes `SCRAM-SHA-256-PLUS` from the server's SASL offer, because channel binding ties SCRAM to a single TLS session and a terminating relay has two. Plain `SCRAM-SHA-256` remains, authenticating the same password against the same verifier. No credential or server change needed.
+- **A refusal fails the connection.** If the server answers `N` to the `SSLRequest`, the lane errors out instead of downgrading. You asked for an encrypted hop, and a downgrade would send credentials in the clear without telling you.
+- **The Sidecar strips channel binding.** It removes `SCRAM-SHA-256-PLUS` from the server's SASL offer, because channel binding ties SCRAM to a single TLS session and a terminating relay has two. Plain `SCRAM-SHA-256` remains and authenticates the same password against the same verifier, so you change no credential and no server setting.
 
 ---
 
@@ -84,7 +84,7 @@ mask:
     - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
 ```
 
-Column rules match the names in the result set's `RowDescription`, so they beat detection wherever the protocol names its values.
+Column rules match the names in the result set's `RowDescription`, and wherever the protocol names its values they beat detection.
 
 ---
 
@@ -102,7 +102,7 @@ Severity is `FATAL` rather than `ERROR` because the connection closes with the d
 
 ## The Envoy lane
 
-Envoy has no pgwire parser, so the lane is plain `tcp_proxy` and every byte reaches the Sidecar unexamined:
+Envoy has no pgwire parser, so the lane is plain `tcp_proxy` and the Sidecar sees every byte Envoy could not examine:
 
 ```yaml envoy.yaml
 listeners:
@@ -118,7 +118,7 @@ listeners:
               cluster: hoop_inspect_pg
 ```
 
-To terminate the client's TLS in Envoy instead of at the lane, use the contrib `postgres_proxy` filter with a `starttls` transport socket — the full shape and its caveats are in [Terminating client TLS](/setup/configuration/hoop-sidecar/get-started#terminating-client-tls).
+To terminate the client's TLS in Envoy instead of at the lane, use the contrib `postgres_proxy` filter with a `starttls` transport socket. [Terminating client TLS](/setup/configuration/hoop-sidecar/get-started#terminating-client-tls) has the full shape and its caveats.
 
 Try it end to end with the compose stack in [`deploy/docker-compose/envoy-stack/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack): its `appdb` lane runs this protocol with `upstream_tls` on and masking live.
 

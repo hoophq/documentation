@@ -26,36 +26,36 @@ listeners:
 
 ## What the codec reads
 
-MySQL is not self-describing the way pgwire is: what a byte means depends on what the handshake negotiated and on the command in flight. The codec tracks both, one instance per connection, across both directions:
+A MySQL byte means different things depending on what the handshake negotiated and on the command in flight, where a pgwire message declares its own type and length. The codec tracks both, one instance per connection, across both directions:
 
-- **Capabilities** are latched from the client's handshake response. `CLIENT_DEPRECATE_EOF` alone decides whether a result set ends with an EOF packet or an OK packet that begins with the same byte.
-- **Prepared statements** are followed by id. `COM_STMT_EXECUTE` carries no SQL, only the numeric id the server assigned in its reply to `COM_STMT_PREPARE`, so the codec keeps that map and attributes every execute to its text. ORMs live on this path.
-- **Multi-statements** are split before classification. Connector/J and most ORMs negotiate `CLIENT_MULTI_STATEMENTS` by default, so `SELECT 1; DROP TABLE users` arrives as one `COM_QUERY`. The splitter uses MySQL's own lexical rules — backtick identifiers, `#` comments, backslash escapes — so a statement hidden after a string literal cannot ride through under a `select` classification.
+- **Capabilities.** The codec latches the negotiated set from the client's handshake response. `CLIENT_DEPRECATE_EOF` alone decides whether a result set ends with an EOF packet or an OK packet that begins with the same byte.
+- **Prepared statements.** `COM_STMT_EXECUTE` carries no SQL, only the numeric id the server assigned in its reply to `COM_STMT_PREPARE`. The codec keeps that map and attributes each execute to its text, which is the path ORMs take.
+- **Multi-statements.** Connector/J and most ORMs negotiate `CLIENT_MULTI_STATEMENTS` by default, so `SELECT 1; DROP TABLE users` arrives as one `COM_QUERY`. The codec splits it with MySQL's own lexical rules (backtick identifiers, `#` comments, backslash escapes) before classifying, so a statement hidden after a string literal cannot ride through under a `select` classification.
 
 ---
 
 ## What it refuses
 
-Three negotiated features would make later bytes unreadable, and the codec refuses the stream rather than forwarding what it cannot inspect. Each closes the connection with an operator-facing reason:
+Three negotiated features would make later bytes unreadable, and the codec refuses the stream instead of forwarding what it cannot inspect. Each refusal closes the connection with an operator-facing reason:
 
 | Refusal | Why | Client-side fix |
 |---|---|---|
 | Compression (`CLIENT_COMPRESS`) | Replaces the packet framing itself from the first byte after the handshake | Do not enable `--compress` |
 | TLS upgrade (`CLIENT_SSL`) | Every later byte is a TLS record the lane is not terminating | `--ssl-mode=DISABLED`, `useSSL=false`, `tls=false` |
-| `LOAD DATA LOCAL INFILE` | Opens a data channel with no statements — and lets a server read any path the client can | `--local-infile=0`, `allowAllFiles=false` |
+| `LOAD DATA LOCAL INFILE` | Opens a data channel with no statements, and lets a server read any path the client can | `--local-infile=0`, `allowAllFiles=false` |
 
-A codec that forwards what it cannot parse is a bypass with extra steps: the session works, no policy runs, no audit row is written, and nobody notices. Refusing produces one clear error at the moment of the negotiation.
+A codec that forwards what it cannot parse turns into a bypass: the session works, no policy runs, the audit trail records nothing, and the gap stays invisible until an audit finds it. A refusal surfaces one clear error at the moment of the negotiation.
 
 ---
 
 ## TLS on each leg
 
-MySQL negotiates TLS in-band, and unlike pgwire the server greets **first**: the client's upgrade request is a truncated handshake response, not a self-describing packet. The lane terminates neither side of that exchange:
+MySQL negotiates TLS in-band, and unlike pgwire the server greets **first**: the client's upgrade request is a truncated handshake response rather than a self-describing packet. The lane terminates neither side of that exchange:
 
 | Leg | Options |
 |---|---|
-| client → lane | Plaintext only: connect with `--ssl-mode=DISABLED`. `downstream_tls` is refused on a `mysql` lane at startup. |
-| lane → database | Plaintext only: the relay does not speak MySQL's in-band upgrade on the upstream hop either. Leave `upstream_tls` unset. |
+| client → lane | Plaintext only: connect with `--ssl-mode=DISABLED`. Startup refuses `downstream_tls` on a `mysql` lane. |
+| lane → database | Plaintext only: the relay speaks no in-band upgrade on the upstream hop either. Leave `upstream_tls` unset. |
 
 Both hops carry the protocol in the clear by design, so keep them where that is acceptable: loopback, a unix socket, one pod, or a network a NetworkPolicy narrows. The [Transport](/setup/configuration/hoop-sidecar/config-file#transport) section covers the boundary each choice draws.
 
@@ -63,10 +63,10 @@ Both hops carry the protocol in the clear by design, so keep them where that is 
 
 ## Masking
 
-The codec re-frames result sets in **both** encodings, because they share nothing:
+The codec re-frames result sets in **both** encodings, because the two share nothing:
 
-- **Text protocol** rows are length-encoded strings, rewritten value by value.
-- **Binary protocol** rows — what every prepared statement returns — carry a NULL bitmap and type-driven values. String-typed columns are rewritten; a numeric column is left alone rather than corrupted.
+- **Text protocol** rows are length-encoded strings, and the codec rewrites them value by value.
+- **Binary protocol** rows, the encoding prepared statements return, carry a NULL bitmap and type-driven values. The codec rewrites string-typed columns and leaves a numeric column alone rather than corrupting it.
 
 A `NULL` survives masking as a `NULL`: re-encoding it as an empty string would turn "no value" into "the empty string" and change what the client computes. Column rules match the names the server declared in the result set's column definitions.
 
@@ -80,7 +80,7 @@ A denied statement returns a native `ERR_Packet`, and the session stays usable a
 ERROR 1142 (42000): destructive statements are not permitted on appdb
 ```
 
-Dropping the socket instead would print "Lost connection to MySQL server during query" — an outage message for a policy decision, which sends the developer to support instead of to their own query.
+Dropping the socket instead would print "Lost connection to MySQL server during query": an outage message for a policy decision, which sends the developer to support instead of to their own query.
 
 ---
 
