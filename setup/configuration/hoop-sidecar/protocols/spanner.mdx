@@ -70,7 +70,7 @@ buf build 'https://github.com/googleapis/googleapis/archive/refs/heads/master.ta
   -o 'spanner.pb#format=binpb'
 ```
 
-Neither the production endpoints nor the Spanner emulator serve gRPC reflection, so `-grpc-discover` answers `Unimplemented` against them and the `buf` route is the working one. Pin the artifact next to the config; the lane loads only pinned files.
+Neither the production endpoints nor the Spanner emulator serve gRPC reflection, so [`-grpc-discover`](/setup/configuration/hoop-sidecar/protocols/grpc#no-descriptor-set-yet-bootstrap-one-with--grpc-discover) answers `Unimplemented` against them and the `buf` route is the working one. An upstream that does serve reflection (your own services, most Go and Java servers with the reflection service registered) bootstraps its set with that command instead. Pin the artifact next to the config; the lane loads only pinned files.
 
 ---
 

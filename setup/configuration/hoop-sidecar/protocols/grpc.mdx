@@ -31,6 +31,36 @@ listeners:
 
 Multiple descriptor sets fit the multi-team shape: each service's CI ships its own artifact and the lane lists them all. Sets merge at startup, byte-identical shared imports dedupe, and two diverged copies of one file refuse to load naming both artifacts.
 
+### No descriptor set yet: bootstrap one with `-grpc-discover`
+
+When the upstream serves gRPC server reflection, the Sidecar binary produces the artifact for you. Declare the lane first, without a `grpc:` block; a descriptor-less lane is valid and enforces method-level policy:
+
+```yaml config.yaml
+listeners:
+  - name: billing
+    protocol: grpc
+    listen: 127.0.0.1:18443
+    upstream: billing:50051
+    upstream_tls: {}        # discovery dials with the lane's own TLS facts
+```
+
+Then run discovery against that config:
+
+```bash
+hoop-inspect -grpc-discover billing -grpc-discover-out billing.pb -config config.yaml
+```
+
+It picks the lane by name, dials the lane's `upstream` with the lane's `upstream_tls` (h2c when the block is absent), fetches the schema over reflection (v1, with a v1alpha fallback), prints every method with its maskable field paths, and writes the serialized set. Review the report, commit the artifact, add `grpc.descriptors` pointing at it, restart.
+
+Discovery is a bootstrap command, and the lane still loads only the pinned file. A schema fetched live at runtime would let the policed service rename fields out from under your mask rules, so no `descriptors: auto` exists.
+
+Sequencing facts worth knowing:
+
+- Discovery runs against a config whose `descriptors:` path does not exist yet; it never builds the lane. `-validate` does build the lane, so run it after the file exists.
+- The artifact is byte-stable against an unchanged server. Re-run discovery and diff the file to see what the service changed.
+- Discovery sends no credentials and gives one run 30 seconds. An upstream that requires authenticated reflection, or one that serves none (Google's production APIs, the Spanner emulator), answers with an error naming the offline route: `protoc --include_imports --descriptor_set_out`, or `buf build -o`.
+- `spanner` lanes bootstrap the same way.
+
 ### Lenient, strict, and the masking carve-out
 
 | | default (lenient) | `strict: true` |
