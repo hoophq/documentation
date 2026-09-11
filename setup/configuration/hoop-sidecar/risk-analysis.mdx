@@ -3,9 +3,9 @@ title: "AI Analyzer Reference"
 description: "Classify statements with a language model and block on the risk it reports"
 ---
 
-An `ai_analysis` rule sends a statement to a language model and denies on the risk that comes back. It runs on every lane: SQL on a `postgres` or `mssql` listener, request bodies on an `http` one.
+The analyzer is a per-listener component: an `analyzer:` block declared beside `guardrails`, `opa` and `mask`, not inside them. It sends a statement to a language model and denies on the risk that comes back. It runs wherever a content builder renders the statement for a model: SQL on a `postgres`, `mysql` or `mssql` listener, request bodies on an `http` one.
 
-It is the only rule type that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-three-cost-controls) before you enable it anywhere real.
+It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-three-cost-controls) before you enable it anywhere real.
 
 <Note>
 This runs entirely in the sidecar. There is no gateway call and no control plane: the Sidecar holds the provider credential and reads one YAML file, same as every other feature here.
@@ -15,11 +15,13 @@ This runs entirely in the sidecar. There is no gateway call and no control plane
 
 ## A working config
 
+Two blocks share the work. The top-level `analyzer` section holds what is genuinely process-wide, the provider, the model and the credential, plus the defaults every lane inherits. Each listener's own `analyzer` block holds what is per lane: the trigger, the risk-to-action map, the prompt, and any inherited default it wants to override.
+
 ```yaml config.yaml
 pii:                               # optional: omit it and every entity is enabled
   entities: [EMAIL_ADDRESS, US_SSN, BR_CPF]
 
-analyzer:
+analyzer:                          # the provider, plus the defaults every lane inherits
   provider: vertex                 # vertex | anthropic | openai
   model: claude-sonnet-4-5@20250929
   extra: {project: my-gcp-project, region: global}
@@ -36,15 +38,12 @@ listeners:
     protocol: postgres
     listen: 0.0.0.0:15432
     upstream: appdb:5432
-    guardrails:
-      rules:
-        - name: risky-writes
-          type: ai_analysis
-          trigger: {operations: [update, delete]}
-          high: block
-          medium: warn
-          low: allow
-          message: refused by risk analysis
+    analyzer:                      # this lane's analyzer, beside guardrails
+      trigger: {operations: [update, delete]}
+      high: block
+      medium: warn
+      low: allow
+      message: refused by risk analysis
 
   - name: api
     protocol: http
@@ -54,14 +53,14 @@ listeners:
       capture_body: true
       max_body_bytes: 8192
       headers: [Content-Type]
-    guardrails:
-      rules:
-        - name: risky-payloads
-          type: ai_analysis
-          trigger: {resources: ["/orders/**", "/admin/**"]}
-          high: block
-          medium: warn
+    analyzer:
+      trigger: {resources: ["/orders/**", "/admin/**"]}
+      high: block
+      medium: warn
+      send: refuse                 # overrides the inherited redacted, this lane only
 ```
+
+A field the block does not name inherits the top-level value, so the block overrides exactly what it writes down. `send`, `fail_open`, `timeout_sec`, `max_input_bytes`, `max_calls` and `cache` all work this way. Provider, model, endpoint and credential are never per lane: a second provider per lane would double the credential surface, so those stay in the top-level section. That split is also the reload boundary: editing a listener's block hot-reloads like a rule edit, while the top-level section requires a restart, because the credential lives there.
 
 ---
 
@@ -97,7 +96,7 @@ An ORM issues the same statement shape thousands of times in one session. Withou
     This is also more correct than caching on bytes. The shape is what is risky, not the parameter.
   </Step>
   <Step title="max_calls is a backstop">
-    A process-lifetime budget. Past it, statements fall through to the guardrails and OPA, the same outcome as a lane with no analyzer.
+    A process-lifetime budget for the lane. Past it, statements fall through to the guardrails and OPA, the same outcome as a lane with no analyzer. The budget keys on the listener name, so a hot reload that edits the block continues the running count rather than re-arming it.
   </Step>
 </Steps>
 
@@ -135,18 +134,17 @@ FATAL:  unbounded delete against the customer ledger
 `high: block` decides the same way for everyone who touches the lane. `high: defer` makes the risk level one input among the actor, the hour and the table, and lets the Rego your InfoSec team already owns weigh them:
 
 ```yaml
-- name: risky-writes
-  type: ai_analysis
+analyzer:
   trigger: {operations: [update, delete]}
   high: defer          # the analyzer classifies; the policy rules
   medium: warn
 ```
 
-The analyzer still classifies, annotates and audits. The level travels to the decide-phase call as a finding under the `ai_analysis` source:
+The analyzer still classifies, annotates and audits. The level travels to the decide-phase call as a finding under the `ai_analysis` source, with `rule` carrying the listener's name, because a component has no rule name:
 
 ```json
 "findings": {
-  "ai_analysis": {"rule": "risky-writes", "status": "ok", "reason": "",
+  "ai_analysis": {"rule": "appdb", "status": "ok", "reason": "",
                   "values": {"risk_level": "high"}}
 }
 ```
@@ -177,7 +175,7 @@ blocked if {
 
 Guard on `status` before reading `values`. An absent `risk_level` means "found nothing", "never ran", "budget spent" and "provider down" all at once, and only the status tells them apart. [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) has the full status vocabulary.
 
-`defer` on a lane with no `opa.url` is **refused at startup**. A finding nobody reads forwards every statement while looking like enforcement.
+`defer` on a lane with no `opa.url` **loads, and denies on a match**. Deferring to a decision that does not exist has to fail closed somewhere; `--validate` prints a note about it, and moving that failure from startup to runtime lets one file serve a deployment with OPA and a deployment without one.
 
 <Warning>
 `require_review` is **refused at startup**. Holding a statement for human approval needs a review backend this build does not have, and a config that reads as an approval gate while forwarding every statement is worse than one that fails.
@@ -196,10 +194,10 @@ opa:
   url: http://opa:8181/v1/data/hoop/inspect
   gate: true
 
-guardrails:
-  rules:
-    - name: risky-writes
-      type: ai_analysis
+listeners:
+  - name: appdb
+    # ...
+    analyzer:
       # no trigger: on a gated lane the policy decides what is classified
       high: defer
 ```
@@ -226,7 +224,7 @@ request["ai_analysis"] := true if {
 An **undefined gate decision allows and requests nothing**, even under `fail_open: false`. A gate is an optimization over a policy someone already wrote, so reading its absence as a denial would block every statement on the lane until the Rego author writes a second rule nobody asked for. The decide phase keeps the fail-closed reading of undefined.
 </Note>
 
-`gate: true` on a lane with no `ai_analysis` rule is refused at startup: a round trip per statement that gates nothing.
+`gate: true` on a lane with no analyzer block is refused at startup: a round trip per statement that gates nothing.
 
 ---
 
@@ -275,10 +273,10 @@ HTTP headers never reach the model, even ones a lane allowlists for policy. An a
 Risk depends on what you are protecting, so the guidance is replaceable at two levels.
 
 <Warning>
-`analyzer.prompt` is **process-wide**. It reaches every `ai_analysis` rule on every lane, database and HTTP alike. Keep it protocol-neutral; guidance reading "you are classifying SQL against a customer database" follows an HTTP statement to the model and has it reasoning about `DROP` while it looks at a JSON body.
+`analyzer.prompt` at the top level is **process-wide**. It reaches every lane, database and HTTP alike. Keep it protocol-neutral; guidance reading "you are classifying SQL against a customer database" follows an HTTP statement to the model and has it reasoning about `DROP` while it looks at a JSON body.
 </Warning>
 
-Protocol- and lane-specific wording belongs on a rule, which wins:
+Protocol- and lane-specific wording belongs on the listener's own block, which wins:
 
 ```yaml
 analyzer:
@@ -289,19 +287,17 @@ analyzer:
 
 listeners:
   - name: appdb
-    guardrails:
-      rules:
-        - name: risky-writes
-          type: ai_analysis
-          trigger: {operations: [update]}
-          high: block
-          prompt: |
-            You are classifying SQL against the customer ledger. An UPDATE
-            with no WHERE clause is always high risk, and so is any schema
-            change.
+    # ...
+    analyzer:
+      trigger: {operations: [update]}
+      high: block
+      prompt: |
+        You are classifying SQL against the customer ledger. An UPDATE
+        with no WHERE clause is always high risk, and so is any schema
+        change.
 ```
 
-Precedence is **rule → analyzer → built-in**. Setting neither is fine: the built-in guidance carries separate high-risk examples for SQL and for HTTP.
+Precedence is **listener block → top-level `analyzer.prompt` → built-in**. Setting neither is fine: the built-in guidance carries separate high-risk examples for SQL and for HTTP.
 
 ### The part you cannot replace
 
@@ -318,7 +314,7 @@ A prompt replaces the **guidance**. Two instructions are appended after whatever
 
 Neither failure raises an error. The classifier keeps answering, worse and leakier, so neither belongs in a config file.
 
-Changing a prompt invalidates cached verdicts for the rules it applies to, so a reworded prompt takes effect on the next statement rather than after the cache TTL.
+Changing a prompt invalidates cached verdicts for the lanes it applies to, so a reworded prompt takes effect on the next statement rather than after the cache TTL.
 
 ---
 
@@ -335,7 +331,7 @@ The HTTP codec exposes nothing by default: no bodies, no headers. Without a body
       headers: [Content-Type]
 ```
 
-An `ai_analysis` rule on an HTTP lane **without** `capture_body: true` is refused at startup, because it could never classify anything.
+An analyzer block on an HTTP lane **without** `capture_body: true` is refused at startup, because it could never classify anything. A `grpc` or `spanner` lane needs `grpc.capture_payload: true` for the same reason, and a lane whose protocol has no content builder at all is refused rather than left classifying nothing.
 
 A request that carries no body is still skipped at runtime once capture is on, and that stays intentional: paying for a verdict on `POST /orders` with no payload is the cost this design avoids. The startup check only asserts that the proxy *could* capture a body.
 
@@ -562,10 +558,10 @@ Every classified statement carries its risk into the audit trail, on allowed sta
 ```json
 {"kind": "statement", "operation": "update", "allowed": true,
  "metadata": {"risk_level": "medium", "risk_action": "warn",
-              "ai_status": "ok", "ai_rule": "risky-writes"}}
+              "ai_status": "ok", "ai_rule": "appdb"}}
 ```
 
-`ai_status` is the analyzer's own vocabulary and keeps the specific word: `ok`, `cached`, `skipped`, `error`, `budget_exhausted`, `refused`. A Rego policy sees a generic status instead, because a policy should not have to learn this package's reasons: `budget_exhausted` and `refused` both arrive as `unavailable`, with the specific word in the finding's `reason`.
+`ai_status` is the analyzer's own vocabulary and keeps the specific word: `ok`, `cached`, `skipped`, `error`, `budget_exhausted`, `refused`. A Rego policy sees a generic status instead, because a policy should not have to learn this package's reasons: `budget_exhausted` and `refused` both arrive as `unavailable`, with the specific word in the finding's `reason`. `ai_rule` names what produced the level: the listener name for an analyzer block, the rule name for a deprecated `ai_analysis` rule.
 
 That feeds a per-session rollup that keeps the **highest** risk the session reached:
 
@@ -582,7 +578,7 @@ curl -s localhost:19000/api/stats             | python3 -m json.tool
 Only the classification is recorded. The model's title and explanation reach the user on a denial, but never the audit record.
 
 <Note>
-A lane can carry several `ai_analysis` rules. If more than one classifies the same statement, the record keeps the **highest** risk reported, together with the action that rule mapped it to, rather than whichever rule ran last.
+One block per lane. A lane wanting several analyzers, say different triggers with different prompts, has no block equivalent yet: it keeps its deprecated `ai_analysis` rules until it can express itself as one block, and `--validate` counts what is left to migrate on each lane. If more than one evaluator classifies the same statement, the record keeps the **highest** risk reported, together with the action mapped to it, rather than whichever evaluator ran last.
 </Note>
 
 <Tip>
@@ -597,21 +593,22 @@ Each of these would otherwise load, evaluate and do nothing:
 
 | Config | Result |
 |---|---|
-| An `ai_analysis` rule with no `analyzer` section | Refused, naming the lane |
-| An `ai_analysis` rule with no `trigger` | Refused: it would classify nothing. A gated lane is the exception. |
-| An `ai_analysis` rule naming no action for any risk level | Refused: every verdict would allow |
+| An analyzer block with no top-level `analyzer` section | Refused: the provider, the model and the credential live there |
+| An analyzer block with no `trigger` | Refused: it would classify nothing. Name operations, tables or resources, or turn on `opa.gate` and let the policy decide. |
+| An analyzer block naming no action for any risk level | Refused: every verdict would allow while looking like enforcement |
 | `require_review` as an action | Refused: this build cannot hold a statement |
-| A risk level set to `defer` with no `opa.url` | Refused: a finding nobody reads forwards everything |
-| `action` set on an `ai_analysis` rule | Refused: this type defers per risk level through `high`, `medium` and `low` |
-| `opa.gate: true` on a lane with no `ai_analysis` rule | Refused: a round trip per statement that gates nothing |
+| `action` set on a deprecated `ai_analysis` rule | Refused: risk maps to actions through `high`, `medium` and `low`. The block has no `action` field at all. |
+| `opa.gate: true` on a lane with no analyzer block | Refused: a round trip per statement that gates nothing |
 | A `provider` the binary does not link | Refused, listing what it does link |
 | A credential file readable by group or other | Refused, reporting the mode |
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
-| An `ai_analysis` rule on an HTTP lane without `http.capture_body` | Refused: every request would be skipped |
+| An analyzer on an HTTP lane without `http.capture_body`, or on a gRPC lane without `grpc.capture_payload` | Refused: every request would be skipped |
 | A negative `max_calls`, `cache.size`, `cache.ttl_sec` or `max_output_tokens` | Refused: a negative reads as "off" with no warning |
 | An `http` block on a non-HTTP lane | Refused, naming the lane |
 | `authorization`, `cookie` or `proxy-authorization` allowlisted | Refused, naming the header |
 | A Vertex credential that cannot mint a token | Refused, distinguishing parse, IAM and clock failures |
+
+One former refusal moved to runtime: a risk level set to `defer` on a lane with no `opa.url` now loads, `--validate` prints a note, and a deferred verdict **denies** instead of reporting a finding nobody reads.
 
 Check before you deploy:
 
@@ -621,9 +618,48 @@ hoop start sidecar --config config.yaml --validate
 
 ```
 config OK: 2 listener(s)
-  appdb            postgres  1 rule(s) + 1 ai rule(s)
-  api              http      1 rule(s) + 1 ai rule(s)
+  appdb            postgres  1 rule(s) + ai analyzer
+  api              http      1 rule(s) + ai analyzer
 ```
+
+A lane still carrying deprecated rule-form analyzers reports `+ ai analyzer (N deprecated ai rule(s))` instead, so the leftover migration work is visible per lane.
+
+---
+
+## Migrating from `type: ai_analysis` rules
+
+The analyzer used to be spelled as a guardrail rule: `type: ai_analysis` under `guardrails.rules`. That form is **deprecated** and still works: it loads, builds the same evaluator through the same code path, and prints a deprecation naming the listener's `analyzer` block. `--validate --strict` turns the warning into a non-zero exit. Both spellings can serve one lane while you migrate, each as its own evaluator.
+
+Move the rule's fields onto the listener's `analyzer` block; they keep their names:
+
+```yaml
+# before
+listeners:
+  - name: appdb
+    guardrails:
+      rules:
+        - name: risky-writes
+          type: ai_analysis
+          trigger: {operations: [update, delete]}
+          high: block
+          medium: warn
+          message: refused by risk analysis
+
+# after
+listeners:
+  - name: appdb
+    analyzer:
+      trigger: {operations: [update, delete]}
+      high: block
+      medium: warn
+      message: refused by risk analysis
+```
+
+Three things change with the move, all visible rather than behavioral traps:
+
+- `metadata.ai_rule` and the finding's `rule` carry the **listener name** instead of the rule name, because a component has no rule name. Every field name in findings, audit metadata and `/stats` stays the same, so dashboards and policies keyed on the fields keep working; anything keyed on the old rule name as a *value* sees the switch.
+- The call budget keys on the **listener name**. Two lanes that shared one rule name used to pay from one purse; two analyzer blocks never do.
+- A rule in the top-level `guardrails` block used to reach every lane; the analyzer block is **per listener**, so write one on each lane that wants it. What was genuinely process-wide about the analyzer already lives in the top-level `analyzer` section.
 
 ---
 

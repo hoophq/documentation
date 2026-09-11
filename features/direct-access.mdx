@@ -92,7 +92,7 @@ Both paths run in the same Sidecar and a listener picks per rule, so this is not
 | Failure mode | fails closed | fails open by default |
 | Best for | effects you can name — destructive verbs, protected tables, forbidden paths | intent you cannot enumerate in advance |
 
-The usual shape is direct rules for everything nameable, and an `ai_analysis` rule as the backstop for the rest.
+The usual shape is direct rules for everything nameable, and a listener analyzer block as the backstop for the rest.
 
 ---
 

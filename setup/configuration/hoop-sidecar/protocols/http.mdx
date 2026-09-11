@@ -60,7 +60,7 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `capture_body` | Includes request and response bodies in the statement. Required for `pii`/`pattern_match` rules that must read payloads, and for `ai_analysis` rules. Startup refuses those without it, because they would load and then fire on nothing. |
+| `capture_body` | Includes request and response bodies in the statement. Required for `pii`/`pattern_match` rules that must read payloads, and for the lane's analyzer. Startup refuses those without it, because they would load and then fire on nothing. |
 | `max_body_bytes` | Truncates a captured body. Default 64 KiB. |
 | `headers` | Headers exposed to policy, matched case-insensitively. `authorization`, `cookie` and `proxy-authorization` can never be listed. |
 
@@ -123,6 +123,6 @@ curl -sk https://envoy:8443/anything -H 'x-hoop-user: alice'
     `http_resource` globs, `http_status` ranges, and deferring a match to Rego.
   </Card>
   <Card title="Risk Analysis" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis">
-    Why an `ai_analysis` rule on this lane requires `capture_body`, and what it costs.
+    Why the lane's analyzer requires `capture_body`, and what it costs.
   </Card>
 </CardGroup>

@@ -263,10 +263,9 @@ A rule carrying `action: defer` reports its match as a **finding** and evaluatio
 
 The gate runs before the producers and answers whether they are worth running, which is how the cost control survives moving a determination into Rego. [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) carries the finding shape, the status vocabulary and the Rego that reads it.
 
-An `ai_analysis` rule is **not** evaluated by the guardrails engine. It needs a provider, a deadline and a cache, none of which belong to a text matcher, so the sidecar lifts those rules out of the set at startup and builds one evaluator per rule, appended after OPA. Two consequences worth knowing:
+The analyzer is **not** a guardrail rule. It is the lane's third evaluator, declared in the listener's own `analyzer:` block beside `guardrails`, `opa` and `mask`: it needs a provider, a deadline and a cache, none of which belong to a text matcher, so it gets a block of its own and always runs after OPA. The block holds what is per lane, the trigger, the risk-to-action map and the prompt, and inherits every tunable it does not name from the top-level `analyzer` section, which keeps the provider, the model and the credential process-wide.
 
-- Ordering between an `ai_analysis` rule and the other rules in the same list does not matter. Guardrails always run first.
-- A lane can carry several `ai_analysis` rules. Each is its own evaluator with its own trigger, actions and prompt; if more than one classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
+Deprecated `type: ai_analysis` rules still build extra evaluators through the same path, appended after the block, so a lane can run both spellings while it migrates. If more than one evaluator classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
 
 The guardrails engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#why-this-one-fails-open).
 
