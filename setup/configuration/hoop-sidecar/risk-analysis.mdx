@@ -88,7 +88,7 @@ An ORM issues the same statement shape thousands of times in one session. Withou
   <Step title="trigger narrows what is classified">
     Only statements naming these operations, tables or resources are sent. Everything else allows for free.
 
-    An **empty trigger classifies nothing** and is a startup error. The failure mode of the opposite default is an invoice. A lane running [the gate](#the-gate-phase) is the exception: there the policy decides what gets classified, and an empty trigger is how an operator says so.
+    **Omit the trigger and every statement on the lane is classified**: declaring the analyzer is the opt-in, and the cache and `max_calls` bound the bill. `--validate` prints a per-lane note naming that cost, so nobody ships it by accident. A lane running [the gate](#the-gate-phase) behaves differently: there the policy decides what gets classified, and an omitted trigger leaves it fully in charge — Rego's silence means skip, and nothing is spent without an explicit `request`.
   </Step>
   <Step title="The cache keys on the statement shape">
     `WHERE id = 1` and `WHERE id = 2` are one verdict: literals are stripped from SQL, and HTTP resources are already normalized by the codec, so `/users/12345/orders` and `/users/67890/orders` share an entry.
@@ -594,7 +594,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | Config | Result |
 |---|---|
 | An analyzer block with no top-level `analyzer` section | Refused: the provider, the model and the credential live there |
-| An analyzer block with no `trigger` | Refused: it would classify nothing. Name operations, tables or resources, or turn on `opa.gate` and let the policy decide. |
+| An analyzer block with no `trigger` | **Not refused.** On a plain lane it classifies every statement (a model call per statement shape; `--validate` prints a note naming the cost). Under `opa.gate: true` the policy decides what gets classified. |
 | An analyzer block naming no action for any risk level | Refused: every verdict would allow while looking like enforcement |
 | `require_review` as an action | Refused: this build cannot hold a statement |
 | `action` set on a deprecated `ai_analysis` rule | Refused: risk maps to actions through `high`, `medium` and `low`. The block has no `action` field at all. |

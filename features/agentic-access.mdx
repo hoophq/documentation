@@ -87,6 +87,8 @@ listeners:
       message: refused by risk analysis
 ```
 
+The `trigger` is the gate in front of the model call: only statements matching one of its lists — the normalized SQL verb (`operations`), a referenced table (`tables`), or an HTTP resource glob (`resources`) — are classified; everything else forwards for free. Here only `UPDATE` and `DELETE` statements reach the model, and the `high`/`medium`/`low` map decides what happens with the risk that comes back. Omit the trigger and every statement on the lane is classified; see [cost controls](#cost-controls) for what bounds that.
+
 A blocked statement reaches the user the same way every other denial does:
 
 ```
@@ -136,7 +138,7 @@ This is the only evaluator that leaves the process, costs money per statement an
 
 <Steps>
   <Step title="trigger narrows what is classified">
-    Only statements naming these operations, tables or resources are sent. Everything else allows for free. An **empty trigger is a startup error** on an ungated lane — the failure mode of the opposite default is an invoice. Under `opa.gate: true`, an empty trigger is how you say Rego decides what is worth classifying.
+    Only statements naming these operations, tables or resources are sent. Everything else allows for free. **Omit the trigger and every statement on the lane is classified** — declaring the analyzer is the opt-in, the cache and `max_calls` bound the bill, and `--validate` prints a note naming the per-statement cost. Under `opa.gate: true`, an omitted trigger means Rego decides what is worth classifying, and its silence means skip.
   </Step>
   <Step title="The cache keys on the statement shape">
     `WHERE id = 1` and `WHERE id = 2` are one verdict: literals are stripped from SQL, and HTTP resources are already normalized by the codec. This is also more correct than caching on bytes — the shape is what is risky, not the parameter.

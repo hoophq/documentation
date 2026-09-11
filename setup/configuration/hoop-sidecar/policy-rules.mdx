@@ -594,7 +594,7 @@ Four complete lane configs. Each one validates with `hoop start sidecar --valida
           medium: defer
     ```
 
-    The analyzer block carries no `trigger`, which a plain lane refuses. A gated lane accepts it, because the gate decides what gets classified and the trigger would be a second cost control the Rego author never sees.
+    The analyzer block carries no `trigger`. On a plain lane that would classify every statement; with the gate on, Rego is the only spender — it decides per statement what is worth a model call, and a trigger would be a second cost control the Rego author never sees.
 
     ```rego policy.rego
     # Two-phase policy: the gate decides what is worth classifying, the decide
@@ -656,7 +656,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | `action` set to anything but `defer` | `unknown action "warn" (empty denies, "defer" reports a finding)` |
 | a `pii` rule naming an entity absent from an explicit `pii.entities` | `names entity "US_SSN", which the detector is not configured to find` |
 | an analyzer block with no top-level `analyzer` section | `has an analyzer block but the config has no top-level "analyzer" section (the provider, the model and the credential live there)` |
-| an analyzer block with no `trigger`, no gate | `analyzer block has no trigger, so it would classify nothing; name operations, tables or resources, or turn on opa.gate and let the policy decide` |
+| an analyzer with no `trigger`, no gate | not refused — the lane classifies every statement, and `--validate` prints a note: `the analyzer block has no trigger, so every statement on this lane is classified: a model call per statement shape, bounded only by the cache and max_calls. Add a trigger to narrow it` |
 | an analyzer block naming no action for any level | `analyzer block names no action for any risk level, so every verdict would allow` |
 | `gate: true` with no analyzer block | `opa.gate is on but the lane has no analyzer block, so the extra decision would gate nothing` |
 | `action` on a deprecated `ai_analysis` rule | `sets action "defer", which this rule type ignores; it defers per risk level through high, medium and low` |

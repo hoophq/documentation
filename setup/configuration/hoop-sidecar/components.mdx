@@ -263,7 +263,7 @@ A rule carrying `action: defer` reports its match as a **finding** and evaluatio
 
 The gate runs before the producers and answers whether they are worth running, which is how the cost control survives moving a determination into Rego. [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) carries the finding shape, the status vocabulary and the Rego that reads it.
 
-The analyzer is **not** a guardrail rule. It is the lane's third evaluator, declared in the listener's own `analyzer:` block beside `guardrails`, `opa` and `mask`: it needs a provider, a deadline and a cache, none of which belong to a text matcher, so it gets a block of its own and always runs after OPA. The block holds what is per lane, the trigger, the risk-to-action map and the prompt, and inherits every tunable it does not name from the top-level `analyzer` section, which keeps the provider, the model and the credential process-wide.
+The analyzer is the lane's third evaluator, declared in the listener's own `analyzer:` block beside `guardrails`, `opa` and `mask`: it needs a provider, a deadline and a cache, so it gets a block of its own and always runs after OPA. The block holds what is per lane, the trigger, the risk-to-action map and the prompt, and inherits every tunable it does not name from the top-level `analyzer` section, which keeps the provider, the model and the credential process-wide.
 
 Deprecated `type: ai_analysis` rules still build extra evaluators through the same path, appended after the block, so a lane can run both spellings while it migrates. If more than one evaluator classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
 

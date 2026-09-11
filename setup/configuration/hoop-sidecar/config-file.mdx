@@ -840,13 +840,11 @@ Error: invalid config:
 
 That last check matters more than it looks. Without it the rule loads, evaluates, and matches nothing, so a guardrail looks live while allowing through everything it was written to stop. It only fires where `pii.entities` is set: with the section omitted, every supported entity is enabled and no rule can name one that is missing.
 
-**An analyzer block that would classify nothing:**
+**An analyzer block with no trigger loads — and says what that costs.** It is a `--validate` note rather than an error, because declaring the analyzer is already the opt-in and the cache and `max_calls` bound the bill:
 
 ```
-Error: invalid config:
-  - appdb: analyzer block has no trigger, so it would classify nothing; name
-    operations, tables or resources, or turn on opa.gate and let the policy
-    decide
+  appdb            postgres  enforcing 1 rule(s) + ai analyzer
+                               note: the analyzer block has no trigger, so every statement on this lane is classified: a model call per statement shape, bounded only by the cache and max_calls. Add a trigger to narrow it
 ```
 
 Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a block whose config has no top-level `analyzer` section, a block naming no action for any risk level, a provider the binary does not link, or `send: redacted` with no detector all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-startup-refuses); the two shortest:
