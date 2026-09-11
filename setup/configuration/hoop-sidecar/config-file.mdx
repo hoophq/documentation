@@ -899,6 +899,8 @@ Three more refusals arrived with findings, each one a config that would load and
 
 The old `policy` section split into `guardrails` and `opa`, and four fields went away. Deprecated spellings still load and log a warning at startup, so an existing file keeps working; they are not part of the specification above and will be removed. Do not write both spellings of one concept into the same file.
 
+The Sidecar rewrites a file mechanically: `hoop-inspect --migrate --config config.yaml --migrate-out config-new.yaml` folds every deprecated spelling below onto its replacement (including `type: ai_analysis` rules onto listener [`analyzer`](/setup/configuration/hoop-sidecar/risk-analysis) blocks where the move is faithful) and emits a document that passes `--validate --strict`, reporting anything it left for you on stderr. Comments and key order are not preserved; review the diff before deploying.
+
 | Deprecated | Replacement | Notes |
 |---|---|---|
 | `policy.rules` | `guardrails.rules` | Same rule types, same fields, same first-match-wins. |

@@ -255,7 +255,7 @@ Set `fail_open: false` where the classification is a compliance requirement, and
 | `send` | Behavior |
 |---|---|
 | `raw` | The statement as written. |
-| `redacted` | Detected entities are named; their values are withheld. |
+| `redacted` | Each detected value is replaced with its entity class before the statement leaves the process. |
 | `refuse` | A statement containing a detected entity is denied locally. No call is made. |
 
 Neither mode needs a `pii` section: with the section omitted every supported entity is enabled, so a detector is always there to redact with. Set `pii.entities` to narrow what those modes look for.
@@ -630,7 +630,15 @@ A lane still carrying deprecated rule-form analyzers reports `+ ai analyzer (N d
 
 The analyzer used to be spelled as a guardrail rule: `type: ai_analysis` under `guardrails.rules`. That form is **deprecated** and still works: it loads, builds the same evaluator through the same code path, and prints a deprecation naming the listener's `analyzer` block. `--validate --strict` turns the warning into a non-zero exit. Both spellings can serve one lane while you migrate, each as its own evaluator.
 
-Move the rule's fields onto the listener's `analyzer` block; they keep their names:
+The Sidecar rewrites the file for you:
+
+```bash
+hoop-inspect --migrate --config config.yaml --migrate-out config-new.yaml
+```
+
+It folds every deprecated spelling onto its replacement, moves each `ai_analysis` rule onto its listener's `analyzer` block where the move is faithful, and emits a document that passes `--validate --strict`. Where the move would be lossy — a lane carrying two ai rules, a top-level rule some lane cannot absorb — the rule stays put and the report on stderr says so. Comments and key order from the original are not preserved; review the diff before deploying. `hoop start sidecar --migrate` is the same command.
+
+Or by hand, move the rule's fields onto the listener's `analyzer` block; they keep their names:
 
 ```yaml
 # before

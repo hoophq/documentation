@@ -100,7 +100,7 @@ FATAL:  unbounded delete against the customer ledger
 | `send` | Behavior |
 |---|---|
 | `raw` | The statement text as written. |
-| `redacted` | Detected entities are named, their values withheld. |
+| `redacted` | Each detected value is replaced with its entity class before the statement leaves the process. |
 | `refuse` | Deny locally rather than call out at all. |
 
 Neither mode needs a `pii` section: with the section omitted every supported entity is enabled, and a `pii.entities` list only narrows what the redactor looks for before the statement leaves the process.
