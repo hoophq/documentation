@@ -34,7 +34,7 @@ This runs entirely in the [Sidecar](/core-concepts/sidecar). The Sidecar holds t
 
 ## The tools
 
-An `ai_analysis` rule maps each risk level the model can report to a tool.
+The listener's `analyzer` block maps each risk level the model can report to a tool.
 
 | Tool | Effect |
 |---|---|
@@ -56,7 +56,7 @@ A risk level you do not name defaults to `allow`, so you opt into blocking a tie
 
 ## Configuration
 
-Two pieces: an `analyzer` block that says which model to call, and an `ai_analysis` rule that says when to call it and what to do with the answer.
+Two pieces: a top-level `analyzer` section that says which model to call, plus the defaults every lane inherits, and the listener's own `analyzer` block that says when to call it and what to do with the answer.
 
 ```yaml config.yaml
 pii:                               # optional: omit it and every entity is enabled
@@ -79,16 +79,15 @@ listeners:
     protocol: postgres
     listen: 0.0.0.0:15432
     upstream: appdb:5432
-    guardrails:
-      rules:
-        - name: risky-writes
-          type: ai_analysis
-          trigger: {operations: [update, delete]}
-          high: block
-          medium: warn
-          low: allow
-          message: refused by risk analysis
+    analyzer:                      # this lane's analyzer, beside guardrails
+      trigger: {operations: [update, delete]}
+      high: block
+      medium: warn
+      low: allow
+      message: refused by risk analysis
 ```
+
+The `trigger` is the gate in front of the model call: only statements matching one of its lists — the normalized SQL verb (`operations`), a referenced table (`tables`), or an HTTP resource glob (`resources`) — are classified; everything else forwards for free. Here only `UPDATE` and `DELETE` statements reach the model, and the `high`/`medium`/`low` map decides what happens with the risk that comes back. Omit the trigger and every statement on the lane is classified; see [cost controls](#cost-controls) for what bounds that.
 
 A blocked statement reaches the user the same way every other denial does:
 
@@ -103,7 +102,7 @@ FATAL:  unbounded delete against the customer ledger
 | `send` | Behavior |
 |---|---|
 | `raw` | The statement text as written. |
-| `redacted` | Detected entities are named, their values withheld. |
+| `redacted` | Each detected value is replaced with its entity class before the statement leaves the process. |
 | `refuse` | Deny locally rather than call out at all. |
 
 Neither mode needs a `pii` section: with the section omitted every supported entity is enabled, and a `pii.entities` list only narrows what the redactor looks for before the statement leaves the process.
@@ -112,7 +111,7 @@ The credential is always a path (`credentials_file`), never inline, and the file
 
 ### HTTP listeners must opt into capture
 
-The HTTP codec captures nothing by default, so an `ai_analysis` rule on an HTTP listener without `capture_body` is refused at startup:
+The HTTP codec captures nothing by default, so an analyzer block on an HTTP listener without `capture_body` is refused at startup:
 
 ```yaml
   - name: api
@@ -123,13 +122,10 @@ The HTTP codec captures nothing by default, so an `ai_analysis` rule on an HTTP 
       capture_body: true
       max_body_bytes: 8192
       headers: [Content-Type]
-    guardrails:
-      rules:
-        - name: risky-payloads
-          type: ai_analysis
-          trigger: {resources: ["/orders/**", "/admin/**"]}
-          high: block
-          medium: warn
+    analyzer:
+      trigger: {resources: ["/orders/**", "/admin/**"]}
+      high: block
+      medium: warn
 ```
 
 `authorization`, `cookie` and `proxy-authorization` cannot be allowlisted as captured headers.
@@ -142,13 +138,13 @@ This is the only evaluator that leaves the process, costs money per statement an
 
 <Steps>
   <Step title="trigger narrows what is classified">
-    Only statements naming these operations, tables or resources are sent. Everything else allows for free. An **empty trigger is a startup error** — the failure mode of the opposite default is an invoice.
+    Only statements naming these operations, tables or resources are sent. Everything else allows for free. **Omit the trigger and every statement on the lane is classified** — declaring the analyzer is the opt-in, the cache and `max_calls` bound the bill, and `--validate` prints a note naming the per-statement cost. Under `opa.gate: true`, an omitted trigger means Rego decides what is worth classifying, and its silence means skip.
   </Step>
   <Step title="The cache keys on the statement shape">
     `WHERE id = 1` and `WHERE id = 2` are one verdict: literals are stripped from SQL, and HTTP resources are already normalized by the codec. This is also more correct than caching on bytes — the shape is what is risky, not the parameter.
   </Step>
   <Step title="max_calls is a backstop">
-    A process-lifetime budget. Past it, statements fall through to the local rules, the same outcome as a listener with no analyzer.
+    A budget per lane. `max_calls` on the listener's block bounds that lane's spend; the top-level value is the default every lane inherits. The budget keys on the listener name and survives hot reloads. Past it, statements fall through to the local rules, the same outcome as a listener with no analyzer.
   </Step>
 </Steps>
 

@@ -22,14 +22,14 @@ The first decision is a `type` and a list. The second is the `action` field: lea
 Deferring moves the DETERMINATION and leaves the matching where it is. The local engine still runs the detector, the regex and the word list, in microseconds with no network. Rego gets the answer and decides what it means for this actor, this table and this hour.
 
 <Note>
-`action: defer` on a lane with no `opa.url` is refused at startup. A finding nobody reads is a rule that matches and then allows, which looks like enforcement from the config file.
+`action: defer` on a lane with no `opa.url` is not refused. The lane loads, `--validate` prints a note naming it, and a deferred match **denies** instead of reporting a finding: deferring to a decision that does not exist fails closed at runtime, so one file serves a deployment with OPA and a deployment without one.
 </Note>
 
 [Config File](/setup/configuration/hoop-sidecar/config-file#guardrail-rules) carries the exhaustive schema for every field named below, and [Migrating from `policy`](/setup/configuration/hoop-sidecar/config-file#migrating-from-policy) maps the deprecated `policy` spellings onto `guardrails` and `opa`.
 
 ---
 
-## The eight rule types
+## The seven rule types
 
 | `type` | Matches on | Protocol |
 |---|---|---|
@@ -40,7 +40,6 @@ Deferring moves the DETERMINATION and leaves the matching where it is. The local
 | `pii` | entity classes a detector finds in the text | any |
 | `http_resource` | the normalized request path | HTTP |
 | `http_status` | the response status | HTTP |
-| `ai_analysis` | the risk a language model reports | any |
 
 Every rule also takes `name` and `message`. `message` reaches the user in the protocol's own error frame, so write one: the fallback names the rule and the operation and nothing else.
 
@@ -162,30 +161,32 @@ Patterns match the NORMALIZED path, so `/users/12345/orders/98765` arrives as `/
 
 `ext_authz` cannot express this rule. Envoy decides before it calls the upstream, so no Envoy config reads a response status. This one is response-side: a request carries status 0 and never matches. Exact codes (`"404"`) and classes (`"4xx"`) both work.
 
-### ai_analysis
+### The AI analyzer is not one of them
+
+The analyzer used to be the eighth type, spelled `type: ai_analysis`. It is a listener component now, configured in its own `analyzer` block beside `guardrails`, `opa` and `mask`:
 
 ```yaml
-analyzer:
+analyzer:                # top level: the provider plus the defaults every lane inherits
   provider: anthropic
   model: claude-sonnet-4-5
   credentials_file: /run/secrets/anthropic-key
+
+listeners:
+  - name: appdb
+    # ...
+    analyzer:            # this lane: the trigger and the risk→action map
+      trigger:
+        operations: [update, delete]
+      high: block
+      medium: warn
 ```
 
-```yaml
-- name: risky-writes
-  type: ai_analysis
-  trigger:
-    operations: [update, delete]
-  high: block
-  medium: warn
-```
-
-The local engine does not evaluate this type. The sidecar lifts it out of the rule set and runs it after the local rules and OPA, so its position in the list changes nothing and a statement a free rule already denied never reaches a paid classifier. Actions are `allow`, `warn`, `block` and `defer`; an unnamed risk level allows.
+It runs after the local rules and OPA, so a statement a free rule already denied never reaches a paid classifier. Actions per risk level are `allow`, `warn`, `block` and `defer`; an unnamed level allows.
 
 It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) before enabling it anywhere real.
 
 <Note>
-`ai_analysis` expresses deferral per risk level: `high: defer`. An `action` field on this rule type is refused at startup, and so are `require_review` and a `defer` on a lane with no `opa.url`.
+`type: ai_analysis` under `guardrails.rules` is the **deprecated** spelling. It still loads and enforces, prints a deprecation naming the listener block, and `--validate --strict` exits non-zero. The rule form takes no `action` field (it defers per risk level, `high: defer`), and the block has no `action` field at all. `require_review` is refused on both.
 </Note>
 
 ---
@@ -253,7 +254,7 @@ A `pii` rule knows which entity classes a statement carries. Whether a statement
     | Field | Meaning |
     |---|---|
     | the key | the **source**: the rule TYPE that reported, one of `pii`, `deny_words_list`, `ai_analysis` |
-    | `rule` | the rule name that matched |
+    | `rule` | the rule name that matched; the `ai_analysis` finding from an analyzer block carries the LISTENER name here, because a component has no rule name |
     | `status` | `ok`, `cached`, `skipped`, `unavailable` or `error` |
     | `reason` | always present; the specific word behind a degraded status |
     | `values` | the producer's own payload, absent when it established nothing |
@@ -392,7 +393,7 @@ decision := {"allow": true, "request": {"ai_analysis": true}} if {
 An UNDEFINED gate decision allows and requests nothing, even under `fail_open: false`. A gate is an optimization over a policy someone already wrote, so switching it on must not deny every statement until a second Rego rule exists. The decide phase keeps the normal fail-closed reading of undefined.
 </Note>
 
-`gate: true` on a lane with no `ai_analysis` rule is refused at startup: the extra round trip would gate nothing.
+`gate: true` on a lane with no analyzer block is refused at startup: the extra round trip would gate nothing.
 
 ---
 
@@ -588,13 +589,12 @@ Four complete lane configs. Each one validates with `hoop start sidecar --valida
               type: operation
               operations: [drop, truncate]
               message: destructive statements are not permitted on appdb
-            - name: risky-writes
-              type: ai_analysis
-              high: defer
-              medium: defer
+        analyzer:
+          high: defer
+          medium: defer
     ```
 
-    The `ai_analysis` rule carries no `trigger`, which a plain lane refuses. A gated lane accepts it, because the gate decides what gets classified and the trigger would be a second cost control the Rego author never sees.
+    The analyzer block carries no `trigger`. On a plain lane that would classify every statement; with the gate on, Rego is the only spender — it decides per statement what is worth a model call, and a trigger would be a second cost control the Rego author never sees.
 
     ```rego policy.rego
     # Two-phase policy: the gate decides what is worth classifying, the decide
@@ -652,13 +652,16 @@ Each of these would otherwise load, evaluate and do nothing:
 
 | Config | Message |
 |---|---|
-| `action: defer` with no `opa.url` | `rule "x" defers its match to a policy decision, and the lane has no opa.url to defer to` |
 | `access: readwrite` on a table rule | `unknown access "readwrite" (read, write, or empty for either)` |
 | `action` set to anything but `defer` | `unknown action "warn" (empty denies, "defer" reports a finding)` |
-| `gate: true` with no `ai_analysis` rule | `opa.gate is on but the lane has no ai_analysis rule, so the extra decision would gate nothing` |
 | a `pii` rule naming an entity absent from an explicit `pii.entities` | `names entity "US_SSN", which the detector is not configured to find` |
-| `high: defer` with no `opa.url` | `defers high risk to a policy decision, and the lane has no opa.url to defer to` |
-| `action` on an `ai_analysis` rule | `sets action "defer", which this rule type ignores; it defers per risk level through high, medium and low` |
+| an analyzer block with no top-level `analyzer` section | `has an analyzer block but the config has no top-level "analyzer" section (the provider, the model and the credential live there)` |
+| an analyzer with no `trigger`, no gate | not refused — the lane classifies every statement, and `--validate` prints a note: `the analyzer block has no trigger, so every statement on this lane is classified: a model call per statement shape, bounded only by the cache and max_calls. Add a trigger to narrow it` |
+| an analyzer block naming no action for any level | `analyzer block names no action for any risk level, so every verdict would allow` |
+| `gate: true` with no analyzer block | `opa.gate is on but the lane has no analyzer block, so the extra decision would gate nothing` |
+| `action` on a deprecated `ai_analysis` rule | `sets action "defer", which this rule type ignores; it defers per risk level through high, medium and low` |
+
+`defer` with no `opa.url` is off this list. It used to be refused; the lane now loads and `--validate` prints a note instead: `defer names a decision this lane has no opa.url for, so a deferred match or risk level denies instead of reporting a finding`. The denial is the fail-closed runtime answer to a finding nobody would read.
 
 Check before you deploy. Nothing needs to be running:
 
@@ -682,6 +685,6 @@ The line reports the RESOLVED lane, so the count includes everything it inherite
     Every field of every section, inheritance between lanes, and the full list of what startup refuses.
   </Card>
   <Card title="Risk Analysis" icon="robot" href="/setup/configuration/hoop-sidecar/risk-analysis">
-    Cost controls, providers, prompts and what leaves the process before you enable `ai_analysis`.
+    Cost controls, providers, prompts and what leaves the process before you enable the analyzer.
   </Card>
 </CardGroup>

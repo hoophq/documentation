@@ -117,7 +117,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `guardrails` | Default Hoop rule set for every lane. |
 | `opa` | Default OPA endpoint for every lane. Omit it and no lane calls OPA. |
 | `mask` | Default response rewriting for every lane. |
-| `analyzer` | The AI risk classifier. Omit it and `ai_analysis` rules are a config error. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
+| `analyzer` | The AI risk classifier: the provider, the model, the credential, and the defaults every listener inherits. Each listener carries its own `analyzer` block beside `guardrails`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `listeners` | One entry per upstream. |
 
 Keys starting `x-` are dropped before validation, so a YAML anchor block does not need a matching config field. See [sharing rules between lanes](#sharing-a-rule-block-between-lanes).
@@ -147,6 +147,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `guardrails` | Adds to the top-level rule set for this lane. |
 | `opa` | Replaces the top-level OPA endpoint for this lane. |
 | `mask` | Replaces the top-level mask rules for this lane. |
+| `analyzer` | This lane's AI analyzer: trigger, risk→action map, prompt, and per-lane overrides of the top-level defaults. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `http` | What the HTTP codec captures. Only valid on an `http` lane. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#the-http-block). |
 | `grpc` | Descriptor sets and capture for a gRPC lane. Only valid on a `grpc` lane. See [gRPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-grpc-block). |
 
@@ -264,6 +265,7 @@ another relay is already listening on it
 | `guardrails.rules` | concatenate, listener first | Every rule denies and the first match wins, so concatenating cannot change the allow/deny outcome. Order only picks which message the user reads. |
 | `opa` | replace | One lane has one decision endpoint. |
 | `mask` | replace | A rule owns an entity type, and two concatenated lists leave two rules competing for one entity. |
+| `analyzer` | per listener; unset fields inherit | The top-level `analyzer` section holds the provider and the defaults. A block field left at its zero value inherits the top-level one, so the block overrides exactly what it names. |
 
 Reading the file will not tell you which rules a lane ended up with, because inheritance happens at startup. Ask the running process:
 
@@ -303,7 +305,8 @@ Each entry in `guardrails.rules` is one rule. A rule matches, and by default it 
 | `http_resource` | The normalized request path matches | `resources`, `methods` |
 | `http_status` | The response status matches | `statuses`, `methods` |
 | `pii` | The detector finds a listed entity in the statement | `entities` |
-| `ai_analysis` | A language model classifies the statement as a risk you mapped to `block` | `trigger`, `high`, `medium`, `low`, `prompt` |
+
+The AI analyzer is not in this table because it is not a rule. It is a listener component with its own `analyzer` block beside `guardrails`; the deprecated rule spelling `type: ai_analysis` still loads and warns. See the note below.
 
 Every rule also takes `name`, `message` and `action`. `message` is what the user reads on denial, delivered in the protocol's own error frame. Leave it empty and the rule falls back to a generated string naming only the rule and operation; write one.
 
@@ -321,7 +324,7 @@ Deferring does not stop the rule set. First match wins applies to denials, so a 
 An HTTP rule never matches a SQL statement and vice versa, so one mixed rule set cannot deny the wrong protocol.
 
 <Note>
-`ai_analysis` is the one type the local rules engine does not evaluate. It is lifted out of the set at startup and runs after the local rules and OPA, so its position in the list has no effect. It also needs an [`analyzer`](/setup/configuration/hoop-sidecar/risk-analysis) section, and on an HTTP lane it needs `http.capture_body: true`. Startup refuses a lane missing either. An `ai_analysis` rule spells deferring per risk level (`high: defer`) rather than through `action`.
+The AI analyzer used to be spelled as a rule here: `type: ai_analysis` under `guardrails.rules`. That form is **deprecated**. It still loads and enforces, prints a deprecation naming the listener's [`analyzer`](/setup/configuration/hoop-sidecar/risk-analysis) block as its replacement, and `--validate --strict` turns the warning into a non-zero exit. Both spellings can serve one lane during a migration, each as its own evaluator. New configs write the block: it sits on the listener beside `guardrails`, `opa` and `mask`, and it runs after the local rules and OPA wherever it is declared.
 </Note>
 
 ### operation reports the worst effect
@@ -577,7 +580,7 @@ Masking needs a codec that can carry it. HTTP declares its body length in a head
 
 ## Licensing
 
-Unlicensed, the Sidecar enforces **one guardrail rule and one data masking rule**. The cap is per process, not per lane: one rule in the top-level `guardrails` block counts once however many listeners inherit it, and `mask.rules` on a lane counts against the same budget as the default block it replaces. `ai_analysis` rules are counted apart and never capped, because their controls are the trigger and `analyzer.max_calls` rather than a number of rules.
+Unlicensed, the Sidecar enforces **one guardrail rule and one data masking rule**. The cap is per process, not per lane: one rule in the top-level `guardrails` block counts once however many listeners inherit it, and `mask.rules` on a lane counts against the same budget as the default block it replaces. The AI analyzer is not a rule and is not capped, because its controls are the trigger and `max_calls` rather than a number of rules; deprecated `ai_analysis` rules still in a guardrails block are not counted against the cap either.
 
 A license Hoop signed lifts the caps for the features it names.
 
@@ -837,30 +840,31 @@ Error: invalid config:
 
 That last check matters more than it looks. Without it the rule loads, evaluates, and matches nothing, so a guardrail looks live while allowing through everything it was written to stop. It only fires where `pii.entities` is set: with the section omitted, every supported entity is enabled and no rule can name one that is missing.
 
-**An `ai_analysis` rule that would classify nothing:**
+**An analyzer block with no trigger loads — and says what that costs.** It is a `--validate` note rather than an error, because declaring the analyzer is already the opt-in and the cache and `max_calls` bound the bill:
+
+```
+  appdb            postgres  enforcing 1 rule(s) + ai analyzer
+                               note: the analyzer block has no trigger, so every statement on this lane is classified: a model call per statement shape, bounded only by the cache and max_calls. Add a trigger to narrow it
+```
+
+Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a block whose config has no top-level `analyzer` section, a block naming no action for any risk level, a provider the binary does not link, or `send: redacted` with no detector all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-startup-refuses); the two shortest:
 
 ```
 Error: invalid config:
-  - appdb: ai_analysis rule "risky-writes" has no trigger, so it would
-    classify nothing; name operations, tables or resources
+  - appdb: has an analyzer block but the config has no top-level "analyzer"
+    section (the provider, the model and the credential live there)
+  - appdb: analyzer block names no action for any risk level, so every
+    verdict would allow
 ```
 
-Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a rule with no trigger, a tier with no action, a provider the binary does not link, or `send: redacted` with no `pii` section all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-startup-refuses).
-
-**A rule that defers to nothing:**
-
-```
-Error: invalid config:
-  - appdb: rule "cpf" defers its match to a policy decision, and the lane has
-    no opa.url to defer to; set one or drop the action
-```
+**A rule or risk level that defers to nothing is NOT refused.** `action: defer` on a local rule, or `high: defer` on an analyzer block, with no `opa.url` on the lane used to be a startup error. The lane now loads, `--validate` prints a note, and a deferred match or risk level **denies** instead of reporting a finding: deferring to a decision that does not exist fails closed at runtime, so one file serves a deployment with OPA and a deployment without one.
 
 **A gate over nothing:**
 
 ```
 Error: invalid config:
-  - appdb: opa.gate is on but the lane has no ai_analysis rule, so the
-    extra decision would gate nothing
+  - appdb: opa.gate is on but the lane has no analyzer block, so the extra
+    decision would gate nothing
 ```
 
 **A config over the free-tier caps**, naming every block that authored rules so the message reads as a map of what to merge:
@@ -877,14 +881,13 @@ Error: invalid config:
 
 This one is checked after the license resolves rather than while the file parses, so a config a license makes legal is never refused before anyone read the license. See [Licensing](#licensing).
 
-Four more refusals arrived with findings, each one a config that would load and then mean something other than what it says:
+Three more refusals arrived with findings, each one a config that would load and then mean something other than what it says:
 
 | Config | Refusal |
 |---|---|
 | `action` set to anything but `defer` | Unknown action, naming the rule. Empty denies; `defer` reports a finding. |
-| `action` set at all on an `ai_analysis` rule | That type defers per risk level through `high`, `medium` and `low`, and two spellings would leave two answers for one question. |
+| `action` set at all on a deprecated `ai_analysis` rule | That form defers per risk level through `high`, `medium` and `low`, and two spellings would leave two answers for one question. The analyzer block has no `action` field at all. |
 | `access` set to anything but `read` or `write` | Unknown access, naming the rule. Empty matches either. |
-| A risk level set to `defer` with no `opa.url` | Same argument as a local rule deferring to nothing: use `block`, `warn` or `allow`. |
 
 **A `mask` block on a protocol whose codec can carry neither masking mechanism**, naming the lane, plus a `mask.rules` entry with neither `entities` nor `columns`, empty rule lists, duplicate listen addresses, missing upstreams and an `opa` block with no URL.
 
@@ -893,6 +896,8 @@ Four more refusals arrived with findings, each one a config that would load and 
 ## Migrating from `policy`
 
 The old `policy` section split into `guardrails` and `opa`, and four fields went away. Deprecated spellings still load and log a warning at startup, so an existing file keeps working; they are not part of the specification above and will be removed. Do not write both spellings of one concept into the same file.
+
+The Sidecar rewrites a file mechanically: `hoop-inspect --migrate --config config.yaml --migrate-out config-new.yaml` folds every deprecated spelling below onto its replacement (including `type: ai_analysis` rules onto listener [`analyzer`](/setup/configuration/hoop-sidecar/risk-analysis) blocks where the move is faithful) and emits a document that passes `--validate --strict`, reporting anything it left for you on stderr. Comments and key order are not preserved; review the diff before deploying.
 
 | Deprecated | Replacement | Notes |
 |---|---|---|
