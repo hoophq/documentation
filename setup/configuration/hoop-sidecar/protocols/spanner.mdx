@@ -1,0 +1,127 @@
+---
+title: "Spanner"
+description: "The spanner lane: the gRPC endpoint plus GoogleSQL extraction, so operation and table rules read the SQL inside each RPC"
+---
+
+A `spanner` lane runs the same in-process HTTP/2 endpoint as a [gRPC lane](/setup/configuration/hoop-sidecar/protocols/grpc) and adds one capability: it extracts the GoogleSQL text out of Cloud Spanner RPC payloads and classifies each statement with a GoogleSQL lexer dialect. A gRPC lane fences Spanner by method name. A spanner lane reads the query, so a rule naming `delete` refuses `ExecuteSql` when the SQL deletes and forwards it when the SQL selects.
+
+<Note>
+The `spanner` protocol lives on the `grpc2` branch and has not shipped in a release yet.
+</Note>
+
+```yaml config.yaml
+listeners:
+  - name: spanner
+    protocol: spanner
+    listen: 0.0.0.0:29010
+    upstream: spanner.googleapis.com:443
+    upstream_tls: {}                  # TLS + ALPN h2 to Google
+    grpc:
+      descriptors: /etc/hoop-inspect/descriptors/spanner.pb
+      capture_payload: true           # extraction reads captured payloads
+    guardrails:
+      rules:
+        - name: no-destructive-googlesql
+          type: operation
+          operations: [delete, drop, unknown]
+          message: destructive statements are not permitted on this lane
+```
+
+---
+
+## Which RPCs yield SQL
+
+The lane reads two services. Every other method on a Spanner endpoint (sessions, transactions, instance admin) keeps the gRPC lane's per-message statement, where method fencing and payload rules still apply.
+
+| Service | Method | SQL source |
+|---|---|---|
+| `google.spanner.v1.Spanner` | `ExecuteSql`, `ExecuteStreamingSql`, `PartitionQuery` | the `sql` field |
+| `google.spanner.v1.Spanner` | `ExecuteBatchDml` | each `statements[].sql`, one statement per member |
+| `google.spanner.admin.database.v1.DatabaseAdmin` | `UpdateDatabaseDdl` | each DDL string in `statements` |
+| `google.spanner.admin.database.v1.DatabaseAdmin` | `CreateDatabase` | `create_statement` plus each `extra_statements` member |
+
+Each extracted string becomes its own statement: text, operation, effects, and each relation as a read or a write, the same document a postgres lane produces. `spanner.sql_index` in the metadata names the member inside a batch, so the audit trail says which statement of an `ExecuteBatchDml` a denial refused. One denial refuses the whole message, because the batch commits atomically upstream.
+
+Two rule families read one RPC, on different statements. The request-headers statement keeps the service and method in `Tables`, so a `table` rule fences a method before the upstream is dialed. The SQL statements carry the relations the query names, so `operation` and `table` rules about data read the query. A method fence never fires on query relations, and a data rule never fires on the RPC envelope.
+
+---
+
+## The GoogleSQL dialect
+
+The lexer models what makes GoogleSQL lexically different, because each item is a misread that flips a verdict:
+
+- `"..."` is a string literal. Postgres rules would read it as a quoted identifier and invent relations.
+- Raw strings (`r'...'`, `rb'...'`) keep backslashes literal. A scanner that lets `\'` escape the terminator swallows the rest of the statement into a phantom literal.
+- Triple-quoted strings (`'''...'''`, `"""..."""`) hold data. A `DELETE` inside one stays a select.
+- Backtick identifiers escape with a backslash, and `#` opens a comment.
+- Statement hints and table hints (`@{FORCE_INDEX=idx}`) skip cleanly, so `FROM albums@{FORCE_INDEX=i}` still reports the relation `albums`.
+
+SQL the scanner cannot read classifies as `unknown`, and so does a SQL-bearing RPC whose payload the lane could not parse (a capture truncated at `max_payload_bytes`, for example). Both cases fail closed under a rule naming `unknown`. Without that classification, padding a request past the capture budget would smuggle any DML through the lane.
+
+---
+
+## Descriptors
+
+Extraction decodes payloads, so the lane requires a descriptor set. Google publishes the protos; one `buf` invocation against the public tree produces an artifact covering Spanner and BigQuery Storage:
+
+```bash
+buf build 'https://github.com/googleapis/googleapis/archive/refs/heads/master.tar.gz#strip_components=1' \
+  --path google/spanner --path google/cloud/bigquery/storage \
+  -o 'spanner.pb#format=binpb'
+```
+
+Neither the production endpoints nor the Spanner emulator serve gRPC reflection, so [`-grpc-discover`](/setup/configuration/hoop-sidecar/protocols/grpc#no-descriptor-set-yet-bootstrap-one-with--grpc-discover) answers `Unimplemented` against them and the `buf` route is the working one. An upstream that does serve reflection (your own services, most Go and Java servers with the reflection service registered) bootstraps its set with that command instead. Pin the artifact next to the config; the lane loads only pinned files.
+
+---
+
+## Client wiring
+
+**Against real GCP.** grpc-go refuses to attach OAuth credentials to an insecure channel, so the client's hop to the lane must be TLS: give the lane `downstream_tls` with a certificate the client trusts. The lane rewrites `:authority` to the upstream host and forwards the `authorization` metadata untouched, so a standard endpoint override is the whole client change:
+
+```go
+ca, _ := credentials.NewClientTLSFromFile("lane-ca.pem", "")
+client, _ := spanner.NewClient(ctx, database,
+    option.WithEndpoint("lane.internal:29010"),
+    option.WithGRPCDialOption(grpc.WithTransportCredentials(ca)))
+```
+
+**Against the emulator.** The emulator speaks cleartext and skips auth, so the lane needs no TLS on either hop and the client needs one variable:
+
+```bash
+SPANNER_EMULATOR_HOST=lane.internal:29010
+```
+
+---
+
+## Limits
+
+- Capturing lanes refuse compressed messages and strip `grpc-accept-encoding` upstream. Google SDKs leave compression off by default; a client that enables gzip fails with code 12.
+- A capturing lane holds one message up to 16 MiB for inspection. Spanner allows commits far past that, so a workload with large mutations belongs on a method-only lane (drop `capture_payload`) or behind a size review.
+- Response masking by field name has nothing to bind to: Spanner returns rows as positional `google.protobuf.Value` lists. Request-side fields mask; result columns keep their values.
+
+---
+
+## Try it
+
+Two compose stacks in the repository run the lane end to end:
+
+- [`deploy/docker-compose/gcloud-stack/`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/gcloud-stack): the Spanner emulator behind a spanner lane, no Envoy. Its demo proves the lexer decides: `SELECT 1` passes, `DELETE` returns `PERMISSION_DENIED` before the emulator sees the frame, a raw-string evasion stays a select, and an unterminated string denies as `unknown`.
+- [`deploy/docker-compose/envoy-stack/spanner/`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/envoy-stack/spanner): the same lane behind Envoy and OPA, plus a direct h2c door that shows the lane standing alone.
+
+```bash
+cd deploy/docker-compose/gcloud-stack
+./run.sh && ./demo.sh
+```
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="gRPC" icon="network-wired" href="/setup/configuration/hoop-sidecar/protocols/grpc">
+    The transport this lane runs on: descriptors, strict mode, TLS shapes, Envoy wiring.
+  </Card>
+  <Card title="BigQuery" icon="database" href="/setup/configuration/hoop-sidecar/protocols/bigquery">
+    The Storage API on a grpc lane, and where the REST plane fits.
+  </Card>
+</CardGroup>

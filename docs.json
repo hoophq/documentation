@@ -96,6 +96,8 @@
                   "setup/configuration/hoop-sidecar/protocols/mssql",
                   "setup/configuration/hoop-sidecar/protocols/mongodb",
                   "setup/configuration/hoop-sidecar/protocols/grpc",
+                  "setup/configuration/hoop-sidecar/protocols/spanner",
+                  "setup/configuration/hoop-sidecar/protocols/bigquery",
                   "setup/configuration/hoop-sidecar/protocols/http"
                 ]
               },
