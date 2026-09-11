@@ -26,13 +26,13 @@ listeners:
       rules:
         - name: no-write-plane
           type: table
-          tables: [google.bigquery.storage.v1.bigquerywrite]
+          tables: [google.cloud.bigquery.storage.v1.bigquerywrite]
           message: the write plane is fenced; this lane is read-only
 ```
 
 The rule matches the lowercased service name. Clients get `PERMISSION_DENIED` with that message on `AppendRows` and reach `CreateReadSession` untouched.
 
-With `descriptors` and `capture_payload` (the [spanner page](/setup/configuration/hoop-sidecar/protocols/spanner#descriptors) shows the `buf` command; add `--path google/bigquery/storage`), payload rules also see request fields. `CreateReadSession` names the table it opens, so the audit trail records who read which table. Row payloads stay opaque: `ReadRows` carries serialized Arrow batches inside a protobuf `bytes` field, and no descriptor turns those bytes into named columns. Content scanning and masking stop at that boundary.
+With `descriptors` and `capture_payload` (the [spanner page](/setup/configuration/hoop-sidecar/protocols/spanner#descriptors) shows the `buf` command; add `--path google/cloud/bigquery/storage`), payload rules also see request fields. `CreateReadSession` names the table it opens, so the audit trail records who read which table. Row payloads stay opaque: `ReadRows` carries serialized Arrow batches inside a protobuf `bytes` field, and no descriptor turns those bytes into named columns. Content scanning and masking stop at that boundary.
 
 ---
 
@@ -62,7 +62,7 @@ SQL-level policy for the REST plane, with the GoogleSQL lexer reading the query 
 
 ## The emulator
 
-[`goccy/bigquery-emulator`](https://github.com/goccy/bigquery-emulator) serves the REST plane on one port and a gRPC port beside it. In our validation runs its gRPC port did not expose the `BigQueryRead` and `BigQueryWrite` services, so calls crossed the lane and the emulator answered that the service is unknown. The lane and its fence behave as configured either way; treat the emulator's Storage plane as unverified before you rely on it for a demo.
+[`goccy/bigquery-emulator`](https://github.com/goccy/bigquery-emulator) serves the REST plane on one port and the Storage gRPC plane beside it, `BigQueryRead` and `BigQueryWrite` included. We validated both directions through a licensed lane: `AppendRows` came back `PERMISSION_DENIED` with the fence rule's message, and `CreateReadSession` crossed the lane and drew a real answer from the emulator about the named table.
 
 The [`gcloud-stack`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/gcloud-stack) compose file carries the emulator, a method-only `bqstorage` lane in front of it, and the write-plane rule shown above (commented out where the free tier's one-rule budget is already spent).
 

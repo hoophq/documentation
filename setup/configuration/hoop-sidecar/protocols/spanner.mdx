@@ -66,7 +66,7 @@ Extraction decodes payloads, so the lane requires a descriptor set. Google publi
 
 ```bash
 buf build 'https://github.com/googleapis/googleapis/archive/refs/heads/master.tar.gz#strip_components=1' \
-  --path google/spanner --path google/bigquery/storage \
+  --path google/spanner --path google/cloud/bigquery/storage \
   -o 'spanner.pb#format=binpb'
 ```
 
