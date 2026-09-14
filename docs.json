@@ -89,6 +89,13 @@
             "pages": [
               "setup/configuration/hoop-sidecar/get-started",
               {
+                "group": "Deployment",
+                "pages": [
+                  "setup/configuration/hoop-sidecar/deployment/kubernetes",
+                  "setup/configuration/hoop-sidecar/deployment/container-images"
+                ]
+              },
+              {
                 "group": "Protocols",
                 "pages": [
                   "setup/configuration/hoop-sidecar/protocols/postgres",

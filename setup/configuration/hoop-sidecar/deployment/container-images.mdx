@@ -1,0 +1,124 @@
+---
+title: "Container Images"
+description: "The images that run the Sidecar, what each one contains, and when to pick which."
+---
+
+The Sidecar runs from `hoophq/hoopsidecar`, published in two flavours that
+differ only in the rootfs underneath.
+
+---
+
+## Choosing a flavour
+
+| Tag | Use it when |
+|---|---|
+| `hoophq/hoopsidecar:<version>` | The default. Ubuntu base, keeps a shell for debugging |
+| `hoophq/hoopsidecar:latest` | An alias of the unsuffixed tag |
+| `hoophq/hoopsidecar:<version>-distroless` | You want the smallest possible surface and no shell |
+
+Both are multi-architecture manifests covering `linux/amd64` and `linux/arm64`.
+Pin an explicit version in production rather than using `latest`.
+
+<Note>
+Every version, its changelog and its release date are published on the [hoophq/hoop releases page](https://github.com/hoophq/hoop/releases). Image tags, chart versions and binary downloads all use the same version numbers.
+</Note>
+
+```bash
+docker pull hoophq/hoopsidecar:<version>
+```
+
+### How they differ
+
+| | `<version>` (default) | `-distroless` |
+|---|---|---|
+| Base | Ubuntu 24.04 LTS | distroless static |
+| Shell | yes | **no** |
+| OS package manager | yes | no |
+| Size | larger | roughly two thirds of the default |
+| `kubectl exec -- sh` | works | impossible |
+| `--validate` inside the container | works | needs a shell it does not have |
+| An `exec` probe | works | impossible |
+
+Both contain the `hoop` binary and nothing else — no database clients, no shell
+tooling. The relay speaks the wire protocols itself and never execs a client,
+so it needs none of that.
+
+Pick the default when you want to debug in place, `-distroless` when you want
+zero OS-package CVEs. The Ubuntu flavour carries no suffix and `latest` points
+at it, so the tag someone reaches for without thinking is the one they can get
+a shell in.
+
+---
+
+## What is set
+
+Neither image needs a command or an argument to start the relay.
+
+| | |
+|---|---|
+| Command | `hoop start sidecar` |
+| User | uid `10001`, non-root |
+| `HOOP_SIDECAR_CONFIG` | `/etc/hoop-inspect/config.yaml` |
+| Binary | `/app/hoop`, with `/app` on `PATH` |
+
+The config path is a default, not a requirement. Mount your config there and
+the container needs no arguments and no extra environment:
+
+```bash
+docker run --rm \
+  -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+  -p 15432:15432 -p 19000:19000 \
+  hoophq/hoopsidecar:<version>
+```
+
+<Note>
+Set `HOOP_SIDECAR_CONFIG` to an **empty** string to run against a Control Plane. A path naming a file that does not exist is an error, not a reason to fall through to the handshake. The [Helm chart](/setup/configuration/hoop-sidecar/deployment/kubernetes#control-plane) does this for you.
+</Note>
+
+### Environment
+
+The relay reads four variables, and the Helm chart sets all four:
+
+| Variable | Holds |
+|---|---|
+| `HOOP_SIDECAR_CONFIG` | Path to the config document |
+| `HOOP_LICENSE` | The license document, or a path to one |
+| `HOOP_CONTROL_PLANE_URL` | The Control Plane to take configuration from |
+| `HOOP_SIDECAR_TOKEN` | The token from the Sidecar's registration |
+
+Anything else a config references — an analyzer provider's API key, for
+instance — is an ordinary environment variable you add yourself.
+
+---
+
+## No model on disk
+
+Neither flavour carries an ML model, and neither needs one. 51 of the 54 entity
+types are pattern-and-checksum detections that run with no weights and no
+configuration at all: omit the `pii` section entirely and every one of them is
+live — the section **narrows** that set rather than creating it.
+
+The three statistical types (`PERSON`, `LOCATION`, `NRP`) are the exception.
+They are refused by name when a config asks for them, and mounting weights
+changes nothing, because the detector these images build does not include the
+model that reads them.
+
+---
+
+## Building your own
+
+The Dockerfile is `Dockerfile.sidecar` in [hoophq/hoop](https://github.com/hoophq/hoop). It builds from the published release tarball rather than from source, so it needs no Go toolchain and no credentials:
+
+```bash
+# from a checkout, with release tarballs in dist/binaries/
+docker build -f Dockerfile.sidecar --target default    -t my-registry/hoopsidecar:dev .
+docker build -f Dockerfile.sidecar --target distroless -t my-registry/hoopsidecar:dev-distroless .
+```
+
+A build with no `--target` produces `default`, the same flavour the unsuffixed
+tag and `latest` point at.
+
+Both stages are a stock rootfs plus the `hoop` binary, and nothing published
+under `hoophq/hoopsidecar` carries a bundled database clients, no third-party tooling.
+A stage that installed any would put those layers into the repository permanently.
+Preserve that if you add one.
