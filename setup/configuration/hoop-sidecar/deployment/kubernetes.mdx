@@ -1,0 +1,780 @@
+---
+title: 'Kubernetes'
+---
+
+This page provides instructions on how to configure the Helm chart to install the Sidecar in any cloud provider.
+
+The chart deploys one Sidecar: a Deployment, the ConfigMap holding its configuration, a Secret holding its environment, a Service for the admin port, and a Service per lane you choose to publish. It depends on no other chart and needs no gateway, no agent and no control-plane database.
+
+Every resource is named after the Helm release, so installing the chart several times in one namespace — one release per upstream you front — is the normal shape. See [Running Several Sidecars](#running-several-sidecars).
+
+## Quick Start
+
+A Sidecar in front of a Postgres, in four steps. At the end a normal `psql`
+reaches the database through the relay and the email column comes back
+redacted, with no change to the client, the query or the database.
+
+<Steps>
+  <Step title="Deploy a Postgres to front">
+    Skip this if you already have a database to point at. This one is a
+    throwaway with a password in plain sight, seeded with two rows.
+
+    <Accordion title="postgres.yaml">
+      ```yaml
+      apiVersion: v1
+      kind: ConfigMap
+      metadata: {name: pg-seed}
+      data:
+        seed.sql: |
+          CREATE TABLE customers (
+            id serial PRIMARY KEY, name text NOT NULL, email text NOT NULL
+          );
+          INSERT INTO customers (name, email) VALUES
+            ('Alice Johnson', 'alice@example.com'),
+            ('Brian Miller',  'brian@example.com');
+      ---
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata: {name: postgres}
+      spec:
+        replicas: 1
+        selector: {matchLabels: {app: postgres}}
+        template:
+          metadata: {labels: {app: postgres}}
+          spec:
+            containers:
+              - name: postgres
+                image: postgres:17.6
+                env:
+                  - {name: POSTGRES_USER,     value: appuser}
+                  - {name: POSTGRES_PASSWORD, value: apppass}
+                  - {name: POSTGRES_DB,       value: appdb}
+                ports: [{containerPort: 5432}]
+                volumeMounts:
+                  - {name: seed, mountPath: /docker-entrypoint-initdb.d, readOnly: true}
+            volumes:
+              - {name: seed, configMap: {name: pg-seed}}
+      ---
+      apiVersion: v1
+      kind: Service
+      metadata: {name: postgres}
+      spec:
+        selector: {app: postgres}
+        ports: [{port: 5432, targetPort: 5432}]
+      ```
+    </Accordion>
+
+    ```sh
+    kubectl create namespace hoop
+    kubectl -n hoop apply -f postgres.yaml
+    ```
+  </Step>
+
+  <Step title="Write a values file">
+    `config` is the Sidecar's own configuration document: one listener naming
+    the upstream, and one rule masking email addresses in whatever comes back.
+    `laneServices` publishes the listener to the cluster — the chart publishes
+    only the admin port on its own.
+
+    <Accordion title="values.yaml">
+      ```yaml
+      config:
+        admin:
+          listen: '0.0.0.0:19000'
+        audit:
+          file: '-'
+        mask:
+          rules:
+            - name: emails
+              entities: [EMAIL_ADDRESS]
+              strategy: redact
+        listeners:
+          - name: appdb
+            protocol: postgres
+            listen: '0.0.0.0:15432'
+            upstream: postgres.hoop.svc.cluster.local:5432
+
+      laneServices:
+        appdb:
+          enabled: true
+          ports:
+            - port: 5432
+              targetPort: 15432
+      ```
+    </Accordion>
+
+    Clients keep dialling 5432; only the Service name changes. Nothing else is
+    required — no license, no gateway, no agent, no control plane.
+  </Step>
+
+  <Step title="Install the chart">
+    ```sh
+    VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+    helm upgrade appdb-lane --install \
+      oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+      --namespace hoop \
+      -f values.yaml
+    ```
+
+    ```sh
+    kubectl -n hoop rollout status deploy/appdb-lane-hoopsidecar
+    kubectl -n hoop logs deploy/appdb-lane-hoopsidecar
+    ```
+
+    One `lane ready` line per listener, naming the upstream it resolved:
+
+    ```json
+    {"level":"INFO","msg":"lane ready","listener":"appdb","protocol":"postgres",
+     "upstream":"postgres.hoop.svc.cluster.local:5432","masking":true}
+    ```
+
+    A pod reporting `1/1 Running` has already answered `/healthz` on the admin
+    port, so readiness means the relay is serving.
+  </Step>
+
+  <Step title="Query through it">
+    ```sh
+    kubectl -n hoop run psql --rm -it --restart=Never --image=postgres:17.6 \
+      --env PGPASSWORD=apppass -- \
+      psql -h appdb-lane-hoopsidecar-appdb -U appuser -d appdb \
+      -c 'SELECT name, email FROM customers;'
+    ```
+
+    ```
+         name      |          email
+    ---------------+--------------------------
+     Alice Johnson | [REDACTED:EMAIL_ADDRESS]
+     Brian Miller  | [REDACTED:EMAIL_ADDRESS]
+    (2 rows)
+    ```
+
+    Point the same command at `-h postgres` and the addresses come back in the
+    clear: the rows are unchanged in the database, and the relay rewrites them
+    on the way out.
+
+    Every statement and every mask is on the audit trail, which `audit.file: '-'`
+    sent to the container log:
+
+    ```sh
+    kubectl -n hoop logs deploy/appdb-lane-hoopsidecar | grep '"kind":"masked"'
+    ```
+
+    ```json
+    {"kind":"masked","session_id":"f1548e09...","principal":"appuser",
+     "protocol":"postgres","connection":"appdb","direction":"server",
+     "masked_entities":["EMAIL_ADDRESS"],"masked_count":2}
+    ```
+  </Step>
+</Steps>
+
+<Note>
+A Sidecar can take its whole configuration from the [Control Plane](/core-concepts/control-plane) handshake instead of a file, in which case no `config` attribute is set at all. See [Control Plane](#control-plane).
+</Note>
+
+Delete everything this created with `kubectl delete namespace hoop`.
+
+## Helm Install
+
+To install the latest version in a new namespace (example: `hoop`). Issue the command below:
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm upgrade --install appdb-lane \
+  oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+  -f values.yaml \
+  --namespace hoop
+```
+
+The release name prefixes every resource the chart owns:
+
+| Resource | Name |
+|---|---|
+| Deployment, Service, ServiceAccount | `appdb-lane-hoopsidecar` |
+| ConfigMap holding the configuration | `appdb-lane-hoopsidecar-config` |
+| Secret holding the environment | `appdb-lane-hoopsidecar-env` |
+| Secret holding `extraSecret` | `appdb-lane-hoopsidecar-extra-env` |
+
+A release named `hoopsidecar` collapses to the bare name rather than repeating it.
+
+### Overriding values
+
+It is possible to add new attributes or overwrite an attribute from a base `values.yaml` file. In the example below a specific image tag is pinned and the admin Service is turned off.
+
+```bash
+helm upgrade --install appdb-lane \
+  oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+  -f values.yaml \
+  --set image.tag=1.150.0-distroless \
+  --set service.enabled=false
+```
+
+## Sidecar Configuration
+
+The `config` attribute is the Sidecar's own configuration document: protocols, guardrails, masking, audit, PII entities and AI analysis are all decided here, not by chart attributes. The chart renders it into a ConfigMap, mounts it at `/etc/hoop-inspect/config.yaml` and passes that path in `HOOP_SIDECAR_CONFIG`.
+
+```yaml
+config:
+  log_level: info
+
+  # Required, and on 19000. See Admin Port and Probes below.
+  admin:
+    listen: '0.0.0.0:19000'
+
+  audit:
+    file: '-'              # JSON lines on stdout, for your log pipeline
+    query_sessions: 500    # how many sessions /api/sessions can serve
+
+  listeners:
+    - name: appdb
+      protocol: postgres   # postgres | mysql | mssql | mongodb | grpc | spanner | http
+      listen: '0.0.0.0:15432'
+      upstream: postgres.default.svc.cluster.local:5432
+```
+
+The Deployment carries a checksum of the rendered ConfigMap, so a change to `config` rolls the pods on `helm upgrade`. A policy change is an upgrade, never a rebuild. That checksum only covers what this chart renders — see [Using an existing ConfigMap](#using-an-existing-configmap) for the case it cannot see.
+
+<Note>
+Without a license the Sidecar caps guardrail and masking at **one rule each** and says so on its first line of output. See [License](#license).
+</Note>
+
+### Using an existing ConfigMap
+
+To manage the document outside the chart — a GitOps repository, a sealed secret, an operator — point `existingConfigMap` at it. The key must be `config.yaml`.
+
+```yaml
+existingConfigMap: my-sidecar-config
+```
+
+The name is used verbatim, never rewritten with the release prefix. `config` and `existingConfigMap` are mutually exclusive; setting both is refused.
+
+<Warning>
+**Set `configRevision` too, or your edits never reach the pods.**
+
+The ConfigMap lives outside the release, so the chart cannot see its contents and its checksum never changes — `helm upgrade` produces a byte-identical pod template and rolls nothing. Nothing else covers the gap: the Sidecar reads its configuration file once at startup and watches nothing, because the hot-reload path is Control Plane only. The kubelet updates the mounted file and the process never looks at it again.
+
+Put anything that changes with the content in `configRevision`, and change it in the same commit that changes the ConfigMap:
+
+```yaml
+existingConfigMap: my-sidecar-config
+configRevision: "sha256-9f2b1c"
+```
+
+Or generate it at install time:
+
+```bash
+helm upgrade ... \
+  --set configRevision=$(kubectl get cm my-sidecar-config -o yaml | sha256sum | cut -c1-16)
+```
+
+With `config` you do not need it — the rendered checksum already does the job — but it still applies, so it doubles as a way to force a rollout on demand. A GitOps tool that annotates the pods for you (Reloader, Argo CD) makes it unnecessary. Without any of these, `kubectl rollout restart deploy/<release>-hoopsidecar` is the manual equivalent.
+</Warning>
+
+### Validating the configuration
+
+Nothing needs to be running. The validator builds every lane and reports every problem in one run:
+
+```bash
+hoop start sidecar --config config.yaml --validate
+```
+
+This takes the configuration document itself — everything nested under `config:`, with that key stripped — not the values file.
+
+## Running as Sidecar
+
+Everything above deploys the relay as a workload of its own, reached over the
+network. It can instead run as a container **inside the pod it protects**,
+reached over loopback. No chart is involved: you add a container to a
+Deployment you already own, using the
+[raw image](/setup/configuration/hoop-sidecar/deployment/container-images).
+
+`hoophq/hoopsidecar` runs `hoop start sidecar` as its command and already
+points `HOOP_SIDECAR_CONFIG` at `/etc/hoop-inspect/config.yaml`, so mounting
+the ConfigMap there is the whole wiring. No `command`, no `env`.
+
+<Accordion title="deployment.yaml">
+  ```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata: {name: appdb-inspect}
+  data:
+    config.yaml: |
+      admin:
+        listen: '0.0.0.0:19000'     # see Probes below
+      audit:
+        file: '-'
+      mask:
+        rules:
+          - name: emails
+            entities: [EMAIL_ADDRESS]
+            strategy: redact
+      listeners:
+        - name: appdb
+          protocol: postgres
+          listen: '127.0.0.1:15432' # pod-local: nothing outside can reach it
+          upstream: postgres.hoop.svc.cluster.local:5432
+  ---
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {name: myapp}
+  spec:
+    replicas: 1
+    selector: {matchLabels: {app: myapp}}
+    template:
+      metadata: {labels: {app: myapp}}
+      spec:
+        initContainers:
+          - name: hoop-sidecar
+            image: hoophq/hoopsidecar:<version>
+            restartPolicy: Always   # makes this a sidecar, not an init step
+            readinessProbe:
+              httpGet: {path: /healthz, port: 19000}
+            volumeMounts:
+              - {name: inspect-config, mountPath: /etc/hoop-inspect, readOnly: true}
+        containers:
+          - name: app
+            image: myapp:1.0
+            env:
+              - {name: DATABASE_URL, value: 'postgres://appuser@127.0.0.1:15432/appdb'}
+        volumes:
+          - {name: inspect-config, configMap: {name: appdb-inspect}}
+  ```
+</Accordion>
+
+The application changes one thing: the host and port it dials. Everything else
+— driver, credentials, queries — is untouched. Containers in a pod share a
+network namespace, so the relay and the application cannot both bind the same
+port; the second one to start exits with `address already in use`.
+
+### Why `initContainers`
+
+A container listed under `initContainers` with `restartPolicy: Always` is a
+**native sidecar**: the kubelet starts it before any application container and
+stops it after the last one exits. Put the relay under `containers:` instead
+and both ends of the pod's life are a race — the application can open a
+connection before the lane is listening, and can lose one while it is still
+finishing work at shutdown.
+
+<Note>
+Native sidecars are on by default from Kubernetes 1.29 and stable in 1.33. On anything older, list the relay under `containers:` and give the application a retry on connect.
+</Note>
+
+### Probes
+
+The kubelet does not join the pod's network namespace: an `httpGet` or
+`tcpSocket` probe is dialled from the node against the **pod IP**. A probe
+against an admin server bound to `127.0.0.1` fails:
+
+```
+Readiness probe failed: Get "http://10.42.0.22:19000/healthz":
+dial tcp 10.42.0.22:19000: connect: connection refused
+```
+
+So pick a pair. The lane itself stays on `127.0.0.1` either way — only the
+admin server moves.
+
+| `admin.listen` | Probe |
+|---|---|
+| `0.0.0.0:19000` | `httpGet` on `/healthz` — simple, and what the chart does |
+| `127.0.0.1:19000` | An `exec` probe, or none |
+
+An `exec` probe runs inside the container, so it does reach loopback. The
+default image has a shell and no HTTP client, which is enough; the
+`-distroless` flavour has no shell and cannot run one at all.
+
+```yaml
+readinessProbe:
+  exec:
+    command: ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/19000"]
+```
+
+<Warning>
+The admin server has no authentication. On `0.0.0.0` it is reachable by anything in the cluster that can route to the pod, and it serves `/config`, `/stats`, `/events` and — when `audit.query_sessions` is set — `/api/sessions`, a read interface to every statement every user ran. Keep it away from the cluster with a NetworkPolicy, or bind it to loopback and probe with `exec`.
+</Warning>
+
+## Chart Configuration
+
+Everything below is a chart attribute rather than part of the Sidecar's own
+configuration document: how the pod is built, what it is published as, and where
+it is scheduled.
+
+### Image Configuration
+
+By default the chart pulls `hoophq/hoopsidecar:latest`, which is the Ubuntu flavour. To pin a version or switch flavours, use the `image` attribute section.
+
+```yaml
+image:
+  repository: hoophq/hoopsidecar
+  pullPolicy: Always
+  tag: 1.150.0
+```
+
+| Tag | Base |
+|---|---|
+| `<version>`, `latest` | Ubuntu 24.04 LTS, keeps a shell |
+| `<version>-distroless` | distroless static, no shell, no package manager |
+
+The chart sets **no command**: the image's own entrypoint runs the relay and reads the configuration from `HOOP_SIDECAR_CONFIG`.
+
+[Container Images](/setup/configuration/hoop-sidecar/deployment/container-images) covers what each flavour contains.
+
+### Admin Port and Probes
+
+The chart declares exactly one port: **19000**, the admin server. The same number is written into the Deployment, the Service and both probes, and it is not configurable.
+
+`config.admin.listen` therefore has to be `0.0.0.0:19000`. A configuration that omits it or moves it is refused while the chart renders, because the Sidecar disables the admin server when the address is empty and the probes would otherwise poll a closed port and fail every pod:
+
+```
+config.admin.listen is "0.0.0.0:9901" but this chart probes /healthz on 19000. Use '0.0.0.0:19000'
+```
+
+Probe timing is adjustable; the port is not.
+
+```yaml
+probe:
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+<Warning>
+Under `controlPlane.url` or `existingConfigMap` the chart cannot see the configuration, so that check does not run and putting the admin server on 19000 is yours to get right. Set `probe.port: 19000` explicitly in those modes — the chart has no document to read it from.
+</Warning>
+
+Everything the admin server serves is reachable on that port:
+
+| Endpoint | Shows |
+|---|---|
+| `/healthz` | `ok` |
+| `/config` | The **resolved** configuration, every inherited default folded in |
+| `/stats` | Per-lane connection and denial counts |
+| `/api/sessions` | Sessions, with verdict and masked counts |
+| `/api/events?kind=violation` | What was refused, and by which rule |
+
+```bash
+kubectl -n hoop port-forward svc/appdb-lane-hoopsidecar 19000:19000
+```
+
+### Service
+
+The chart's Service publishes the admin port and nothing else.
+
+```yaml
+service:
+  enabled: true
+  type: ClusterIP
+  annotations: {}
+```
+
+#### Exposing lanes
+
+Lane ports are not declared on the pod — a `containerPort` is informational in Kubernetes, and a lane bound to a unix socket has no port at all. Publishing them is `laneServices`, a map of Services, one Kubernetes Service per entry:
+
+```yaml
+laneServices:
+  internal:
+    enabled: true
+    ports:
+      - {name: postgres, port: 15432}
+      - {name: http, port: 18080}
+
+  public:
+    enabled: true
+    type: LoadBalancer
+    ports:
+      - {name: postgres, port: 5432, targetPort: 15432}
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+      service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    loadBalancerSourceRanges:
+      - 203.0.113.0/24
+    externalTrafficPolicy: Local
+```
+
+A map rather than one multi-port Service, because Service type and every cloud load-balancer knob — internal versus internet-facing, LB class, source ranges, traffic policy — are per-Service and not per-port. One lane on an internal LB and another public is two objects, and no single Service can express it. A map also merges across values files and responds to `--set laneServices.public.type=LoadBalancer`, which a list indexed by position does not.
+
+Each entry is named `<release>-hoopsidecar-<key>` unless you set `name`, and carries the chart's selector labels so it reaches that release's pods and no other's.
+
+| Per entry | |
+|---|---|
+| `enabled` | Off until `true` |
+| `name` | Defaults to `<release>-hoopsidecar-<key>` |
+| `type` | `ClusterIP`, `NodePort`, `LoadBalancer` |
+| `annotations`, `labels` | Merged onto the Service |
+| `ports` | `name`, `port`, `targetPort`, `protocol`, `nodePort`, `appProtocol` |
+| Load balancer | `loadBalancerIP`, `loadBalancerClass`, `loadBalancerSourceRanges`, `allocateLoadBalancerNodePorts` |
+| Traffic | `externalTrafficPolicy`, `internalTrafficPolicy`, `sessionAffinity`, `publishNotReadyAddresses` |
+| Addressing | `clusterIP`, `externalIPs`, `ipFamilyPolicy`, `ipFamilies` |
+
+`name` is required on every port once an entry has more than one, and an entry that is enabled with no ports is refused — a Service with no port reaches nothing.
+
+Ports here are literal. The chart does not read them from `config.listeners`, so keep the two in step: a Service pointing at a port nothing binds is accepted by Kubernetes and reaches nothing.
+
+<Warning>
+**Before setting `type: LoadBalancer`.**
+
+The Sidecar terminates no client TLS unless the lane sets `downstream_tls`, and that is accepted on **postgres, grpc and spanner only**. On http, mysql, mssql and mongodb it is refused at startup, so those lanes are always plaintext — a public load balancer in front of one of them puts credentials and query results in the clear on the internet.
+
+Expose a lane publicly only when the lane terminates TLS itself, or when something in front of it does: Envoy, an ingress controller, a service mesh. `loadBalancerSourceRanges` narrows who can reach it; it does not encrypt anything.
+</Warning>
+
+The admin Service is separate and unaffected: always `ClusterIP`, always 19000. A hand-written Service still works for anything `laneServices` does not cover — the selector is `app.kubernetes.io/name: hoopsidecar` plus `app.kubernetes.io/instance: <release>`.
+
+These are the conventional port numbers, and what the examples in these docs bind:
+
+| Port | Lane |
+|---|---|
+| 19000 | admin |
+| 15432 | postgres |
+| 18080 | http |
+| 11433 | mssql |
+| 18443 | grpc |
+| 29010 | spanner |
+
+### Control Plane
+
+To take the running configuration from a Control Plane, set the URL and the token from the Sidecar's registration and leave `config` unset.
+
+```yaml
+controlPlane:
+  url: https://cp.example.com
+  token: hsc_...
+probe:
+  port: 19000
+```
+
+The two sources never merge. A plane-connected Sidecar serves what the plane sent, and listeners left in a local file are ignored out loud once the plane holds a configuration of its own. A plane holding none is seeded with your file's document on the first handshake, which is how an existing standalone deployment connects: add the URL and the token, change nothing else.
+
+<Warning>
+Passing the token with `--set` writes it into the Helm release and your shell history. Put it in a Secret referenced by the pod instead, and keep it out of `values.yaml` committed to a repository.
+</Warning>
+
+See [Connect a Sidecar](/control-plane/connect-sidecar) for issuing the token and what the handshake carries.
+
+### License
+
+Without a license, guardrails and masking are capped at one rule each. The value is a path or the document itself — a value starting with `{` is read as the license — so a mounted Secret and a Helm value are the same field.
+
+<CodeGroup>
+```yaml Mounted file
+license: /etc/hoop-inspect/license.json
+
+extraVolumes:
+  - name: license
+    secret:
+      secretName: hoop-license
+      defaultMode: 0400
+extraVolumeMounts:
+  - name: license
+    mountPath: /etc/hoop-inspect
+    readOnly: true
+```
+
+```yaml Inline
+license: '{"...the document Hoop issued..."}'
+```
+</CodeGroup>
+
+What the process concluded is the first line of its startup output:
+
+```
+license: valid. enterprise "Acme Corp", expires 2027-01-30, features: all (from HOOP_LICENSE)
+license: missing, running the free tier. Add one with the license flag, ...
+```
+
+### Extra Environment Variables
+
+The chart sets the four variables the Sidecar reads: `HOOP_SIDECAR_CONFIG`, `HOOP_LICENSE`, `HOOP_CONTROL_PLANE_URL` and `HOOP_SIDECAR_TOKEN`. Anything else a configuration references — an analyzer provider's API key, for instance — goes in `extraSecret`, which becomes a second Secret attached with `envFrom`.
+
+```yaml
+extraSecret:
+  ANTHROPIC_API_KEY: sk-...
+```
+
+### Extra Volumes
+
+For what the configuration document references by path: an upstream CA, a downstream certificate, an analyzer credential, a license file.
+
+```yaml
+config:
+  listeners:
+    - name: appdb
+      protocol: postgres
+      listen: '0.0.0.0:15432'
+      upstream: postgres.default.svc.cluster.local:5432
+      upstream_tls:
+        ca_file: /etc/hoop-inspect/certs/appdb.crt
+        server_name: postgres
+
+extraVolumes:
+  - name: appdb-ca
+    secret:
+      secretName: appdb-ca
+extraVolumeMounts:
+  - name: appdb-ca
+    mountPath: /etc/hoop-inspect/certs
+    readOnly: true
+```
+
+The hop to the database is encrypted and still inspected: the Sidecar is the TLS **client** there, so it decrypts what it reads.
+
+<Warning>
+Mount any Secret holding a **credential** with `defaultMode: 0400`. Kubernetes writes secret files `0644` by default and the Sidecar refuses to read a credential at that mode, naming it:
+
+```
+credential file is readable by group or other:
+/run/secrets/vertex/key.json is 0644, want 0600 or stricter
+```
+
+A CA certificate is public and needs no such mode. An analyzer credential does.
+</Warning>
+
+### Service Account
+
+With `create: true` the chart makes one named after the release. With `create: false`, `name` points at an account that already exists — the shape GKE Workload Identity wants, so an [AI risk analyzer](/setup/configuration/hoop-sidecar/risk-analysis) reaches Vertex with no credential on disk.
+
+```yaml
+serviceAccount:
+  create: false
+  name: hoop-sidecar
+  annotations: {}
+```
+
+Leaving both unset means the pod uses the namespace default.
+
+### Replicas and Deployment Strategy
+
+```yaml
+replicas: 2
+
+deploymentStrategy:
+  type: RollingUpdate
+```
+
+Raising `replicas` is safe. Each replica is an independent proxy holding no shared state, and the Service spreads connections across them. Sessions are per-connection, so a replica going away drops the connections it was carrying and not the others.
+
+<Note>
+The strategy defaults to `RollingUpdate` rather than `Recreate`. This process sits in the data path between a client and its database, and `Recreate` would close every connection on every configuration change with nothing listening in between.
+</Note>
+
+### Computing Resources
+
+The chart sets no requests or limits by default. The Sidecar's cost scales with concurrent connections and with what each lane does — detection and masking read the response body, an AI analyzer adds a network call per statement shape.
+
+```yaml
+resources:
+  limits:
+    cpu: 1024m
+    memory: 1Gi
+  requests:
+    cpu: 1024m
+    memory: 1Gi
+```
+
+### Node Selector
+
+This configuration describes a pod that has a node selector, `disktype: ssd`. This means that the pod will get scheduled on a node that has a `disktype=ssd` label.
+
+See [this documentation](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/) for more information.
+
+```yaml
+# -- Node labels for pod assignment
+nodeSelector:
+  disktype: ssd
+```
+
+### Tolerations
+
+See this article explaining how to configure [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+
+```yaml
+# -- Toleration labels for pod assignment
+tolerations:
+- effect: NoExecute
+  key: spot
+  value: "true"
+- effect: NoSchedule
+  key: spot
+  value: "true"
+```
+
+### Node Affinity
+
+See [this article](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) explaining how to configure affinity and anti-affinity rules
+
+```yaml
+# -- Affinity settings for pod assignment
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+          - antarctica-east1
+```
+
+### Annotations
+
+```yaml
+# -- Applied to the pod template
+podAnnotations:
+  prometheus.io/scrape: 'true'
+
+# -- Applied to the Deployment object
+deploymentAnnotations:
+  argocd.argoproj.io/sync-wave: '1'
+```
+
+## Running Several Sidecars
+
+Two upstreams, two releases, one namespace:
+
+```bash
+helm upgrade pg-lane --install \
+  oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+  -n hoop -f pg-values.yaml
+
+helm upgrade mssql-lane --install \
+  oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+  -n hoop -f mssql-values.yaml
+```
+
+Every resource carries the release name, and the Deployment and Service selectors carry `app.kubernetes.io/instance`, so neither release adopts the other's pods.
+
+The alternative is one release with several entries under `config.listeners`. Pick by blast radius: separate releases give each upstream its own rollout, its own resource limits and its own audit stream; one release is fewer things to operate and one place to read.
+
+### Naming
+
+`nameOverride` changes the base the resource names are built from; `fullnameOverride` replaces the whole name and drops the release prefix.
+
+```yaml
+nameOverride: ''
+fullnameOverride: ''
+```
+
+<Warning>
+Both feed the Deployment's selector, which is **immutable** in Kubernetes. Changing either on a live release makes `helm upgrade` fail. Settle them at install time.
+</Warning>
+
+## What the Chart Refuses
+
+There is no startable default. Rather than ship a Deployment that crash-loops, the chart fails while rendering:
+
+| Values | Why it is refused |
+|---|---|
+| No `config`, `existingConfigMap` or `controlPlane.url` | A configuration naming no listeners does not start |
+| Both `config` and `existingConfigMap` | The chart would render a ConfigMap it then does not mount |
+| `controlPlane.url` with no token | The handshake is refused without it |
+| `controlPlane.token` with no URL | A token that does nothing surprises you the day you rely on it |
+| `config.admin.listen` missing or not on 19000 | The probes would poll a closed port |
+
+## Generating Manifests
+
+If you prefer using manifests over Helm, we recommend this approach. It allows you to track any modifications to the chart whenever a new version appears. You can apply a diff to your versioned files to identify what has been altered.
+
+```bash
+VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+helm template appdb-lane \
+  oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+  -f values.yaml
+```
