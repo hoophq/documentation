@@ -136,15 +136,18 @@
       {
         "anchor": "Hoop Gateway",
         "icon": "server",
+        "hidden": true,
         "groups": [
           {
             "group": "Overview",
+            "searchable": true,
             "pages": [
               "gateway/overview"
             ]
           },
           {
             "group": "Features",
+            "searchable": true,
             "pages": [
               "learn/features/live-data-masking",
               "learn/features/ai-session-analyzer",
@@ -167,6 +170,7 @@
           },
           {
             "group": "Clients",
+            "searchable": true,
             "pages": [
               {
                 "group": "Web App",
@@ -187,6 +191,7 @@
           },
           {
             "group": "Quickstart",
+            "searchable": true,
             "pages": [
               "quickstart/overview",
               {
@@ -268,6 +273,7 @@
           },
           {
             "group": "Setup & Administration",
+            "searchable": true,
             "pages": [
               "setup/architecture",
               {
@@ -342,6 +348,7 @@
           },
           {
             "group": "Concepts",
+            "searchable": true,
             "pages": [
               "concepts/agents",
               "concepts/resource-roles"
@@ -349,6 +356,7 @@
           },
           {
             "group": "Integrations",
+            "searchable": true,
             "pages": [
               "integrations/slack",
               "integrations/teams",
@@ -404,6 +412,17 @@
       "x": "https://x.com/hoopdotdev",
       "github": "https://github.com/hoophq",
       "linkedin": "https://www.linkedin.com/company/hoopdev"
-    }
+    },
+    "links": [
+      {
+        "header": "Legacy",
+        "items": [
+          {
+            "label": "Hoop Gateway",
+            "href": "https://hoop.dev/docs/gateway/overview"
+          }
+        ]
+      }
+    ]
   }
 }
