@@ -63,9 +63,12 @@ The fastest way to get a Control Plane running. Good for evaluation, and good en
 
 ## The compose file
 
-Two services: Postgres, and the Hoop image started in control plane mode. The
-subcommand is what picks the mode — the same image runs the gateway when it is
-started with `hoop start gateway`.
+Postgres and the Hoop image started in control plane mode, plus a Sidecar and a
+database for it to sit in front of. The subcommand picks the mode — the same
+image runs the gateway when it is started with `hoop start gateway`.
+
+Save it as `docker-compose.yml`. It needs Compose 2.23.1 or greater for the
+inline `configs` block.
 
 ```yaml docker-compose.yml
 name: hoop-control-plane
@@ -73,6 +76,8 @@ name: hoop-control-plane
 services:
   db:
     image: postgres:17.6
+    attach: false
+    networks: [hoopcp]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -87,6 +92,7 @@ services:
 
   control-plane:
     image: hoophq/hoop
+    tty: true
     command: ["hoop", "start", "control-plane"]
     environment:
       - GIN_MODE=release
@@ -94,28 +100,90 @@ services:
     env_file: ".env"
     ports:
       - "8009:8009"
+    networks: [hoopcp]
     depends_on:
       db:
         condition: "service_healthy"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8009/api/healthz || exit 1"]
+      test: ["CMD-SHELL", "curl -k -f http://127.0.0.1:8009/api/healthz || exit 1"]
       interval: "2s"
       timeout: "30s"
       retries: 10
       start_period: "20s"
+
+  # The resource the Sidecar sits in front of. Empty on purpose: connect
+  # through the lane on 15432 and create whatever you want to test against.
+  appdb:
+    profiles: ["sidecar"]
+    image: postgres:17.6
+    attach: false
+    networks: [hoopcp]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+      PGUSER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-U", "postgres"]
+      interval: "2s"
+      timeout: "30s"
+      retries: 10
+      start_period: "20s"
+
+  sidecar:
+    profiles: ["sidecar"]
+    image: hoophq/hoopsidecar
+    networks: [hoopcp]
+    environment:
+      - HOOP_CONTROL_PLANE_URL=http://control-plane:8009
+      - HOOP_SIDECAR_TOKEN=${HOOP_SIDECAR_TOKEN:-}
+    configs:
+      - source: sidecar-config
+        target: /etc/hoop-inspect/config.yaml
+    ports:
+      - "15432:15432"  # the postgres lane
+      - "19000:19000"  # /healthz /stats /config
+    depends_on:
+      control-plane:
+        condition: "service_healthy"
+      appdb:
+        condition: "service_healthy"
+
+configs:
+  sidecar-config:
+    content: |
+      log_level: info
+
+      admin:
+        listen: 0.0.0.0:19000
+
+      audit:
+        file: "-"
+
+      listeners:
+        - name: appdb
+          protocol: postgres
+          listen: 0.0.0.0:15432
+          upstream: appdb:5432
+
+          guardrails:
+            mode: enforce
+            rules:
+              - name: no-destructive-sql
+                type: operation
+                operations: [drop, delete, truncate]
+                message: destructive statements are not permitted through this lane
+
+networks:
+  hoopcp:
 ```
 
-One port, `8009`. The Control Plane opens no gRPC transport and starts no
-protocol proxies, so there is nothing else to publish.
+The Control Plane publishes one port, `8009`. It opens no gRPC transport and
+starts no protocol proxies, so there is nothing else to expose.
 
-<Note>
-  Confirm you got the mode you asked for:
-
-  ```sh
-  curl -s localhost:8009/api/publicserverinfo | jq .application_mode
-  # control-plane
-  ```
-</Note>
+The Sidecar is behind a profile because its token does not exist until the
+Control Plane issues one, and a Sidecar without a token exits rather than
+retrying. Profiles are additive, so the two services above come up on their own.
 
 ---
 
@@ -127,7 +195,56 @@ touch .env && docker compose up
 
 Open `http://localhost:8009` in your browser.
 
+<Note>
+  Confirm you got the mode you asked for:
+
+  ```sh
+  curl -s localhost:8009/api/publicserverinfo | jq .application_mode
+  # "control-plane"
+  ```
+</Note>
+
 To run it on a host your Sidecars can reach, follow the section below instead.
+
+---
+
+## Add a Sidecar
+
+<Steps>
+  <Step title="Create the first account">
+    At `http://localhost:8009`. Authentication is local by default, so there is nothing to wire up first.
+  </Step>
+  <Step title="Register a Sidecar">
+    Create one named `appdb-sidecar` and copy the `hsc_` token. It is shown once.
+  </Step>
+  <Step title="Put the token in .env">
+    ```sh .env
+    HOOP_SIDECAR_TOKEN=hsc_...
+    ```
+  </Step>
+  <Step title="Bring it up">
+    ```sh
+    docker compose --profile sidecar up -d
+    ```
+
+    The Control Plane holds no configuration for this Sidecar yet, so the first handshake answers `412` and the Sidecar imports the document above. The log says `configuration imported into the control plane`, and the Sidecar appears in the fleet with a recent check-in.
+  </Step>
+  <Step title="Try it">
+    ```sh
+    docker run --rm --network hoop-control-plane_hoopcp -e PGPASSWORD=postgres \
+      postgres:17.6 psql -h sidecar -p 15432 -U postgres -d appdb \
+      -c "create table t(id int);" -c "drop table t;"
+    ```
+
+    `CREATE TABLE` goes through. The `DROP` comes back as
+    `FATAL: destructive statements are not permitted through this lane` — the
+    guardrail in the configuration above.
+
+    From here, edit the configuration in the Control Plane. The local file has
+    done its job; on the next start its listeners are ignored with a warning
+    rather than merged. See [Connect a Sidecar](/control-plane/connect-sidecar).
+  </Step>
+</Steps>
 
 ---
 
