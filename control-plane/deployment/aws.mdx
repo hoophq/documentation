@@ -3,6 +3,14 @@ title: "AWS"
 description: "Deploy the Control Plane into your own AWS account with CloudFormation."
 ---
 
+<Warning>
+  This stack deploys the **gateway**, not the Control Plane. The template runs
+  `hoop start gateway` and takes no parameter to change it, so an install from
+  this page reports `application_mode: gateway` and serves the gateway web app.
+
+  For a Control Plane today, use [Docker Compose](/control-plane/deployment/docker-compose).
+</Warning>
+
 A CloudFormation stack that provisions the network, the database and the service in one go.
 
 ## Requirements

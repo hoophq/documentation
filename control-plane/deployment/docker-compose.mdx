@@ -61,13 +61,68 @@ The fastest way to get a Control Plane running. Good for evaluation, and good en
 
 ---
 
+## The compose file
+
+Two services: Postgres, and the Hoop image started in control plane mode. The
+subcommand is what picks the mode — the same image runs the gateway when it is
+started with `hoop start gateway`.
+
+```yaml docker-compose.yml
+name: hoop-control-plane
+
+services:
+  db:
+    image: postgres:17.6
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hoopdb
+      PGUSER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-U", "postgres"]
+      interval: "2s"
+      timeout: "30s"
+      retries: 10
+      start_period: "20s"
+
+  control-plane:
+    image: hoophq/hoop
+    command: ["hoop", "start", "control-plane"]
+    environment:
+      - GIN_MODE=release
+      - POSTGRES_DB_URI=postgres://postgres:postgres@db:5432/hoopdb?sslmode=disable
+    env_file: ".env"
+    ports:
+      - "8009:8009"
+    depends_on:
+      db:
+        condition: "service_healthy"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8009/api/healthz || exit 1"]
+      interval: "2s"
+      timeout: "30s"
+      retries: 10
+      start_period: "20s"
+```
+
+One port, `8009`. The Control Plane opens no gRPC transport and starts no
+protocol proxies, so there is nothing else to publish.
+
+<Note>
+  Confirm you got the mode you asked for:
+
+  ```sh
+  curl -s localhost:8009/api/publicserverinfo | jq .application_mode
+  # control-plane
+  ```
+</Note>
+
+---
+
 ## Run it on your machine
 
-No configuration needed. This runs everything on localhost:
-
 ```sh
-touch .env && curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && \
-  docker compose up
+touch .env && docker compose up
 ```
 
 Open `http://localhost:8009` in your browser.
@@ -79,10 +134,8 @@ To run it on a host your Sidecars can reach, follow the section below instead.
 ## Run it on a remote machine
 
 <Steps>
-  <Step title="Download the compose file">
-    ```sh
-    curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml
-    ```
+  <Step title="Save the compose file">
+    Write the file above to `docker-compose.yml`.
   </Step>
 
   <Step title="Write the .env file">
