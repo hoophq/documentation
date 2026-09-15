@@ -33,6 +33,22 @@
       "conditions": {
         "host": "localhost:3000"
       }
+    },
+    {
+      "source": "/setup/configuration/hoop-sidecar/get-started",
+      "destination": "/install/cli"
+    },
+    {
+      "source": "/clients/cli",
+      "destination": "/install/cli"
+    },
+    {
+      "source": "/setup/configuration/hoop-sidecar/deployment/container-images",
+      "destination": "/install/container-images"
+    },
+    {
+      "source": "/setup/configuration/hoop-sidecar/deployment/kubernetes",
+      "destination": "/install/kubernetes"
     }
   ],
   "errors": {
@@ -54,10 +70,41 @@
             ]
           },
           {
-            "group": "Core Concepts",
+            "group": "Sidecar",
             "pages": [
               "core-concepts/sidecar",
-              "core-concepts/control-plane"
+              {
+                "group": "Install & Deploy",
+                "pages": [
+                  "install/cli",
+                  "install/container-images",
+                  "install/kubernetes"
+                ]
+              },
+              "control-plane/connect-sidecar",
+              {
+                "group": "Reference",
+                "pages": [
+                  "setup/configuration/hoop-sidecar/config-file",
+                  "setup/configuration/hoop-sidecar/policy-rules",
+                  "setup/configuration/hoop-sidecar/risk-analysis",
+                  "setup/configuration/hoop-sidecar/components",
+                  "setup/configuration/hoop-sidecar/kerberos",
+                  {
+                    "group": "Protocols",
+                    "pages": [
+                      "setup/configuration/hoop-sidecar/protocols/postgres",
+                      "setup/configuration/hoop-sidecar/protocols/mysql",
+                      "setup/configuration/hoop-sidecar/protocols/mssql",
+                      "setup/configuration/hoop-sidecar/protocols/mongodb",
+                      "setup/configuration/hoop-sidecar/protocols/grpc",
+                      "setup/configuration/hoop-sidecar/protocols/spanner",
+                      "setup/configuration/hoop-sidecar/protocols/bigquery",
+                      "setup/configuration/hoop-sidecar/protocols/http"
+                    ]
+                  }
+                ]
+              }
             ]
           },
           {
@@ -72,6 +119,7 @@
           {
             "group": "Control Plane Setup",
             "pages": [
+              "core-concepts/control-plane",
               "control-plane/install",
               {
                 "group": "Deployment",
@@ -80,39 +128,7 @@
                   "control-plane/deployment/kubernetes",
                   "control-plane/deployment/aws"
                 ]
-              },
-              "control-plane/connect-sidecar"
-            ]
-          },
-          {
-            "group": "Sidecar Reference",
-            "pages": [
-              "setup/configuration/hoop-sidecar/get-started",
-              {
-                "group": "Deployment",
-                "pages": [
-                  "setup/configuration/hoop-sidecar/deployment/kubernetes",
-                  "setup/configuration/hoop-sidecar/deployment/container-images"
-                ]
-              },
-              {
-                "group": "Protocols",
-                "pages": [
-                  "setup/configuration/hoop-sidecar/protocols/postgres",
-                  "setup/configuration/hoop-sidecar/protocols/mysql",
-                  "setup/configuration/hoop-sidecar/protocols/mssql",
-                  "setup/configuration/hoop-sidecar/protocols/mongodb",
-                  "setup/configuration/hoop-sidecar/protocols/grpc",
-                  "setup/configuration/hoop-sidecar/protocols/spanner",
-                  "setup/configuration/hoop-sidecar/protocols/bigquery",
-                  "setup/configuration/hoop-sidecar/protocols/http"
-                ]
-              },
-              "setup/configuration/hoop-sidecar/config-file",
-              "setup/configuration/hoop-sidecar/policy-rules",
-              "setup/configuration/hoop-sidecar/risk-analysis",
-              "setup/configuration/hoop-sidecar/components",
-              "setup/configuration/hoop-sidecar/kerberos"
+              }
             ]
           }
         ]
@@ -161,7 +177,7 @@
                   "clients/webapp/monitoring-sessions"
                 ]
               },
-              "clients/cli",
+              "install/cli",
               "clients/cli-versions",
               "clients/cli-resources",
               "clients/cli-federation",

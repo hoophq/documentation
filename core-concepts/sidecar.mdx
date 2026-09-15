@@ -7,6 +7,20 @@ import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
 
 The Sidecar is where runtime control happens. It is a proxy that runs next to the resource it protects, decodes the wire protocol between a client and that resource, and decides what reaches the resource and what comes back.
 
+It is a single binary with no external dependency — one config file is the whole setup. Pick the path that fits how you run things: a quick binary install for a laptop or a VM, an official container image, or a Helm chart if you're on Kubernetes.
+
+<CardGroup cols={3}>
+  <Card title="Command Line" icon="terminal" href="/install/cli">
+    Install the `hoop` binary on macOS, Linux, Windows or WSL, then run the Sidecar directly.
+  </Card>
+  <Card title="Container Images" icon="box" href="/install/container-images">
+    The official `hoophq/hoopsidecar` image, in a default and a distroless flavour.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/install/kubernetes">
+    A Helm chart, including running it as a native Kubernetes sidecar container.
+  </Card>
+</CardGroup>
+
 ---
 
 ## How a request flows
@@ -194,10 +208,10 @@ Running many Sidecars, shipping shared rule sets to all of them, and seeing them
   <Card title="Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
     The full trace of one connection, from accept through the gate to the upstream and back.
   </Card>
-  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-sidecar/get-started">
-    Transports, putting it behind Envoy, and a compose stack that runs the whole thing locally.
-  </Card>
   <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
     Every section, every field, inheritance between listeners, and what startup refuses.
+  </Card>
+  <Card title="Guardrail Rules Reference" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
 </CardGroup>

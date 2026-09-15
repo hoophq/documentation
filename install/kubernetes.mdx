@@ -285,7 +285,7 @@ Everything above deploys the relay as a workload of its own, reached over the
 network. It can instead run as a container **inside the pod it protects**,
 reached over loopback. No chart is involved: you add a container to a
 Deployment you already own, using the
-[raw image](/setup/configuration/hoop-sidecar/deployment/container-images).
+[raw image](/install/container-images).
 
 `hoophq/hoopsidecar` runs `hoop start sidecar` as its command and already
 points `HOOP_SIDECAR_CONFIG` at `/etc/hoop-inspect/config.yaml`, so mounting
@@ -391,6 +391,26 @@ readinessProbe:
 The admin server has no authentication. On `0.0.0.0` it is reachable by anything in the cluster that can route to the pod, and it serves `/config`, `/stats`, `/events` and — when `audit.query_sessions` is set — `/api/sessions`, a read interface to every statement every user ran. Keep it away from the cluster with a NetworkPolicy, or bind it to loopback and probe with `exec`.
 </Warning>
 
+## Sharing a Socket with Envoy
+
+The pattern above puts the Sidecar directly in front of the application. When Envoy sits in front instead — see [Command Line](/install/cli#running-the-sidecar) — and the lane uses a unix socket rather than a published port, Envoy and the Sidecar need a shared, writable directory. No chart is involved here either; this is the same [raw image](/install/container-images) run as a second container in a pod you already own.
+
+```yaml
+volumes:
+  - name: inspect-sockets
+    emptyDir: {}
+containers:
+  - name: hoop-inspect
+    securityContext: { runAsUser: 10001, runAsGroup: 101 }
+    volumeMounts: [{ name: inspect-sockets, mountPath: /run/hoop-inspect }]
+  - name: envoy
+    volumeMounts: [{ name: inspect-sockets, mountPath: /run/hoop-inspect }]
+```
+
+`fsGroup` on the pod's securityContext replaces the Docker Compose init-container chown step: the kubelet applies it to the `emptyDir` before any container starts. Set it to Envoy's gid and both sides can use the directory.
+
+Mount the config as a ConfigMap and set `HOOP_SIDECAR_CONFIG` instead of passing a flag. The Compose equivalent of this setup, including the exact permission traps to watch for, is in [Setting up the socket directory](/install/cli#setting-up-the-socket-directory).
+
 ## Chart Configuration
 
 Everything below is a chart attribute rather than part of the Sidecar's own
@@ -415,7 +435,7 @@ image:
 
 The chart sets **no command**: the image's own entrypoint runs the relay and reads the configuration from `HOOP_SIDECAR_CONFIG`.
 
-[Container Images](/setup/configuration/hoop-sidecar/deployment/container-images) covers what each flavour contains.
+[Container Images](/install/container-images) covers what each flavour contains.
 
 ### Admin Port and Probes
 

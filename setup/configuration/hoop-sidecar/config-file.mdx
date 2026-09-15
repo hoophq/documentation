@@ -8,7 +8,7 @@ One file is the whole configuration. The Sidecar reads it at startup, resolves e
 YAML and JSON both work, and the file extension picks the parser: `.yaml` and `.yml` go through the YAML front end, anything else is read as JSON. Decoding is **strict**, so a mistyped key fails startup instead of disabling a control without telling you.
 
 <Note>
-New to hoop-inspect? Start with [Get Started](/setup/configuration/hoop-sidecar/get-started), which builds a working config one step at a time.
+New to hoop-inspect? Start with [Command Line](/install/cli#running-the-sidecar), which builds a working config one step at a time.
 </Note>
 
 ---
@@ -775,7 +775,7 @@ On an MSSQL lane `upstream_tls` performs a plain TLS-on-connect handshake, which
 | Envoy → relay | nothing, by design. These are the bytes the gate parses |
 | relay → backend | the Sidecar, via `upstream_tls` above |
 
-Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/setup/configuration/hoop-sidecar/get-started#terminating-client-tls) for the Envoy config.
+Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/install/cli#terminating-client-tls) for the Envoy config.
 
 ---
 
@@ -925,7 +925,7 @@ Three of those changes alter behavior rather than spelling:
   <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every rule type in depth, deferring to Rego, and the findings a policy reads.
   </Card>
-  <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-sidecar/get-started">
+  <Card title="Command Line" icon="terminal" href="/install/cli#running-the-sidecar">
     Configure Envoy, run the Sidecar, and watch a denial land in psql.
   </Card>
   <Card title="Components and Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">

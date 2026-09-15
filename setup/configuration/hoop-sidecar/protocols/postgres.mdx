@@ -3,7 +3,7 @@ title: "PostgreSQL"
 description: "What the pgwire codec decodes, terminates and masks on a postgres lane"
 ---
 
-A `postgres` lane decodes the PostgreSQL v3 frontend/backend protocol: every statement a client sends, and every row the server returns. It is the lane the compose stack demonstrates and the one [Running the Sidecar](/setup/configuration/hoop-sidecar/get-started) builds step by step.
+A `postgres` lane decodes the PostgreSQL v3 frontend/backend protocol: every statement a client sends, and every row the server returns. It is the lane the compose stack demonstrates and the one [Running the Sidecar](/install/cli#running-the-sidecar) builds step by step.
 
 ```yaml config.yaml
 listeners:
@@ -34,7 +34,7 @@ Two message types carry SQL, and the codec reads both:
 
 The codec skips everything else by length, so a bulk `COPY` stream costs no memory. It reassembles a statement split across TCP segments before classifying it.
 
-The codec splits a multi-statement `Q` message with PostgreSQL's own lexical rules (dollar quoting, standard-conforming strings, nested comments) and evaluates each statement on its own. `Operation` is the statement's most consequential **effect**, so a `DELETE` hidden inside a CTE classifies as `delete`; see [the worked example](/setup/configuration/hoop-sidecar/get-started#step-5-watch-it-work).
+The codec splits a multi-statement `Q` message with PostgreSQL's own lexical rules (dollar quoting, standard-conforming strings, nested comments) and evaluates each statement on its own. `Operation` is the statement's most consequential **effect**, so a `DELETE` hidden inside a CTE classifies as `delete`; see [the worked example](/install/cli#step-4-watch-it-work).
 
 <Warning>
 `CALL` and `EXECUTE` report `unknown`, because their bodies live in the catalog and no parser can say what they touch. To catch them, write `operations: [call, unknown]`.
@@ -118,7 +118,7 @@ listeners:
               cluster: hoop_inspect_pg
 ```
 
-To terminate the client's TLS in Envoy instead of at the lane, use the contrib `postgres_proxy` filter with a `starttls` transport socket. [Terminating client TLS](/setup/configuration/hoop-sidecar/get-started#terminating-client-tls) has the full shape and its caveats.
+To terminate the client's TLS in Envoy instead of at the lane, use the contrib `postgres_proxy` filter with a `starttls` transport socket. [Terminating client TLS](/install/cli#terminating-client-tls) has the full shape and its caveats.
 
 Try it end to end with the compose stack in [`deploy/docker-compose/envoy-stack/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack): its `appdb` lane runs this protocol with `upstream_tls` on and masking live.
 
@@ -127,7 +127,7 @@ Try it end to end with the compose stack in [`deploy/docker-compose/envoy-stack/
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-sidecar/get-started">
+  <Card title="Running the Sidecar" icon="play" href="/install/cli#running-the-sidecar">
     Builds a Postgres lane from zero, behind Envoy, with the compose stack to prove it.
   </Card>
   <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
