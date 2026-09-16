@@ -219,7 +219,7 @@ ssh:
 A listener that refuses `shell` has **no unpoliced surface left**: every action is a statement a rule can read. Reach for this on a lane that needs to enforce rather than observe. Users get `ssh host <command>`, not a prompt.
 
 <Note>
-The analyzer works on an SSH lane and is the only answer to shell expansion: a pattern cannot see through it, and a model reading the command can. Configure it in the listener's `analyzer` block, triggered on `exec_line`. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) first — it leaves the process and costs money per statement.
+The analyzer works on an SSH lane and is the only answer to shell expansion: a pattern cannot see through it, and a model reading the command can. Configure it in the listener's `analyzer` block, triggered on `exec_line` — **the only operation an SSH lane classifies**, and a trigger naming another one is refused at startup rather than left never firing. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) first — it leaves the process and costs money per statement.
 </Note>
 
 ---
