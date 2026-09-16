@@ -37,7 +37,7 @@ The fastest way to get a Control Plane running. Good for evaluation, and good en
     </CardGroup>
   </Step>
   <Step title="Docker Compose">
-    Install or update Docker Compose to 2.11.x or greater.
+    Install or update Docker Compose to 2.24.0 or greater.
     <Info>Run `docker compose version` to check which version you have installed.</Info>
     <CardGroup cols={2}>
       <Card
@@ -61,18 +61,86 @@ The fastest way to get a Control Plane running. Good for evaluation, and good en
 
 ---
 
-## Run it on your machine
-
-No configuration needed. This runs everything on localhost:
+## The compose file
 
 ```sh
-touch .env && curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml && \
-  docker compose up
+curl -sL https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.control-plane.yml \
+  > docker-compose.yml
+```
+
+The file brings up Postgres and the Hoop image started in control plane mode,
+plus an optional Sidecar and a database for it to sit in front of. The
+subcommand picks the mode: the same image runs the gateway when it is started
+with `hoop start gateway`.
+
+The Control Plane publishes one port, `8009`. It opens no gRPC transport and
+starts no protocol proxies, so there is nothing else to expose.
+
+The Sidecar is behind a profile because its token does not exist until the
+Control Plane issues one, and a Sidecar without a token exits rather than
+retrying. Profiles are additive, so `docker compose up` brings up Postgres and
+the Control Plane and nothing else.
+
+---
+
+## Run it on your machine
+
+```sh
+docker compose up
 ```
 
 Open `http://localhost:8009` in your browser.
 
+<Note>
+  Confirm you got the mode you asked for:
+
+  ```sh
+  curl -s localhost:8009/api/publicserverinfo | jq .application_mode
+  # "control-plane"
+  ```
+</Note>
+
 To run it on a host your Sidecars can reach, follow the section below instead.
+
+---
+
+## Add a Sidecar
+
+<Steps>
+  <Step title="Create the first account">
+    At `http://localhost:8009`. Authentication is local by default, so there is nothing to wire up first.
+  </Step>
+  <Step title="Register a Sidecar">
+    Create one named `appdb-sidecar` and copy the `hsc_` token. It is shown once.
+  </Step>
+  <Step title="Put the token in .env">
+    ```sh .env
+    HOOP_SIDECAR_TOKEN=hsc_...
+    ```
+  </Step>
+  <Step title="Bring it up">
+    ```sh
+    docker compose --profile sidecar up -d
+    ```
+
+    The Control Plane holds no configuration for this Sidecar yet, so the first handshake answers `412` and the Sidecar imports the document the compose file carries. The log says `configuration imported into the control plane`, and the Sidecar appears in the fleet with a recent check-in.
+  </Step>
+  <Step title="Try it">
+    ```sh
+    docker run --rm --network hoop-control-plane_hoopcp -e PGPASSWORD=postgres \
+      postgres:17.6 psql -h sidecar -p 15432 -U postgres -d appdb \
+      -c "create table t(id int);" -c "drop table t;"
+    ```
+
+    `CREATE TABLE` goes through. The `DROP` comes back as
+    `FATAL: destructive statements are not permitted through this lane` — the
+    one guardrail the compose file ships with.
+
+    From here, edit the configuration in the Control Plane. The local file has
+    done its job; on the next start its listeners are ignored with a warning
+    rather than merged. See [Connect a Sidecar](/control-plane/connect-sidecar).
+  </Step>
+</Steps>
 
 ---
 
@@ -81,7 +149,8 @@ To run it on a host your Sidecars can reach, follow the section below instead.
 <Steps>
   <Step title="Download the compose file">
     ```sh
-    curl -sL https://hoop.dev/docker-compose.yml > docker-compose.yml
+    curl -sL https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.control-plane.yml \
+      > docker-compose.yml
     ```
   </Step>
 

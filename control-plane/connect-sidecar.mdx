@@ -3,7 +3,7 @@ title: "Connect a Sidecar"
 description: "Issue a token, point a Sidecar at the Control Plane, and let it pull its configuration."
 ---
 
-A [Sidecar](/core-concepts/sidecar) that knows nothing about a Control Plane reads its config file from disk and runs. Connecting it changes one thing: on boot, it asks the Control Plane what its configuration should be.
+A [Sidecar](/core-concepts/sidecar) that knows nothing about a Control Plane reads its config file from disk and runs. Connecting it changes one thing: on boot, it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
 
 ---
 
@@ -34,7 +34,9 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
 <Steps>
   <Step title="Issue a token in the Control Plane">
-    Create a Sidecar registration and copy the token it returns. The token identifies this Sidecar and authenticates it — treat it as a credential.
+    Create a Sidecar registration and copy the token it returns. It is shown once and stored only as a hash, so losing it means registering a new Sidecar.
+
+    The token identifies this Sidecar and authenticates it — treat it as a credential.
   </Step>
   <Step title="Point the Sidecar at the Control Plane">
     Add the Control Plane's URL to the Sidecar's config file. The token is never written to disk — it goes on the command line or in an environment variable:
@@ -59,10 +61,24 @@ Four properties fall out of this shape, and they are the reason it looks like th
     hoop start sidecar --config config.yaml --token "<the token you copied>"
     ```
 
-    Listeners still come from the local file. Everything the Control Plane manages — guardrails, masking, analyzer settings — arrives over the ping.
+    On the first start the Control Plane holds no configuration for this Sidecar. It answers `412`, the Sidecar imports the document from your local file, and then serves what the Control Plane sends back. That import happens once.
+  </Step>
+  <Step title="Edit the configuration in the Control Plane from now on">
+    The Control Plane owns the whole document after the import — listeners included. The two are never merged. Listeners left in the local file are ignored, and the Sidecar says so at startup:
+
+    ```
+    the config file's listeners are ignored: the control plane owns the running config
+    ```
+
+    `--config` becomes optional at this point. The URL and the token are enough to start.
   </Step>
   <Step title="Confirm what it resolved">
-    The admin API reports the merged, live configuration. This is the only place you can see what the Sidecar actually ended up running:
+    The admin API reports the live configuration. It only runs when the configuration names an address for it, so the document the Control Plane serves needs an `admin` block — there is no default port:
+
+    ```yaml
+    admin:
+      listen: 127.0.0.1:19000
+    ```
 
     ```bash
     curl -s localhost:19000/healthz            # ok
@@ -75,14 +91,43 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
 ---
 
+## The license
+
+The organization's license lives on the Control Plane, not on each Sidecar. It rides on the handshake response, and the response carries a header saying the Control Plane owns the decision:
+
+```
+hoop-sidecar-license-managed: true
+```
+
+While that header is present, the Sidecar's own license sources — the `--license` flag, `HOOP_LICENSE` and the config file's `license` key — are ignored, and it warns at startup that it is ignoring them. A Control Plane whose organization holds no license runs the free tier.
+
+A `license` key authored on a Sidecar's configuration in the Control Plane is refused. One organization, one license.
+
+---
+
+## Staying in sync
+
+A heartbeat repeats the handshake every minute.
+
+A change that only touches rules — guardrails, masking, PII, OPA, a listener's analyzer block — is applied in place and logged as `control plane configuration applied`. Connections already open drain under the rules they were accepted with.
+
+A change beyond the rules — listeners, audit, admin, log level — logs `restart to apply it` instead.
+
+A failed heartbeat changes nothing. The Sidecar keeps serving the configuration and the license it last received.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Check |
 |---|---|
+| The Sidecar does not start at all | A first handshake that fails stops startup; there is no fallback to the local file. Check the URL, the token, and outbound HTTPS to the Control Plane host. |
 | The Sidecar starts but never appears in the Control Plane | Outbound HTTPS to the Control Plane host. The Sidecar dials out; nothing dials in. |
-| It appears, but runs no managed guardrails | Read `/config` on the admin API. A Sidecar that could not fetch falls back to its local file. |
+| It warns that the config file's listeners are ignored | Expected once the Control Plane holds the configuration. Edit it there; the local file no longer holds it. |
+| It warns that your license is ignored | Expected while the Control Plane manages licensing. Apply the license to the organization instead. |
+| The admin API refuses the connection | `admin.listen` is not in the configuration the Control Plane serves. There is no default address. |
+| Rules changed centrally but the Sidecar did not | Configuration is picked up on the heartbeat, not pushed. Wait up to a minute. A listener change needs a restart. |
 | Authentication fails | The token is per-Sidecar. Reusing one across two Sidecars is not a supported shape. |
-| Rules changed centrally but the Sidecar did not | Configuration is picked up on the ping, not pushed. Wait for the next interval or restart the Sidecar. |
 
 ---
 
