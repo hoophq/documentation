@@ -3,7 +3,7 @@ title: "Spanner"
 description: "The spanner lane: the gRPC endpoint plus GoogleSQL extraction, so operation and table rules read the SQL inside each RPC"
 ---
 
-A `spanner` lane runs the same in-process HTTP/2 endpoint as a [gRPC lane](/setup/configuration/hoop-sidecar/protocols/grpc) and adds one capability: it extracts the GoogleSQL text out of Cloud Spanner RPC payloads and classifies each statement with a GoogleSQL lexer dialect. A gRPC lane fences Spanner by method name. A spanner lane reads the query, so a rule naming `delete` refuses `ExecuteSql` when the SQL deletes and forwards it when the SQL selects.
+A `spanner` lane runs the same in-process HTTP/2 endpoint as a [gRPC lane](/setup/configuration/hoop-sidecar/protocols/grpc) and adds one capability: it extracts the SQL text out of Cloud Spanner RPC payloads and classifies each statement with the lexer for that database's dialect, GoogleSQL or PostgreSQL. A gRPC lane fences Spanner by method name. A spanner lane reads the query, so a rule naming `delete` refuses `ExecuteSql` when the SQL deletes and forwards it when the SQL selects.
 
 <Note>
 The `spanner` protocol lives on the `grpc2` branch and has not shipped in a release yet.
@@ -46,9 +46,29 @@ Two rule families read one RPC, on different statements. The request-headers sta
 
 ---
 
-## The GoogleSQL dialect
+## Dialects: GoogleSQL and PostgreSQL
 
-The lexer models what makes GoogleSQL lexically different, because each item is a misread that flips a verdict:
+Spanner fixes a database's dialect when you create it, and one instance holds databases of both kinds. The data plane never says which one a request targets: `ExecuteSql` carries a session name and a string. Read a PostgreSQL database with the GoogleSQL lexer and `"songs"` turns from a table into a string literal, so a table rule fencing `songs` stops firing. The lane therefore takes the dialect from configuration, keyed on the database resource name that every SQL-bearing request already carries, and never guesses it from the text. A client controls the text; a client that could pick the grammar could pick the one that hides its statement.
+
+```yaml config.yaml
+  - name: spanner
+    protocol: spanner
+    spanner:
+      dialect: googlesql                 # lane default; an absent block means googlesql
+      databases:
+        projects/p/instances/i/databases/ledger-pg: postgresql
+```
+
+| Setting | Effect |
+|---|---|
+| block absent | GoogleSQL for every database, the behavior before this block existed |
+| `dialect: googlesql` or `postgresql` | the lane default for any database `databases` does not list |
+| `dialect: per_database` | fail closed: SQL against a database `databases` does not list classifies as `unknown`, with the database named in `sql.incomplete`, so a rule naming `unknown` refuses it |
+| `databases` | full resource names (`projects/P/instances/I/databases/D`) to `googlesql` or `postgresql`; a session path or a bare database id is refused at validation, since it would never match a request |
+
+The lane reads the database from `session` on the data-plane methods and from `database` on `UpdateDatabaseDdl`. `CreateDatabase` is the one request that states its own dialect, in `database_dialect`, and the lane believes it for that request's statements: they create the database they name. Each extracted statement records `spanner.dialect` and `spanner.database` in its metadata, so the audit trail says which lexer read it and against what.
+
+The PostgreSQL side uses the same lexer as a postgres lane, with `"ident"`, `$1` parameters and `E''` strings, and the PostgreSQL conformance suite checks it. GoogleSQL has its own rule set, because each item below is a misread that flips a verdict:
 
 - `"..."` is a string literal. Postgres rules would read it as a quoted identifier and invent relations.
 - Raw strings (`r'...'`, `rb'...'`) keep backslashes literal. A scanner that lets `\'` escape the terminator swallows the rest of the statement into a phantom literal.
@@ -70,7 +90,7 @@ buf build 'https://github.com/googleapis/googleapis/archive/refs/heads/master.ta
   -o 'spanner.pb#format=binpb'
 ```
 
-Neither the production endpoints nor the Spanner emulator serve gRPC reflection, so [`-grpc-discover`](/setup/configuration/hoop-sidecar/protocols/grpc#no-descriptor-set-yet-bootstrap-one-with--grpc-discover) answers `Unimplemented` against them and the `buf` route is the working one. An upstream that does serve reflection (your own services, most Go and Java servers with the reflection service registered) bootstraps its set with that command instead. Pin the artifact next to the config; the lane loads only pinned files.
+Neither the production endpoints nor the Spanner emulator serve gRPC reflection, so [`-grpc-discover`](/setup/configuration/hoop-sidecar/protocols/grpc#no-descriptor-set-yet-bootstrap-one-with--grpc-discover) answers `Unimplemented` against them and the `buf` route is the working one. An upstream that does serve reflection (your own services, most Go and Java servers with the reflection service registered) bootstraps its set with that command instead. Pin the artifact next to the config, or publish it to a bucket and point `descriptors` at `gs://BUCKET/spanner.pb?generation=N`; see [Descriptor sources](/setup/configuration/hoop-sidecar/protocols/grpc#descriptor-sources). The lane reads the artifact once, when its endpoint is built, and never the upstream's reflection.
 
 ---
 
@@ -106,7 +126,7 @@ SPANNER_EMULATOR_HOST=lane.internal:29010
 Two compose stacks in the repository run the lane end to end:
 
 - [`deploy/docker-compose/gcloud-stack/`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/gcloud-stack): the Spanner emulator behind a spanner lane, no Envoy. Its demo proves the lexer decides: `SELECT 1` passes, `DELETE` returns `PERMISSION_DENIED` before the emulator sees the frame, a raw-string evasion stays a select, and an unterminated string denies as `unknown`.
-- [`deploy/docker-compose/envoy-stack/spanner/`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/envoy-stack/spanner): the same lane behind Envoy and OPA, plus a direct h2c door that shows the lane standing alone.
+- [`deploy/docker-compose/envoy-stack/spanner/`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/envoy-stack/spanner): the same lane behind Envoy and OPA, plus a direct h2c door that shows the lane standing alone. Its demo also creates a second database with `databaseDialect: POSTGRESQL`, sends `SELECT id, title FROM "songs" ...` to both, and reads the trail: `postgresql` with `tables=[songs]` on one, `googlesql` with no table on the other.
 
 ```bash
 cd deploy/docker-compose/gcloud-stack

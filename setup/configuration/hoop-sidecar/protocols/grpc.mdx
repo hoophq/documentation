@@ -23,13 +23,35 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `descriptors` | One serialized `FileDescriptorSet` or a list (`protoc --include_imports --descriptor_set_out`, or `buf build -o`). Required for any payload work: schema-less protobuf walking loses values, so no capture, masking or PII scanning happens without it. |
+| `descriptors` | One serialized `FileDescriptorSet` or a list (`protoc --include_imports --descriptor_set_out`, or `buf build -o`). Each entry is a file path or a `gs://BUCKET/OBJECT` URL; see [Descriptor sources](#descriptor-sources). Required for any payload work: schema-less protobuf walking loses values, so no capture, masking or PII scanning happens without it. |
 | `capture_payload` | Renders decoded request and response messages into per-message statements, so payload rules (`pii`, `pattern_match`) and OPA read field values as well as the method path. Requires `descriptors`. |
 | `max_payload_bytes` | Truncates a captured rendering. Masking ignores it: a redactor rewrites decoded fields whatever their size. |
 | `strict` | Refuses what the descriptor set cannot explain; see below. |
 | `metadata` | Request metadata headers exposed to policy, matched case-insensitively. No capture-all, and `authorization`, `cookie` and `proxy-authorization` can never be listed. |
 
 Multiple descriptor sets fit the multi-team shape: each service's CI ships its own artifact and the lane lists them all. Sets merge at startup, byte-identical shared imports dedupe, and two diverged copies of one file refuse to load naming both artifacts.
+
+### Descriptor sources
+
+An entry is a file on the Sidecar's filesystem, or an object in Google Cloud Storage:
+
+```yaml config.yaml
+    grpc:
+      descriptors:
+        - /etc/hoop-inspect/descriptors/ledger.pb
+        - gs://acme-schemas/billing/v42.pb
+        - gs://acme-schemas/ledger.pb?generation=1726480000123456   # pinned
+```
+
+A bucket carries an artifact a ConfigMap cannot (the 1 MiB cap), and lets each team's CI publish its own set without a redeploy of the Sidecar's volume. Local files and bucket objects merge in one pass, so a conflict between a file and an object is reported the same way as one between two files.
+
+**When the fetch happens.** Every entry is read once, when the lane's endpoint is built: at startup, and under `-validate`, which performs the real fetch so a wrong object name or a missing IAM binding fails there with the URL in the message. The schema is bound into the endpoint together with the lane's rules, so the heartbeat reload does not refetch it: a changed `descriptors` list is drift the process answers with "restart to apply it", and a new version published behind an unpinned URL is applied by a restart, the way a replaced file at the same path is. One fetch has a two-minute budget covering credential discovery, the token exchange and the read.
+
+**Pinning a generation.** `?generation=N` reads one version of the object, the JSON API's own parameter, and is the only query parameter accepted; any other one, and any escape the URL parser cannot decode, is refused rather than dropped, so a typo cannot read the current version under a URL that looks pinned. Pin when two restarts must decode against one schema; leave it unpinned when the bucket is the publishing channel and a restart is how a new schema rolls out.
+
+**Credentials and permissions.** The read is one authenticated `GET` as a GCP identity. The Sidecar checks two sources in order. A service account key placed inline in `GOOGLE_APPLICATION_CREDENTIALS_JSON` wins; this is the gateway's own variable, so one Secret serves both processes. Set but malformed, it fails the fetch naming the variable, never falls through to another identity, and never echoes the key. Otherwise the Sidecar uses Application Default Credentials: Workload Identity on GKE, the attached service account on GCE or Cloud Run, a key file named by `GOOGLE_APPLICATION_CREDENTIALS`, or `gcloud` on a laptop. The identity needs `storage.objects.get` on the object (`roles/storage.objectViewer`). There is no anonymous read, and a `gs://` URL carries no credentials of its own. The [sidecar chart](https://github.com/hoophq/hoop/tree/main/deploy/helm-chart/chart/sidecar) README shows the three deployment shapes: a Workload Identity annotation on `serviceAccount`, the inline key through `extraSecret`, or a mounted key file plus `GOOGLE_APPLICATION_CREDENTIALS`.
+
+**Validation.** A scheme the binary does not link (`s3://`) is refused at config validation naming what is linked; `hoop-inspect` and `hoop start sidecar` link `gs://`. An object over 512 MiB is refused, since a descriptor set of that size is a wrong object name. What arrives is indexed under the same merge rules as a file, so a stale or malformed artifact fails the same way.
 
 ### No descriptor set yet: bootstrap one with `-grpc-discover`
 
@@ -52,7 +74,7 @@ hoop-inspect -grpc-discover billing -grpc-discover-out billing.pb -config config
 
 It picks the lane by name, dials the lane's `upstream` with the lane's `upstream_tls` (h2c when the block is absent), fetches the schema over reflection (v1, with a v1alpha fallback), prints every method with its maskable field paths, and writes the serialized set. Review the report, commit the artifact, add `grpc.descriptors` pointing at it, restart.
 
-Discovery is a bootstrap command, and the lane still loads only the pinned file. A schema fetched live at runtime would let the policed service rename fields out from under your mask rules, so no `descriptors: auto` exists.
+Discovery is a bootstrap command, and the lane still loads only the artifact it was configured with, a file or a published object, read once when the endpoint is built. A schema fetched live from the policed service at runtime would let it rename fields out from under your mask rules, so no `descriptors: auto` exists; a `gs://` entry is not that: it reads an artifact your CI published and reviewed, not the upstream's own reflection.
 
 Sequencing facts worth knowing:
 
