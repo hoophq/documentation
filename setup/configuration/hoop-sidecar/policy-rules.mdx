@@ -29,19 +29,27 @@ Deferring moves the DETERMINATION and leaves the matching where it is. The local
 
 ---
 
-## The seven rule types
+## The rule types
 
-| `type` | Matches on | Protocol |
+| `type` | Matches on | Protocols |
 |---|---|---|
-| `operation` | the statement's most consequential effect | SQL and HTTP |
+| `operation` | the statement's most consequential effect | SQL, HTTP, SSH |
 | `table` | a relation the statement touches, narrowed by access | SQL |
 | `deny_words_list` | a substring of the statement text | any |
 | `pattern_match` | an RE2 regex over the statement text | any |
 | `pii` | entity classes a detector finds in the text | any |
 | `http_resource` | the normalized request path | HTTP |
 | `http_status` | the response status | HTTP |
+| `grpc_status` | the outcome in the `grpc-status` trailer | gRPC |
 
 Every rule also takes `name` and `message`. `message` reaches the user in the protocol's own error frame, so write one: the fallback names the rule and the operation and nothing else.
+
+A rule type that reads a field the lane's protocol never produces is **refused at startup**, not skipped at evaluation. The two failures reach different people: a load refusal reaches the operator who wrote the rule, and a silent skip reaches nobody at all.
+
+| Lane | Refuses |
+|---|---|
+| `ssh` | `table`, `http_resource`, `http_status`, `grpc_status` — SSH has no relations, no request path, no response status and no RPC |
+| SQL lanes | `http_resource`, `http_status`, `grpc_status` |
 
 Each block below is one entry in a lane's `guardrails.rules` list.
 
@@ -68,11 +76,88 @@ Reach for it first. It costs nothing, it survives every outage, and it reads the
 
 `Statement.Effects` carries the full set when a rule needs to tell them apart, and it reaches Rego as `input.effects`.
 
-The SQL vocabulary: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `show`, `set`, `begin`, `commit`, `rollback`, `explain`, plus `other` and `unknown`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`, `head`, `options`, `connect`, `trace`.
+On an SSH lane the rule reads exactly the same way — `operations: [sftp_write, sftp_remove]` is how a file-transfer connection is made read-only, and it cannot be evaded by how a path is spelled.
 
 <Warning>
 `CALL` and `EXECUTE` now report `unknown`, so a rule written as `operations: [call]` **stops matching**. Both hide their body from any parser, and reporting a verb for a statement nobody can read is the fail-open this design removes. `call` survives in `input.effects`, which is where a Rego policy still sees it; a rule wanting both writes `operations: [call, unknown]`. Read [Fail closed on what the scanner could not read](#fail-closed-on-what-the-scanner-could-not-read).
 </Warning>
+
+#### Operation vocabulary
+
+Every value `operations` accepts, across every protocol. The field narrows any rule type; on an `operation` rule it is the whole of the match.
+
+**What the statement TEXT is differs per operation**, which is what makes scoping load-bearing on a mixed lane: a SQL statement for `select`, a request for `get`, a command line for `exec_line`, a variable name for `env_set`, a path for every `sftp_*`. An unscoped `pattern_match` is evaluated against all of them.
+
+| Operation | Protocol | A rule matches against | Notes |
+|---|---|---|---|
+| `select` | SQL | the statement text | |
+| `insert` | SQL | the statement text | |
+| `update` | SQL | the statement text | |
+| `delete` | SQL | the statement text | |
+| `merge` | SQL | the statement text | |
+| `create` | SQL | the statement text | |
+| `drop` | SQL | the statement text | |
+| `alter` | SQL | the statement text | |
+| `truncate` | SQL | the statement text | |
+| `grant` | SQL | the statement text | |
+| `revoke` | SQL | the statement text | |
+| `copy` | SQL | the statement text | direction-dependent: `COPY … FROM STDIN` writes, `COPY (SELECT …) TO STDOUT` reads. Both classify as `copy` |
+| `call` | SQL | the statement text | **reports `unknown`**, because its body is in the catalog. A rule wanting both writes `operations: [call, unknown]`. See [Fail closed](#fail-closed-on-what-the-scanner-could-not-read) |
+| `show` | SQL | the statement text | |
+| `set` | SQL | the statement text | |
+| `begin` | SQL | the statement text | |
+| `commit` | SQL | the statement text | |
+| `rollback` | SQL | the statement text | |
+| `explain` | SQL | the statement text | `EXPLAIN DELETE …` plans; `EXPLAIN ANALYZE DELETE …` classifies as `delete`, because it executes |
+| `other` | SQL | the statement text | parsed, but not a verb the scanner classifies. `REFRESH MATERIALIZED VIEW` lands here, **and it writes** |
+| `unknown` | SQL | the statement text | the scanner did not understand it. **Always name this on a lane that refuses writes** |
+| `get` `post` `put` `patch` | HTTP | the request | the verb is its own operation value, distinct from the SQL set |
+| `head` `options` `connect` `trace` | HTTP | the request | |
+| `exec_line` | SSH | the whole command, one statement | produced by `ssh <cmd>`, `scp -O` and `rsync` |
+| `env_set` | SSH | the variable **name**, not its value | the value travels beside it in `ssh.env_value` |
+| `sftp_read` | SSH | the path being read | |
+| `sftp_write` | SSH | the path being written | |
+| `sftp_remove` | SSH | the path being removed | |
+| `sftp_rename` | SSH | **both** paths, source and target | two statements; `ssh.path_end` says which |
+| `sftp_mkdir` | SSH | the directory being created | |
+| `sftp_rmdir` | SSH | the directory being removed | |
+| `sftp_list` | SSH | the directory being listed | |
+| `sftp_stat` | SSH | the path whose attributes are read | |
+| `sftp_setstat` | SSH | the path whose attributes are changed | |
+| `sftp_symlink` | SSH | **both** paths, link and target | two statements |
+
+#### SSH operations
+
+SSH operations carry their **capability** as a prefix, so a rule scopes itself to a surface without SSH needing a channel field of its own:
+
+```yaml
+- name: read-only-files
+  type: operation
+  operations: [sftp_write, sftp_remove, sftp_rename, sftp_mkdir,
+               sftp_rmdir, sftp_setstat, sftp_symlink]
+  message: this connection may only read files
+```
+
+Three gaps in that list are deliberate:
+
+| Missing | Why |
+|---|---|
+| `sftp_open` | a client's open surfaces as the first read or write against the path, which is the earliest point a rule can act. Naming it is a **config error**, not a rule that loads and never fires |
+| a shell operation | a keystroke stream has no boundary a rule could act on, and reconstructing one is unsound. Drop `shell` from `capabilities_allowed` rather than trying to police it |
+| a forward operation | a forward carries a destination, not content. Refusing a destination is `ssh.destinations_allowed`'s job, and an admitted forward is relayed blind |
+
+One rule can cover several routes to the same file, because the path reaches the rule as statement text either way — `scp` alone lands in two different operation families depending on one flag:
+
+```yaml
+- name: protected-paths
+  type: pattern_match
+  pattern_regex: '(secrets\.env|/etc/shadow|\.aws/credentials)'
+  operations: [exec_line, sftp_read, sftp_write, sftp_rename,
+               sftp_remove, sftp_stat, sftp_setstat]
+  message: this path is not readable through hoop
+```
+
+[SSH](/setup/configuration/hoop-sidecar/protocols/ssh) has the protocol in full.
 
 ### table
 

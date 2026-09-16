@@ -1,0 +1,160 @@
+---
+title: "Host Configuration"
+description: "Accounts, groups, login shells and home directories the end-hop needs, and the root vs non-root trade"
+---
+
+An `ssh` end-hop runs processes on the host it sits on. That makes it the one lane with requirements **outside its own config file**: the CA decides which names a holder may claim, the host decides which names are accounts, and **nothing reconciles them for you**.
+
+A disagreement surfaces at the first session, not at `--validate`. This page is the checklist for making the two agree.
+
+---
+
+## Requirements
+
+For each login name in a certificate's `-n` list that should work on this host:
+
+| Requirement | Checked by | If absent |
+|---|---|---|
+| an entry in **`/etc/passwd`** | an account lookup, then a direct read of the file | session refused: `login "x" is not an account on this host` |
+| resolvable groups in **`/etc/group`** | the account's group id list | session refused, rather than run with fewer memberships than `id` reports |
+| a login shell that exists and is executable | the passwd entry's 7th field | session refused, naming the file |
+| a home directory | stat at session start | **not fatal** — the session starts in `/` and the reason goes to the operator's log, which is what `sshd` does with the same condition |
+
+```bash
+useradd -m -s /bin/bash devuser
+```
+
+---
+
+## Account resolution
+
+The name the client asked for is looked up in the OS user database, **per connection**. It is already verified against the certificate's principals, so it is the one name this connection can be trusted to become.
+
+It resolves, the session runs as it. It does not resolve, the session is **refused**.
+
+```bash
+ssh -p 2222 devuser@endhost id
+# uid=10001(devuser) gid=10001(devuser) groups=10001(devuser)
+
+ssh -p 2222 analyst@endhost id
+# uid=10004(analyst) gid=10004(analyst) groups=10004(analyst)
+
+ssh -p 2222 ghost@endhost id
+# channel 0: open failed: administratively prohibited:
+#   login "ghost" is not an account on this host
+```
+
+Same listener, same certificate, three different answers. **Nothing in the config file names an account** — the login name *is* the account request, as it is under `sshd`, and the certificate only decides whether you may make it.
+
+Supplementary groups are resolved with the account and applied in the child, `setgroups` → `setgid` → `setuid`, before exec. A session that ran without them would silently have fewer memberships than `id` reports, so a failure to resolve them refuses the session instead.
+
+---
+
+## Login shell
+
+The session runs **the account's own login shell**, read from the passwd entry, for an interactive shell and a one-shot command alike. That is what keeps the host's power to disable an account:
+
+```bash
+usermod -s /sbin/nologin alice
+```
+
+- **There is no list of disabled shells.** `/sbin/nologin` and `/bin/false` are programs whose job is to refuse, so running one **is** the refusal, in the words the host already uses. A list of paths in the Sidecar would be a second copy of a decision the host has made, and it would drift from it.
+- **An empty shell field takes `/bin/sh`**, the default `sshd` applies to the same empty field.
+- **A shell that does not exist, or is not an executable regular file, refuses the session**, naming the file. This is the check `sshd` makes before it admits a login.
+
+An interactive session runs `<shell> -l`, so profile files are sourced. A command runs `<shell> -c`, so they are not. Same split as `sshd`.
+
+---
+
+## Environment
+
+The Sidecar's own environment holds its configuration and can hold credentials, so **none of it is inherited**. What a session gets:
+
+| Variable | From |
+|---|---|
+| `USER`, `LOGNAME`, `HOME`, `SHELL`, `PATH` | the account |
+| `TERM` | the client, when a terminal was requested |
+| `SSH_CONNECTION`, `SSH_CLIENT` | the connection, in `sshd`'s own spelling |
+| anything the client asked for with `SetEnv` | only if the `env` capability is admitted **and** the variable passed the `env_set` guardrails |
+
+`SSH_CONNECTION` and `SSH_CLIENT` are not decoration: a `.bashrc` branches on them and an audit rule quotes them, and a session without them looks local to everything that asks. A listener bound to a **unix socket** has no address in that shape, so both are left unset rather than filled with a value a reader would mis-parse.
+
+<Warning>
+**`SSH_TTY` is the one variable `sshd` sets that an end-hop does not.** `sshd` makes the terminal before it builds the environment and can name it; here the terminal is made by the same call that runs the child, so the name does not exist in time.
+</Warning>
+
+A session starts in the account's home directory, and in `/` when that directory is not usable — the reason goes to the operator's log, not to the user.
+
+---
+
+## Root vs non-root
+
+Changing to another uid needs privilege. Staying put needs none. **So the account the Sidecar process runs as is what bounds the set of accounts a listener can serve, and no config key can override it** — the container's `USER` line is the policy, and it cannot disagree with itself.
+
+| The process runs as | Accounts it can serve | `sftp` |
+|---|---|---|
+| the account itself (e.g. `devuser`) | **that one account** | **works** |
+| `root` | **any account on the host** | **cannot be admitted** |
+
+### The `sftp` exception
+
+File transfer is served **inside the Sidecar process** — there is no child to hand a credential to. A root process serving `devuser`'s files would serve them as an account the session never became, for the one capability where file ownership matters most.
+
+So a root listener must not admit `sftp`, and `--validate` states the constraint on any listener that does:
+
+```
+note: ssh: file transfer runs in this process (uid 10001/gid 10001), so a
+      session resolving to any other account is refused
+```
+
+A session on that listener that resolves to any other account is refused rather than served as the wrong one.
+
+### Which to pick
+
+| Reach for | When |
+|---|---|
+| **Run as the account** | one account per host or per container, and you want file transfer. This is the shape to prefer: the pre-authentication surface is unprivileged, the way `sshd` separates it into an unprivileged child |
+| **Run as root** | several accounts must share one listener, and file transfer is not needed. The whole pre-authentication surface runs privileged — that is the price |
+
+<Note>
+**Nothing refuses a session as root.** A deployment that needs it is legitimate, and a check that could be satisfied by an account with the same privilege under another name would only look like a control. What bounds a privileged session is the capability list and the guardrail chain, which run identically whatever the account.
+</Note>
+
+---
+
+## Directory-backed accounts
+
+Only `/etc/passwd` and `/etc/group` are consulted. **LDAP, SSSD, Active Directory and `systemd-homed` accounts will not resolve.**
+
+<Warning>
+**This is not a build flag.** The login shell is read from `/etc/passwd` directly — because the standard account lookup gives the name, the ids and the home directory and *not* the shell, and that field is how a host disables an account. So even a build that resolves the account through NSS refuses the session for having no passwd entry.
+</Warning>
+
+---
+
+## Verification
+
+`--validate` reads the config. It **cannot check the accounts**, because the login name arrives in the handshake. Verify that side yourself, per host, for every name you issue:
+
+```bash
+grep "^devuser:" /etc/passwd     # the check that matches what the Sidecar does
+id devuser                       # the groups the session will carry
+ls -ld ~devuser                  # home; missing only costs you a warning
+```
+
+<Warning>
+Use `grep` on the file, **not** `getent passwd devuser`. `getent` goes through NSS, so on a directory-joined host it answers for an account the Sidecar will refuse — which is the exact disagreement this page is about.
+</Warning>
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Certificates and Identity" icon="certificate" href="/setup/configuration/hoop-sidecar/protocols/ssh/certificates">
+    The other half of a successful login: what the CA must put in `-n`.
+  </Card>
+  <Card title="OpenSSH Differences" icon="triangle-exclamation" href="/setup/configuration/hoop-sidecar/protocols/ssh/limitations">
+    Every OpenSSH assumption to drop, and what is not implemented.
+  </Card>
+</CardGroup>

@@ -1,0 +1,120 @@
+---
+title: "OpenSSH Differences"
+description: "How does this protocol compares with the OpenSSH server implementation, and what assumptions to drop"
+---
+
+Most integration surprises on an `ssh` lane are an assumption carried over from `sshd`. This page is the list of them.
+
+An end-hop is a **complete SSH server for the paths it implements**, not a drop-in `sshd`. It authenticates certificates, resolves accounts, spawns processes and honours login shells the way `sshd` does. It does not read `sshd_config`, does not invoke PAM, and does not implement most of what an OpenSSH deployment accumulates.
+
+---
+
+## `sshd_config` mapping
+
+Start here, because it shows which parts of an `ssh` lane are a rename of something you already know and which parts are genuinely new. The left column is what `capabilities_allowed` accepts; see [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#capabilities-allowed).
+
+| Capability | `sshd_config` equivalent | Its default there |
+|---|---|---|
+| `shell` | none. `ForceCommand` replaces what runs; nothing refuses a shell as such | a shell is available |
+| `exec` | none. Same keyword, same lack of a distinction from `shell` | a command is available |
+| `env` | `AcceptEnv`, `PermitUserEnvironment` | **accepts none** |
+| `sftp` | `Subsystem sftp …`; `ForceCommand internal-sftp`; `ChrootDirectory` | declared in the shipped config |
+| `subsystem` | `Subsystem <name> <command>` | nothing available unless declared |
+| `local_forward` | `AllowTcpForwarding`, `PermitOpen`, `DisableForwarding` | permitted, to any destination |
+| `remote_forward` | `AllowTcpForwarding`, `PermitListen`, `GatewayPorts` | permitted, to any bind address |
+| `pty` | `PermitTTY` | permitted |
+| `agent_forward` | `AllowAgentForwarding` | permitted |
+| `x11` | `X11Forwarding` | **denied** |
+
+**The capabilities this design inspects are the ones OpenSSH cannot name.** There is no keyword separating `shell` from `exec`, and none that treats a file operation as a statement — the closest control is `ForceCommand`, which replaces what runs rather than judging it. That is the gap this lane fills.
+
+`AcceptEnv` is the one keyword that is already default-deny, and it narrows by variable *name*, which is exactly how an `env_set` guardrail matches. This design does **not** copy that default — an omitted `capabilities_allowed` admits `env`. A deployment that wants OpenSSH's answer writes the list without `env`.
+
+---
+
+## Assumptions to drop
+
+| You may assume | What actually happens |
+|---|---|
+| **NSS** — LDAP, SSSD, AD, `systemd-homed` accounts | only `/etc/passwd` and `/etc/group` are consulted. **This is not a build flag**: the login shell is read from `/etc/passwd` directly, so even a build that resolves the account through NSS refuses the session for having no passwd entry. Put the served accounts in the image, or run one listener per account |
+| `AuthorizedPrincipalsFile` / `AuthorizedPrincipalsCommand` | not read, and there is no equivalent. This is the mapping layer that lets `sshd` turn a principal like `alice@corp.example` into the account `devuser`. Without it, **principals must be literal login names**; carry identity in `-I` or a namespaced extension |
+| `authorized_keys` | not read. Certificates only — a bare public key is refused, and there is no per-user state to hold an exception in |
+| passwords, keyboard-interactive | no such method is offered, so there is nothing to brute-force. This is why a listener on a public address is defensible |
+| `force-command`, `verify-required`, any critical option but `source-address` | the certificate is **refused**, not admitted with the option ignored. Fail-closed and loud, but it is a real interop edge with an existing CA |
+| a KRL, `RevokedKeys` | **there is no revocation.** The serial is recorded in the audit trail but never checked. A short `-V` is the whole expiry story |
+| host certificates | `host_key` takes a plain private key. A client with an `@cert-authority` line in `known_hosts` will not match it — distribute or pin the host public key |
+| `AllowUsers`, `DenyUsers`, `PermitRootLogin`, `Match` blocks | not read, no equivalent. **Nothing refuses a session as root**; what bounds a privileged session is the capability list and the guardrail chain, which run identically whatever the account |
+| PAM | not invoked. No `pam_limits`, no `pam_access`, no session modules |
+| `utmp` / `wtmp` / `lastlog` | not written. `who` and `last` will not show these sessions — the audit trail is where they are recorded |
+| `motd`, login banners | not printed |
+| `ChrootDirectory` | no equivalent |
+| `SSH_TTY` | not set. `SSH_CONNECTION` and `SSH_CLIENT` **are**, in `sshd`'s own spelling |
+
+### What a session gets
+
+So `.profile` and audit rules behave:
+
+- `USER`, `LOGNAME`, `HOME`, `SHELL`, `PATH`, plus `TERM` when a pty was allocated, and any `env` variables that passed the guardrails.
+- `SSH_CONNECTION` and `SSH_CLIENT`.
+- The Sidecar's **own** environment is never inherited — it holds the Sidecar's configuration and possibly its credentials.
+- An interactive session runs `<shell> -l`, so profile files are sourced. A command runs `<shell> -c`, so they are not. Same split as `sshd`.
+- Supplementary groups are applied in the child, `setgroups` → `setgid` → `setuid`, before exec.
+
+---
+
+## Not implemented
+
+| Capability | Status |
+|---|---|
+| `remote_forward` | the refusal works; the return path that would make it function was never built |
+| `agent_forward` | no handler exists |
+| `x11` | no handler exists |
+| any `subsystem` other than `sftp` | no handler exists |
+| unix-socket forwarding, tun-device forwarding | separate channel types with no capability name. **Refused by construction** — an unhandled channel type is rejected |
+
+Naming any of the first four in `capabilities_allowed` **fails at load**, because the config would be asking for something this version cannot do. Refusing the request at runtime instead would leave an operator believing a capability is on when it is not.
+
+---
+
+## Known Limitations
+
+| Limit | Why |
+|---|---|
+| **No guardrails on an interactive shell** | a keystroke stream has no statement boundary, and reconstructing one is unsound — history recall and tab completion diverge it from what runs, a rule that fires deletes what the user was editing, and no signal sees through shell expansion. A shell is admitted, masked on output, and recorded as events. Drop `shell` from `capabilities_allowed` to close the gap |
+| **No session content is recorded** | not keystrokes, not output, not file bytes, and there is no setting that adds them. The trail answers who connected, what they asked for and what was refused — not what scrolled past |
+| **Masking cannot change length** | an `ssh` lane rewrites a byte stream in place, so `strategy: mask` with an ASCII `mask_char` is the only strategy the lane accepts. Anything else is refused at load |
+| **An upload a mask rule would touch is refused, not rewritten** | silently altering a file someone believes they uploaded is worse than refusing it |
+| **rsync and masking cannot coexist** | rsync checksums at both ends and correctly discards bytes that were rewritten in between. Any transfer protocol that verifies its own content integrity does the same |
+| **A forward is relayed blind** | nothing inspects those bytes, which is why `destinations_allowed` is the whole control and is default-deny |
+| **Accounts cannot be checked at load** | the login name arrives in the handshake, so a host missing an account it meant to serve is discovered by the first session that asks for it |
+| **Four rule types are refused** | `table`, `http_resource`, `http_status` and `grpc_status` have nothing on an SSH statement to read |
+
+---
+
+## Where it is stricter
+
+Not everything on this page is a subtraction.
+
+| | `sshd` | An `ssh` lane |
+|---|---|---|
+| A certificate with no principals | valid for every login name | **refused** |
+| An unknown critical option | refused (same) | refused (same) |
+| Forwarding destinations | permitted to any destination by default | **denied until `destinations_allowed` names one** |
+| Client environment variables | `AcceptEnv` names them; guardrails cannot judge them | admitted by capability, then **judged by name** with an `env_set` rule |
+| A command | runs, or is replaced wholesale by `ForceCommand` | **read as a statement**, matched by rule, classified by the analyzer, audited in full |
+| A file operation | the subsystem is on or off | **one statement per operation per path**, each with a verdict recorded before the filesystem is touched |
+
+The last two rows are the point of the lane. The rest of this page is the price.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Host Configuration" icon="server" href="/setup/configuration/hoop-sidecar/protocols/ssh/hosts">
+    The accounts, groups and shells that have to be in place before any of this applies.
+  </Card>
+  <Card title="Configuration" icon="file-code" href="/setup/configuration/hoop-sidecar/protocols/ssh/configuration">
+    Every attribute, the full capability surface, and what each one can carry.
+  </Card>
+</CardGroup>

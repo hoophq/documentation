@@ -105,7 +105,19 @@
                   "setup/configuration/hoop-sidecar/protocols/grpc",
                   "setup/configuration/hoop-sidecar/protocols/spanner",
                   "setup/configuration/hoop-sidecar/protocols/bigquery",
-                  "setup/configuration/hoop-sidecar/protocols/http"
+                  "setup/configuration/hoop-sidecar/protocols/http",
+                  {
+                    "group": "SSH",
+                    "pages": [
+                      "setup/configuration/hoop-sidecar/protocols/ssh",
+                      "setup/configuration/hoop-sidecar/protocols/ssh/topologies",
+                      "setup/configuration/hoop-sidecar/protocols/ssh/configuration",
+                      "setup/configuration/hoop-sidecar/protocols/ssh/certificates",
+                      "setup/configuration/hoop-sidecar/protocols/ssh/hosts",
+                      "setup/configuration/hoop-sidecar/protocols/ssh/file-transfer",
+                      "setup/configuration/hoop-sidecar/protocols/ssh/limitations"
+                    ]
+                  }
                 ]
               },
               "setup/configuration/hoop-sidecar/config-file",

@@ -135,13 +135,13 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | Field | Meaning |
 |---|---|
 | `name` | Identifies the lane in logs, in `/config`, in every audit event and in `input.context.connection`. Required. The physical `upstream` may change under it. |
-| `protocol` | `postgres`, `mysql`, `mssql`, `mongodb`, `grpc` or `http`. Selects the codec; see [Protocols](/setup/configuration/hoop-sidecar/protocols/postgres) for what each one decodes. |
+| `protocol` | `postgres`, `mysql`, `mssql`, `mongodb`, `grpc`, `http` or `ssh`. Selects the codec; see [Protocols](/setup/configuration/hoop-sidecar/protocols/postgres) for what each one decodes. `ssh` is the exception: it has no codec, because it **terminates** the protocol instead of relaying it. |
 | `listen` | Bind address, or a filesystem path when `network: unix`. |
 | `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
-| `upstream` | The real backend, `host:port`. |
+| `upstream` | The real backend, `host:port`. Required on every lane except `ssh`, where it is **refused**: an end-hop spawns a local process and a bastion carries forwards the client chooses. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
-| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane (pgwire negotiates in-band) or a `grpc` lane (it is its own HTTP/2 endpoint). See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#terminating-the-clients-tls). |
-| `identity_header` | Names an HTTP header carrying the authenticated subject. |
+| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane (pgwire negotiates in-band) or a `grpc` lane (it is its own HTTP/2 endpoint). Refused on `ssh`, which negotiates its own transport. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#terminating-the-clients-tls). |
+| `identity_header` | Names an HTTP header carrying the authenticated subject. Refused on `ssh`, where the identity comes from the certificate the lane verified itself. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
 | `guardrails` | Adds to the top-level rule set for this lane. |
@@ -150,6 +150,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `analyzer` | This lane's AI analyzer: trigger, risk→action map, prompt, and per-lane overrides of the top-level defaults. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `http` | What the HTTP codec captures. Only valid on an `http` lane. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#the-http-block). |
 | `grpc` | Descriptor sets and capture for a gRPC lane. Only valid on a `grpc` lane. See [gRPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-grpc-block). |
+| `ssh` | The host key, trusted CA, admitted capabilities, forward destinations and certificate-to-identity mapping. **Required** on an `ssh` lane and refused on every other. See [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration). |
 
 <Warning>
 `identity_header` trusts a header, which is safe only when nothing but your proxy can reach the listener. Bind it to loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
@@ -576,6 +577,10 @@ That only reaches a client through a rule you wrote: masking rewrites the types 
 Masking needs a codec that can carry it. HTTP declares its body length in a header the Sidecar corrects; Postgres rebuilds its length-prefixed row frames around the new values, and MSSQL reassembles the TDS token stream and lays fresh packets over the rewritten rows. A protocol offering neither gets its `mask` section **refused at startup**. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
 </Note>
 
+<Warning>
+**An `ssh` lane takes `strategy: mask` and nothing else.** It rewrites a byte stream in place — there is no length header to correct and no frame to rebuild — so a replacement of a different size shifts every byte after it and desynchronizes the terminal. `redact` (which is the default when `strategy` is omitted), `partial` and `hash` are each refused at startup on an `ssh` lane, and so is a `mask_char` above U+007F, because `mask` preserves the **rune** count where this lane needs the **byte** count preserved. See [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#masking).
+</Warning>
+
 ---
 
 ## Licensing
@@ -890,6 +895,25 @@ Three more refusals arrived with findings, each one a config that would load and
 | `access` set to anything but `read` or `write` | Unknown access, naming the rule. Empty matches either. |
 
 **A `mask` block on a protocol whose codec can carry neither masking mechanism**, naming the lane, plus a `mask.rules` entry with neither `entities` nor `columns`, empty rule lists, duplicate listen addresses, missing upstreams and an `opa` block with no URL.
+
+### On an `ssh` lane
+
+An `ssh` lane terminates its protocol instead of relaying it, so several keys that are ordinary elsewhere are refused rather than ignored. A lane that came up green while silently dropping one of them is the failure this removes.
+
+| Config | Refusal |
+|---|---|
+| `protocol: ssh` with no `ssh` block | The listener has no host key and no trusted CA, so it could not complete a handshake. |
+| `ssh.host_key` or `ssh.trusted_ca` missing, or unreadable | Both are opened at load. An unreadable CA is a listener that refuses everyone and cannot say why. |
+| `upstream`, `upstream_tls`, `downstream_tls`, `identity_header` | None applies: there is no fixed backend, no TLS to terminate, and the identity comes from the certificate the lane verified itself. |
+| `capabilities_allowed:` written with no value | `null` is indistinguishable from an absent key, and absent means *admit the delivered set* while `[]` means *admit none*. Write one or the other. |
+| `capabilities_allowed` naming `x11`, `subsystem`, `agent_forward` or `remote_forward` | This version does not deliver them: no handler exists, so admitting one would leave you believing the capability is on. |
+| `capabilities_allowed` naming `local_forward` or `forward` | Forwarding is not a member of that list. `ssh.destinations_allowed` decides where a forward may be carried, and an absent or empty one denies every forward. |
+| a malformed `destinations_allowed` entry | Write a prefix such as `10.0.0.0/8`, a single host as `10.0.0.5/32`, or `any`. Parsed at load, never at connection time. |
+| `ssh.identity` naming a source other than `key_id`, `principals` or `extensions.<name>` | A source the lane cannot read would leave the field empty, and an empty subject is an audit trail that cannot say who ran a command. |
+| a `table`, `http_resource`, `http_status` or `grpc_status` rule | An SSH statement has nothing for them to read. Match a path with `pattern_match` scoped to the `sftp_*` operations instead. |
+| a `mask` rule whose strategy is not `mask`, or whose `mask_char` is not ASCII | The lane masks bytes in place and cannot change length. |
+
+**`--validate` cannot check the accounts.** The login name arrives in the handshake, so a host missing an account it meant to serve is discovered by the first session that asks for it. See [Host Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/hosts#verification).
 
 ---
 
