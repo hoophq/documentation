@@ -121,7 +121,12 @@
             "pages": [
               "core-concepts/control-plane",
               "control-plane/install",
-              "control-plane/deployment/docker-compose"
+              {
+                "group": "Deployment",
+                "pages": [
+                  "control-plane/deployment/docker-compose"
+                ]
+              }
             ]
           }
         ]
