@@ -99,7 +99,7 @@ The organization's license lives on the Control Plane, not on each Sidecar. It r
 hoop-sidecar-license-managed: true
 ```
 
-While that header is present, the Sidecar's own license sources — the `-license` flag, `HOOP_LICENSE` and the config file's `license` key — are ignored, and it warns at startup that it is ignoring them. A Control Plane whose organization holds no license runs the free tier.
+While that header is present, the Sidecar's own license sources — the `--license` flag, `HOOP_LICENSE` and the config file's `license` key — are ignored, and it warns at startup that it is ignoring them. A Control Plane whose organization holds no license runs the free tier.
 
 A `license` key authored on a Sidecar's configuration in the Control Plane is refused. One organization, one license.
 

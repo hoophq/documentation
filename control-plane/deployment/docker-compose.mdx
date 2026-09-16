@@ -67,9 +67,10 @@ The fastest way to get a Control Plane running. Good for evaluation, and good en
 curl -sL https://hoop.dev/docker-compose.control-plane.yml > docker-compose.yml
 ```
 
-Postgres and the Hoop image started in control plane mode, plus an optional
-Sidecar and a database for it to sit in front of. The subcommand picks the mode:
-the same image runs the gateway when it is started with `hoop start gateway`.
+The file brings up Postgres and the Hoop image started in control plane mode,
+plus an optional Sidecar and a database for it to sit in front of. The
+subcommand picks the mode: the same image runs the gateway when it is started
+with `hoop start gateway`.
 
 The Control Plane publishes one port, `8009`. It opens no gRPC transport and
 starts no protocol proxies, so there is nothing else to expose.
