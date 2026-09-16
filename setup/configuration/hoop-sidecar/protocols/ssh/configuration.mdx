@@ -30,6 +30,7 @@ Everything a lane admits, refuses, matches, masks and records is decided here, s
 | the full capability surface, and what each one delivers | [capabilities_allowed](#capabilities-allowed) |
 | where a forward may be carried | [destinations_allowed](#destinations-allowed) |
 | the twelve operations a rule can name | [Operations](#operations) |
+| a model reading the command a pattern cannot see | [Risk analysis](#risk-analysis) |
 | what the trail records, and what it never does | [Audit trail](#audit-trail) |
 
 ---
@@ -219,7 +220,7 @@ ssh:
 A listener that refuses `shell` has **no unpoliced surface left**: every action is a statement a rule can read. Reach for this on a lane that needs to enforce rather than observe. Users get `ssh host <command>`, not a prompt.
 
 <Note>
-The analyzer works on an SSH lane and is the only answer to shell expansion: a pattern cannot see through it, and a model reading the command can. Configure it in the listener's `analyzer` block, triggered on `exec_line` — **the only operation an SSH lane classifies**, and a trigger naming another one is refused at startup rather than left never firing. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) first — it leaves the process and costs money per statement.
+The analyzer works on an SSH lane and is the only answer to shell expansion: a pattern cannot see through it, and a model reading the command can. [Risk analysis](#risk-analysis) below configures one on this lane.
 </Note>
 
 ---
@@ -473,6 +474,94 @@ A path reaches the rule as statement text whichever client asked for it — as t
 | `grpc_status` | *there is no RPC* |
 
 They are refused at config load rather than skipped at evaluation, because the two failures reach different people: a load refusal reaches the operator who wrote the rule, and a silent skip reaches nobody at all.
+
+---
+
+## Risk analysis
+
+A guardrail rule matches text. **The shell expands before anything runs**, so the text a rule reads is not always the instruction that executes:
+
+```bash
+ssh host 'X=cat; $X /root/.aws/credentials'
+```
+
+That command line carries no `.aws/credentials` for `protected-paths` above to find. A model reading the whole line can say what it intends, and that is the gap the analyzer fills on an SSH lane.
+
+The provider and the credential are process-wide; the trigger and the actions belong to the lane:
+
+```yaml config.yaml
+analyzer:
+  provider: anthropic
+  model: claude-sonnet-4-5
+  credentials_file: /run/secrets/anthropic-key
+
+listeners:
+  - name: ai-endhost
+    protocol: ssh
+    listen: 0.0.0.0:2222
+
+    ssh:
+      host_key: /etc/hoop-sidecar/keys/endhost_host_key
+      trusted_ca: /etc/hoop-sidecar/keys/ca.pub
+      capabilities_allowed: [exec]
+
+    analyzer:
+      trigger:
+        operations: [exec_line]
+      high: block
+      medium: warn
+```
+
+```
+$ ssh ai-endhost 'X=cat; $X /root/.aws/credentials'
+hoop: reads cloud credential material
+```
+
+The lane writes no `message:`, so the refusal carries the model's own title. Set `message:` to say the same thing for every verdict instead.
+
+### What it classifies
+
+`exec_line`, and nothing else. A command line is a whole instruction; a variable name (`env_set`) and a file path (every `sftp_*`) are short strings with no room for intent. **A trigger naming any other operation is refused at startup**:
+
+```
+invalid config:
+  - ai-endhost: the analyzer trigger names operation "sftp_read", which a ssh
+    lane never classifies, so every statement carrying it would be skipped and
+    allowed with no call made. This lane classifies exec_line; match the rest
+    with a pattern_match rule scoped by operations
+```
+
+Otherwise the trigger would match, the builder would decline, and the statement would be allowed with nothing to show for it. Match paths and variable names with a `pattern_match` rule scoped by `operations` — it costs nothing and reads them exactly as well.
+
+An interactive `shell` never reaches the analyzer either, because no keystrokes are reconstructed into statements. A lane that admits one looks analyzed and is not, which is why the example admits `exec` only.
+
+### The prompt
+
+Add a `prompt:` to the listener's block, not to the top-level section. That one is process-wide and would reach a database lane reasoning about `DROP` while it looks at a shell command.
+
+### When the model is unreachable
+
+An unreachable OPA denies. An unreachable model **allows**, and the command runs:
+
+```
+"msg":"ssh statement evaluation continued after error",
+"error":"analyzer/anthropic: provider returned 401 Unauthorized"
+```
+
+A policy engine outage is a security decision nobody made, so denying is the safe reading. A classifier outage is a paid dependency being down, and denying there takes production with it. Set `fail_open: false` where the classification is a compliance requirement, and know that the model is then a hard dependency of every command on the lane.
+
+### Cost controls
+
+The example above omits these, so it classifies every command, with no cache and no ceiling. Set them before a real lane:
+
+| Key | Bounds |
+|---|---|
+| `trigger.operations` | the only thing that narrows **which** statements are classified. Omit the trigger and every `exec_line` on the lane is sent |
+| `max_calls` | a process-lifetime ceiling. Past it, statements fall through to the guardrails — the same outcome as a lane with no analyzer |
+| `cache` | same command shape, same verdict, one call |
+| `send` | `redacted` replaces detected entities before the command leaves the process; `raw` sends it verbatim; `refuse` skips the call rather than send anything |
+
+[Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) has the providers, the credential rules, the verdict records and the `defer` action that hands a risk level to Rego.
 
 ---
 
