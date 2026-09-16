@@ -33,6 +33,22 @@
       "conditions": {
         "host": "localhost:3000"
       }
+    },
+    {
+      "source": "/setup/configuration/hoop-sidecar/get-started",
+      "destination": "/install/cli"
+    },
+    {
+      "source": "/clients/cli",
+      "destination": "/install/cli"
+    },
+    {
+      "source": "/setup/configuration/hoop-sidecar/deployment/container-images",
+      "destination": "/install/container-images"
+    },
+    {
+      "source": "/setup/configuration/hoop-sidecar/deployment/kubernetes",
+      "destination": "/install/kubernetes"
     }
   ],
   "errors": {
@@ -54,10 +70,54 @@
             ]
           },
           {
-            "group": "Core Concepts",
+            "group": "Sidecar",
             "pages": [
               "core-concepts/sidecar",
-              "core-concepts/control-plane"
+              {
+                "group": "Install & Deploy",
+                "pages": [
+                  "install/cli",
+                  "install/container-images",
+                  "install/kubernetes"
+                ]
+              },
+              "control-plane/connect-sidecar",
+              {
+                "group": "Reference",
+                "pages": [
+                  "setup/configuration/hoop-sidecar/config-file",
+                  "setup/configuration/hoop-sidecar/policy-rules",
+                  "setup/configuration/hoop-sidecar/risk-analysis",
+                  "setup/configuration/hoop-sidecar/components",
+                  "setup/configuration/hoop-sidecar/kerberos",
+                  {
+                    "group": "Protocols",
+                    "pages": [
+                      "setup/configuration/hoop-sidecar/protocols/postgres",
+                      "setup/configuration/hoop-sidecar/protocols/mysql",
+                      "setup/configuration/hoop-sidecar/protocols/mssql",
+                      "setup/configuration/hoop-sidecar/protocols/mongodb",
+                      "setup/configuration/hoop-sidecar/protocols/grpc",
+                      "setup/configuration/hoop-sidecar/protocols/spanner",
+                      "setup/configuration/hoop-sidecar/protocols/bigquery",
+                      "setup/configuration/hoop-sidecar/protocols/http",
+                      {
+                        "group": "SSH",
+                        "pages": [
+                          "setup/configuration/hoop-sidecar/protocols/ssh",
+                          "setup/configuration/hoop-sidecar/protocols/ssh/topologies",
+                          "setup/configuration/hoop-sidecar/protocols/ssh/configuration",
+                          "setup/configuration/hoop-sidecar/protocols/ssh/certificates",
+                          "setup/configuration/hoop-sidecar/protocols/ssh/hosts",
+                          "setup/configuration/hoop-sidecar/protocols/ssh/file-transfer",
+                          "setup/configuration/hoop-sidecar/protocols/ssh/limitations",
+                          "setup/configuration/hoop-sidecar/protocols/ssh/known-limitations"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
             ]
           },
           {
@@ -72,6 +132,7 @@
           {
             "group": "Control Plane Setup",
             "pages": [
+              "core-concepts/control-plane",
               "control-plane/install",
               {
                 "group": "Deployment",
@@ -80,52 +141,7 @@
                   "control-plane/deployment/kubernetes",
                   "control-plane/deployment/aws"
                 ]
-              },
-              "control-plane/connect-sidecar"
-            ]
-          },
-          {
-            "group": "Sidecar Reference",
-            "pages": [
-              "setup/configuration/hoop-sidecar/get-started",
-              {
-                "group": "Deployment",
-                "pages": [
-                  "setup/configuration/hoop-sidecar/deployment/kubernetes",
-                  "setup/configuration/hoop-sidecar/deployment/container-images"
-                ]
-              },
-              {
-                "group": "Protocols",
-                "pages": [
-                  "setup/configuration/hoop-sidecar/protocols/postgres",
-                  "setup/configuration/hoop-sidecar/protocols/mysql",
-                  "setup/configuration/hoop-sidecar/protocols/mssql",
-                  "setup/configuration/hoop-sidecar/protocols/mongodb",
-                  "setup/configuration/hoop-sidecar/protocols/grpc",
-                  "setup/configuration/hoop-sidecar/protocols/spanner",
-                  "setup/configuration/hoop-sidecar/protocols/bigquery",
-                  "setup/configuration/hoop-sidecar/protocols/http",
-                  {
-                    "group": "SSH",
-                    "pages": [
-                      "setup/configuration/hoop-sidecar/protocols/ssh",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/topologies",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/configuration",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/certificates",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/hosts",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/file-transfer",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/limitations",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/known-limitations"
-                    ]
-                  }
-                ]
-              },
-              "setup/configuration/hoop-sidecar/config-file",
-              "setup/configuration/hoop-sidecar/policy-rules",
-              "setup/configuration/hoop-sidecar/risk-analysis",
-              "setup/configuration/hoop-sidecar/components",
-              "setup/configuration/hoop-sidecar/kerberos"
+              }
             ]
           }
         ]
@@ -133,15 +149,18 @@
       {
         "anchor": "Hoop Gateway",
         "icon": "server",
+        "hidden": true,
         "groups": [
           {
             "group": "Overview",
+            "searchable": true,
             "pages": [
               "gateway/overview"
             ]
           },
           {
             "group": "Features",
+            "searchable": true,
             "pages": [
               "learn/features/live-data-masking",
               "learn/features/ai-session-analyzer",
@@ -164,6 +183,7 @@
           },
           {
             "group": "Clients",
+            "searchable": true,
             "pages": [
               {
                 "group": "Web App",
@@ -174,7 +194,7 @@
                   "clients/webapp/monitoring-sessions"
                 ]
               },
-              "clients/cli",
+              "install/cli",
               "clients/cli-versions",
               "clients/cli-resources",
               "clients/cli-federation",
@@ -184,6 +204,7 @@
           },
           {
             "group": "Quickstart",
+            "searchable": true,
             "pages": [
               "quickstart/overview",
               {
@@ -265,6 +286,7 @@
           },
           {
             "group": "Setup & Administration",
+            "searchable": true,
             "pages": [
               "setup/architecture",
               {
@@ -339,6 +361,7 @@
           },
           {
             "group": "Concepts",
+            "searchable": true,
             "pages": [
               "concepts/agents",
               "concepts/resource-roles"
@@ -346,6 +369,7 @@
           },
           {
             "group": "Integrations",
+            "searchable": true,
             "pages": [
               "integrations/slack",
               "integrations/teams",
@@ -401,6 +425,17 @@
       "x": "https://x.com/hoopdotdev",
       "github": "https://github.com/hoophq",
       "linkedin": "https://www.linkedin.com/company/hoopdev"
-    }
+    },
+    "links": [
+      {
+        "header": "Legacy",
+        "items": [
+          {
+            "label": "Hoop Gateway",
+            "href": "https://hoop.dev/docs/gateway/overview"
+          }
+        ]
+      }
+    ]
   }
 }

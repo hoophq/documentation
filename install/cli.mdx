@@ -1,32 +1,110 @@
 ---
-title: "Running the Sidecar"
-description: "Run the Sidecar from the CLI and put it behind your Envoy"
+title: "Command Line"
+description: "Install and configure the hoop.dev CLI to interact with your applications."
 ---
 
-The Sidecar is an inspecting proxy. It decodes the wire protocol between a client and a database or an API, evaluates every statement against policy, records an audit trail, and masks sensitive values in the response.
+import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
 
-It routes nothing and terminates no client TLS. You run it behind something that already owns the network path and identity, which in most enterprises means Envoy. Envoy reaches it over a unix socket or a TCP port, your choice per lane.
+<Prerequisites />
 
-```mermaid
-flowchart LR
-    C["client<br/>psql · curl"] -->|TLS| E["envoy<br/>terminates TLS"]
-    E -.->|ext_authz| O["OPA<br/>can alice reach it?"]
-    E -->|socket or port| H["Sidecar<br/>is this DELETE allowed?"]
-    H --> U["postgres · HTTP API"]
-```
+## Installation
 
-Envoy answers reachability. The Sidecar answers what the statement does, and what comes back.
+<Tabs>
+  <Tab title="MacOS">
+    Through homebrew:
+
+    ```bash
+      brew tap hoophq/brew https://github.com/hoophq/brew.git
+      brew install hoop
+    ```
+
+    To upgrade it:
+
+    ```bash
+      brew update && brew upgrade hoop
+    ```
+  </Tab>
+  <Tab title="Linux">
+    To install or upgrade:
+
+    ```bash
+      curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
+    ```
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Download">
+        Download the latest release of [hoop command line](https://github.com/hoophq/hoop/releases) for your architecture (usually **hoop-windows-amd64**) and save it in the **Downloads** folder
+      </Step>
+      <Step title="Extract">
+        Extract the file using **winrar** or **winzip**
+      </Step>
+      <Step title="Place it in the right folder">
+        Move the extracted file `hoop.exe` to the folder `C:\Windows\System32\`
+      </Step>
+      <Step title="Check the installation">
+        Open a terminal session and type `hoop version` if it successfully shows the program’s version it’s installed.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows WSL">
+    ### Prerequisites
+
+    1. Install the Windows Terminal https://aka.ms/terminal
+    2. Install Ubuntu WSL https://ubuntu.com/wsl
+    3. Open the Windows Terminal App
+    4. Install and open the Ubuntu typing `ubuntu`. It should prompt to create a user in the first time
+
+    ```bash
+      PS C:\Users\san> ubuntu
+      san@DESKTOP-BBQAAEG:~$
+    ```
+
+    5. gain root access
+
+    ```bash
+      sudo su -
+    ```
+
+    6. To install or upgrade the hoop.dev command line:
+
+    ```bash
+      curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
+    ```
+  </Tab>
+  <Tab title="Manual">
+    Check the latest version for your operating system architecture in the [releases page](https://github.com/hoophq/hoop/releases).
+  </Tab>
+</Tabs>
 
 <Note>
-This runs with no gateway, no agent, and no control-plane database. One config file is the whole setup.
+  Already installed? The CLI ships its own version manager under `hoop versions`. Use `hoop versions sync` to match the connected gateway, `hoop versions upgrade` to track the latest release, or `hoop versions install <version>` to pin a specific version. See [hoop versions](/clients/cli-versions) for details.
 </Note>
 
 ---
 
-## Prerequisites
+## Running the Sidecar
 
-- The `hoop` CLI installed. See [CLI installation](/clients/cli).
-- An Envoy you can add a cluster to, or any proxy that can forward plaintext to a local port.
+The same binary also runs the Sidecar directly — an inspecting proxy that decodes the wire protocol between a client and a database or an API, evaluates every statement against policy, records an audit trail, and masks sensitive values in the response.
+
+It routes nothing and terminates no client TLS. A client can dial it directly:
+
+```mermaid
+flowchart LR
+    C["client<br/>psql · curl"] -->|TCP or socket| H["Sidecar<br/>is this DELETE allowed?"]
+    H --> U["postgres · HTTP API"]
+```
+
+Or, if you already run something that owns the network path and identity — Envoy is the common choice in bigger environments — put that in front instead. That's entirely optional, and it's covered at the end of this page in [Optional: Put Envoy in Front](#optional-put-envoy-in-front).
+
+<Note>
+This runs with no gateway, no agent, and no control-plane database. One config file is the whole setup — nothing above needs a hoop.dev account.
+</Note>
+
+---
+
+## Before You Start
+
 - A backend to protect: PostgreSQL, SQL Server or an HTTP service.
 
 ---
@@ -59,7 +137,7 @@ Pick a transport first. One field decides it, and the rest of the file is identi
       - name: appdb                            # the name audit rows and rules key on
         protocol: postgres
         network: unix                          # no port is opened at all
-        listen: /run/hoop-inspect/pg.sock      # where Envoy sends bytes
+        listen: /run/hoop-inspect/pg.sock      # where bytes arrive
         upstream: appdb:5432                   # the real database
         guardrails:
           rules:
@@ -69,7 +147,7 @@ Pick a transport first. One field decides it, and the rest of the file is identi
               message: destructive statements are not permitted on appdb
     ```
 
-    A socket opens no port, so reachability becomes a filesystem question rather than a network one. The cost is coordination: Envoy and the Sidecar mount the same directory and their uids have to agree. Cheap in a pod spec, awkward across hosts.
+    A socket opens no port, so reachability becomes a filesystem question rather than a network one. The cost is coordination: whatever's in front — Envoy is the common choice — and the Sidecar mount the same directory and their uids have to agree. Cheap in a pod spec, awkward across hosts.
   </Tab>
   <Tab title="TCP port">
     ```yaml config.yaml
@@ -94,7 +172,7 @@ Pick a transport first. One field decides it, and the rest of the file is identi
               message: destructive statements are not permitted on appdb
     ```
 
-    Nothing to mount and nothing to chown, which is why the compose stack defaults to this. Bind loopback where the Sidecar and Envoy share a network namespace: a `0.0.0.0` bind is reachable by anything that can route to the host, and a NetworkPolicy narrows that without removing it.
+    Nothing to mount and nothing to chown, which is why the compose stack defaults to this. Bind loopback where the Sidecar and whatever's in front of it share a network namespace: a `0.0.0.0` bind is reachable by anything that can route to the host, and a NetworkPolicy narrows that without removing it.
   </Tab>
 </Tabs>
 
@@ -164,7 +242,216 @@ curl -s localhost:19000/config | python3 -m json.tool
 
 ---
 
-## Step 4: Point Envoy at it
+## Step 4: Watch it work
+
+With the lane above in place, a destructive statement never reaches the database:
+
+```bash
+PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U appuser -d appdb \
+  -c 'DELETE FROM customers WHERE id = 1;'
+```
+
+```
+FATAL:  destructive statements are not permitted on appdb
+```
+
+That is a real pgwire `ErrorResponse` carrying the message you wrote in `config.yaml`, so the developer reads it in psql instead of watching a socket drop.
+
+The rule catches more than its three verbs suggest, because `Operation` is the worst effect rather than the leading word. A delete hidden inside a CTE trips it:
+
+```bash
+PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U appuser -d appdb \
+  -c 'WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d;'
+```
+
+```
+FATAL:  destructive statements are not permitted on appdb
+```
+
+<Note>
+With Envoy in front (see [Optional: Put Envoy in Front](#optional-put-envoy-in-front)), dial whatever host and port Envoy publishes instead — the Sidecar's behavior is identical either way.
+</Note>
+
+<Warning>
+`CALL` and `EXECUTE` report `unknown` rather than `call`, because their bodies live in the catalog and no parser can say what they touch. The rule above forwards `CALL purge()`. Add `unknown` where that matters:
+
+```yaml
+operations: [drop, delete, truncate, unknown]
+```
+
+A rule written as `operations: [call]` stops matching `CALL` and `EXECUTE` entirely. Write `operations: [call, unknown]`.
+</Warning>
+
+Read what the Sidecar recorded:
+
+```bash
+curl -s localhost:19000/stats                  | python3 -m json.tool
+curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
+```
+
+```json
+{"sessions": [
+  {"id": "98203ccc…", "principal": "anonymous", "protocol": "postgres",
+   "connection": "appdb", "duration_ms": 11,
+   "statement_count": 2, "denied_count": 1, "masked_count": 0, "verdict": "denied"}
+]}
+```
+
+### Confirm which transport bound
+
+`/stats` reports the address each lane bound, not the string you configured, so it tells you what happened. A path means a socket, a `host:port` means TCP:
+
+```json
+{"listeners": [
+  {"name": "appdb",   "addr": "/run/hoop-inspect/pg.sock",   "active": 0, "total": 4},
+  {"name": "httpbin", "addr": "/run/hoop-inspect/http.sock", "active": 0, "total": 5}
+]}
+```
+
+On a socket deployment, ask the Sidecar's own namespace what it listens on:
+
+```bash
+netstat -ltn        # or: ss -ltn
+```
+
+```
+tcp  0  0  127.0.0.11:41515  0.0.0.0:*  LISTEN     docker's internal resolver
+tcp  0  0  :::19000          :::*       LISTEN     the admin API
+```
+
+The admin port is the only entry left. A TCP deployment lists `:::15432` and `:::18080` beside it. From a peer, `nc -z -w2 hoop-inspect 15432` reports closed or open to match.
+
+<Warning>
+Check with `nc`, not `(echo > /dev/tcp/host/port)`. The latter is a bash builtin, and under BusyBox or dash it fails with no such device and calls every port closed, including open ones. It looks like a passing check and proves nothing.
+</Warning>
+
+---
+
+## Step 5: Add masking
+
+Masking runs on responses. Detection needs no setup — every supported entity is enabled unless a `pii` section narrows the list — so one block says what gets rewritten and how:
+
+```yaml config.yaml
+mask:
+  rules:
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: ssn,    entities: [US_SSN], strategy: partial, keep_last: 4}
+```
+
+The same query now comes back rewritten:
+
+```
+     name     |          email           |     ssn     |          iban
+--------------+--------------------------+-------------+------------------------
+ Ada Lovelace | [REDACTED:EMAIL_ADDRESS] | ***-**-6789 | ******************5432
+ Grace Hopper | [REDACTED:EMAIL_ADDRESS] | ***-**-4321 | ******************3000
+```
+
+`entities` is a list, so one rule can cover several types that share a strategy: `{name: ids, entities: [US_SSN, BR_CPF], strategy: hash}`.
+
+<Warning>
+Only the types a `mask` rule names are rewritten, and `US_SSN` is the one to be careful with: it carries no checksum, so nine digits in a legal range is a valid SSN as far as any detector can tell, and it fires on about a third of random nine-digit business ids. Where a lane carries ids like that, mask the column by name instead, and add a `pii` section naming the types your data really holds:
+
+```yaml config.yaml
+pii:
+  entities: [EMAIL_ADDRESS, CREDIT_CARD, BR_CPF, IBAN_CODE]
+```
+</Warning>
+
+---
+
+## Run the whole thing on your laptop
+
+The repository ships a compose stack that runs all of this end to end: Envoy terminating TLS, OPA answering reachability, the Sidecar behind both, a seeded Postgres and an HTTP service behind that. Needs `docker`, `curl`, `openssl` and `python3`.
+
+```bash
+git clone https://github.com/hoophq/hoop
+cd hoop/deploy/docker-compose/envoy-stack
+
+./run.sh       # cert, sidecar image, compose up. First run takes a minute.
+./demo.sh      # walks every lane and prints the audit trail
+./run.sh down  # tear down, including volumes
+```
+
+The stack ships both transports. TCP is the default because it needs no shared volume; the overlay swaps in sockets once the certs exist and the image is built.
+
+<Tabs>
+  <Tab title="TCP (default)">
+    ```bash
+    ./run.sh
+    ./demo.sh
+    ```
+
+    The Sidecar binds `:15432` and `:18080` on the compose network. Neither is published to the host.
+  </Tab>
+  <Tab title="Unix socket (overlay)">
+    ```bash
+    export COMPOSE_FILE=docker-compose.yml:uds/docker-compose.uds.yml
+    docker compose up -d --wait
+
+    ./demo.sh                     # same lanes, same policy, now over sockets
+    docker compose down -v        # tear down
+    ```
+
+    `COMPOSE_FILE` applies to every `docker compose` in that shell, `demo.sh` included, so the overlay stays selected without repeating the flags. Prefer it to a `CF="-f a -f b"` variable: that idiom relies on unquoted word splitting, which bash does and zsh does not, so on zsh the whole string arrives as one argument.
+
+    Confirm it took effect:
+
+    ```bash
+    docker compose exec -T envoy ls -l /run/hoop-inspect/
+    #  srwxrwxr-x 1 10001 envoy 0 http.sock
+    #  srwxrwxr-x 1 10001 envoy 0 pg.sock
+
+    docker compose exec -T client sh -c 'nc -z -w2 hoop-inspect 15432 && echo OPEN || echo closed'
+    #  closed
+    ```
+  </Tab>
+</Tabs>
+
+| Port | Serves |
+|---|---|
+| 8443 | Envoy HTTPS, to the HTTP lane |
+| 5433 | Envoy TCP, to the Postgres lane |
+| 19000 | relay admin: `/healthz`, `/stats`, `/config`, `/events`, `/api/*` |
+| 9901 | Envoy admin |
+
+Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the Sidecar's two, which were never published to the host.
+
+<Note>
+SQL Server runs in two stacks of its own, and what separates them is who terminates the client's TLS. `deploy/docker-compose/envoy-stack/mssql/` (`hoopinspect/scripts/dev/mssql-stack.sh`) runs SQL Server 2022 over TDS 8.0, with Envoy terminating, a Samba AD DC and a client holding a ticket. `deploy/docker-compose/envoy-stack/mssql2019/` (`mssql2019-stack.sh`) runs TDS 7.4 with no Envoy at all, covering the encrypted login; its `MSSQL_TAG` accepts 2017, 2019 and 2022. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#local-testing).
+</Note>
+
+---
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
+| Masking leaves a value alone | The detector may refuse it. Add a column rule, or check that no `pii.entities` list is narrowing the type out. |
+| The Sidecar refuses to start | It prints every config problem at once, each naming its lane |
+| psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The Sidecar reads plaintext either way. |
+| Envoy returns 503 with `flags=UF` | On a socket lane, Envoy lacks write permission on the socket file. Check `ls -l` on the directory and the Sidecar's umask. On TCP, check the cluster address. |
+| Everything is allowed | Read the lane's resolved `rules` at `/config`. A rule set that reached no lane, or a `guardrails` block still written as `policy`, allows everything. |
+| `bind: permission denied` at startup | The Sidecar cannot write to the socket directory. Chown it, or set `fsGroup` on the pod. |
+| `is a live socket; another relay is already listening on it` | A second Sidecar tried to bind a path in use. Stop the first one. |
+| Envoy rejects the cluster config | A `pipe:` endpoint needs `type: STATIC`; `STRICT_DNS` tries to resolve a filesystem path. A `socket_address` endpoint needs `STRICT_DNS` or `STATIC` with an IP. |
+
+---
+
+## Optional: Put Envoy in Front
+
+Everything above works with a client dialing the Sidecar directly. If you already run something that owns the network path and identity — Envoy is the common choice in bigger environments — you can put it in front instead. None of the steps above change; this only adds a hop.
+
+```mermaid
+flowchart LR
+    C["client<br/>psql · curl"] -->|TLS| E["envoy<br/>terminates TLS"]
+    E -.->|ext_authz| O["OPA<br/>can alice reach it?"]
+    E -->|socket or port| H["Sidecar<br/>is this DELETE allowed?"]
+    H --> U["postgres · HTTP API"]
+```
+
+Envoy answers reachability. The Sidecar answers what the statement does, and what comes back.
 
 The Sidecar is an ordinary upstream. There is no ext_proc, no WASM, no custom Envoy filter to install. You change the cluster your listener already routes to.
 
@@ -334,6 +621,36 @@ A path resolves to nothing, so `STRICT_DNS` on a `pipe:` endpoint fails at load.
   </Tab>
 </Tabs>
 
+### Setting up the socket directory
+
+On a unix-socket lane, the directory needs an owner both Envoy and the Sidecar can work with. In Docker Compose that is a one-shot init container:
+
+```yaml docker-compose.yml
+socket-dir:
+  image: alpine:3.20
+  command:
+    - sh
+    - -c
+    - |
+      mkdir -p /run/hoop-inspect
+      chown 10001:101 /run/hoop-inspect     # relay uid, envoy gid
+      chmod 2775 /run/hoop-inspect          # setgid: sockets inherit the group
+  volumes:
+    - inspect-sockets:/run/hoop-inspect
+
+hoop-inspect:
+  user: "10001:101"
+  entrypoint: ["sh", "-c", "umask 0002 && exec /usr/local/bin/hoop-inspect -config /etc/hoop-inspect/config.yaml"]
+  volumes:
+    - inspect-sockets:/run/hoop-inspect
+  depends_on:
+    socket-dir: { condition: service_completed_successfully }
+```
+
+The setgid bit on the directory and `umask 0002` on the Sidecar are what make the sockets group-writable, which is the permission Envoy needs to connect. On Kubernetes, `fsGroup` on the pod's securityContext does the same job — see [Sharing a socket with Envoy](/install/kubernetes#sharing-a-socket-with-envoy).
+
+**Restarting after an unclean exit.** Go unlinks the socket when the listener closes, so SIGTERM leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process. The Sidecar reclaims it at startup by dialing the path: a socket nothing answers on gets unlinked with a warning, and one that answers is left alone while the bind fails, naming the conflict. Two relays sharing a socket would split a client's connections between them at random.
+
 ### Terminating client TLS
 
 The Sidecar reads plaintext. Something in front has to decrypt whatever the client encrypted before the gate sees a statement; the Sidecar terminates **no** downstream TLS.
@@ -381,199 +698,6 @@ With all three legs covered, only the hop the Sidecar reads is ever in the clear
 | relay → database | the Sidecar, via [`upstream_tls`](/setup/configuration/hoop-sidecar/config-file#upstream-tls) |
 
 Keep the middle leg on loopback or a unix socket. It carries decrypted traffic by design, and a socket is the tighter boundary because no port exists to reach.
-
----
-
-## Step 5: Watch it work
-
-With the lane above in place, a destructive statement never reaches the database:
-
-```bash
-PGSSLMODE=disable psql -h envoy -p 5432 -U appuser -d appdb \
-  -c 'DELETE FROM customers WHERE id = 1;'
-```
-
-```
-FATAL:  destructive statements are not permitted on appdb
-```
-
-That is a real pgwire `ErrorResponse` carrying the message you wrote in `config.yaml`, so the developer reads it in psql instead of watching a socket drop. Envoy forwarded the same bytes as opaque TCP and consulted nobody.
-
-The rule catches more than its three verbs suggest, because `Operation` is the worst effect rather than the leading word. A delete hidden inside a CTE trips it:
-
-```bash
-PGSSLMODE=disable psql -h envoy -p 5432 -U appuser -d appdb \
-  -c 'WITH d AS (DELETE FROM customers RETURNING *) SELECT count(*) FROM d;'
-```
-
-```
-FATAL:  destructive statements are not permitted on appdb
-```
-
-<Warning>
-`CALL` and `EXECUTE` report `unknown` rather than `call`, because their bodies live in the catalog and no parser can say what they touch. The rule above forwards `CALL purge()`. Add `unknown` where that matters:
-
-```yaml
-operations: [drop, delete, truncate, unknown]
-```
-
-A rule written as `operations: [call]` stops matching `CALL` and `EXECUTE` entirely. Write `operations: [call, unknown]`.
-</Warning>
-
-Read what the Sidecar recorded:
-
-```bash
-curl -s localhost:19000/stats                  | python3 -m json.tool
-curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
-```
-
-```json
-{"sessions": [
-  {"id": "98203ccc…", "principal": "anonymous", "protocol": "postgres",
-   "connection": "appdb", "duration_ms": 11,
-   "statement_count": 2, "denied_count": 1, "masked_count": 0, "verdict": "denied"}
-]}
-```
-
-### Confirm which transport bound
-
-`/stats` reports the address each lane bound, not the string you configured, so it tells you what happened. A path means a socket, a `host:port` means TCP:
-
-```json
-{"listeners": [
-  {"name": "appdb",   "addr": "/run/hoop-inspect/pg.sock",   "active": 0, "total": 4},
-  {"name": "httpbin", "addr": "/run/hoop-inspect/http.sock", "active": 0, "total": 5}
-]}
-```
-
-On a socket deployment, ask the Sidecar's own namespace what it listens on:
-
-```bash
-netstat -ltn        # or: ss -ltn
-```
-
-```
-tcp  0  0  127.0.0.11:41515  0.0.0.0:*  LISTEN     docker's internal resolver
-tcp  0  0  :::19000          :::*       LISTEN     the admin API
-```
-
-The admin port is the only entry left. A TCP deployment lists `:::15432` and `:::18080` beside it. From a peer, `nc -z -w2 hoop-inspect 15432` reports closed or open to match.
-
-<Warning>
-Check with `nc`, not `(echo > /dev/tcp/host/port)`. The latter is a bash builtin, and under BusyBox or dash it fails with no such device and calls every port closed, including open ones. It looks like a passing check and proves nothing.
-</Warning>
-
----
-
-## Step 6: Add masking
-
-Masking runs on responses. Detection needs no setup — every supported entity is enabled unless a `pii` section narrows the list — so one block says what gets rewritten and how:
-
-```yaml config.yaml
-mask:
-  rules:
-    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
-    - {name: ssn,    entities: [US_SSN], strategy: partial, keep_last: 4}
-```
-
-The same query now comes back rewritten:
-
-```
-     name     |          email           |     ssn     |          iban
---------------+--------------------------+-------------+------------------------
- Ada Lovelace | [REDACTED:EMAIL_ADDRESS] | ***-**-6789 | ******************5432
- Grace Hopper | [REDACTED:EMAIL_ADDRESS] | ***-**-4321 | ******************3000
-```
-
-`entities` is a list, so one rule can cover several types that share a strategy: `{name: ids, entities: [US_SSN, BR_CPF], strategy: hash}`.
-
-<Warning>
-Only the types a `mask` rule names are rewritten, and `US_SSN` is the one to be careful with: it carries no checksum, so nine digits in a legal range is a valid SSN as far as any detector can tell, and it fires on about a third of random nine-digit business ids. Where a lane carries ids like that, mask the column by name instead, and add a `pii` section naming the types your data really holds:
-
-```yaml config.yaml
-pii:
-  entities: [EMAIL_ADDRESS, CREDIT_CARD, BR_CPF, IBAN_CODE]
-```
-</Warning>
-
----
-
-## Run the whole thing on your laptop
-
-The repository ships a compose stack that runs all of this end to end: Envoy terminating TLS, OPA answering reachability, the Sidecar behind both, a seeded Postgres and an HTTP service behind that. Needs `docker`, `curl`, `openssl` and `python3`.
-
-```bash
-git clone https://github.com/hoophq/hoop
-cd hoop/deploy/docker-compose/envoy-stack
-
-./run.sh       # cert, sidecar image, compose up. First run takes a minute.
-./demo.sh      # walks every lane and prints the audit trail
-./run.sh down  # tear down, including volumes
-```
-
-The stack ships both transports. TCP is the default because it needs no shared volume; the overlay swaps in sockets once the certs exist and the image is built.
-
-<Tabs>
-  <Tab title="TCP (default)">
-    ```bash
-    ./run.sh
-    ./demo.sh
-    ```
-
-    The Sidecar binds `:15432` and `:18080` on the compose network. Neither is published to the host.
-  </Tab>
-  <Tab title="Unix socket (overlay)">
-    ```bash
-    export COMPOSE_FILE=docker-compose.yml:uds/docker-compose.uds.yml
-    docker compose up -d --wait
-
-    ./demo.sh                     # same lanes, same policy, now over sockets
-    docker compose down -v        # tear down
-    ```
-
-    `COMPOSE_FILE` applies to every `docker compose` in that shell, `demo.sh` included, so the overlay stays selected without repeating the flags. Prefer it to a `CF="-f a -f b"` variable: that idiom relies on unquoted word splitting, which bash does and zsh does not, so on zsh the whole string arrives as one argument.
-
-    Confirm it took effect:
-
-    ```bash
-    docker compose exec -T envoy ls -l /run/hoop-inspect/
-    #  srwxrwxr-x 1 10001 envoy 0 http.sock
-    #  srwxrwxr-x 1 10001 envoy 0 pg.sock
-
-    docker compose exec -T client sh -c 'nc -z -w2 hoop-inspect 15432 && echo OPEN || echo closed'
-    #  closed
-    ```
-  </Tab>
-</Tabs>
-
-| Port | Serves |
-|---|---|
-| 8443 | Envoy HTTPS, to the HTTP lane |
-| 5433 | Envoy TCP, to the Postgres lane |
-| 19000 | relay admin: `/healthz`, `/stats`, `/config`, `/events`, `/api/*` |
-| 9901 | Envoy admin |
-
-Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the Sidecar's two, which were never published to the host.
-
-<Note>
-SQL Server runs in two stacks of its own, and what separates them is who terminates the client's TLS. `deploy/docker-compose/envoy-stack/mssql/` (`hoopinspect/scripts/dev/mssql-stack.sh`) runs SQL Server 2022 over TDS 8.0, with Envoy terminating, a Samba AD DC and a client holding a ticket. `deploy/docker-compose/envoy-stack/mssql2019/` (`mssql2019-stack.sh`) runs TDS 7.4 with no Envoy at all, covering the encrypted login; its `MSSQL_TAG` accepts 2017, 2019 and 2022. Microsoft publishes no arm64 image, so first boot on Apple Silicon takes minutes. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#local-testing).
-</Note>
-
----
-
-## Troubleshooting
-
-| Symptom | Check |
-|---|---|
-| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
-| Masking leaves a value alone | The detector may refuse it. Add a column rule, or check that no `pii.entities` list is narrowing the type out. |
-| The Sidecar refuses to start | It prints every config problem at once, each naming its lane |
-| psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The Sidecar reads plaintext either way. |
-| Envoy returns 503 with `flags=UF` | On a socket lane, Envoy lacks write permission on the socket file. Check `ls -l` on the directory and the Sidecar's umask. On TCP, check the cluster address. |
-| Everything is allowed | Read the lane's resolved `rules` at `/config`. A rule set that reached no lane, or a `guardrails` block still written as `policy`, allows everything. |
-| `bind: permission denied` at startup | The Sidecar cannot write to the socket directory. Chown it, or set `fsGroup` on the pod. |
-| `is a live socket; another relay is already listening on it` | A second Sidecar tried to bind a path in use. Stop the first one. |
-| Envoy rejects the cluster config | A `pipe:` endpoint needs `type: STATIC`; `STRICT_DNS` tries to resolve a filesystem path. A `socket_address` endpoint needs `STRICT_DNS` or `STATIC` with an IP. |
 
 ---
 

@@ -17,135 +17,29 @@ The **Sidecar** is where you start. It is a proxy that runs next to your resourc
 
 ## Install the Sidecar
 
-The Sidecar ships in the `hoop` CLI.
-
-<Tabs>
-  <Tab title="MacOS">
-    Through homebrew:
-
-    ```bash
-    brew tap hoophq/brew https://github.com/hoophq/brew.git
-    brew install hoop
-    ```
-
-    To upgrade it:
-
-    ```bash
-    brew update && brew upgrade hoop
-    ```
-  </Tab>
-  <Tab title="Linux">
-    To install or upgrade:
-
-    ```bash
-    curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
-    ```
-  </Tab>
-  <Tab title="Windows">
-    <Steps>
-      <Step title="Download">
-        Download the latest release of [the hoop command line](https://github.com/hoophq/hoop/releases) for your architecture (usually **hoop-windows-amd64**) and save it in the **Downloads** folder.
-      </Step>
-      <Step title="Extract">
-        Extract the file using **winrar** or **winzip**.
-      </Step>
-      <Step title="Place it in the right folder">
-        Move the extracted file `hoop.exe` to the folder `C:\Windows\System32\`.
-      </Step>
-      <Step title="Check the installation">
-        Open a terminal session and run `hoop version`. If it prints a version, you are installed.
-      </Step>
-    </Steps>
-  </Tab>
-  <Tab title="Windows WSL">
-    1. Install the [Windows Terminal](https://aka.ms/terminal)
-    2. Install [Ubuntu WSL](https://ubuntu.com/wsl)
-    3. Open the Windows Terminal app
-    4. Install and open Ubuntu by typing `ubuntu`. The first run prompts you to create a user.
-
-    ```bash
-    PS C:\Users\san> ubuntu
-    san@DESKTOP-BBQAAEG:~$
-    ```
-
-    5. Gain root access:
-
-    ```bash
-    sudo su -
-    ```
-
-    6. Install or upgrade the CLI:
-
-    ```bash
-    curl -s -L https://releases.hoop.dev/release/install-cli.sh | sh
-    ```
-  </Tab>
-  <Tab title="Manual">
-    Check the latest build for your operating system and architecture on the [releases page](https://github.com/hoophq/hoop/releases).
-  </Tab>
-</Tabs>
-
----
-
-## Run it
-
-One file describes a Sidecar: where it listens, what it sits in front of, and the rules it applies. This one masks emails in every response and refuses destructive statements.
-
-```yaml config.yaml
-log_level: info
-
-admin:
-  listen: 127.0.0.1:19000        # /healthz /stats /config /events
-
-audit:
-  file: "-"                      # JSON lines on stdout
-  memory_buffer: 256             # last N events, readable at /events
-  query_sessions: 500            # backs /api/sessions
-
-pii:                             # optional: omit it and every entity is enabled
-  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD]
-
-mask:                            # one Data Masking rule
-  rules:
-    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
-
-guardrails:                      # one Guardrail
-  rules:
-    - name: no-destructive-sql
-      type: operation
-      operations: [drop, delete, truncate]
-      message: destructive statements are not permitted
-
-listeners:
-  - name: localdb                # the name audit rows and rules key on
-    protocol: postgres           # postgres | mssql | http
-    listen: 127.0.0.1:15432      # where clients connect
-    upstream: 127.0.0.1:5432     # your real resource
-```
-
-<Note>
-  This file sits exactly at the free tier: one Data Masking rule, one Guardrail. Both features are free at that size, forever.
-</Note>
-
-Start it:
-
-```bash
-hoop start sidecar --config config.yaml
-```
-
-That is the whole setup. Point a client at `127.0.0.1:15432` instead of the database, and every statement it sends is inspected against the rules above.
+The Sidecar ships in the `hoop` CLI — one binary, no external dependency. See [Install the CLI](/install/cli) for macOS, Linux, Windows, WSL and manual installs.
 
 ---
 
 ## Next step
 
-<Card title="Quickstart" icon="rocket" href="/introduction/quickstart">
-  Watch the rules fire, read the audit trail, and reshape the file: other protocols, more listeners, and a rollout that denies nothing until you say so.
+Install the Sidecar and get it running — pick the path that fits how you deploy.
 
-  <br />
+<CardGroup cols={3}>
+  <Card title="Command Line" icon="terminal" href="/install/cli">
+    Install the `hoop` binary on macOS, Linux, Windows or WSL, then run the Sidecar directly.
 
-  **Start here** <Icon icon="arrow-right" />
-</Card>
+    <br />
+
+    **Start here** <Icon icon="arrow-right" />
+  </Card>
+  <Card title="Container Images" icon="box" href="/install/container-images">
+    The official `hoophq/hoopsidecar` image, in a default and a distroless flavour.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/install/kubernetes">
+    A Helm chart, including running it as a native Kubernetes sidecar container.
+  </Card>
+</CardGroup>
 
 ---
 

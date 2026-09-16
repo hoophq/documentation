@@ -72,8 +72,25 @@ docker run --rm \
 ```
 
 <Note>
-Set `HOOP_SIDECAR_CONFIG` to an **empty** string to run against a Control Plane. A path naming a file that does not exist is an error, not a reason to fall through to the handshake. The [Helm chart](/setup/configuration/hoop-sidecar/deployment/kubernetes#control-plane) does this for you.
+Set `HOOP_SIDECAR_CONFIG` to an **empty** string to run against a Control Plane. A path naming a file that does not exist is an error, not a reason to fall through to the handshake. The [Helm chart](/install/kubernetes#control-plane) does this for you.
 </Note>
+
+### Running it with Docker Compose
+
+The process needs no privileges, so run it as a non-root user. Expose the admin port to your scraper, never the data lanes:
+
+```yaml docker-compose.yml
+hoop-inspect:
+  image: hoophq/hoopsidecar:<version>
+  volumes:
+    - ./config.yaml:/etc/hoop-inspect/config.yaml:ro
+  ports:
+    - "19000:19000"    # admin only; data lanes reach Envoy over the socket
+  healthcheck:
+    test: ["CMD-SHELL", "curl -sf http://127.0.0.1:19000/healthz || exit 1"]
+```
+
+If the lane talks to Envoy over a unix socket rather than a published port, both containers need to agree on the directory that carries it — see [Setting up the socket directory](/install/cli#setting-up-the-socket-directory).
 
 ### Environment
 

@@ -6,7 +6,7 @@ description: "How a request flows through the Sidecar, and how to place it in a 
 This page traces one connection from the client through Envoy, through the Sidecar, to the upstream and back. Read it to find out where a guardrail denial happens, why Postgres masking takes a different path from HTTP masking, and which knob in `config.yaml` controls which behavior.
 
 <Note>
-For the commands, start at [Get Started](/setup/configuration/hoop-sidecar/get-started). For every config field, see the [Config File reference](/setup/configuration/hoop-sidecar/config-file).
+For the commands, start at [Command Line](/install/cli#running-the-sidecar). For every config field, see the [Config File reference](/setup/configuration/hoop-sidecar/config-file).
 </Note>
 
 ---
@@ -420,154 +420,21 @@ The query endpoints accept filters: `principal`, `connection`, `protocol`, `sinc
 
 ## Deploying it
 
-### Envoy over a unix socket
+Placement is a question of who reaches the Sidecar and how, not of what the Sidecar does — guardrails, masking and audit behave identically wherever it runs. It can sit beside one workload over a unix socket, on a host over a TCP port, or behind an existing proxy like Envoy; see [Where the process sits](/core-concepts/sidecar#where-the-process-sits) for the trade-offs between those.
 
-A TCP listener on 15432 is reachable by anything that can route to the pod. A NetworkPolicy narrows that; it does not remove it. With a socket there is no port, so reachability is a filesystem question, which is the argument for a sidecar sharing a namespace with one workload. The cost is the setup below. [A TCP port](#envoy-over-a-tcp-port) carries the same traffic where that setup does not fit.
+The step-by-step setup for each shape — including both permission traps a unix-socket deployment hits — lives on its own page:
 
-Three pieces have to agree: the lane, the Envoy cluster, and the directory both mount.
-
-```yaml config.yaml
-listeners:
-  - name: appdb
-    protocol: postgres
-    network: unix
-    listen: /run/hoop-inspect/pg.sock
-    upstream: appdb:5432
-```
-
-The matching cluster uses `pipe:` and must be `STATIC`, since a filesystem path resolves to nothing:
-
-```yaml envoy.yaml
-- name: hoop_inspect_pg
-  type: STATIC
-  connect_timeout: 5s
-  load_assignment:
-    cluster_name: hoop_inspect_pg
-    endpoints:
-      - lb_endpoints:
-          - endpoint:
-              address:
-                pipe: { path: /run/hoop-inspect/pg.sock }
-```
-
-The directory needs an owner both sides can work with. In compose that is a one-shot init container:
-
-```yaml docker-compose.yml
-socket-dir:
-  image: alpine:3.20
-  command:
-    - sh
-    - -c
-    - |
-      mkdir -p /run/hoop-inspect
-      chown 10001:101 /run/hoop-inspect     # relay uid, envoy gid
-      chmod 2775 /run/hoop-inspect          # setgid: sockets inherit the group
-  volumes:
-    - inspect-sockets:/run/hoop-inspect
-
-hoop-inspect:
-  user: "10001:101"
-  entrypoint: ["sh", "-c", "umask 0002 && exec /usr/local/bin/hoop-inspect -config /etc/hoop-inspect/config.yaml"]
-  volumes:
-    - inspect-sockets:/run/hoop-inspect
-  depends_on:
-    socket-dir: { condition: service_completed_successfully }
-```
-
-The setgid bit on the directory and `umask 0002` on the Sidecar are what make the sockets group-writable, which is the permission Envoy needs to connect.
-
-<Warning>
-Two permission traps cost real time to diagnose.
-
-**Creating the socket.** A shared volume arrives root-owned, and a relay running as a non-root uid cannot bind: `listen unix /run/hoop-inspect/pg.sock: bind: permission denied`. Chown the directory before either container starts.
-
-**Connecting to the socket.** `connect()` on a unix socket needs **write** permission, not read. Envoy runs as uid 101, and `docker exec` hands you a root shell that hides this. A socket left at the default 0755 is unreachable, and the only symptom is a 503 with `flags=UF` and `upstream_cx_connect_fail` while the cluster still reports healthy, because the endpoint resolved.
-</Warning>
-
-Keep the admin listener on TCP. It serves `/healthz` to a healthcheck and `/stats` to a scraper, and moving it to a socket means exec-ing into the container to read either.
-
-#### Proving the port is gone
-
-Ask the Sidecar's own namespace what it bound:
-
-```bash
-docker compose exec -T hoop-inspect netstat -ltn
-```
-
-```
-tcp  0  0  127.0.0.11:41515  0.0.0.0:*  LISTEN     docker's internal resolver
-tcp  0  0  :::19000          :::*       LISTEN     the admin API
-```
-
-That is the whole list. On a TCP deployment the same command also shows `:::15432` and `:::18080`. From a peer, `nc -z -w2 hoop-inspect 15432` reports closed.
-
-#### Restarting after an unclean exit
-
-Go unlinks the socket when the listener closes, so SIGTERM leaves nothing behind. A SIGKILL, an OOM kill or `docker kill` skips that and the file outlives the process. The Sidecar reclaims it at startup by dialing the path: a socket nothing answers on gets unlinked with a warning, and one that answers is left alone while the bind fails, naming the conflict. Two relays sharing a socket would split a client's connections between them at random.
-
-### Envoy over a TCP port
-
-Sockets need both processes to mount one directory and agree on uids. That is cheap in a pod spec and awkward where the Sidecar and its peer sit on different hosts. Drop `network` from the lane, give `listen` a `host:port`, and point a `STRICT_DNS` cluster at it:
-
-```yaml config.yaml
-listeners:
-  - name: appdb
-    protocol: postgres
-    listen: 127.0.0.1:15432    # network omitted -> tcp
-    upstream: appdb:5432
-```
-
-```yaml envoy.yaml
-- name: hoop_inspect_pg
-  type: STRICT_DNS
-  connect_timeout: 5s
-  load_assignment:
-    cluster_name: hoop_inspect_pg
-    endpoints:
-      - lb_endpoints:
-          - endpoint:
-              address:
-                socket_address: { address: hoop-inspect, port_value: 15432 }
-```
-
-Bind loopback where the two share a network namespace. A `0.0.0.0` bind is reachable by anything that can route to the host, and the Sidecar authenticates nobody: it assumes whatever reaches it already passed identity.
-
-### As a sidecar container
-
-The Sidecar ships as a small static binary that reads one file. A [Dockerfile](https://github.com/hoophq/hoop/blob/main/deploy/docker-compose/envoy-stack/hoopinspect/Dockerfile) is in the repository; the process needs no privileges, so run it as a non-root user.
-
-```yaml docker-compose.yml
-hoop-inspect:
-  image: hoop-inspect:local
-  volumes:
-    - ./config.yaml:/etc/hoop-inspect/config.yaml:ro
-  ports:
-    - "19000:19000"    # admin only; data lanes reach Envoy over the socket
-  healthcheck:
-    test: ["CMD-SHELL", "curl -sf http://127.0.0.1:19000/healthz || exit 1"]
-```
-
-Expose the admin port to your scraper, never the data lanes.
-
-### On Kubernetes
-
-The same shape, with an `emptyDir` in place of the named volume:
-
-```yaml
-volumes:
-  - name: inspect-sockets
-    emptyDir: {}
-containers:
-  - name: hoop-inspect
-    securityContext: { runAsUser: 10001, runAsGroup: 101 }
-    volumeMounts: [{ name: inspect-sockets, mountPath: /run/hoop-inspect }]
-  - name: envoy
-    volumeMounts: [{ name: inspect-sockets, mountPath: /run/hoop-inspect }]
-```
-
-`fsGroup` on the pod securityContext replaces the chown step: the kubelet applies it to the `emptyDir` before any container starts. Set it to Envoy's gid and both sides can use the directory.
-
-Mount the config as a ConfigMap and set `HOOP_SIDECAR_CONFIG` instead of passing a flag.
+<CardGroup cols={3}>
+  <Card title="Command Line" icon="terminal" href="/install/cli#running-the-sidecar">
+    Wiring it up behind Envoy, unix socket or TCP, and a compose stack that runs the whole thing locally.
+  </Card>
+  <Card title="Container Images" icon="box" href="/install/container-images">
+    The official `hoophq/hoopsidecar` image, what it sets, and building your own.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/install/kubernetes">
+    The Helm chart, including running it as a native Kubernetes sidecar container.
+  </Card>
+</CardGroup>
 
 ---
 
@@ -622,7 +489,7 @@ The repository ships a compose stack that runs every component on this page end 
   <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every rule type, deferring a match to Rego, and the findings a policy reads.
   </Card>
-  <Card title="Get Started" icon="rocket" href="/setup/configuration/hoop-sidecar/get-started">
+  <Card title="Command Line" icon="terminal" href="/install/cli#running-the-sidecar">
     Configure Envoy, run the Sidecar, and watch a denial land in psql.
   </Card>
   <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">

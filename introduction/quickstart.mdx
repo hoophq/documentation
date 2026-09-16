@@ -40,7 +40,7 @@ Point the client at the Sidecar's port instead of the resource's. Nothing else a
 PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U postgres
 ```
 
-The Sidecar reads the wire protocol, so it needs the connection in the clear. Terminate TLS in front of it — see [Running the Sidecar](/setup/configuration/hoop-sidecar/get-started) for the Envoy shapes.
+The Sidecar reads the wire protocol, so it needs the connection in the clear. Terminate TLS in front of it — see [Running the Sidecar](/install/cli#running-the-sidecar) for the Envoy shapes.
 
 ---
 
@@ -202,7 +202,7 @@ hoop start sidecar
 ## Where to go next
 
 <CardGroup cols={3}>
-  <Card title="Running the Sidecar" icon="play" href="/setup/configuration/hoop-sidecar/get-started">
+  <Card title="Running the Sidecar" icon="play" href="/install/cli#running-the-sidecar">
     Transports, putting it behind Envoy, and a compose stack that runs the whole thing on your laptop.
   </Card>
   <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
