@@ -76,21 +76,6 @@ Naming any of the first four in `capabilities_allowed` **fails at load**, becaus
 
 ---
 
-## Known Limitations
-
-| Limit | Why |
-|---|---|
-| **No guardrails on an interactive shell** | a keystroke stream has no statement boundary, and reconstructing one is unsound — history recall and tab completion diverge it from what runs, a rule that fires deletes what the user was editing, and no signal sees through shell expansion. A shell is admitted, masked on output, and recorded as events. Drop `shell` from `capabilities_allowed` to close the gap |
-| **No session content is recorded** | not keystrokes, not output, not file bytes, and there is no setting that adds them. The trail answers who connected, what they asked for and what was refused — not what scrolled past |
-| **Masking cannot change length** | an `ssh` lane rewrites a byte stream in place, so `strategy: mask` with an ASCII `mask_char` is the only strategy the lane accepts. Anything else is refused at load |
-| **An upload a mask rule would touch is refused, not rewritten** | silently altering a file someone believes they uploaded is worse than refusing it |
-| **rsync and masking cannot coexist** | rsync checksums at both ends and correctly discards bytes that were rewritten in between. Any transfer protocol that verifies its own content integrity does the same |
-| **A forward is relayed blind** | nothing inspects those bytes, which is why `destinations_allowed` is the whole control and is default-deny |
-| **Accounts cannot be checked at load** | the login name arrives in the handshake, so a host missing an account it meant to serve is discovered by the first session that asks for it |
-| **Four rule types are refused** | `table`, `http_resource`, `http_status` and `grpc_status` have nothing on an SSH statement to read |
-
----
-
 ## Where it is stricter
 
 Not everything on this page is a subtraction.

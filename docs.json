@@ -115,7 +115,8 @@
                       "setup/configuration/hoop-sidecar/protocols/ssh/certificates",
                       "setup/configuration/hoop-sidecar/protocols/ssh/hosts",
                       "setup/configuration/hoop-sidecar/protocols/ssh/file-transfer",
-                      "setup/configuration/hoop-sidecar/protocols/ssh/limitations"
+                      "setup/configuration/hoop-sidecar/protocols/ssh/limitations",
+                      "setup/configuration/hoop-sidecar/protocols/ssh/known-limitations"
                     ]
                   }
                 ]

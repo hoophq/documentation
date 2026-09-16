@@ -85,7 +85,7 @@ File transfer is the one subsystem admitted by name, because its wire format fra
 sftp -q endhost:/home/devuser/data/customers.csv /tmp/dl.csv
 ```
 
-Downloads are masked, exactly as terminal output is — one rule set covers every content-bearing stream the lane produces.
+Downloads are masked, exactly as terminal output is — one rule set covers every content-bearing stream the lane produces. A download is read whole before it is rewritten, so unlike terminal output it carries no read boundary a value can be cut on; see [Known Limitations](/setup/configuration/hoop-sidecar/protocols/ssh/known-limitations#a-value-that-crosses-a-read-boundary).
 
 <Warning>
 **Paths are resolved from `/`, not from the home directory.** Use absolute paths.

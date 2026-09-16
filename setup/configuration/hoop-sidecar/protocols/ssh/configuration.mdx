@@ -496,6 +496,8 @@ The runtime enforces this too — a rewrite that returns a different length fail
 
 Masking applies to **output and downloads**. An upload a mask rule would touch is **refused**, never rewritten; see [File Transfer](/setup/configuration/hoop-sidecar/protocols/ssh/file-transfer#uploads).
 
+Output is masked **one read at a time**, so a value cut in half by a read boundary is not masked; a download is read whole and has no such boundary. [Known Limitations](/setup/configuration/hoop-sidecar/protocols/ssh/known-limitations#a-value-that-crosses-a-read-boundary) says what to do about it.
+
 ---
 
 ## Audit trail
