@@ -23,7 +23,7 @@ ssh-keygen -s ca -I alice@corp.example -n devuser,deploy -V +8h alice.pub
 |---|---|---|
 | `-s ca` | the signature | `trusted_ca`. **The whole admission decision** |
 | `-n` | principals | the **login name**, and nothing else |
-| `-I` | key id | the **audit trail**, and nothing else |
+| `-I` | key id | the **audit trail**. Required, unless `identity.subject` maps another field |
 | `-V` | validity | the handshake, both ends of the window |
 | `-z` | serial | recorded; what a KRL would revoke by |
 | `-O permit-*` | extensions | pty and port forwarding. Unknown ones are **ignored** |
@@ -35,6 +35,10 @@ ssh-keygen -s ca -I alice@corp.example -n devuser,deploy -V +8h alice.pub
 A certificate whose key id is `root@evil.example` logs in perfectly well as `devuser`, because `-n devuser` is what the endpoint checks. What the key id did was *name the session* in the audit trail.
 
 A CA that puts the Unix login in `-I` and a human name in `-n` produces a host that logs the wrong people in under a name that means nothing.
+</Warning>
+
+<Warning>
+**A certificate that names nobody is refused.** `ssh-keygen` signs an empty `-I` without complaint, and an extension a CA has not rolled out yet is simply absent — so a certificate can be valid in every other way and still leave the field a lane reads empty. That session is refused rather than recorded as `anonymous`; see [A certificate must name someone](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#a-certificate-must-name-someone).
 </Warning>
 
 ---
@@ -160,7 +164,7 @@ The destination comes from the client's own request, and the listener's `destina
 | signature | signed by a key in the lane's `trusted_ca` | refused. The file takes several keys, which is what makes CA rotation possible |
 | `-n` principals | **literal Unix login names**, at least one | an empty list is refused outright; a name the host has no account for is refused at the session |
 | `-V` validity | as short as you can operate | there is no revocation, so this is the only control that expires access. Host clocks must be in sync |
-| `-I` key id | whatever names the human | no effect on access. It is the audit trail's `principal` unless `identity.subject` says otherwise |
+| `-I` key id | whatever names the human | it is the audit trail's `principal` unless `identity.subject` says otherwise — and whichever field that is, **leaving it empty refuses the session**. No other effect on access |
 | `-O` extensions | `permit-pty`, `permit-port-forwarding` if the holder needs them | the standard set is on by default, so you act only to take them **away** (`-O clear`). Unknown extensions are ignored, which is what makes one certificate safe across a mixed fleet |
 | `-O` critical options | `source-address` only | **any other critical option refuses the whole certificate** |
 

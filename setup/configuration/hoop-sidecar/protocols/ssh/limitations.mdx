@@ -83,6 +83,7 @@ Not everything on this page is a subtraction.
 | | `sshd` | An `ssh` lane |
 |---|---|---|
 | A certificate with no principals | valid for every login name | **refused** |
+| A certificate that names nobody | no such concept — the key id is free-form and may be empty | **refused**, whichever field `identity.subject` reads |
 | An unknown critical option | refused (same) | refused (same) |
 | Forwarding destinations | permitted to any destination by default | **denied until `destinations_allowed` names one** |
 | Client environment variables | `AcceptEnv` names them; guardrails cannot judge them | admitted by capability, then **judged by name** with an `env_set` rule |

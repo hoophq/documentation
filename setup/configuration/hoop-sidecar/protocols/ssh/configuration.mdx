@@ -310,6 +310,19 @@ Anything else is refused at load: a source this lane cannot read would leave the
 The config prefix is `extensions.` with a **dot**. The `ssh-keygen` flag is `-O extension:` with a **colon**. They are not spelled the same.
 </Warning>
 
+### A certificate must name someone
+
+A valid certificate can still carry nothing in the field a lane reads. `ssh-keygen -I ''` leaves the key id empty, and an extension a CA has not rolled out yet is simply absent. **Such a connection is refused**, and the message names the field to fill:
+
+```
+this certificate carries no identity in extensions.login@hoop.dev; a session
+this listener cannot attribute is refused rather than recorded as anonymous
+```
+
+`subject` **or** `email` satisfies it — a lane may map only the one its CA fills in. Groups and the peer address do not: a group is not a person and an address is not a name.
+
+The refusal is not only about the actor column. See [Policy context](#policy-context) below: an empty field is **absent** from the context, and an absent key in Rego is undefined, so a rule keyed on the subject would not fire at all.
+
 ### Groups
 
 The principals list decides login names and nothing else here — no destination claim competes for it — so reading it as groups is close to the field's stock meaning: a list of identities the holder may present. A CA that would rather keep the two separate uses a namespaced extension instead:
@@ -335,7 +348,7 @@ The trail then names the extension, with the key id recorded beside it:
 
 ### Policy context
 
-It fills the same session identity a Postgres or HTTP lane populates, so it reaches Rego as the same flat context map every other protocol sends:
+It fills the same session identity a Postgres or HTTP lane populates, so it reaches Rego as the same flat context map every other protocol sends. **An empty field is omitted, not sent empty** — which is why a certificate that names nobody is refused before a policy ever runs: `input.context.subject` would be undefined, and a rule keyed on it would silently not fire:
 
 ```json
 {
