@@ -1,0 +1,142 @@
+---
+title: "Overview"
+description: "An SSH server that enforces guardrails, masking and audit on the host itself, with a certificate-verified identity on every command"
+---
+
+An `ssh` lane is an SSH server with the Sidecar's enforcement built into it. People reach a host with the clients they already use — `ssh`, `sftp`, `scp`, `rsync` — and what they do arrives as **statements carrying a verified identity**: a one-shot command in full, each file operation with its path. Guardrails allow or deny them, masking rewrites what comes back, and the audit trail records who did what.
+
+Use it to put policy in front of the hosts people still need a shell on — a production box, a jump host, a bastion — without replacing the tooling they reach it with. Nothing changes on the client side; the credential does, because this lane accepts certificates and nothing else. There is no password to guess and no `authorized_keys` to manage.
+
+It is also the one lane that does not relay. **SSH is encrypted end to end, so nothing in a middle position can read it**; to see a command at all, a component has to *be* one end of the connection. So an `ssh` lane terminates the handshake itself: it verifies the client's certificate against a CA it trusts, resolves the requested login name to an account on the host, and spawns the shell or the command locally. There is no upstream to proxy to and no `sshd` behind it.
+
+```yaml config.yaml
+listeners:
+  - name: prod-endhost
+    protocol: ssh
+    listen: 0.0.0.0:2222
+    # no upstream: this lane IS the destination
+
+    ssh:
+      host_key: /etc/hoop-inspect/keys/endhost_host_key
+      trusted_ca: /etc/hoop-inspect/keys/ca.pub
+
+    guardrails:
+      rules:
+        - name: protected-paths
+          type: pattern_match
+          pattern_regex: '(secrets\.env|/etc/shadow|\.aws/credentials)'
+          operations: [exec_line, sftp_read, sftp_write, sftp_rename,
+                       sftp_remove, sftp_stat, sftp_setstat]
+          message: this path is not readable through hoop
+```
+
+That is a working end-hop. A client reaches it with `ssh -p 2222 devuser@host`, and the certificate, the account, the guardrail, the mask and the audit record all happen in that one process.
+
+---
+
+## How it differs
+
+| | Every other lane | `ssh` |
+|---|---|---|
+| Position | relay: listens here, connects there | **endpoint**: the handshake terminates here |
+| `upstream` | required | **refused**. An end-hop spawns a local process; a bastion carries forwards the client picks one at a time |
+| `downstream_tls` / `upstream_tls` | terminate or originate TLS | **refused**. SSH negotiates its own transport; the listener's identity is `ssh.host_key` |
+| `identity_header` | trusts a header a proxy in front set | **refused**. The identity comes from the certificate this lane verified itself |
+| Who the principal is | claimed by something upstream | **verified here**, at the handshake |
+| What runs | a query against a database | a process on **this host**, as an account **this host** has |
+| Masking | re-frames length-prefixed values | rewrites a byte stream **in place**, so it must preserve length |
+
+The last two rows are the ones that surprise people. An `ssh` lane runs processes, so the host it sits on needs accounts, groups and login shells lined up with the certificates your CA issues — see [Host Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/hosts). And a masked byte stream cannot change length, so `strategy: mask` is the only strategy this lane accepts.
+
+<Note>
+A lane that terminates the protocol also means there is **no** `authorized_keys`, **no** password authentication and **no** PAM. Certificates are the only credential. That is what makes a listener on a public address defensible: there is nothing to brute-force.
+</Note>
+
+---
+
+## Topologies
+
+The same end-hop configuration serves all three. What changes is what sits in front of it, and the answer to "what is enforced" does not change with it.
+
+| Mode | Path | Reach for it when |
+|---|---|---|
+| **1. Direct** | `client → end-hop` | Start here. The end-hop is a complete SSH server, so nothing needs to sit in front |
+| **2. Hoop bastion** | `client → hoop bastion → end-hop` | You want one address in front of a fleet, and the jump host itself to be policy-bound and audited |
+| **3. Stock `sshd` bastion** | `client → existing sshd → end-hop` | You already have a jump host and are not replacing it. It needs one config line: trust the same CA |
+
+The client's own `ssh -J` runs two independent handshakes over one TCP path, presenting the same certificate to both. Nothing is re-signed in the middle, and no Sidecar anywhere holds a private signing key. [Topologies](/setup/configuration/hoop-sidecar/protocols/ssh/topologies) has the sequence for each, and what config makes a listener a bastion instead of an end-hop.
+
+---
+
+## Enforcement
+
+| Control | Decided by | Enforced where |
+|---|---|---|
+| May this client connect at all | the certificate's signature, validity window and `source-address` | the handshake |
+| May it log in as this name | the certificate's **principals**, then the host's `/etc/passwd` | the handshake, then the session |
+| What may it open | `capabilities_allowed`, plus the certificate's `permit-pty` | per channel and per request |
+| Where may a forward go | `destinations_allowed`, plus the certificate's `permit-port-forwarding` | when the client opens the forward |
+| What may it run or touch | `guardrails.rules` scoped by `operations` | per statement, before the act |
+| What may come back | `mask.rules` | in flight, on output and downloads |
+| Who the trail names | `ssh.identity` mapped from certificate fields | once per connection |
+
+And the honest other half: **an interactive shell carries no guardrails.** A keystroke stream has no statement boundary a rule could act on, and reconstructing one is unsound. A shell is admitted, its output is masked, and it is recorded as events — never as content. A deployment that needs every action to be a rule-readable statement drops `shell` from `capabilities_allowed`. [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#interactive-shells) states this in full.
+
+---
+
+## Operations
+
+An SSH statement is text, and what the text *is* depends on the operation — a command line for `exec_line`, a variable name for `env_set`, a path for every `sftp_*`. Scope every rule with `operations`:
+
+| Operation | A rule matches against |
+|---|---|
+| `exec_line` | the whole command, one statement |
+| `env_set` | the variable **name**, not its value |
+| `sftp_read` `sftp_write` `sftp_remove` `sftp_rename` `sftp_mkdir` `sftp_rmdir` `sftp_list` `sftp_stat` `sftp_setstat` `sftp_symlink` | the path |
+
+Four rule types are **refused at load** on an `ssh` lane, because nothing here produces what they read: `table`, `http_resource`, `http_status` and `grpc_status`. The full vocabulary, with what each operation matches, is in [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules#operation-vocabulary).
+
+---
+
+## Try it locally
+
+The repository carries a complete local stack — three topologies, six lanes, a minted CA, and a script that asserts every claim on these pages:
+
+```bash
+cd deploy/docker-compose/ssh-stack
+./run.sh      # mint a CA and a certificate, build, bring up
+./demo.sh     # run every check and assert the result
+./certs.sh    # one certificate per attribute: which FIELD decided what
+```
+
+<Card title="ssh-stack on GitHub" icon="github" href="https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/ssh-stack">
+  Direct, hoop-bastion and stock-`sshd`-bastion topologies against one end-hop, plus lanes for multi-account login, an `exec`-only listener and certificate-extension identity.
+</Card>
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Topologies" icon="route" href="/setup/configuration/hoop-sidecar/protocols/ssh/topologies">
+    The three topologies, what makes a listener a bastion, and why the end-hop enforces the same thing in all of them.
+  </Card>
+  <Card title="Configuration" icon="file-code" href="/setup/configuration/hoop-sidecar/protocols/ssh/configuration">
+    Every attribute: `host_key`, `trusted_ca`, the tri-state `capabilities_allowed`, `destinations_allowed` and `identity`.
+  </Card>
+  <Card title="Certificates and Identity" icon="certificate" href="/setup/configuration/hoop-sidecar/protocols/ssh/certificates">
+    What your CA must put in a certificate, which field decides what, and what refuses the whole certificate.
+  </Card>
+  <Card title="Host Configuration" icon="server" href="/setup/configuration/hoop-sidecar/protocols/ssh/hosts">
+    Accounts, groups, login shells, home directories, and the root vs non-root trade.
+  </Card>
+  <Card title="OpenSSH Differences" icon="triangle-exclamation" href="/setup/configuration/hoop-sidecar/protocols/ssh/limitations">
+    The `sshd_config` keyword mapping, every assumption to drop, and what is not implemented.
+  </Card>
+  <Card title="File Transfer" icon="folder-tree" href="/setup/configuration/hoop-sidecar/protocols/ssh/file-transfer">
+    `sftp`, `scp` both ways, `rsync`, and why masking and rsync cannot coexist.
+  </Card>
+  <Card title="Known Limitations" icon="circle-exclamation" href="/setup/configuration/hoop-sidecar/protocols/ssh/known-limitations">
+    What the lane does not do: guardrails on a shell, what the trail holds, and the boundary masking is applied on.
+  </Card>
+</CardGroup>

@@ -1,0 +1,188 @@
+---
+title: "Certificates and Identity"
+description: "How certificates are used to enforce identity and access, and what fields the Sidecar reads and refuses"
+---
+
+A listener's only standing trust decision is which CA public key(s) it accepts. Everything else a connection may do is a signed, tamper-evident claim on the certificate itself.
+
+- **No certificate, or one from an untrusted CA → denied.** There is nothing else allowed by default.
+- **Certificates only. No password authentication, ever.** A password mode needs something to check a secret against, and this design has nothing to give it. This is an exclusion, not a "not yet".
+- **A bare public key is refused.** There is no `authorized_keys` and no per-user state to hold an exception in.
+
+How a certificate is issued, rotated and revoked is out of scope for the Sidecar. This page starts at *a listener trusts a CA public key* and says what the certificate on the other side has to carry.
+
+---
+
+## Certificate fields
+
+```bash
+ssh-keygen -s ca -I alice@corp.example -n devuser,deploy -V +8h alice.pub
+```
+
+| `ssh-keygen` | The field | What reads it |
+|---|---|---|
+| `-s ca` | the signature | `trusted_ca`. **The whole admission decision** |
+| `-n` | principals | the **login name**, and nothing else |
+| `-I` | key id | the **audit trail**. Required, unless `identity.subject` maps another field |
+| `-V` | validity | the handshake, both ends of the window |
+| `-z` | serial | recorded; what a KRL would revoke by |
+| `-O permit-*` | extensions | pty and port forwarding. Unknown ones are **ignored** |
+| `-O source-address=` | a critical option | the handshake. Unknown critical options **refuse** |
+
+<Warning>
+**`-I` names the human. `-n` decides the login.** The names suggest the opposite of what they do.
+
+A certificate whose key id is `root@evil.example` logs in perfectly well as `devuser`, because `-n devuser` is what the endpoint checks. What the key id did was *name the session* in the audit trail.
+
+A CA that puts the Unix login in `-I` and a human name in `-n` produces a host that logs the wrong people in under a name that means nothing.
+</Warning>
+
+<Warning>
+**A certificate that names nobody is refused.** `ssh-keygen` signs an empty `-I` without complaint, and an extension a CA has not rolled out yet is simply absent — so a certificate can be valid in every other way and still leave the field a lane reads empty. That session is refused rather than recorded as `anonymous`; see [A certificate must name someone](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#a-certificate-must-name-someone).
+</Warning>
+
+---
+
+## Principals and accounts
+
+An end-hop decides whether a principal may log in at all, and it does it the stock way. Then the OS decides whether that name is an account.
+
+| The question | Answered by | If it fails |
+|---|---|---|
+| *May this person claim this name?* | the certificate's principals list | `Permission denied (publickey)` at the handshake |
+| *Is this name an account on this host?* | `/etc/passwd` on the end-hop | `login "ghost" is not an account on this host`, at the session |
+
+A login passes both or it does not log in. **There is no default account and no fallback** — falling back to the Sidecar's own account would hand the session to whoever the process happens to be, and falling back to a fixed default would make the principals check decorative.
+
+There is no `AuthorizedPrincipalsFile` here. Under `sshd` that file is where a principal like `alice@corp.example` gets mapped onto the account `devuser`. These listeners have no such indirection, so **principals must be literal login names**. Carry the human identity in `-I`, or in a namespaced extension — see [identity](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#identity).
+
+---
+
+## Missing principals
+
+Omit `-n` and `ssh-keygen` signs a certificate valid for **every** login name. That is correct for a *host* certificate and a hole for a *user* certificate, and this is the one refusal that is not stock `crypto/ssh` behavior:
+
+
+> certificate carries no principals; a certificate valid for every login name
+cannot decide who may log in
+
+`ssh-keygen` produces such a certificate whenever `-n` is left off, which makes this a plausible mistake rather than a theoretical one.
+
+<Note>
+The client is told only `Permission denied (publickey)`. Naming the field that failed helps an attacker more than a user, so the reason goes to the operator's log. Every handshake refusal on this page works that way.
+</Note>
+
+---
+
+## Extensions and critical options
+
+Same certificate, same CA, one field moved from one bucket to the other, and the answer inverts:
+
+| Written as | An unrecognized name | Why |
+|---|---|---|
+| `-O extension:x-anything=1` | **ignored**, session proceeds | lets one certificate be issued to a mixed fleet |
+| `-O critical:x-anything=1` | **refuses the certificate** | stops a pin the endpoint cannot honour from being silently dropped |
+
+That is the certificate format's own rule, and both halves matter.
+
+<Warning>
+**`force-command` lands on the refusing side, and it is a real interop edge.** `sshd` honours it; these listeners do not implement it, so a certificate carrying it is refused outright rather than admitted with the pin ignored. The same goes for `verify-required` and `no-touch-required`.
+
+Fail-closed and loud — but a CA already stamping `force-command` for an `sshd` fleet **cannot issue to these listeners unchanged**.
+</Warning>
+
+### Supported critical options
+
+| Option | Enforced |
+|---|---|
+| `source-address=<cidr>` | yes, at the handshake: *remote address 172.31.77.40:45560 is not allowed because of source-address restriction* |
+| `force-command` | **no** — refuses the certificate |
+| `verify-required`, `no-touch-required` | **no** — refuses the certificate |
+
+`valid-before` / `valid-after` (`-V`) are checked at the handshake, both ends of the window, so **host clocks must be in sync**.
+
+---
+
+## Grants
+
+Two extensions decide what the holder may ask for:
+
+| Extension | Decides |
+|---|---|
+| `permit-pty` | whether the holder may open an interactive terminal at an end-hop. Without it, at most a non-interactive command |
+| `permit-port-forwarding` | whether the holder may open TCP forwards at all — which is what a jump through a bastion *is* |
+
+Both are checked against the lane's own settings. A grant is permission to **ask**; `capabilities_allowed` and `destinations_allowed` decide what is **carried**. Either side missing refuses the request:
+
+```
+channel 2: open failed: administratively prohibited:
+  this certificate does not permit port forwarding
+```
+
+<Warning>
+**`ssh-keygen` signs a user certificate with the standard extension set already enabled**, forwarding and PTY included. So reading one of them as a deliberate grant only means something if your issuer clears the defaults and adds back what it intends.
+
+An issuer that signs with default options hands out certificates that grant everything, and these checks then pass for everyone. **`-O clear` is a CA saying no**; a default-issued certificate says nothing.
+</Warning>
+
+```bash
+# grants everything, including pty and forwarding
+ssh-keygen -s ca -I alice@corp.example -n devuser -V +8h alice.pub
+
+# grants nothing: no pty, no forwarding
+ssh-keygen -s ca -I alice@corp.example -n devuser -V +8h -O clear alice.pub
+
+# grants exactly one
+ssh-keygen -s ca -I alice@corp.example -n devuser -V +8h \
+  -O clear -O permit-pty alice.pub
+```
+
+---
+
+## Destinations
+
+**A certificate names no destinations, and nothing about it should.** Where a connection may be forwarded is the client's decision to make and the listener's to permit. A certificate has no standard field for a destination, and inventing one would put network topology into a short-lived credential — adding a host would mean reissuing certificates.
+
+The destination comes from the client's own request, and the listener's `destinations_allowed` decides whether it is carried.
+
+---
+
+## Revocation
+
+**There is none.** The serial (`-z`) is recorded in the audit trail but never checked; no KRL and no `RevokedKeys` file is loaded.
+
+<Warning>
+**`-V` is the whole expiry story.** Issue certificates as short-lived as you can operate — hours, not weeks. A certificate that is valid is admitted, whatever has happened to the person holding it since it was signed.
+</Warning>
+
+---
+
+## Issuance checklist
+
+| Field | Requirement | If you get it wrong |
+|---|---|---|
+| signature | signed by a key in the lane's `trusted_ca` | refused. The file takes several keys, which is what makes CA rotation possible |
+| `-n` principals | **literal Unix login names**, at least one | an empty list is refused outright; a name the host has no account for is refused at the session |
+| `-V` validity | as short as you can operate | there is no revocation, so this is the only control that expires access. Host clocks must be in sync |
+| `-I` key id | whatever names the human | it is the audit trail's `principal` unless `identity.subject` says otherwise — and whichever field that is, **leaving it empty refuses the session**. No other effect on access |
+| `-O` extensions | `permit-pty`, `permit-port-forwarding` if the holder needs them | the standard set is on by default, so you act only to take them **away** (`-O clear`). Unknown extensions are ignored, which is what makes one certificate safe across a mixed fleet |
+| `-O` critical options | `source-address` only | **any other critical option refuses the whole certificate** |
+
+Read a certificate back at any point:
+
+```bash
+ssh-keygen -L -f alice-cert.pub
+```
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Host Configuration" icon="server" href="/setup/configuration/hoop-sidecar/protocols/ssh/hosts">
+    The other half of a successful login: what `/etc/passwd` and `/etc/group` must already say.
+  </Card>
+  <Card title="Configuration" icon="file-code" href="/setup/configuration/hoop-sidecar/protocols/ssh/configuration">
+    `trusted_ca`, and the `identity` mapping that turns certificate fields into a policy context.
+  </Card>
+</CardGroup>

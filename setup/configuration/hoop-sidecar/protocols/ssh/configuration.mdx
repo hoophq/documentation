@@ -1,0 +1,683 @@
+---
+title: "Configuration"
+description: "Every attribute an ssh listener takes, the full capability surface it admits, what each one can carry, and what startup refuses"
+---
+
+The `ssh` block joins a listener the way the `http` and `grpc` blocks do. It is required on an `ssh` lane and refused on every other protocol.
+
+```yaml config.yaml
+listeners:
+  - name: prod-endhost
+    protocol: ssh
+    listen: 0.0.0.0:2222
+
+    ssh:
+      host_key: /etc/hoop-sidecar/keys/endhost_host_key
+      trusted_ca: /etc/hoop-sidecar/keys/ca.pub
+      capabilities_allowed: [shell, pty, exec, env, sftp]
+      destinations_allowed: []
+      identity:
+        subject: key_id
+        groups: principals
+```
+
+Five keys, three jobs. Two say **who may connect at all** (`host_key`, `trusted_ca`). Two say **what a connection may then do** (`capabilities_allowed`, `destinations_allowed`). One says **who policy and audit think is on the other end** (`identity`).
+
+Everything a lane admits, refuses, matches, masks and records is decided here, so this page carries the enforcement surface alongside the keys:
+
+| Looking for | Section |
+|---|---|
+| the full capability surface, and what each one delivers | [capabilities_allowed](#capabilities-allowed) |
+| where a forward may be carried | [destinations_allowed](#destinations-allowed) |
+| the twelve operations a rule can name | [Operations](#operations) |
+| a model reading the command a pattern cannot see | [Risk analysis](#risk-analysis) |
+| what the trail records, and what it never does | [Audit trail](#audit-trail) |
+
+---
+
+## Unsupported listener keys
+
+An `ssh` lane has no upstream and negotiates its own transport, so four listener keys are **refused at startup** rather than accepted and ignored. A lane that came up green while silently dropping one of them is the failure this removes.
+
+| Key | Refusal |
+|---|---|
+| `upstream` | *an end-hop spawns a local process and a bastion carries forwards the client chooses, so neither has a fixed backend* |
+| `upstream_tls` | *there is no upstream to originate TLS to* |
+| `downstream_tls` | *SSH negotiates its own transport, so there is no TLS here to terminate. The listener's own identity is `ssh.host_key`* |
+| `identity_header` | *the identity comes from the certificate this listener verified itself, mapped by `ssh.identity`* |
+
+Everything else a listener takes still applies: `name`, `listen`, `network`, `idle_timeout_sec`, `max_conns`, `guardrails`, `opa`, `mask` and `analyzer`.
+
+---
+
+## host_key
+
+```yaml
+host_key: /etc/hoop-sidecar/keys/endhost_host_key
+```
+
+**Required.** The private host key this listener presents as its own identity — the same file a real `sshd` would hold. An SSH server with no identity of its own cannot complete a handshake.
+
+It is opened at load, so an unreadable path stops startup instead of producing one failed login per restart with nothing in the log.
+
+```bash
+ssh-keygen -t ed25519 -N '' -f /etc/hoop-sidecar/keys/endhost_host_key
+```
+
+<Warning>
+`host_key` takes a **plain private key**, not a host certificate. A client with an `@cert-authority` line in `known_hosts` will not match it — distribute or pin the host public key instead.
+</Warning>
+
+---
+
+## trusted_ca
+
+```yaml
+trusted_ca: /etc/hoop-sidecar/keys/ca.pub
+```
+
+**Required.** An `authorized_keys`-format file naming the CA public key(s) a user certificate must be signed by. This is **the only standing trust decision a listener makes** — everything else a connection may do is a signed, tamper-evident claim on the certificate itself.
+
+There is no password method and no `authorized_keys` list to fall back on, so an unreadable file here is a listener that refuses everyone and cannot say why. It is loaded at validation for that reason.
+
+The file takes **several** keys, which is what makes CA rotation possible: trust the new key before you issue from it, drop the old one after the last certificate signed by it expires.
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... hoop-ca-2026
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... hoop-ca-2025
+```
+
+---
+
+## capabilities_allowed
+
+Which session capabilities this listener admits. **It is tri-state**, and the three states are not two:
+
+| Written | Admits |
+|---|---|
+| **absent** | `shell`, `pty`, `exec`, `env`, `sftp` — every capability this version delivers |
+| **`[]`** | none. A session channel is refused: no shell, no command, no file transfer. This is how a jump host drops the shell |
+| **populated** | those, and refuses the rest |
+
+```yaml
+capabilities_allowed: [exec]          # every action is a statement a rule can read
+capabilities_allowed: []              # bastion: forwards and nothing else
+# key omitted                         # a usable end-hop
+```
+
+Admission is **default-deny over the whole surface**: anything not named is refused in every one of the three states, because no handler exists to admit it. A refusal happens per channel and per request, *after* the handshake — the certificate got the client this far, the lane decides what may be opened over it.
+
+Naming a capability this version does not deliver is refused at load, and so is a typo:
+
+| You wrote | The refusal |
+|---|---|
+| `x11`, `subsystem`, `agent_forward`, `remote_forward` | *which this version does not deliver: no handler exists, so admitting it would leave you believing the capability is on* |
+| `local_forward`, `forward` | *forwarding is not a member of this list; `ssh.destinations_allowed` decides where a forward may be carried, and an absent or empty one denies every forward* |
+| anything else | *which is not a capability this design defines* — with the defined names listed |
+
+### Reference
+
+Every capability the design names, and what each one can carry:
+
+| Capability | SSH request | Content it carries | Guardrails | Analyzer | Masking | Audit |
+|---|---|---|---|---|---|---|
+| `exec` | `exec` | the whole command, one statement | ✅ | ✅ | ✅ output | the command in full; not its output |
+| `sftp` | `subsystem` named `sftp` | one statement per file operation | ✅ on the path | ✅ | ✅ download only | metadata always, never content |
+| `env` | `env` | one statement per variable | ✅ on the **name** | — | — | name and value |
+| `shell` | `shell` | keystroke stream, **no boundary** | — | — | ✅ output | event only |
+| `pty` | terminal request | geometry and modes only | admission only | — | — | one line on the shell's record |
+| `local_forward` | a forward the client opens | destination only | — | — | — | thin metadata |
+| `subsystem` | any other `subsystem` | opaque | — | — | — | thin metadata |
+| `remote_forward` | a forward the client asks the server to open | bind address only | — | — | — | thin metadata |
+| `agent_forward` | signing-agent forward | opaque | admission only | — | — | event only |
+| `x11` | display forward | opaque | admission only | — | — | event only |
+
+`pty`, `agent_forward` and `x11` carry no content to inspect, but each is a known lateral-movement or session-hijack vector, so the grant and the use are each worth an audit line on their own.
+
+### Support status
+
+| Capability | Status |
+|---|---|
+| `exec` | **full** — guardrails, analyzer, output masking, the command audited in full. Output is masked, not recorded |
+| `sftp` | **full** — guardrails on the path, analyzer, download masking, per-operation audit. File bytes are not recorded |
+| `env` | **full** — guardrails on the name, audit |
+| `shell`, `pty` | **admitted**, output masked, recorded as events. **No guardrails and no content trail** |
+| `local_forward` | **full** — admitted when the certificate permits forwarding **and** the destination matches `destinations_allowed`, then relayed blind. Governed by [`destinations_allowed`](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#destinations-allowed), not by this list |
+| `remote_forward` | **not delivered.** The refusal works; the return path that would make it function was never built |
+| `agent_forward` | **not delivered.** No handler exists |
+| `x11` | **not delivered.** No handler exists |
+| `subsystem` (any other) | **not delivered.** No handler exists |
+
+**Omitting the key admits exactly the five delivered capabilities** — `shell`, `pty`, `exec`, `env`, `sftp` — so an omitted list can never admit something with no handler.
+
+#### Always refused
+
+OpenSSH also governs unix-socket forwarding (`AllowStreamLocalForwarding`) and tun-device forwarding (`PermitTunnel`). Neither has a capability name here. Both are separate channel types, and **an unhandled channel type is rejected**, so both are refused whatever the config says.
+
+That is a safe outcome reached by construction rather than by decision, which is why this surface is described as *what is named here, everything else refused* rather than as exhaustive.
+
+### Default-deny
+
+There is no forwarding switch to configure. The SSH library hands a server a stream of incoming channels and a stream of connection-level requests, and nothing more: a client-opened forward arrives as a channel whose payload names the destination, and the server either accepts it, dials, and copies bytes — or rejects it.
+
+Two things follow:
+
+- **Default-deny is structural**, not a policy anyone has to remember to apply. A capability with no handler cannot accidentally work.
+- **The admission settings map one-to-one onto the requests the endpoint answers.** They are not a description of the listener's behavior; they *are* the behavior.
+
+### When refusals happen
+
+The certificate gets the client as far as a connection. The lane decides what may be opened over it — **per channel and per request**.
+
+```bash
+ssh exec-only "id; echo ran"     # runs
+ssh -T exec-only                 # shell request failed on channel 0
+ssh -tt exec-only "echo x"       # PTY allocation request failed on channel 0
+```
+
+That distinction matters when you read a trail:
+
+| Refused | Effect on the client |
+|---|---|
+| a **request** (`env`, `pty`) | not a failed command. `ssh` takes the rejection and carries on — the command still runs, without the variable or the terminal |
+| a **channel** (`shell`, `sftp`, a forward) | nothing to fall back to; it ends there |
+
+```bash
+ssh -o SetEnv="FOO=bar" exec-only 'echo "FOO=[$FOO]"'
+# FOO=[]
+```
+
+Every refusal leaves exactly one audit event:
+
+```
+exec-only    shell   not admitted by this listener
+exec-only    pty     not admitted by this listener
+exec-only    env     not admitted by this listener
+```
+
+### Interactive shells
+
+This is the deliberate limit of the design, and it is stated rather than worked around.
+
+A shell is a keystroke stream with no statement boundary. Reconstructing lines from it is **unsound**, not merely noisy:
+
+- History recall, tab completion and cursor movement diverge the reconstruction from what actually runs, so keystrokes reassemble into text the user never typed.
+- A rule that fires deletes what the user was editing, and Escape cannot be forwarded, so `vim` cannot be exited.
+- Telling a shell prompt from a full-screen program is guesswork: `bash` and `zsh` hold the terminal in raw mode at their own prompt, so the terminal's canonical flag reads identically at a prompt and inside `vim`.
+- And no signal addresses shell expansion at all: a pattern over a command line cannot see through it, so `X=cat; $X /root/.aws/credentials` matches nothing.
+
+A control that fires inconsistently, sitting in the same config block as controls that hold, would be read as equivalent to them — an operator would believe an interactive session is policed when it is not.
+
+**So a shell is admitted by capability, recorded as events, and masked on the way out. Nothing more.**
+
+To close the gap, do not admit it:
+
+```yaml
+ssh:
+  capabilities_allowed: [exec]
+```
+
+A listener that refuses `shell` has **no unpoliced surface left**: every action is a statement a rule can read. Reach for this on a lane that needs to enforce rather than observe. Users get `ssh host <command>`, not a prompt.
+
+<Note>
+The analyzer works on an SSH lane and is the only answer to shell expansion: a pattern cannot see through it, and a model reading the command can. [Risk analysis](#risk-analysis) below configures one on this lane.
+</Note>
+
+---
+
+## destinations_allowed
+
+Where a client-opened forward may be carried.
+
+```yaml
+destinations_allowed:
+  - 172.31.77.10/32:2222      # one host, one port
+  - 10.0.0.0/8                # any port on that network
+  - 2001:db8::/32:22          # IPv6 needs no bracket spelling
+  - any                       # every address and every port
+```
+
+**Absent and empty both deny every forward.** This key stays default-deny where `capabilities_allowed` does not, because a forward leaves the Sidecar's reach the moment it is dialled: nothing downstream inspects those bytes, so the destination list is the whole control.
+
+### Grammar
+
+| Entry | Matches |
+|---|---|
+| `prefix` | any port on that network. `10.0.0.5/32` is a single host |
+| `prefix:port` | that port and nothing else on that network |
+| `any` | every address, every port |
+
+The split is anchored on `/` rather than on the last colon, so IPv6 parses exactly like IPv4 without brackets. A prefix is **masked** on load, so `10.0.0.5/8` and `10.0.0.0/8` describe the same network whichever way you spell it. A v4-mapped v6 address (`::ffff:10.0.0.1`) is unmapped before the check, so a resolver returning the mapped form cannot slip past a `10.0.0.0/8` entry.
+
+`any` takes no port. A port restriction on `any` would read as a network rule that is not one; an operator who wants "every network, one port" writes the two default routes instead.
+
+Entries are parsed **at load**, never at connection time. A typo's consequences belong to the operator who wrote it, not to a user on the hot path.
+
+### Two permissions
+
+A forward needs both, and they answer different questions:
+
+| | Says | Property of |
+|---|---|---|
+| the certificate's `permit-port-forwarding` | whether this holder may open forwards **at all** | the person — it travels with them |
+| `destinations_allowed` | where **this listener** will carry one | where the listener sits |
+
+Either one missing refuses the request. This is how OpenSSH layers the same decision, and it is what makes the two useful: an issuer can deny one person forwarding without touching a listener, and a listener can refuse a destination for everyone without reissuing anything.
+
+<Note>
+The certificate grant does **not** distinguish a jump from a tunnel. SSH has no "may be used as a jump host" notion to grant, so the same certificate opens both wherever a listener's `destinations_allowed` carries one. Read `permit-port-forwarding` as *this holder may open forwards*, never as *this holder may jump*.
+</Note>
+
+### Behavior per hop
+
+Because the **listener** evaluates it:
+
+- A bastion that permits only an end-hop's SSH port is a jump host and nothing else — nobody reaches a database through it.
+- An end-hop that permits a database port lets someone tunnel there after they land.
+- An end-hop that permits nothing lets them land and no more.
+
+---
+
+## identity
+
+Which certificate field fills each identity slot. A certificate has no field called `email`, so this is a **mapping**, not a set of values.
+
+```yaml
+identity:
+  subject: key_id                       # unique per issued cert
+  email: key_id                         # where the CA writes an email there
+  groups: principals                    # the cert's own principals list
+  attributes: [permit-pty, permit-port-forwarding]
+```
+
+| Field | Takes | Default |
+|---|---|---|
+| `subject` | a source spelling | `key_id` |
+| `email` | a source spelling | unset |
+| `groups` | a source spelling | unset |
+| `attributes` | a list of **extension names** to surface to policy verbatim | none |
+
+### Sources
+
+| Source | Reads |
+|---|---|
+| `key_id` | the certificate's free-form key id, `ssh-keygen -I` |
+| `principals` | the certificate's principals list, `ssh-keygen -n` |
+| `extensions.<name>` | a named certificate extension, `ssh-keygen -O extension:<name>=<value>` |
+
+Anything else is refused at load: a source this lane cannot read would leave the field empty, and an empty subject is an audit trail that cannot say who ran a command.
+
+<Warning>
+The config prefix is `extensions.` with a **dot**. The `ssh-keygen` flag is `-O extension:` with a **colon**. They are not spelled the same.
+</Warning>
+
+### A certificate must name someone
+
+A valid certificate can still carry nothing in the field a lane reads. `ssh-keygen -I ''` leaves the key id empty, and an extension a CA has not rolled out yet is simply absent. **Such a connection is refused**, and the message names the field to fill:
+
+```
+this certificate carries no identity in extensions.login@hoop.dev; a session
+this listener cannot attribute is refused rather than recorded as anonymous
+```
+
+`subject` **or** `email` satisfies it — a lane may map only the one its CA fills in. Groups and the peer address do not: a group is not a person and an address is not a name.
+
+The refusal is not only about the actor column. See [Policy context](#policy-context) below: an empty field is **absent** from the context, and an absent key in Rego is undefined, so a rule keyed on the subject would not fire at all.
+
+### Groups
+
+The principals list decides login names and nothing else here — no destination claim competes for it — so reading it as groups is close to the field's stock meaning: a list of identities the holder may present. A CA that would rather keep the two separate uses a namespaced extension instead:
+
+```yaml
+identity:
+  subject: extensions.login@hoop.dev
+  groups: extensions.groups@hoop.dev
+```
+
+```bash
+ssh-keygen -s ca -I ca-internal-ref-99 -n devuser -V +1h \
+  -O extension:login@hoop.dev=alice@corp.example \
+  -O extension:groups@hoop.dev=sre,oncall  alice.pub
+```
+
+The trail then names the extension, with the key id recorded beside it:
+
+```json
+"principal": "alice@corp.example",
+"metadata": { "key_id": "ca-internal-ref-99", "login": "devuser" }
+```
+
+### Policy context
+
+It fills the same session identity a Postgres or HTTP lane populates, so it reaches Rego as the same flat context map every other protocol sends. **An empty field is omitted, not sent empty** — which is why a certificate that names nobody is refused before a policy ever runs: `input.context.subject` would be undefined, and a rule keyed on it would silently not fire:
+
+```json
+{
+  "session_id": "3f1a...",
+  "principal": "alice@example.com",
+  "subject": "alice@example.com",
+  "email": "alice@example.com",
+  "groups": "sre,oncall",
+  "peer_addr": "203.0.113.7:51422",
+  "connection": "prod-endhost",
+  "permit-pty": "true"
+}
+```
+
+A policy written for another protocol reads an SSH session identically:
+
+```rego policy.rego
+package hoop.inspect
+
+import rego.v1
+
+phase := object.get(input, "phase", "decide")
+
+decision := {"allow": true} if {
+	phase == "decide"
+	"sre" in split(input.context.groups, ",")
+	input.operation == "exec_line"
+} else := {"denied": true, "rule": "not-sre", "message": "commands on this host are for sre"}
+```
+
+This resolves **once per connection**, at the handshake, and every statement in that connection reuses it — the way a database lane resolves a user once rather than re-deriving it per query.
+
+---
+
+## Operations
+
+Twelve of them. Each carries its capability as a prefix, so a rule scopes itself with the `operations` field every rule already has — no SSH-specific syntax, and no separate "channel" or "subsystem" field.
+
+| Operation | Capability | A rule matches against |
+|---|---|---|
+| `exec_line` | `exec` | the whole command, one statement |
+| `env_set` | `env` | the variable **name**, not its value |
+| `sftp_read` | `sftp` | the path being read |
+| `sftp_write` | `sftp` | the path being written |
+| `sftp_remove` | `sftp` | the path being removed |
+| `sftp_rename` | `sftp` | **both** paths, source and target |
+| `sftp_mkdir` | `sftp` | the directory being created |
+| `sftp_rmdir` | `sftp` | the directory being removed |
+| `sftp_list` | `sftp` | the directory being listed |
+| `sftp_stat` | `sftp` | the path whose attributes are read |
+| `sftp_setstat` | `sftp` | the path whose attributes are changed |
+| `sftp_symlink` | `sftp` | **both** paths, link and target |
+
+Four decisions are embedded in that list:
+
+- **There is no `sftp_open`.** A client's open surfaces at the request layer as the first read or write against the path, so those are the earliest points a rule can act. Naming `sftp_open` in a rule is a **config error**, not a rule that loads and never fires.
+- **An unrecognized file-transfer request is denied, not passed.** The mapping from request method to operation is exhaustive by refusal, so a new method appearing underneath cannot slip through unpoliced.
+- **A two-path request is evaluated on both paths.** A rename out of a fenced directory and a rename into one are different questions; a rule that only saw the source would miss the second. `ssh.path_end` on the record says which end each statement is.
+- **The verdict is reached and audited before the filesystem is touched.**
+
+### Metadata
+
+| Metadata key | Holds |
+|---|---|
+| `ssh.capability` | which surface the statement came from: `exec`, `env` or `sftp` |
+| `ssh.path` | the path an `sftp_*` operation names |
+| `ssh.target` | the second path of a rename or symlink |
+| `ssh.path_end` | `source` or `target`, on a two-path request |
+| `ssh.env_value` | the value of a variable an `env_set` statement names |
+
+### What has no operation
+
+- **A shell has none.** Framing keystrokes into statements would need reconstruction that is [unsound](#no-guardrails-on-an-interactive-shell), so a shell's content is not cut into statements nothing evaluates. Writing a rule for one fails at load as an unknown operation.
+- **A forward has none.** A forward carries a destination, not content, and the statement vocabulary is for text a rule matches against. Refusing a destination is `destinations_allowed`'s job.
+
+Admitting or refusing a **capability** is also a separate kind of audit record with no operation on it — `capability agent_forward block` sits beside `statement exec_line block`, and a rule cannot scope itself to the former.
+
+---
+
+## Guardrails
+
+Rules are written exactly as on any other lane, scoped with `operations`. The statement's text differs per operation, which is what makes the scoping load-bearing:
+
+```yaml
+guardrails:
+  rules:
+    - name: no-preload-injection
+      type: pattern_match
+      pattern_regex: '^(LD_PRELOAD|LD_LIBRARY_PATH)$'
+      operations: [env_set]
+      message: this environment variable is not permitted
+
+    - name: protected-paths
+      type: pattern_match
+      pattern_regex: '(secrets\.env|/etc/shadow|\.aws/credentials)'
+      operations: [exec_line, sftp_read, sftp_write, sftp_rename,
+                   sftp_remove, sftp_stat, sftp_setstat]
+      message: this path is not readable through hoop
+
+    - name: read-only-files
+      type: operation
+      operations: [sftp_write, sftp_remove, sftp_rename, sftp_mkdir,
+                   sftp_rmdir, sftp_setstat, sftp_symlink]
+      message: this connection may only read files
+
+    - name: no-secrets-as-arguments
+      type: pii
+      entities: [AWS_ACCESS_KEY, PRIVATE_KEY]
+      operations: [exec_line]
+      message: do not pass credentials on the command line
+```
+
+A path reaches the rule as statement text whichever client asked for it — as the whole text on an `sftp_*` operation, as a substring of the command line on `exec_line`. So one rule scoped across both families covers `ssh cat`, `sftp get`, `scp` in either of its two modes, and `rsync`. It fences every **client**, not every **spelling**: a pattern cannot see through shell expansion. [Fencing a path](/setup/configuration/hoop-sidecar/protocols/ssh/file-transfer#fencing-a-path) works it through.
+
+**Four rule types are refused at load**, because an SSH statement has nothing for them to read:
+
+| Type | The refusal |
+|---|---|
+| `table` | *SSH has no relations, and an sftp path is not a table; match a path with `pattern_match` scoped to the `sftp_*` operations* |
+| `http_resource` | *there is no request path; match a command or a path with `pattern_match`* |
+| `http_status` | *there is no response status* |
+| `grpc_status` | *there is no RPC* |
+
+They are refused at config load rather than skipped at evaluation, because the two failures reach different people: a load refusal reaches the operator who wrote the rule, and a silent skip reaches nobody at all.
+
+---
+
+## Risk analysis
+
+A guardrail rule matches text. **The shell expands before anything runs**, so the text a rule reads is not always the instruction that executes:
+
+```bash
+ssh host 'X=cat; $X /root/.aws/credentials'
+```
+
+That command line carries no `.aws/credentials` for `protected-paths` above to find. A model reading the whole line can say what it intends, and that is the gap the analyzer fills on an SSH lane.
+
+The provider and the credential are process-wide; the trigger and the actions belong to the lane:
+
+```yaml config.yaml
+analyzer:
+  provider: anthropic
+  model: claude-sonnet-4-5
+  credentials_file: /run/secrets/anthropic-key
+
+listeners:
+  - name: ai-endhost
+    protocol: ssh
+    listen: 0.0.0.0:2222
+
+    ssh:
+      host_key: /etc/hoop-sidecar/keys/endhost_host_key
+      trusted_ca: /etc/hoop-sidecar/keys/ca.pub
+      capabilities_allowed: [exec]
+
+    analyzer:
+      trigger:
+        operations: [exec_line]
+      high: block
+      medium: warn
+```
+
+```
+$ ssh ai-endhost 'X=cat; $X /root/.aws/credentials'
+hoop: reads cloud credential material
+```
+
+The lane writes no `message:`, so the refusal carries the model's own title. Set `message:` to say the same thing for every verdict instead.
+
+### What it classifies
+
+`exec_line`, and nothing else. A command line is a whole instruction; a variable name (`env_set`) and a file path (every `sftp_*`) are short strings with no room for intent. **A trigger naming any other operation is refused at startup**:
+
+```
+invalid config:
+  - ai-endhost: the analyzer trigger names operation "sftp_read", which a ssh
+    lane never classifies, so every statement carrying it would be skipped and
+    allowed with no call made. This lane classifies exec_line; match the rest
+    with a pattern_match rule scoped by operations
+```
+
+Otherwise the trigger would match, the builder would decline, and the statement would be allowed with nothing to show for it. Match paths and variable names with a `pattern_match` rule scoped by `operations` — it costs nothing and reads them exactly as well.
+
+An interactive `shell` never reaches the analyzer either, because no keystrokes are reconstructed into statements. A lane that admits one looks analyzed and is not, which is why the example admits `exec` only.
+
+### The prompt
+
+Add a `prompt:` to the listener's block, not to the top-level section. That one is process-wide and would reach a database lane reasoning about `DROP` while it looks at a shell command.
+
+### When the model is unreachable
+
+An unreachable OPA denies. An unreachable model **allows**, and the command runs:
+
+```
+"msg":"ssh statement evaluation continued after error",
+"error":"analyzer/anthropic: provider returned 401 Unauthorized"
+```
+
+A policy engine outage is a security decision nobody made, so denying is the safe reading. A classifier outage is a paid dependency being down, and denying there takes production with it. Set `fail_open: false` where the classification is a compliance requirement, and know that the model is then a hard dependency of every command on the lane.
+
+### Cost controls
+
+The example above omits these, so it classifies every command, with no cache and no ceiling. Set them before a real lane:
+
+| Key | Bounds |
+|---|---|
+| `trigger.operations` | the only thing that narrows **which** statements are classified. Omit the trigger and every `exec_line` on the lane is sent |
+| `max_calls` | a process-lifetime ceiling. Past it, statements fall through to the guardrails — the same outcome as a lane with no analyzer |
+| `cache` | same command shape, same verdict, one call |
+| `send` | `redacted` replaces detected entities before the command leaves the process; `raw` sends it verbatim; `refuse` skips the call rather than send anything |
+
+[Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) has the providers, the credential rules, the verdict records and the `defer` action that hands a risk level to Rego.
+
+---
+
+## Masking
+
+An `ssh` lane masks a byte stream **in place**. There is no length header to correct and no frame to rebuild, so a replacement of a different size shifts every byte after it — on a terminal that desynchronizes the escape sequences and corrupts a full-screen program; on a download it corrupts the file.
+
+So **`strategy: mask` is the only strategy this lane accepts**, and its `mask_char` must be ASCII:
+
+```yaml
+mask:
+  rules:
+    - name: emails
+      entities: [EMAIL_ADDRESS]
+      strategy: mask
+      mask_char: 42        # a Go rune: write 42, not '*'
+```
+
+```
+id,name,email,plan
+1,Ada Lovelace,***************,enterprise
+2,Alan Turing,****************,team
+```
+
+Count the asterisks against the addresses they replaced — fifteen, sixteen. **Length preservation is the safety property**, not a nicety.
+
+| Config | Refused at load because |
+|---|---|
+| `strategy: redact` (or omitted, which **is** `redact`) | *an ssh lane masks bytes in place, so `mask` is the only strategy it can carry*. Silence is not agreement |
+| `strategy: partial` | same |
+| `mask_char` above U+007F | *`mask` preserves the rune count, and an ssh lane needs the byte count preserved. Use an ASCII character* |
+
+The runtime enforces this too — a rewrite that returns a different length fails the stream **closed** rather than forwarding it — so the load check is not what makes the guarantee true. It is what makes it cheap: an operator learns at load instead of a user learning when their session dies mid-command.
+
+Masking applies to **output and downloads**. An upload a mask rule would touch is **refused**, never rewritten; see [File Transfer](/setup/configuration/hoop-sidecar/protocols/ssh/file-transfer#uploads).
+
+Output is masked **one read at a time**, so a value cut in half by a read boundary is not masked; a download is read whole and has no such boundary. [Known Limitations](/setup/configuration/hoop-sidecar/protocols/ssh/known-limitations#a-value-that-crosses-a-read-boundary) says what to do about it.
+
+---
+
+## Audit trail
+
+**This version records events and statements. It records no session content at all.** The trail answers who connected, what they asked for and what was refused; it does not answer what scrolled past.
+
+| Capability | Recorded |
+|---|---|
+| `exec` | the command in full, with its verdict. Its output is masked in flight and **not** retained |
+| `env` | the variable name as the statement, the value beside it |
+| `sftp` | one statement per operation per path, plus a transfer record with direction and byte count. **File bytes are never recorded, and there is no key to ask for them** |
+| `shell`, `pty` | events only — the open, the terminal geometry, the duration, the byte counts. **No keystrokes and no output**, so there is nothing to replay |
+| forwards, unrecognized subsystems | destination or bind address, duration, byte count. Never the relayed bytes |
+| `agent_forward`, `x11` | the grant and the use. No content exists |
+| a **refused** connection | `session_start`, a `connection_refused` event carrying the login asked for and the reason, then the close. See below |
+
+### A refused connection is recorded too
+
+A certificate can verify and the connection still be refused — the login is an account nowhere, or the certificate names nobody in the field this lane reads. Such a connection is closed the same way an admitted one is, so its audit session ends either way. Between the two ends is the record that says what happened:
+
+```json
+{"kind":"activity","metadata":{"activity":"connection_refused","login":"ghost",
+ "reason":"login \"ghost\" is not an account on this host"}}
+```
+
+The login name is in that record because nothing else carries it: there is no `connection_open` on a connection that never opened, and the principal names the human, not the account they asked to become.
+
+A refusal at the **handshake** — a bad signature, an expired certificate, a login the principals do not cover — never reaches the audit trail at all: there is no session yet to write it against, and the reason is in the process log. The client is told only `Permission denied (publickey)`, and that part is deliberate — naming the field that failed helps a prober more than it helps a user.
+
+Masking is unaffected by any of this, because it rewrites bytes **in flight** rather than on the way to a record: a masked shell is still a masked shell, with no copy of either version kept.
+
+```bash
+ssh -tt endhost <<EOF
+echo SECRET-MARKER-12345
+exit
+EOF
+
+grep -c SECRET-MARKER-12345 /var/log/hoop-sidecar/audit.jsonl   # 0
+```
+
+<Warning>
+**`env` values are recorded raw**, matching how a SQL statement's literal parameters are recorded today. Masking has no response to act on there, so there is nothing to rewrite in flight. Fence secret-shaped variable names with an `env_set` guardrail rather than relying on the trail to redact them.
+</Warning>
+
+---
+
+## Validation
+
+```bash
+hoop start sidecar --config config.yaml --validate
+```
+
+```
+config OK: 2 listener(s)
+  prod-endhost     ssh       1 rule(s)
+                               note: ssh: admits env, exec, pty, sftp, shell
+                               note: ssh: trusts 1 CA public key(s) from /etc/hoop-sidecar/keys/ca.pub
+                               note: ssh: presents a ssh-ed25519 host key
+                               note: ssh: session output and file downloads are masked in flight
+                               note: ssh: file transfer runs in this process (uid 10001/gid 10001), so a session resolving to any other account is refused
+                               note: ssh: destinations_allowed is empty, so every client-opened forward is denied
+                               note: ssh: every session runs as the login name the certificate admitted, and a login that is not an account on this host is refused
+  prod-bastion     ssh       no rules to enforce
+                               note: ssh: admits no session capability, so this listener has no shell, no command and no file transfer on it
+                               note: ssh: carries forwards to 172.31.77.10/32:2222, and nowhere else
+```
+
+Nothing needs to be running. The notes state the facts an operator believes they configured correctly right up until a session proves otherwise: what is admitted, how many CA keys are trusted, which host key type is presented, whether forwarding is denied, and the uid and gid `sftp` will be served as.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Certificates and Identity" icon="certificate" href="/setup/configuration/hoop-sidecar/protocols/ssh/certificates">
+    What your CA must issue for `trusted_ca` and `identity` to do their jobs.
+  </Card>
+  <Card title="File Transfer" icon="folder-tree" href="/setup/configuration/hoop-sidecar/protocols/ssh/file-transfer">
+    How `sftp`, `scp` and `rsync` each produce different statements from the same file.
+  </Card>
+</CardGroup>

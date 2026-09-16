@@ -1,0 +1,81 @@
+---
+title: "Known Limitations"
+description: "What an ssh lane does not do, stated before you deploy it rather than after"
+---
+
+Every limit here is a gap between what the lane promises and what it does, or a
+boundary drawn on purpose. Read it alongside
+[OpenSSH Differences](/setup/configuration/hoop-sidecar/protocols/ssh/limitations),
+which is the other half: what `sshd` does that this lane does not.
+
+---
+
+## The list
+
+| Limit | Why |
+|---|---|
+| **A value that crosses a read boundary is not masked** | the session stream is masked one read at a time, so a value cut in half by a boundary matches in neither half. See below — downloads are not affected |
+| **An audit outage does not end a session already open** | `fail_open: false` refuses a new connection, and refuses every `exec`, `env` and file operation as it is asked for. An interactive shell asks for nothing between its open and its close, so there is no point left at which to refuse it. A shell already running when the sink failed keeps running |
+| **No guardrails on an interactive shell** | a keystroke stream has no statement boundary, and reconstructing one is unsound — history recall and tab completion diverge it from what runs, a rule that fires deletes what the user was editing, and no signal sees through shell expansion. A shell is admitted, masked on output, and recorded as events. Drop `shell` from `capabilities_allowed` to close the gap |
+| **No session content is recorded** | not keystrokes, not output, not file bytes, and there is no setting that adds them. The trail answers who connected, what they asked for and what was refused — not what scrolled past |
+| **Masking cannot change length** | an `ssh` lane rewrites a byte stream in place, so `strategy: mask` with an ASCII `mask_char` is the only strategy the lane accepts. Anything else is refused at load |
+| **An upload a mask rule would touch is refused, not rewritten** | silently altering a file someone believes they uploaded is worse than refusing it |
+| **rsync and masking cannot coexist** | rsync checksums at both ends and correctly discards bytes that were rewritten in between. Any transfer protocol that verifies its own content integrity does the same |
+| **A forward is relayed blind** | nothing inspects those bytes, which is why `destinations_allowed` is the whole control and is default-deny |
+| **Accounts cannot be checked at load** | the login name arrives in the handshake, so a host missing an account it meant to serve is discovered by the first session that asks for it |
+| **Four rule types are refused** | `table`, `http_resource`, `http_status` and `grpc_status` have nothing on an SSH statement to read |
+
+---
+
+## A value that crosses a read boundary
+
+The session stream is read in 32 KB blocks, and each block is masked on its
+own. A value that begins in one block and ends in the next matches in neither,
+so it reaches the client in the clear — and because nothing matched, no masking
+event is recorded for it either.
+
+Two ways it happens:
+
+- **Output longer than 32 KB.** Every boundary is a place a value can be cut.
+  `cat` a large file and the odds rise with its size.
+- **A program that writes a value in more than one call.** `printf "user: alice@"`
+  followed by `printf "example.com"` is two writes, and can arrive as two reads.
+
+**Downloads are not affected.** A file that a mask rule covers is read whole
+before it is rewritten, so there is no boundary inside it to cut a value on.
+The same is true of an upload, which is buffered before it is judged.
+
+### What to do about it
+
+Treat masking on terminal output as a reduction, not a guarantee. Where a value
+must never be shown, **deny the path instead of rewriting it** — a denial is
+exact, a rewrite is per-block:
+
+```yaml
+guardrails:
+  rules:
+    - name: protected-paths
+      type: pattern_match
+      pattern_regex: '(secrets\.env|\.aws/credentials)'
+      operations: [exec_line, sftp_read]
+      message: this path is not readable through hoop
+```
+
+A fix has to hold bytes back until the next read confirms them, and the same
+length rule that makes `strategy: mask` the only strategy here forbids
+returning fewer bytes than were given. It is open work, and it needs a decision
+about what a user sees while bytes are held: a shell prompt has no trailing
+newline, so it would sit in the held tail and never be displayed.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="OpenSSH Differences" icon="git-compare" href="/setup/configuration/hoop-sidecar/protocols/ssh/limitations">
+    The assumptions carried over from `sshd` that do not hold here.
+  </Card>
+  <Card title="Configuration" icon="file-code" href="/setup/configuration/hoop-sidecar/protocols/ssh/configuration">
+    Every attribute, the full capability surface, and what each one can carry.
+  </Card>
+</CardGroup>

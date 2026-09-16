@@ -335,6 +335,21 @@ An analyzer block on an HTTP lane **without** `capture_body: true` is refused at
 
 A request that carries no body is still skipped at runtime once capture is on, and that stays intentional: paying for a verdict on `POST /orders` with no payload is the cost this design avoids. The startup check only asserts that the proxy *could* capture a body.
 
+## An SSH lane classifies `exec_line` only
+
+A command line is a whole instruction a model can reason about. A variable name (`env_set`) and a file path (every `sftp_*`) are short structural strings with no room for intent — a model asked to rate `/srv/data.csv` returns a guess at full price, once per path.
+
+So the SSH content builder answers for `exec_line` and nothing else, and **a trigger naming any other operation is refused at startup**:
+
+```yaml
+    analyzer:
+      trigger: {operations: [exec_line]}     # the only operation this lane classifies
+```
+
+Without that refusal the rule would load, the trigger would match, the builder would decline, and every statement it named would be allowed carrying a `skipped` finding indistinguishable from an unmatched trigger. Match the rest with a `pattern_match` rule scoped by `operations`, which costs nothing and reads paths and variable names exactly as well.
+
+An interactive shell never reaches the analyzer at all: it produces no statements, because no keystrokes are reconstructed.
+
 <Warning>
 `authorization`, `cookie` and `proxy-authorization` cannot be allowlisted and are refused at startup. A lane exposing them to policy has put a bearer token into every decision log and audit record.
 </Warning>
@@ -603,6 +618,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | A credential file readable by group or other | Refused, reporting the mode |
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
 | An analyzer on an HTTP lane without `http.capture_body`, or on a gRPC lane without `grpc.capture_payload` | Refused: every request would be skipped |
+| A trigger naming an operation the lane never classifies — any SSH operation but `exec_line` | Refused, naming the operation and what the lane does classify |
 | A negative `max_calls`, `cache.size`, `cache.ttl_sec` or `max_output_tokens` | Refused: a negative reads as "off" with no warning |
 | An `http` block on a non-HTTP lane | Refused, naming the lane |
 | `authorization`, `cookie` or `proxy-authorization` allowlisted | Refused, naming the header |
