@@ -82,7 +82,7 @@ On an SSH lane the rule reads exactly the same way — `operations: [sftp_write,
 `CALL` and `EXECUTE` now report `unknown`, so a rule written as `operations: [call]` **stops matching**. Both hide their body from any parser, and reporting a verb for a statement nobody can read is the fail-open this design removes. `call` survives in `input.effects`, which is where a Rego policy still sees it; a rule wanting both writes `operations: [call, unknown]`. Read [Fail closed on what the scanner could not read](#fail-closed-on-what-the-scanner-could-not-read).
 </Warning>
 
-#### Operation vocabulary
+#### Reference
 
 Every value `operations` accepts, across every protocol. The field narrows any rule type; on an `operation` rule it is the whole of the match.
 
@@ -125,39 +125,6 @@ Every value `operations` accepts, across every protocol. The field narrows any r
 | `sftp_stat` | SSH | the path whose attributes are read | |
 | `sftp_setstat` | SSH | the path whose attributes are changed | |
 | `sftp_symlink` | SSH | **both** paths, link and target | two statements |
-
-#### SSH operations
-
-SSH operations carry their **capability** as a prefix, so a rule scopes itself to a surface without SSH needing a channel field of its own:
-
-```yaml
-- name: read-only-files
-  type: operation
-  operations: [sftp_write, sftp_remove, sftp_rename, sftp_mkdir,
-               sftp_rmdir, sftp_setstat, sftp_symlink]
-  message: this connection may only read files
-```
-
-Three gaps in that list are deliberate:
-
-| Missing | Why |
-|---|---|
-| `sftp_open` | a client's open surfaces as the first read or write against the path, which is the earliest point a rule can act. Naming it is a **config error**, not a rule that loads and never fires |
-| a shell operation | a keystroke stream has no boundary a rule could act on, and reconstructing one is unsound. Drop `shell` from `capabilities_allowed` rather than trying to police it |
-| a forward operation | a forward carries a destination, not content. Refusing a destination is `ssh.destinations_allowed`'s job, and an admitted forward is relayed blind |
-
-One rule can cover several routes to the same file, because the path reaches the rule as statement text either way — `scp` alone lands in two different operation families depending on one flag:
-
-```yaml
-- name: protected-paths
-  type: pattern_match
-  pattern_regex: '(secrets\.env|/etc/shadow|\.aws/credentials)'
-  operations: [exec_line, sftp_read, sftp_write, sftp_rename,
-               sftp_remove, sftp_stat, sftp_setstat]
-  message: this path is not readable through hoop
-```
-
-[SSH](/setup/configuration/hoop-sidecar/protocols/ssh) has the protocol in full.
 
 ### table
 
