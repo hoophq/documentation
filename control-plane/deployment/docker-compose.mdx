@@ -64,7 +64,8 @@ The fastest way to get a Control Plane running. Good for evaluation, and good en
 ## The compose file
 
 ```sh
-curl -sL https://hoop.dev/docker-compose.control-plane.yml > docker-compose.yml
+curl -sL https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.control-plane.yml \
+  > docker-compose.yml
 ```
 
 The file brings up Postgres and the Hoop image started in control plane mode,
@@ -148,7 +149,8 @@ To run it on a host your Sidecars can reach, follow the section below instead.
 <Steps>
   <Step title="Download the compose file">
     ```sh
-    curl -sL https://hoop.dev/docker-compose.control-plane.yml > docker-compose.yml
+    curl -sL https://raw.githubusercontent.com/hoophq/hoop/main/deploy/docker-compose/docker-compose.control-plane.yml \
+      > docker-compose.yml
     ```
   </Step>
 
