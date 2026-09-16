@@ -525,6 +525,20 @@ Output is masked **one read at a time**, so a value cut in half by a read bounda
 | `shell`, `pty` | events only — the open, the terminal geometry, the duration, the byte counts. **No keystrokes and no output**, so there is nothing to replay |
 | forwards, unrecognized subsystems | destination or bind address, duration, byte count. Never the relayed bytes |
 | `agent_forward`, `x11` | the grant and the use. No content exists |
+| a **refused** connection | `session_start`, a `connection_refused` event carrying the login asked for and the reason, then the close. See below |
+
+### A refused connection is recorded too
+
+A certificate can verify and the connection still be refused — the login is an account nowhere, or the certificate names nobody in the field this lane reads. Such a connection is closed the same way an admitted one is, so its audit session ends either way. Between the two ends is the record that says what happened:
+
+```json
+{"kind":"activity","metadata":{"activity":"connection_refused","login":"ghost",
+ "reason":"login \"ghost\" is not an account on this host"}}
+```
+
+The login name is in that record because nothing else carries it: there is no `connection_open` on a connection that never opened, and the principal names the human, not the account they asked to become.
+
+A refusal at the **handshake** — a bad signature, an expired certificate, a login the principals do not cover — never reaches the audit trail at all: there is no session yet to write it against, and the reason is in the process log. The client is told only `Permission denied (publickey)`, and that part is deliberate — naming the field that failed helps a prober more than it helps a user.
 
 Masking is unaffected by any of this, because it rewrites bytes **in flight** rather than on the way to a record: a masked shell is still a masked shell, with no copy of either version kept.
 

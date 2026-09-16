@@ -46,6 +46,8 @@ ssh -p 2222 ghost@endhost id
 
 Same listener, same certificate, three different answers. **Nothing in the config file names an account** — the login name *is* the account request, as it is under `sshd`, and the certificate only decides whether you may make it.
 
+The refused one is recorded, not only logged: the trail carries a `connection_refused` event naming the login asked for and the reason, between that session's start and its end. See [Audit trail](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#a-refused-connection-is-recorded-too).
+
 Supplementary groups are resolved with the account and applied in the child, `setgroups` → `setgid` → `setuid`, before exec. A session that ran without them would silently have fewer memberships than `id` reports, so a failure to resolve them refuses the session instead.
 
 ---
