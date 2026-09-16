@@ -3,16 +3,6 @@ title: "Kubernetes"
 description: "Deploy the Control Plane with the Helm chart, on any cloud provider."
 ---
 
-<Warning>
-  This chart deploys the **gateway**, not the Control Plane. It sets
-  `hoop start gateway` on the container and exposes no value to change it, so
-  an install from this page reports `application_mode: gateway` and serves the
-  gateway web app.
-
-  Everything below — ingress, database, TLS — is accurate for that deployment.
-  For a Control Plane today, use [Docker Compose](/control-plane/deployment/docker-compose).
-</Warning>
-
 The Control Plane ships as a Helm chart. This page covers the quick start, then every value worth setting.
 
 ## Quick start

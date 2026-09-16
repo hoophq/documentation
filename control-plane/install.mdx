@@ -19,22 +19,15 @@ The [Control Plane](/core-concepts/control-plane) is the service your Sidecars r
 
 ---
 
-## Deployment options
+## How to deploy it
 
 The mode is chosen by the subcommand: `hoop start control-plane` rather than
 `hoop start gateway`. One image serves both.
 
-<CardGroup cols={3}>
-  <Card title="Docker Compose" icon="docker" href="/control-plane/deployment/docker-compose">
-    The supported path today. Good for evaluation and for single-host production.
-  </Card>
-  <Card title="Kubernetes" icon="dharmachakra" href="/control-plane/deployment/kubernetes">
-    Deploys the gateway. The chart has no value for control plane mode yet.
-  </Card>
-  <Card title="AWS" icon="aws" href="/control-plane/deployment/aws">
-    Deploys the gateway. The CloudFormation template has no parameter for the mode yet.
-  </Card>
-</CardGroup>
+<Card title="Docker Compose" icon="docker" href="/control-plane/deployment/docker-compose">
+  Postgres and the Control Plane on a single host, with an optional Sidecar
+  connected to it. Good for evaluation and for single-host production.
+</Card>
 
 ---
 
