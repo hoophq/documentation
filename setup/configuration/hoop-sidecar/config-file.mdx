@@ -763,25 +763,42 @@ SELECT ssl, version FROM pg_stat_ssl WHERE pid = pg_backend_pid();
  t   | TLSv1.3
 ```
 
-Three behaviors on a Postgres lane surprise people:
+Postgres uses protocol-specific handling:
 
-- **Postgres negotiates in-band.** The server expects an 8-byte `SSLRequest` and a one-byte reply before any handshake. The Sidecar speaks that exchange, so `upstream_tls` works the way the field name implies.
-- **A refusal is an error, never a downgrade.** If the server declines TLS, the connection fails with a message naming the likely cause. Sending credentials in the clear because the server said no is the outcome you were preventing.
-- **Channel binding is dropped from the server's offer.** With TLS terminating at the Sidecar, `SCRAM-SHA-256-PLUS` cannot work. The Sidecar removes that one mechanism, leaving plain `SCRAM-SHA-256`, which authenticates the same password against the same verifier.
+- The Sidecar sends the 8-byte `SSLRequest` before it starts TLS.
+- The Sidecar closes the connection when the server refuses TLS. It does not
+  downgrade and send credentials in plaintext.
+- The Sidecar removes `SCRAM-SHA-256-PLUS` because the client cannot bind to
+  the separate TLS session between the Sidecar and database. Plain
+  `SCRAM-SHA-256` remains available.
 
-On an MSSQL lane `upstream_tls` performs a plain TLS-on-connect handshake, which is TDS 8.0 and the only TLS shape the Sidecar originates. SQL Server on Linux cannot accept it: strict encryption is a Windows feature, and the Linux build offers `network.forceencryption`, whose TLS is the TDS 7.x kind negotiated inside `0x12` PRELOGIN packets. Leave `upstream_tls` off that lane and keep the hop on loopback or a private network.
+MySQL uses a server-first exchange. The Sidecar reads the greeting, sends a
+MySQL `SSLRequest`, then completes authentication inside TLS. It also bridges
+the RSA exchange used by `caching_sha2_password` and `sha256_password`.
+
+Omit `upstream_tls` to keep the MySQL backend hop in plaintext. See
+[MySQL: TLS on each leg](/setup/configuration/hoop-sidecar/protocols/mysql#tls-on-each-leg)
+for client modes and a verification query.
+
+On an MSSQL lane, `upstream_tls` performs a TLS-on-connect handshake for TDS
+8.0. SQL Server on Linux cannot accept it. The Linux build offers
+`network.forceencryption`, which negotiates the TDS 7.x form inside `0x12`
+PRELOGIN packets. Leave `upstream_tls` off that lane and keep the hop on
+loopback or a private network.
 
 ### The client leg is a different hop
 
-`upstream_tls` covers the Sidecar-to-backend hop only. The Sidecar terminates **no** downstream TLS: if the client negotiates TLS all the way through, there is no plaintext at the gate and inspection is impossible. Terminating that leg belongs to Envoy.
+`upstream_tls` covers the Sidecar-to-backend hop. It does not encrypt traffic
+between the client and Sidecar.
 
-| Leg | Encrypted by |
-|---|---|
-| client → Envoy | Envoy. An HTTPS listener does it already; a Postgres lane needs `postgres_proxy` with a `starttls` transport socket, and an MSSQL lane a plain `DownstreamTlsContext` for TDS 8.0 |
-| Envoy → relay | nothing, by design. These are the bytes the gate parses |
-| relay → backend | the Sidecar, via `upstream_tls` above |
+A MySQL lane refuses `downstream_tls` because the gate must inspect plaintext
+MySQL frames. Keep that hop on loopback, a unix socket, one pod, or a private
+network. A client using `--ssl-mode=DISABLED` works with plaintext and TLS
+upstreams. The MySQL protocol guide documents the additional behavior of
+`PREFERRED` and `REQUIRED`.
 
-Keep the middle leg on loopback or a unix socket. It carries decrypted traffic, and a socket is the tighter boundary because no port exists to reach. See [Terminating client TLS](/install/cli#terminating-client-tls) for the Envoy config.
+Other protocol lanes can terminate client TLS themselves or accept plaintext
+from a terminating proxy. See each protocol page before exposing a listener.
 
 ---
 
