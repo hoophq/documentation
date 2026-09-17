@@ -11,6 +11,11 @@ listeners:
     protocol: mysql
     listen: 127.0.0.1:13306
     upstream: appdb:3306
+    upstream_tls:                       # optional; omit for a plaintext upstream
+      ca_file: /etc/hoop-inspect/certs/mysql-ca.crt
+      server_name: appdb
+    # Set when clients pin an RSA key instead of requesting one.
+    mysql_auth_key_file: /etc/hoop-inspect/certs/mysql-auth.key
     guardrails:
       rules:
         - name: no-destructive-sql
@@ -26,38 +31,131 @@ listeners:
 
 ## What the codec reads
 
-A MySQL byte means different things depending on what the handshake negotiated and on the command in flight, where a pgwire message declares its own type and length. The codec tracks both, one instance per connection, across both directions:
+A MySQL byte changes meaning with the negotiated capabilities and the command
+that produced the reply. The codec keeps one connection state across both
+directions.
 
-- **Capabilities.** The codec latches the negotiated set from the client's handshake response. `CLIENT_DEPRECATE_EOF` alone decides whether a result set ends with an EOF packet or an OK packet that begins with the same byte.
-- **Prepared statements.** `COM_STMT_EXECUTE` carries no SQL, only the numeric id the server assigned in its reply to `COM_STMT_PREPARE`. The codec keeps that map and attributes each execute to its text, which is the path ORMs take.
-- **Multi-statements.** Connector/J and most ORMs negotiate `CLIENT_MULTI_STATEMENTS` by default, so `SELECT 1; DROP TABLE users` arrives as one `COM_QUERY`. The codec splits it with MySQL's own lexical rules (backtick identifiers, `#` comments, backslash escapes) before classifying, so a statement hidden after a string literal cannot ride through under a `select` classification.
+- **Capabilities.** The client's handshake response decides whether result
+  sets end with EOF or OK packets and whether the packet framing remains
+  inspectable.
+- **Command order.** Clients pipeline commands. The codec pairs each reply
+  with a FIFO entry, while skipping commands such as `COM_STMT_CLOSE` that
+  have no reply.
+- **Multi-statements.** Connector/J and many ORMs send
+  `SELECT 1; DROP TABLE users` as one `COM_QUERY`. The MySQL lexer handles
+  backtick identifiers, `#` comments and backslash escapes before the codec
+  classifies each statement.
+
+### Prepared statements and cursors
+
+`COM_STMT_EXECUTE` carries a numeric statement id instead of SQL. The codec
+records the text from `COM_STMT_PREPARE` and uses it for policy and audit when
+the client executes that id.
+
+A server-side cursor returns column definitions when it opens, then sends
+binary rows through `COM_STMT_FETCH` without repeating those definitions. The
+codec retains one metadata copy for inspection and one for masking. It removes
+each copy after its walker passes the fetch that preceded `COM_STMT_CLOSE` or
+`COM_STMT_RESET`, even when the fetch lacks `SERVER_STATUS_LAST_ROW_SENT`.
+
+The codec refuses a fetch when it did not observe the cursor open. Forwarding
+such rows would leave column-based masking with no column names.
 
 ---
 
 ## What it refuses
 
-Three negotiated features would make later bytes unreadable, and the codec refuses the stream instead of forwarding what it cannot inspect. Each refusal closes the connection with an operator-facing reason:
+Several protocol features replace the framing or metadata the codec needs.
+The lane closes the connection when a client negotiates one:
 
-| Refusal | Why | Client-side fix |
+| Refusal | Reason | Client-side fix |
 |---|---|---|
-| Compression (`CLIENT_COMPRESS`) | Replaces the packet framing itself from the first byte after the handshake | Do not enable `--compress` |
-| TLS upgrade (`CLIENT_SSL`) | Every later byte is a TLS record the lane is not terminating | `--ssl-mode=DISABLED`, `useSSL=false`, `tls=false` |
-| `LOAD DATA LOCAL INFILE` | Opens a data channel with no statements, and lets a server read any path the client can | `--local-infile=0`, `allowAllFiles=false` |
+| Compression or zstd compression | Replaces MySQL packet framing after authentication | Use uncompressed framing |
+| Downstream TLS request (`CLIENT_SSL`) | Replaces inspectable packets with TLS records | Use the client modes in [TLS on each leg](#tls-on-each-leg) |
+| Optional result-set metadata | Lets the server omit column definitions needed for masking | Request full result-set metadata |
+| `LOAD DATA LOCAL INFILE` | Opens a data channel with no SQL statements | Set `--local-infile=0` or `allowAllFiles=false` |
+| Administrative reply formats | `COM_STATISTICS`, `COM_FIELD_LIST`, `COM_CHANGE_USER` and replication commands do not use the result framing this lane decodes | Use a direct administrative connection |
 
-A codec that forwards what it cannot parse turns into a bypass: the session works, no policy runs, the audit trail records nothing, and the gap stays invisible until an audit finds it. A refusal surfaces one clear error at the moment of the negotiation.
+The codec closes the connection before opaque bytes reach the database. If it
+forwarded them, policy and audit would lose visibility without reporting the
+gap.
 
 ---
 
 ## TLS on each leg
 
-MySQL negotiates TLS in-band, and unlike pgwire the server greets **first**: the client's upgrade request is a truncated handshake response rather than a self-describing packet. The lane terminates neither side of that exchange:
+MySQL sends its greeting before either peer can request TLS. The client and
+database legs use separate settings.
 
 | Leg | Options |
 |---|---|
-| client → lane | Plaintext only: connect with `--ssl-mode=DISABLED`. Startup refuses `downstream_tls` on a `mysql` lane. |
-| lane → database | Plaintext only: the relay speaks no in-band upgrade on the upstream hop either. Leave `upstream_tls` unset. |
+| client → lane | Plaintext. The lane refuses `downstream_tls` on MySQL. |
+| lane → database | Plaintext when `upstream_tls` is absent, or verified TLS when the block is present. |
 
-Both hops carry the protocol in the clear by design, so keep them where that is acceptable: loopback, a unix socket, one pod, or a network a NetworkPolicy narrows. The [Transport](/setup/configuration/hoop-sidecar/config-file#transport) section covers the boundary each choice draws.
+Use `--ssl-mode=DISABLED` for a client command that must work with either
+upstream mode.
+
+The lane removes `CLIENT_SSL` from the client greeting when `upstream_tls` is
+configured. A client using `--ssl-mode=PREFERRED` continues in plaintext.
+`--ssl-mode=REQUIRED` stops because the client-facing connection does not
+offer TLS.
+
+The lane handles the server-facing exchange itself when `upstream_tls` is
+present. It reads the greeting, sends a MySQL `SSLRequest`, verifies the
+certificate, and completes authentication inside TLS. The lane closes the
+connection when the server omits TLS support, certificate verification fails,
+or the handshake fails. It does not downgrade to plaintext.
+
+### RSA authentication on the client leg
+
+MySQL clients using `caching_sha2_password` or `sha256_password` encrypt the
+password when the connection has no TLS. They choose one of two key flows:
+
+- A client with no saved key asks the lane for one. The lane generates an
+  ephemeral key, decrypts the response, and sends the recovered password
+  inside the verified upstream TLS connection.
+- A client with a saved key skips that request and sends ciphertext at once.
+  Set `mysql_auth_key_file` to a stable RSA private key, then give the public
+  half to the client.
+
+Generate both files:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+  -out mysql-auth.key
+openssl pkey -in mysql-auth.key -pubout -out mysql-auth.pub
+chmod 600 mysql-auth.key
+```
+
+Mount `mysql-auth.key` into the Sidecar and keep it out of client containers.
+Mount `mysql-auth.pub` into clients that pin the key. The MySQL CLI uses
+`--server-public-key-path`:
+
+```bash
+mysql -h 127.0.0.1 -P 13306 -u appuser -p \
+  --ssl-mode=DISABLED \
+  --server-public-key-path=/etc/mysql/mysql-auth.pub \
+  appdb
+```
+
+Do not give clients the backend server's public key. The Sidecar needs the
+matching private key so it can recover the password before it enters the
+upstream TLS session. A missing or mismatched relay key returns MySQL error
+`1045 (28000)` and the Sidecar does not forward the ciphertext.
+
+The
+[MySQL example stack](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/mysql-stack)
+generates this key pair, mounts each half on the correct side, and runs the
+client with `--server-public-key-path`.
+
+Confirm the database leg from the same client session:
+
+```sql
+SHOW SESSION STATUS LIKE 'Ssl_cipher';
+```
+
+MySQL returns a non-empty value when the database leg uses TLS. Remove the
+`upstream_tls` block when the backend connection must remain plaintext.
 
 ---
 

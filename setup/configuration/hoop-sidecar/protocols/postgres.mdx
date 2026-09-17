@@ -51,7 +51,8 @@ pgwire negotiates TLS in-band: the client sends an 8-byte `SSLRequest` and waits
 | client → lane | Plaintext (`PGSSLMODE=disable`), Envoy's contrib `postgres_proxy` + `starttls` socket, or the lane itself via `downstream_tls` |
 | lane → database | Plaintext, or `upstream_tls`: the Sidecar sends the `SSLRequest`, then handshakes as an ordinary TLS client |
 
-`postgres` is one of two protocols that may terminate the **client's** TLS at the lane (the other is `grpc`), because no generic proxy in front can speak the in-band exchange:
+A `postgres` lane can terminate the **client's** TLS itself because a generic
+TLS proxy cannot speak pgwire's in-band exchange:
 
 ```yaml config.yaml
 listeners:
