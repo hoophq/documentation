@@ -91,9 +91,9 @@ An ORM issues the same statement shape thousands of times in one session. Withou
     **Omit the trigger and every statement on the lane is classified**: declaring the analyzer is the opt-in, and the cache and `max_calls` bound the bill. `--validate` prints a per-lane note naming that cost, so nobody ships it by accident. A lane running [the gate](#the-gate-phase) behaves differently: there the policy decides what gets classified, and an omitted trigger leaves it fully in charge — Rego's silence means skip, and nothing is spent without an explicit `request`.
   </Step>
   <Step title="The cache keys on the statement shape">
-    `WHERE id = 1` and `WHERE id = 2` are one verdict: literals are stripped from SQL, and HTTP resources are already normalized by the codec, so `/users/12345/orders` and `/users/67890/orders` share an entry.
+    `WHERE id = 1` and `WHERE id = 2` are one verdict: the Sidecar strips literals from SQL before hashing. On an HTTP lane the key holds the method, the normalized resource, the query string and the body, so `/users/12345/orders` and `/users/67890/orders` share an entry while `?export=all` and `?export=none` do not. A query value changes what a request does; a path id does not.
 
-    This is also more correct than caching on bytes. The shape is what is risky, not the parameter.
+    Caching on shape beats caching on bytes. The shape carries the risk.
   </Step>
   <Step title="max_calls is a backstop">
     A process-lifetime budget for the lane. Past it, statements fall through to the guardrails and OPA, the same outcome as a lane with no analyzer. The budget keys on the listener name, so a hot reload that edits the block continues the running count rather than re-arming it.
@@ -334,6 +334,20 @@ The HTTP codec exposes nothing by default: no bodies, no headers. Without a body
 An analyzer block on an HTTP lane **without** `capture_body: true` is refused at startup, because it could never classify anything. A `grpc` or `spanner` lane needs `grpc.capture_payload: true` for the same reason, and a lane whose protocol has no content builder at all is refused rather than left classifying nothing.
 
 A request that carries no body is still skipped at runtime once capture is on, and that stays intentional: paying for a verdict on `POST /orders` with no payload is the cost this design avoids. The startup check only asserts that the proxy *could* capture a body.
+
+### What the model receives
+
+The Sidecar sends the request line as the client wrote it, then the resource the trigger matched on its own line where it differs, then the content type and the body. For `POST /orders/12345?export=all`:
+
+```
+POST /orders/12345?export=all
+Resource: /orders/*
+Content-Type: application/json
+
+{"status": "cancelled"}
+```
+
+The request line keeps the literal id, the query string, the client's escaping and the parameter order. The model judges intent, and `?export=all` or `?limit=100000` is part of it. The resource form exists to fold those away for policy, so policy rules keep matching on `Resource`. Under `send: redacted` the detector runs over this whole text, path included, before it leaves the Sidecar. No header other than `Content-Type` reaches the model, whatever `http.headers` allowlists for policy.
 
 ## An SSH lane classifies `exec_line` only
 

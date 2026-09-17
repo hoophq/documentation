@@ -149,7 +149,8 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `mask` | Replaces the top-level mask rules for this lane. |
 | `analyzer` | This lane's AI analyzer: trigger, risk→action map, prompt, and per-lane overrides of the top-level defaults. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `http` | What the HTTP codec captures. Only valid on an `http` lane. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#the-http-block). |
-| `grpc` | Descriptor sets and capture for a gRPC lane. Only valid on a `grpc` lane. See [gRPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-grpc-block). |
+| `grpc` | Descriptor sets and capture for a gRPC lane. Only valid on a `grpc` or `spanner` lane. Each descriptor entry is a file path or a `gs://` URL. See [gRPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-grpc-block). |
+| `spanner` | Which SQL dialect each database speaks, GoogleSQL or PostgreSQL, keyed on the database resource name. Only valid on a `spanner` lane; absent means GoogleSQL. See [Spanner](/setup/configuration/hoop-sidecar/protocols/spanner#dialects-googlesql-and-postgresql). |
 | `ssh` | The host key, trusted CA, admitted capabilities, forward destinations and certificate-to-identity mapping. **Required** on an `ssh` lane and refused on every other. See [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration). |
 
 <Warning>
