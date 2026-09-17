@@ -94,6 +94,7 @@
                     "group": "Protocols",
                     "pages": [
                       "setup/configuration/hoop-sidecar/protocols/postgres",
+                      "setup/configuration/hoop-sidecar/protocols/clickhouse",
                       "setup/configuration/hoop-sidecar/protocols/mysql",
                       "setup/configuration/hoop-sidecar/protocols/mssql",
                       "setup/configuration/hoop-sidecar/protocols/mongodb",
