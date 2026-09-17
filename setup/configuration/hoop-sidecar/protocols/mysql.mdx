@@ -14,6 +14,8 @@ listeners:
     upstream_tls:                       # optional; omit for a plaintext upstream
       ca_file: /etc/hoop-inspect/certs/mysql-ca.crt
       server_name: appdb
+    # Set when clients pin an RSA key instead of requesting one.
+    mysql_auth_key_file: /etc/hoop-inspect/certs/mysql-auth.key
     guardrails:
       rules:
         - name: no-destructive-sql
@@ -104,11 +106,47 @@ certificate, and completes authentication inside TLS. The lane closes the
 connection when the server omits TLS support, certificate verification fails,
 or the handshake fails. It does not downgrade to plaintext.
 
-MySQL's `caching_sha2_password` and `sha256_password` plugins need an RSA
-exchange on the plaintext client leg. The lane supplies an ephemeral public
-key, decrypts the client's response, and sends the recovered password only
-inside the verified upstream TLS connection. Other authentication plugin
-packets pass through unchanged.
+### RSA authentication on the client leg
+
+MySQL clients using `caching_sha2_password` or `sha256_password` encrypt the
+password when the connection has no TLS. They choose one of two key flows:
+
+- A client with no saved key asks the lane for one. The lane generates an
+  ephemeral key, decrypts the response, and sends the recovered password
+  inside the verified upstream TLS connection.
+- A client with a saved key skips that request and sends ciphertext at once.
+  Set `mysql_auth_key_file` to a stable RSA private key, then give the public
+  half to the client.
+
+Generate both files:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+  -out mysql-auth.key
+openssl pkey -in mysql-auth.key -pubout -out mysql-auth.pub
+chmod 600 mysql-auth.key
+```
+
+Mount `mysql-auth.key` into the Sidecar and keep it out of client containers.
+Mount `mysql-auth.pub` into clients that pin the key. The MySQL CLI uses
+`--server-public-key-path`:
+
+```bash
+mysql -h 127.0.0.1 -P 13306 -u appuser -p \
+  --ssl-mode=DISABLED \
+  --server-public-key-path=/etc/mysql/mysql-auth.pub \
+  appdb
+```
+
+Do not give clients the backend server's public key. The Sidecar needs the
+matching private key so it can recover the password before it enters the
+upstream TLS session. A missing or mismatched relay key returns MySQL error
+`1045 (28000)` and the Sidecar does not forward the ciphertext.
+
+The
+[MySQL example stack](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/mysql-stack)
+generates this key pair, mounts each half on the correct side, and runs the
+client with `--server-public-key-path`.
 
 Confirm the database leg from the same client session:
 

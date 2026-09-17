@@ -140,7 +140,8 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
 | `upstream` | The real backend, `host:port`. Required on every lane except `ssh`, where it is **refused**: an end-hop spawns a local process and a bastion carries forwards the client chooses. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
-| `downstream_tls` | Terminates the client's TLS at the Sidecar. Only valid on a `postgres` lane (pgwire negotiates in-band) or a `grpc` lane (it is its own HTTP/2 endpoint). Refused on `ssh`, which negotiates its own transport. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#terminating-the-clients-tls). |
+| `mysql_auth_key_file` | RSA private key for MySQL clients that pin the lane's public key and send the encrypted password without requesting a key. Requires a `mysql` lane with `upstream_tls`. See [MySQL RSA authentication](/setup/configuration/hoop-sidecar/protocols/mysql#rsa-authentication-on-the-client-leg). |
+| `downstream_tls` | Terminates the client's TLS at the Sidecar. Valid on `postgres` (in-band SSLRequest), `clickhouse` (TLS on connect), `grpc` and `spanner` lanes. Other protocols refuse it when their exchange cannot be inspected after TLS negotiation. Refused on `ssh`, which negotiates its own transport. |
 | `identity_header` | Names an HTTP header carrying the authenticated subject. Refused on `ssh`, where the identity comes from the certificate the lane verified itself. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
@@ -773,8 +774,11 @@ Postgres uses protocol-specific handling:
   `SCRAM-SHA-256` remains available.
 
 MySQL uses a server-first exchange. The Sidecar reads the greeting, sends a
-MySQL `SSLRequest`, then completes authentication inside TLS. It also bridges
-the RSA exchange used by `caching_sha2_password` and `sha256_password`.
+MySQL `SSLRequest`, then completes authentication inside TLS. Clients using
+`caching_sha2_password` or `sha256_password` can request the lane's ephemeral
+RSA key. Clients that pin a key need `mysql_auth_key_file` and must pin its
+public half. The Sidecar returns an authentication error when the pinned key
+does not match instead of forwarding ciphertext as a password.
 
 Omit `upstream_tls` to keep the MySQL backend hop in plaintext. See
 [MySQL: TLS on each leg](/setup/configuration/hoop-sidecar/protocols/mysql#tls-on-each-leg)
