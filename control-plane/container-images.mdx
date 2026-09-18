@@ -1,0 +1,112 @@
+---
+title: "Container Images"
+description: "The images that run the Control Plane, what each one contains, and when to pick which."
+---
+
+The Control Plane runs from `hoophq/hoopcontrolplane`, published in two flavours
+that differ only in the rootfs underneath.
+
+It is not the Gateway image with a different command. The Gateway image carries
+the data plane's dependencies — OCR for session-replay analysis, a set of
+third-party database clients — and the Control Plane execs none of them. These
+images are a stock rootfs plus the `hoop` binary, and nothing else.
+
+---
+
+## Choosing a flavour
+
+| Tag | Use it when |
+|---|---|
+| `hoophq/hoopcontrolplane:<version>` | The default. Ubuntu base, keeps a shell for debugging |
+| `hoophq/hoopcontrolplane:latest` | An alias of the unsuffixed tag |
+| `hoophq/hoopcontrolplane:<version>-distroless` | You want the smallest possible surface and no shell |
+
+Both are multi-architecture manifests covering `linux/amd64` and `linux/arm64`.
+Pin an explicit version in production rather than using `latest`.
+
+<Note>
+Every version, its changelog and its release date are published on the [hoophq/hoop releases page](https://github.com/hoophq/hoop/releases).
+Image tags, chart versions and binary downloads all use the same version numbers.
+</Note>
+
+```bash
+docker pull hoophq/hoopcontrolplane:<version>
+```
+
+### How they differ
+
+| | `<version>` (default) | `-distroless` |
+|---|---|---|
+| Base | Ubuntu 24.04 LTS | distroless static |
+| Shell | yes | **no** |
+| OS package manager | yes | no |
+| Size | larger | roughly two thirds of the default |
+| `kubectl exec -- sh` | works | impossible |
+| An `exec` probe | works | impossible |
+| HTTP API, web app, migrations | identical | identical |
+
+Both serve the whole API and the web app, run as uid `10001`, and run tini as
+PID 1. They differ in debuggability and nothing else: distroless has no package
+manager and no shell, so it reports zero OS-package CVEs and cannot be opened
+with `kubectl exec`.
+
+Pick the default when you want to debug in place, `-distroless` when you want
+that smaller surface. The Ubuntu flavour carries no suffix and `latest` points
+at it, so the tag someone reaches for without thinking is the one they can get
+a shell in.
+
+---
+
+## What is set
+
+Neither image needs a command or an argument to start the Control Plane.
+
+| | Default | Distroless |
+|---|---|---|
+| Entrypoint | `/usr/bin/tini --` | `/app/tini --` |
+| Command | `hoop start control-plane` | `hoop start control-plane` |
+| User | `hoop`, uid `10001` | uid `10001` |
+| Exposed port | `8009` | `8009` |
+| Binary | `/app/hoop`, with `/app` on `PATH` | same |
+
+```bash
+docker run --rm -p 8009:8009 \
+  -e POSTGRES_DB_URI='postgres://hoopuser:hooppass@postgres:5432/hoopdb?sslmode=disable' \
+  -e API_URL='http://127.0.0.1:8009' \
+  hoophq/hoopcontrolplane:<version>
+```
+
+`POSTGRES_DB_URI` and `API_URL` are the only two variables the image needs. See
+[Environment Variables](/control-plane/environment-variables) for the rest, and
+[Kubernetes](/control-plane/deployment/kubernetes) for the Helm chart that sets
+them for you.
+
+---
+
+## Building your own
+
+The Dockerfile is `Dockerfile.controlplane` in [hoophq/hoop](https://github.com/hoophq/hoop).
+It builds from the published release tarball rather than from source, so it needs no Go toolchain and no credentials:
+
+```bash
+# from a checkout, with release tarballs in dist/binaries/
+docker build -f Dockerfile.controlplane --target default    -t my-registry/hoopcontrolplane:dev .
+docker build -f Dockerfile.controlplane --target distroless -t my-registry/hoopcontrolplane:dev-distroless .
+```
+
+A build with no `--target` produces `default`, the same flavour the unsuffixed
+tag and `latest` point at — so an accidental default is never the restrictive
+one.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Kubernetes" icon="server" href="/control-plane/deployment/kubernetes">
+    The Helm chart, which picks the flavour with `image.tag`.
+  </Card>
+  <Card title="Docker Compose" icon="docker" href="/control-plane/deployment/docker-compose">
+    Postgres and the Control Plane on a single host.
+  </Card>
+</CardGroup>
