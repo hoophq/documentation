@@ -199,12 +199,6 @@ config:
 
 `IDP_CLIENT_ID` and `IDP_CLIENT_SECRET` become required once `IDP_ISSUER` is set; the chart refuses to render without them. The provider's callback is `<API_URL>/api/callback` — register that URL with your identity provider. See [Identity Providers](/setup/configuration/idp/get-started) for the per-provider settings.
 
-<Note>
-  There is no `AUTH_METHOD` in this chart. The method is inferred: any `IDP_*` key selects OIDC, none leaves local.
-
-  SAML is not configurable by environment at all — it is read from the database, and once that row exists the database supplies the method too. An `authconfig` row overrides everything above at runtime, so these values are the boot defaults rather than the last word.
-</Note>
-
 ### API URL
 
 `API_URL` is the address the web app and every Sidecar reach this deployment on. It is **required**, and it must carry a scheme.
@@ -291,18 +285,6 @@ The web UI is compiled into the binary, so **neither flavour carries webapp file
 
 [Container Images](/control-plane/container-images) covers what each flavour contains.
 
-<Warning>
-The chart sets **no command and no args, and neither can be configured** — both are refused while rendering.
-
-`hoophq/hoopcontrolplane` runs `hoop start control-plane` from its own `CMD` behind a `tini` entrypoint. That subcommand is the only thing that selects the mode; there is no environment variable for it. A command here could boot a full Gateway instead — gRPC on 8010, every protocol proxy, all six transport plugins — from a release named controlplane. Overriding the entrypoint also drops tini, and the process installs no signal handler of its own, so it would then ignore `SIGTERM` and every pod delete would wait out the kill timeout.
-
-To run a different build, point `repository` and `tag` at an image whose `CMD` already starts the Control Plane.
-</Warning>
-
-### The port is 8009
-
-The chart declares exactly one port: **8009**, the HTTP API and the web app. The same number is written into the Deployment, the Service and the default HTTPRoute backend, and it is not configurable. `config.PORT` set to anything else is refused rather than rendered around.
-
 ### Probes
 
 **The chart renders no probe.** `readinessProbe` and `livenessProbe` are both empty by default, and whatever you put under either one is rendered verbatim — any handler the Kubernetes Probe schema accepts, plus timings and thresholds.
@@ -371,7 +353,7 @@ There is deliberately no source-range or traffic-policy plumbing. One HTTP port 
 
 ### Exposing it with the Gateway API
 
-The chart renders a [Gateway](https://gateway-api.sigs.k8s.io/api-types/gateway/) and an [HTTPRoute](https://gateway-api.sigs.k8s.io/api-types/httproute/) rather than an Ingress. This requires the Gateway API CRDs in your cluster — `istioctl install` for Istio, or the [upstream guides](https://gateway-api.sigs.k8s.io/guides/) for anything else.
+The chart renders a Gateway and an HTTPRoute rather than an Ingress. This requires the Gateway API CRDs in your cluster — `istioctl install` for Istio, or the [upstream guides](https://gateway-api.sigs.k8s.io/guides/) for anything else.
 
 ```yaml
 gatewayApi:
@@ -423,10 +405,6 @@ The chart refuses to render `createGateway: false` with no `parentRefs`: a route
 
 Validating the backend's own certificate is a different thing: a `BackendTLSPolicy` resource, which this chart does not render.
 </Note>
-
-<Warning>
-`GET /api/ws` registers a WebSocket agent in the in-process broker and `/rdpproxy/*` relays through it, so an agent connected that way turns a Control Plane into a data plane. A deployment that must carry no traffic has to keep `/api/ws` off the public route — and the default rule, matching `/`, publishes it.
-</Warning>
 
 ### Extra Environment Variables
 
