@@ -414,9 +414,15 @@ gatewayApi:
         sectionName: http
 ```
 
-The chart refuses to render `createGateway: false` with no `parentRefs`: a route with no parent attaches to nothing and looks installed.
+The chart refuses to render `createGateway: false` with no `parentRefs`: a route with no parent attaches to nothing and looks installed. It refuses `service.enabled: false` with no `rules` for the same reason from the other end — the default route's backend *is* that Service, so the route would resolve to nothing and every request would get a 500 from an install that looked fine.
 
 `listeners`, `addresses`, `infrastructure` and `backendTLS` pass through to the Gateway untouched, and setting `rules` replaces the default rule entirely. There is no Ingress template and no GRPCRoute.
+
+<Note>
+`backendTLS` is the client certificate the Gateway **presents** to backends, for mTLS, and it lives in the Gateway API **experimental** channel. The standard channel's Gateway CRD has no such field and prunes it silently, so it renders into the manifest and then disappears from the live object — check with `kubectl get gateway <name> -o yaml` before relying on it.
+
+Validating the backend's own certificate is a different thing: a `BackendTLSPolicy` resource, which this chart does not render.
+</Note>
 
 <Warning>
 `GET /api/ws` registers a WebSocket agent in the in-process broker and `/rdpproxy/*` relays through it, so an agent connected that way turns a Control Plane into a data plane. A deployment that must carry no traffic has to keep `/api/ws` off the public route — and the default rule, matching `/`, publishes it.
