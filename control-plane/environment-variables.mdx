@@ -1,0 +1,187 @@
+---
+title: "Environment Variables"
+description: "Every variable the Control Plane reads, what it does, and what it defaults to."
+---
+
+The Control Plane reads its whole configuration from the environment. Fourteen
+variables, two of them required.
+
+```bash
+POSTGRES_DB_URI='postgres://hoopuser:<passwd>@db-host:5432/hoopdb'
+API_URL='https://cp.yourdomain.tld'
+```
+
+---
+
+## At a glance
+
+| Variable | Required | Default |
+|---|---|---|
+| `POSTGRES_DB_URI` | **yes** | — |
+| `API_URL` | **yes** | — |
+| `IDP_ISSUER` | no | unset, meaning local authentication |
+| `IDP_CLIENT_ID` | with an issuer | — |
+| `IDP_CLIENT_SECRET` | with an issuer | — |
+| `IDP_CUSTOM_SCOPES` | no | `openid`, `profile`, `email` only |
+| `IDP_GROUPS_CLAIM` | no | `https://app.hoop.dev/groups` |
+| `IDP_AUDIENCE` | no | empty, no `audience` parameter sent |
+| `TLS_CERT` | no | empty, serving plaintext |
+| `TLS_KEY` | no | empty, serving plaintext |
+| `LOG_LEVEL` | no | `info` |
+| `LOG_ENCODING` | no | `json` |
+| `GIN_MODE` | no | `release` |
+| `MIGRATION_PATH_FILES` | no | empty, using the embedded migrations |
+
+---
+
+## Database
+
+`POSTGRES_DB_URI` is where the Control Plane stores its state. It runs
+migrations and the organization bootstrap against this database before it
+listens, so it has to be reachable at startup.
+
+```bash
+POSTGRES_DB_URI='postgres://hoopuser:<passwd>@db-host:5432/hoopdb'
+```
+
+URL-encode a password containing special characters. Append `?sslmode=disable`
+if your database does not support TLS.
+
+---
+
+## Address
+
+`API_URL` is the address the web app and every Sidecar reach the deployment on.
+It must carry a scheme.
+
+```bash
+API_URL='https://cp.yourdomain.tld'
+```
+
+---
+
+## Identity provider
+
+Authentication is **local by default**: the Control Plane manages users and
+passwords itself. Setting `IDP_ISSUER` switches it to OIDC, and a client id and
+secret are required with it.
+
+```bash
+IDP_ISSUER='https://login.microsoftonline.com/<tenant>/v2.0'
+IDP_CLIENT_ID='<client-id>'
+IDP_CLIENT_SECRET='<client-secret>'
+```
+
+| Variable | Holds |
+|---|---|
+| `IDP_ISSUER` | The provider's issuer URL. Discovery runs against `<issuer>/.well-known/openid-configuration` |
+| `IDP_CLIENT_ID` | The application's client id |
+| `IDP_CLIENT_SECRET` | The application's client secret |
+| `IDP_CUSTOM_SCOPES` | Extra scopes, comma-separated, added to `openid`, `profile` and `email` |
+| `IDP_GROUPS_CLAIM` | The claim to read group membership from |
+| `IDP_AUDIENCE` | Sent as the `audience` parameter on the authorization request |
+
+The redirect the provider must have registered is **`<API_URL>/api/callback`**.
+It is built from `API_URL`, so the two move together. The startup output names
+the one it resolved:
+
+```
+loaded oidc provider configuration, redirect-url=https://cp.example.tld/api/callback, ...
+```
+
+`IDP_GROUPS_CLAIM` defaults to `https://app.hoop.dev/groups`. Set it when your
+provider puts groups somewhere else — `groups` for Keycloak and Okta, for
+instance.
+
+`IDP_CUSTOM_SCOPES` takes a comma-separated list; each entry is trimmed and one
+already present is skipped.
+
+`IDP_AUDIENCE` is only added to the authorization request when it is non-empty.
+Auth0 is the common case.
+
+<Note>
+There is no `AUTH_METHOD`. The method is inferred: any `IDP_*` variable selects OIDC, none leaves local.
+
+SAML is not configurable by environment at all. It is read from the database, and once that row exists the database supplies the method too — so an `authconfig` row overrides everything above at runtime, and these values are the boot defaults rather than the last word.
+
+See [Identity Providers](/setup/configuration/idp/get-started) for the per-provider settings.
+</Note>
+
+---
+
+## TLS
+
+Two variables, one rule: **set both to serve HTTPS, leave both empty to serve
+plaintext.**
+
+```bash
+TLS_CERT='base64://<pem-encoded-full-certificate>'
+TLS_KEY='base64://<pem-encoded-private-key>'
+```
+
+| Variable | Holds |
+|---|---|
+| `TLS_CERT` | The server certificate, with its intermediate and root CAs appended if it has them |
+| `TLS_KEY` | The private key |
+
+Nothing is generated and half a pair serves plaintext rather than failing.
+Three forms work for either value:
+
+| Form | Example |
+|---|---|
+| Inline PEM | the certificate text itself |
+| Base64 | `base64://<base64 of the PEM>` |
+| File path | `file:///etc/hoop/certs/server.crt` |
+
+---
+
+## Logging
+
+```bash
+LOG_LEVEL='info'
+LOG_ENCODING='json'
+GIN_MODE='release'
+```
+
+| Variable | Values | Default |
+|---|---|---|
+| `LOG_LEVEL` | `debug`, `info`, `warn`, `error` | `info` |
+| `LOG_ENCODING` | `json`, `console`, `human`, `verbose` | `json` |
+| `GIN_MODE` | `release`, `debug` | `release` |
+
+`LOG_LEVEL` is matched case-insensitively and anything unrecognised falls back
+to `info` rather than failing.
+
+`LOG_ENCODING` decides the encoder, and anything other than the four values
+above produces JSON. `json` is the right choice for a log pipeline; `console`
+and `human` are for reading in a terminal.
+
+`GIN_MODE` set to `debug` adds a per-request HTTP access log on top of whatever
+`LOG_LEVEL` allows. It is the only thing this variable changes here.
+
+---
+
+## Migrations
+
+SQL migrations are compiled into the binary and run at every boot, so
+`MIGRATION_PATH_FILES` is empty by default and nothing is read from disk.
+
+Set it only if you manage migration files yourself:
+
+```bash
+MIGRATION_PATH_FILES='/etc/hoop/migrations'
+```
+
+---
+
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Kubernetes" icon="server" href="/control-plane/deployment/kubernetes">
+    Deploy it on Kubernetes.
+  </Card>
+  <Card title="Container Images" icon="box" href="/control-plane/container-images">
+    What each flavour contains and what it already sets.
+  </Card>
+</CardGroup>

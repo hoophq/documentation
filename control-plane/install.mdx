@@ -24,10 +24,16 @@ The [Control Plane](/core-concepts/control-plane) is the service your Sidecars r
 The mode is chosen by the subcommand: `hoop start control-plane` rather than
 `hoop start gateway`. One image serves both.
 
-<Card title="Docker Compose" icon="docker" href="/control-plane/deployment/docker-compose">
-  Postgres and the Control Plane on a single host, with an optional Sidecar
-  connected to it. Good for evaluation and for single-host production.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Docker Compose" icon="docker" href="/control-plane/deployment/docker-compose">
+    Postgres and the Control Plane on a single host, with an optional Sidecar
+    connected to it. Good for evaluation and for single-host production.
+  </Card>
+  <Card title="Kubernetes" icon="server" href="/control-plane/deployment/kubernetes">
+    The Helm chart, on any cloud provider. Bring your own PostgreSQL; publish it
+    with a Service or the Gateway API.
+  </Card>
+</CardGroup>
 
 ---
 
@@ -59,7 +65,7 @@ See [Updating](/setup/updating) for the upgrade process. Sidecars and the Contro
   <Card title="Connect a Sidecar" icon="link" href="/control-plane/connect-sidecar">
     Token, server host, and confirming the handshake.
   </Card>
-  <Card title="Environment Variables" icon="list" href="/setup/configuration/env-vars">
-    Every variable the service reads.
+  <Card title="Environment Variables" icon="list" href="/control-plane/environment-variables">
+    Every variable the Control Plane reads.
   </Card>
 </CardGroup>
