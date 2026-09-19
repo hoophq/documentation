@@ -1,0 +1,288 @@
+---
+title: "ClickHouse"
+description: "Protect ClickHouse native TCP queries with guardrails, audit and response masking"
+---
+
+A `clickhouse` lane decodes ClickHouse's native TCP protocol, used by
+`clickhouse-client` and native Go, Java and Python drivers. It reads Query
+packets before ClickHouse executes them and rebuilds typed result blocks when a
+mask changes a value.
+
+Use the native lane in front of ClickHouse port `9000` for plaintext or its
+configured secure native port, commonly `9440`, for TLS:
+
+```yaml config.yaml
+pii:
+  entities: [EMAIL_ADDRESS, BR_CPF]
+
+listeners:
+  - name: analytics
+    protocol: clickhouse
+    listen: 0.0.0.0:19006
+    upstream: clickhouse.internal:9000
+    clickhouse:
+      max_frame_bytes: 16777216       # 16 MiB; optional
+      max_block_bytes: 67108864       # 64 MiB; optional
+    guardrails:
+      rules:
+        - name: no-cpf-in-query
+          type: pii
+          entities: [BR_CPF]
+          message: do not put a taxpayer id in a query
+    mask:
+      rules:
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+```
+
+Validate before binding the port:
+
+```bash
+hoop start sidecar --config config.yaml --validate
+```
+
+Then start the lane and point the client at its `listen` address:
+
+```bash
+hoop start sidecar --config config.yaml
+
+clickhouse-client \
+  --host 127.0.0.1 \
+  --port 19006 \
+  --user appuser \
+  --password apppass \
+  --database appdb \
+  --query 'SELECT name, email FROM customers ORDER BY name'
+```
+
+A native driver uses the same address. For example, use
+`clickhouse://appuser:apppass@127.0.0.1:19006/appdb` instead of the database's
+direct address.
+
+---
+
+## What the lane reads
+
+The codec follows one connection in both directions because a Query packet
+decides how its reply is framed.
+
+| Direction | The codec reads | What Hoop uses it for |
+|---|---|---|
+| client → ClickHouse | Hello, Query, Data, Cancel and Ping packets | SQL text, query id, operation, tables, policy and audit |
+| ClickHouse → client | Hello, Data, Totals, Extremes, Progress, Profile, Exception and EndOfStream packets | result columns, row count, errors, response masking and audit |
+
+The ClickHouse lexer understands backtick identifiers, `#` and `--` comments,
+backslash string escapes and double-quoted identifiers. A statement is
+classified before its Query packet is sent upstream. Multi-statement text is
+split and every statement is evaluated, even though a native ClickHouse server
+normally rejects multi-statements itself.
+
+The lane is a byte relay, not a ClickHouse account or connection pool. The
+client still authenticates directly to ClickHouse, and ClickHouse remains the
+authority for database permissions.
+
+---
+
+## Protocol revision
+
+ClickHouse native packets have no outer length. Their layout depends on the
+protocol revision negotiated in the two Hello packets. Reading one packet with
+the wrong layout would also lose the boundary of every packet after it.
+
+The lane rewrites both advertised revisions to at most `54450` before either
+Hello is decoded or forwarded. ClickHouse already negotiates the lower peer
+revision, so clients and servers use their normal backward-compatibility path.
+The rewrite is transparent to ordinary queries, but features introduced after
+the pin are unavailable on this connection.
+
+<Warning>
+The lane fails closed on an unknown packet or a flow outside the implemented
+ordinary query path. It never forwards a stream after it can no longer prove
+where the next Query packet begins.
+</Warning>
+
+---
+
+## Compression and memory limits
+
+LZ4 is ClickHouse's default native compression and is supported. Uncompressed
+blocks are supported too. ZSTD is refused because the lane does not inflate it.
+If a client selects ZSTD, keep native compression enabled and select LZ4:
+
+```bash
+clickhouse-client \
+  --host 127.0.0.1 --port 19006 \
+  --compression=true \
+  --network_compression_method=lz4
+```
+
+Every compressed frame carries a CityHash checksum and declared compressed and
+decompressed sizes. The lane verifies the checksum and checks both sizes before
+allocating the decompressed buffer.
+
+| Field | Default | Bounds |
+|---|---:|---|
+| `clickhouse.max_frame_bytes` | 16 MiB | one frame's compressed payload and declared decompressed output |
+| `clickhouse.max_block_bytes` | 64 MiB | one complete decompressed native block |
+
+A result set can contain any number of blocks. The lane holds and reuses memory
+for one block at a time; it does not accumulate the result. The generic stream
+reassembly limit is derived from `max_block_bytes` with bounded compression and
+packet-header slack, so a valid block larger than 8 MiB is not rejected by the
+generic inspector first.
+
+Set limits from the largest **single block**, not from the total result size.
+ClickHouse commonly emits about 1 MiB compression frames and up to 65,000 rows
+per block. Keep the defaults unless a measured query logs a limit refusal, then
+raise the affected limit only enough for that block shape.
+
+<Warning>
+The limits are per active connection. Raising them raises the amount of memory
+a client can make the Sidecar retain. A frame declaration above
+`max_frame_bytes` closes the session before allocation; `max_block_bytes`
+closes it as the decompressed frames accumulated for that block cross the cap.
+</Warning>
+
+---
+
+## Masking result columns
+
+ClickHouse sends typed columns rather than row strings. The lane decodes a
+complete block, masks each supported string value, re-encodes the block and
+rebuilds its LZ4 frames and checksums. A replacement may be longer or shorter
+without corrupting the client stream.
+
+| Column type | Masking behaviour |
+|---|---|
+| `String` and byte strings | entity and column rules rewrite each value |
+| `FixedString(N)` | replacement is truncated or NUL-padded back to exactly `N` bytes |
+| `Nullable(String)` | non-NULL values are rewritten; NULL stays NULL |
+| `LowCardinality(String)` | values are rewritten and the dictionary is rebuilt |
+| Numeric, date and other non-string types | preserved while the surrounding block is rebuilt |
+| `Array(String)`, string-bearing `Map` or `Tuple`, and other unsupported nested strings | the masking-enabled session is refused rather than returned in cleartext |
+
+Prefer column rules for columns whose names are stable. Entity rules are useful
+when the query shape changes or the same sensitive value appears in several
+columns:
+
+```yaml config.yaml
+mask:
+  rules:
+    - {name: customer-email, columns: [email], strategy: redact}
+    - {name: discovered-email, entities: [EMAIL_ADDRESS], strategy: redact}
+```
+
+When masking is disabled, supported ordinary query blocks are inspected and
+forwarded without rebuilding unchanged values.
+
+---
+
+## Denials
+
+A matching guardrail stops the Query packet before it reaches ClickHouse and
+returns a native ClickHouse Exception with code `497` and the rule's message:
+
+```text
+Code: 497. DB::Exception: do not put a taxpayer id in a query. (ACCESS_DENIED)
+```
+
+The audit trail records a `violation` with the statement, operation, tables,
+rule and message. Allowed queries produce a client-side `statement` event and a
+server-side completion event at Exception or EndOfStream. A rewritten result
+also emits `masked` with entity names and a count, never the original values.
+
+---
+
+## TLS on each leg
+
+ClickHouse native TLS starts with a TLS ClientHello on the first byte. The two
+legs are independent:
+
+| Leg | Configuration |
+|---|---|
+| client → Sidecar | plaintext when `downstream_tls` is absent; TLS terminated by the Sidecar when present |
+| Sidecar → ClickHouse | plaintext when `upstream_tls` is absent; verified TLS when present |
+
+To encrypt both legs:
+
+```yaml config.yaml
+listeners:
+  - name: analytics
+    protocol: clickhouse
+    listen: 0.0.0.0:19006
+    upstream: clickhouse.internal:9440
+    downstream_tls:
+      cert_file: /etc/hoop-inspect/certs/lane.crt
+      key_file: /etc/hoop-inspect/certs/lane.key
+    upstream_tls:
+      ca_file: /etc/hoop-inspect/certs/clickhouse-ca.crt
+      server_name: clickhouse.internal
+```
+
+Connect to a TLS-enabled client leg with `--secure`:
+
+```bash
+clickhouse-client --secure --host sidecar.internal --port 19006 \
+  --user appuser --password apppass --database appdb
+```
+
+`upstream_tls` does not enable ClickHouse's secure port. Configure
+`tcp_port_secure` and the server certificate in ClickHouse first, then point
+`upstream` at that port. Certificate verification or handshake failure closes
+the connection; the lane does not downgrade to plaintext.
+
+---
+
+## Native, HTTP or an emulation port
+
+One ClickHouse server can expose several protocols. They are separate Sidecar
+listeners and do not share capabilities.
+
+| ClickHouse interface | Listener protocol | Use it for |
+|---|---|---|
+| native `9000` / secure native port | `clickhouse` | **Recommended:** native clients, query guardrails and typed response masking |
+| HTTP `8123` | `http` | HTTP method/path policy and bounded body capture; ClickHouse POST SQL is body metadata, not SQL guardrail text, and chunked results are not masked |
+| MySQL emulation `9004` | `mysql` | clients that require MySQL compatibility, subject to MySQL capability negotiation |
+| PostgreSQL emulation `9005` | `postgres` | clients that require pgwire compatibility |
+
+Do not point a `clickhouse` listener at the HTTP or emulation ports. The
+`protocol` field selects the wire decoder; a mismatch fails the connection.
+
+---
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| Connection closes before the query runs | Read the Sidecar log for an unsupported packet, revision flow or malformed native frame. |
+| Log says ZSTD is unsupported | Set `network_compression_method` to `lz4` on the client/session. |
+| Log names `max_frame_bytes` or `max_block_bytes` | Measure the largest frame or single block and raise only that listener's limit. |
+| A flat string is returned unmasked | Check `/config` for the resolved mask rules, then prefer a `columns` rule for known column names. |
+| The log names `Array(String)`, `Map` or `Tuple` | Return the sensitive field as a flat `String`, or remove masking from that listener. |
+| TLS client sends unreadable bytes to a plaintext lane | Add `downstream_tls`, or remove `--secure` from the client. |
+| Upstream TLS handshake fails | Confirm ClickHouse's secure native port, CA, certificate name and `upstream_tls.server_name`. |
+
+Inspect the resolved listener and its audit events:
+
+```bash
+curl -s localhost:19000/config | jq '.lanes[] | select(.name == "analytics")'
+curl -s 'localhost:19000/api/events?connection=analytics' | jq
+```
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-halved" href="/features/guardrails">
+    Deny ClickHouse statements by operation, table, text pattern or sensitive request values.
+  </Card>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Choose entity, column and replacement strategies for native result values.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Listener inheritance, TLS fields, audit and startup validation.
+  </Card>
+  <Card title="Sidecar Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
+    Follow one connection through inspection, policy, audit and response rewriting.
+  </Card>
+</CardGroup>
