@@ -1,6 +1,6 @@
 ---
 title: "ClickHouse"
-description: "Protect ClickHouse native TCP queries with guardrails, audit and response masking"
+description: "Protect ClickHouse native TCP queries with guardrails, AI risk analysis, audit and response masking, alone or beside PostgreSQL and MySQL lanes"
 ---
 
 A `clickhouse` lane decodes ClickHouse's native TCP protocol, used by
@@ -57,6 +57,201 @@ clickhouse-client \
 A native driver uses the same address. For example, use
 `clickhouse://appuser:apppass@127.0.0.1:19006/appdb` instead of the database's
 direct address.
+
+---
+
+## One Sidecar for ClickHouse, PostgreSQL and MySQL
+
+One process runs one lane per upstream, and the lanes share nothing on the
+wire: a `clickhouse` lane speaks native ClickHouse, a `postgres` lane pgwire,
+a `mysql` lane the MySQL protocol. What they share is the top of the file.
+`pii`, `guardrails`, `mask` and `analyzer` at the top level are **defaults**
+every lane inherits, so a rule written once protects the warehouse and both
+transactional databases. Each lane adds or overrides only what differs.
+
+```yaml config.yaml
+license: /etc/hoop-inspect/license.json   # more than one rule needs one; see Licensing
+
+admin:
+  listen: 127.0.0.1:19000
+
+audit:
+  file: "-"
+
+pii:
+  entities: [EMAIL_ADDRESS, BR_CPF, CREDIT_CARD]
+
+guardrails:                     # inherited by all three lanes
+  rules:
+    - name: no-cpf-in-query
+      type: pii
+      entities: [BR_CPF]
+      message: do not put a taxpayer id in a query; it lands in the database's own logs
+    - name: protect-customers
+      type: table
+      tables: [customers]
+      access: write
+      require_table_match: true
+      message: nothing may write to the customer ledger through this proxy
+
+mask:                           # inherited unless a lane replaces the list
+  rules:
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: cards, entities: [CREDIT_CARD], strategy: partial, keep_last: 4}
+
+analyzer:                       # provider and credential are process-wide
+  provider: vertex
+  model: claude-sonnet-4-5@20250929
+  extra: {project: my-gcp-project, region: global}
+  send: redacted                # detected values never leave the process
+  fail_open: true
+  cache: {size: 4096, ttl_sec: 900}
+  max_calls: 500
+
+listeners:
+  - name: warehouse
+    protocol: clickhouse
+    listen: 0.0.0.0:19006
+    upstream: clickhouse.internal:9000
+    guardrails:
+      rules:
+        - name: no-warehouse-ddl
+          type: operation
+          operations: [drop, truncate, unknown]
+          message: schema changes go through migrations, not this proxy
+    analyzer:
+      trigger: {operations: [alter, delete]}   # mutations and lightweight deletes
+      high: block
+      medium: warn
+
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb.internal:5432
+    upstream_tls:
+      ca_file: /etc/hoop-inspect/certs/appdb-ca.crt
+    guardrails:
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on appdb
+    mask:
+      rules:                    # REPLACES the default list on this lane only
+        - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    analyzer:
+      trigger: {operations: [update, delete]}
+      high: block
+      medium: warn
+      message: refused by risk analysis
+
+  - name: orders
+    protocol: mysql
+    listen: 0.0.0.0:13306
+    upstream: mysql.internal:3306
+    guardrails:
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on orders
+    analyzer:
+      trigger: {operations: [update, delete]}
+      high: block
+      medium: warn
+      max_calls: 100            # overrides the inherited 500 on this lane only
+```
+
+### What each lane resolves to
+
+The file does not show the merge; the running process does. Inheritance
+follows one rule per block, and the same rule on every protocol:
+
+| Block | Merge | In this file |
+|---|---|---|
+| `guardrails.rules` | concatenate, lane first | every lane enforces `no-cpf-in-query` and `protect-customers` plus its own |
+| `mask.rules` | replace | `warehouse` and `orders` mask emails and cards; `appdb` masks the `ssn` column and emails, not cards |
+| `analyzer` | per lane; unset fields inherit | one provider and credential; `orders` caps its own budget at 100 calls, the others inherit 500 |
+
+```bash
+hoop start sidecar --config config.yaml --validate
+```
+
+```text
+config OK: 3 listener(s)
+  license: valid. enterprise "Acme Corp", expires 2027-01-30, features: all (from the "license" config key)
+  limits: unlimited guardrail rule(s), unlimited data masking rule(s)
+  warehouse        clickhouse enforcing 3 rule(s) + masking + ai analyzer
+  appdb            postgres  enforcing 3 rule(s) + masking + ai analyzer
+  orders           mysql     enforcing 3 rule(s) + masking + ai analyzer
+```
+
+`GET /config` on the admin listener returns the same resolved stack by rule
+name. With `provider: vertex`, `--validate` also mints one token, so a bad
+credential fails here rather than on the first risky statement.
+
+### The same rule, three protocols
+
+The classifier reads each dialect with its own lexer, so one rule set means
+one thing on every lane:
+
+| Statement | Lane | Classified as | Result |
+|---|---|---|---|
+| `ALTER TABLE customers DELETE WHERE id = 1` | `warehouse` | `alter`, writes `customers` | denied by `protect-customers` |
+| `DELETE FROM customers WHERE id = 1` | `warehouse` | `delete`, writes `customers` | denied by `protect-customers` |
+| `DELETE FROM customers WHERE id = 1` | `appdb`, `orders` | `delete` | denied by `no-destructive-sql`, the lane's own rule, first |
+| `INSERT INTO staging SELECT * FROM customers` | any | writes `staging`, reads `customers` | allowed by `protect-customers`; `access: write` ignores the read |
+| `SELECT email FROM appdb.customers` | any | `select`, reads `appdb.customers` | allowed; the result is masked |
+| `OPTIMIZE TABLE customers FINAL` | `warehouse` | `unknown` | denied by `no-warehouse-ddl`, which names `unknown` |
+| `SELECT * FROM customers WHERE cpf = '123.456.789-09'` | any | `select` | denied by `no-cpf-in-query` before it reaches the database log |
+
+A table rule matches a schema-qualified name by its last segment, so
+`tables: [customers]` covers `appdb.customers` on ClickHouse and
+`public.customers` on PostgreSQL alike. ClickHouse mutations are `ALTER`
+statements: a rule or trigger that names only `delete` misses
+`ALTER TABLE … DELETE`, which is why the `warehouse` analyzer triggers on
+`alter` too.
+
+The controls surface in each client's native error and result framing:
+
+| Control | `clickhouse` | `postgres` | `mysql` |
+|---|---|---|---|
+| Guardrail or analyzer `block` | `Code: 497. DB::Exception: <message> (ACCESS_DENIED)`, connection closes | `FATAL: <message>`, connection closes | `ERROR 1142 (42000): <message>`, session stays open |
+| Masking | typed blocks decoded, rewritten and re-framed with new LZ4 frames | `DataRow` re-framed per value | text and binary rows re-framed per value |
+| Column rule names | result block column names | `RowDescription` names | column definition names |
+| `downstream_tls` | supported, TLS on connect | supported, in-band `SSLRequest` | refused; client leg is plaintext |
+| `upstream_tls` | supported | supported | supported |
+
+### Connect to each lane
+
+```bash
+clickhouse-client --host 127.0.0.1 --port 19006 --user appuser --password apppass \
+  --database appdb --query 'SELECT name, email FROM customers LIMIT 5'
+
+PGSSLMODE=disable psql -h 127.0.0.1 -p 15432 -U appuser -d appdb \
+  -c 'SELECT name, email, ssn FROM customers LIMIT 5'
+
+mysql -h 127.0.0.1 -P 13306 -u appuser -p --ssl-mode=DISABLED orders \
+  -e 'SELECT name, email FROM customers LIMIT 5'
+```
+
+Every lane writes to the one audit stream, keyed by `connection`, so a
+session that touched all three databases reads as three connections with one
+principal:
+
+```bash
+curl -s 'localhost:19000/api/events?connection=warehouse' | jq
+curl -s 'localhost:19000/api/sessions?limit=10' | jq '.sessions[] | {connection, verdict, risk_level}'
+```
+
+<Tip>
+Roll the analyzer out with every tier on `warn` and read `by_risk` in
+`/api/stats` before moving `high` to `block`. The guardrails deny for free
+and never leave the process; keep every risk you can name in an `operation`
+or `table` rule and spend the model only on what those cannot express. See
+[AI Analyzer Reference](/setup/configuration/hoop-sidecar/risk-analysis).
+</Tip>
 
 ---
 
