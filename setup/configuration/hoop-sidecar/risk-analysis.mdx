@@ -3,7 +3,7 @@ title: "AI Analyzer Reference"
 description: "Classify statements with a language model and block on the risk it reports"
 ---
 
-The analyzer is a per-listener component: an `analyzer:` block declared beside `guardrails`, `opa` and `mask`, not inside them. It sends a statement to a language model and denies on the risk that comes back. It runs wherever a content builder renders the statement for a model: SQL on a `postgres`, `mysql` or `mssql` listener, request bodies on an `http` one.
+The analyzer is a per-listener component: an `analyzer:` block declared beside `guardrails`, `opa` and `mask`, not inside them. It sends a statement to a language model and denies on the risk that comes back. It runs wherever a content builder renders the statement for a model: SQL on a `postgres`, `mysql`, `mssql` or `clickhouse` listener, request bodies on an `http` one.
 
 It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-three-cost-controls) before you enable it anywhere real.
 

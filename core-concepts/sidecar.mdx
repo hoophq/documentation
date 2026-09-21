@@ -73,6 +73,7 @@ The Sidecar picks a codec per listener, and the codec decides how much of the tr
 | Protocol | On the request | On the response |
 |---|---|---|
 | `postgres` | full statement text, its worst effect, every effect, and each relation as a read or a write | result columns, row count, masking by re-framing |
+| `clickhouse` | native Query text, query id, operation and tables | typed result columns, row count, bounded LZ4 decoding and masking by block re-framing |
 | `mssql` | SQLBatch and RPC, with `sp_executesql` unwrapped | result columns, masking by re-framing the TDS token stream |
 | `http` | method, path, normalized resource; body and headers only when the listener opts in with `http.capture_body` | status; body and headers under the same setting |
 
@@ -136,6 +137,7 @@ When a rule denies a statement, the Sidecar writes the refusal in the protocol's
 | Protocol | Frame |
 |---|---|
 | `postgres` | pgwire `ErrorResponse`, `FATAL` `42501` |
+| `clickhouse` | native `Exception`, code `497` |
 | `http` | `403` with an `X-Hoop-Denied` header |
 
 A developer reads the reason in `psql` instead of watching a connection drop.

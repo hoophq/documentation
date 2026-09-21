@@ -135,7 +135,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | Field | Meaning |
 |---|---|
 | `name` | Identifies the lane in logs, in `/config`, in every audit event and in `input.context.connection`. Required. The physical `upstream` may change under it. |
-| `protocol` | `postgres`, `mysql`, `mssql`, `mongodb`, `grpc`, `http` or `ssh`. Selects the codec; see [Protocols](/setup/configuration/hoop-sidecar/protocols/postgres) for what each one decodes. `ssh` is the exception: it has no codec, because it **terminates** the protocol instead of relaying it. |
+| `protocol` | `postgres`, `clickhouse`, `mysql`, `mssql`, `mongodb`, `grpc`, `spanner`, `bigquery`, `http` or `ssh`. Selects the codec; see the [protocol guides](/setup/configuration/hoop-sidecar/protocols/postgres) for what each one decodes. `ssh` is the exception: it has no codec, because it **terminates** the protocol instead of relaying it. |
 | `listen` | Bind address, or a filesystem path when `network: unix`. |
 | `network` | `tcp` (default) or `unix`. See [Transport](#transport). |
 | `upstream` | The real backend, `host:port`. Required on every lane except `ssh`, where it is **refused**: an end-hop spawns a local process and a bastion carries forwards the client chooses. |
@@ -150,6 +150,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `mask` | Replaces the top-level mask rules for this lane. |
 | `analyzer` | This lane's AI analyzer: trigger, risk→action map, prompt, and per-lane overrides of the top-level defaults. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `http` | What the HTTP codec captures. Only valid on an `http` lane. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#the-http-block). |
+| `clickhouse` | Native frame and block memory limits. Only valid on a `clickhouse` lane. See [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse#compression-and-memory-limits). |
 | `grpc` | Descriptor sets and capture for a gRPC lane. Only valid on a `grpc` or `spanner` lane. Each descriptor entry is a file path or a `gs://` URL. See [gRPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-grpc-block). |
 | `spanner` | Which SQL dialect each database speaks, GoogleSQL or PostgreSQL, keyed on the database resource name. Only valid on a `spanner` lane; absent means GoogleSQL. See [Spanner](/setup/configuration/hoop-sidecar/protocols/spanner#dialects-googlesql-and-postgresql). |
 | `ssh` | The host key, trusted CA, admitted capabilities, forward destinations and certificate-to-identity mapping. **Required** on an `ssh` lane and refused on every other. See [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration). |
@@ -782,7 +783,12 @@ does not match instead of forwarding ciphertext as a password.
 
 Omit `upstream_tls` to keep the MySQL backend hop in plaintext. See
 [MySQL: TLS on each leg](/setup/configuration/hoop-sidecar/protocols/mysql#tls-on-each-leg)
-for client modes and a verification query.
+for client modes, RSA key setup, and a verification query.
+
+ClickHouse native TLS starts on the first byte. Point `upstream` at the
+server's secure native port, add `upstream_tls`, and the Sidecar verifies the
+certificate before it decodes the first Hello. See
+[ClickHouse: TLS on each leg](/setup/configuration/hoop-sidecar/protocols/clickhouse#tls-on-each-leg).
 
 On an MSSQL lane, `upstream_tls` performs a TLS-on-connect handshake for TDS
 8.0. SQL Server on Linux cannot accept it. The Linux build offers
