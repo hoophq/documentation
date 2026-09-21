@@ -21,7 +21,7 @@ The Sidecar is always the side that reaches out, and what it asks for is its con
 - **The token is the authentication:** the Sidecar pings with its token, and the Control Plane answers — *I know which Sidecar you are, use this configuration.*
 - **Ordinary HTTP:** configuration moves over a plain request and response. Nothing is tunnelled, so neither side has to know the other's physical address.
 
-A Sidecar that loses contact keeps serving traffic with the configuration it already holds, so a Control Plane restart is not an outage for the resources behind it. The exception is a lane that holds statements for human review: it files each held statement with the Control Plane, so while the Control Plane is unreachable, every statement that lane would hold is denied.
+A Sidecar that loses contact keeps serving traffic with the configuration it already holds, so a Control Plane restart is not an outage for the resources behind it. The exception is a listener that holds statements for human review: it files each held statement with the Control Plane, so while the Control Plane is unreachable, every statement that listener would hold is denied.
 
 ---
 
@@ -37,7 +37,7 @@ Without a Control Plane, protecting a resource means writing a Guardrail, then c
 
 ### Human review of held statements
 
-An analyzer risk level set to `require_review` holds the statement for a person. The Sidecar files it with the Control Plane, and the lane's `approval_rule` names the access request rule that decides who may approve. The first attempt is denied with a review id, and an identical retry after approval goes through once. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
+An analyzer risk level set to `require_review` holds the statement for a person. The Sidecar files it with the Control Plane, and the listener's `approval_rule` names the access request rule that decides who may approve. The first attempt is denied with a review id, and an identical retry after approval goes through once. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 
 ### One view of every Sidecar
 

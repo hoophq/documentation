@@ -47,7 +47,7 @@ The listener's `analyzer` block maps each risk level the model can report to a t
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
 <Note>
-`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the lane naming the access request rule that decides who may approve. It works on `postgres`, `mysql`, `mssql` and `mongodb` lanes, where the client can resend the statement. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry contract.
+`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on `postgres`, `mysql`, `mssql` and `mongodb` listeners, where the client can resend the statement. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry contract.
 </Note>
 
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
@@ -166,7 +166,7 @@ The analyzer defaults to `fail_open: true`. It depends on a third-party API, and
 
 Decide which you want per environment, and know that `fail_open: false` makes your model provider a hard dependency of your database.
 
-A lane that uses `require_review` always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
+A listener that uses `require_review` always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
 
 ---
 
