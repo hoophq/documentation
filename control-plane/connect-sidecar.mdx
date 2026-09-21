@@ -23,7 +23,7 @@ sequenceDiagram
 
 Four properties fall out of this shape, and they are the reason it looks like this:
 
-- **No session to maintain.** The Sidecar loads its configuration into memory and keeps running. A Control Plane that goes down does not take running Sidecars with it.
+- **No session to maintain.** The Sidecar loads its configuration into memory and keeps running. A Control Plane that goes down does not take running Sidecars with it. A lane using `require_review` is the exception: it files each held statement with the Control Plane, and denies that statement while the Control Plane is unreachable.
 - **The token is the authentication.** There is no second credential and no certificate exchange.
 - **Ordinary HTTP.** A plain request and a plain response. Nothing is tunnelled and nothing bidirectional stays open.
 - **Neither side knows the other's physical address.** The Sidecar dials out; the Control Plane never dials in. No inbound firewall rule, no NAT traversal.
@@ -115,6 +115,8 @@ A change beyond the rules — listeners, audit, admin, log level — logs `resta
 
 A failed heartbeat changes nothing. The Sidecar keeps serving the configuration and the license it last received.
 
+Reviews do not ride on the heartbeat. A lane using [`require_review`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) calls the Control Plane once per held statement, and denies the statement when that call fails.
+
 ---
 
 ## Troubleshooting
@@ -128,6 +130,7 @@ A failed heartbeat changes nothing. The Sidecar keeps serving the configuration 
 | The admin API refuses the connection | `admin.listen` is not in the configuration the Control Plane serves. There is no default address. |
 | Rules changed centrally but the Sidecar did not | Configuration is picked up on the heartbeat, not pushed. Wait up to a minute. A listener change needs a restart. |
 | Authentication fails | The token is per-Sidecar. Reusing one across two Sidecars is not a supported shape. |
+| Held statements are denied with `the review could not be filed` | Outbound HTTPS to the Control Plane host, and that the lane's `approval_rule` names an access request rule the Control Plane holds. A lane that holds statements fails closed. |
 
 ---
 

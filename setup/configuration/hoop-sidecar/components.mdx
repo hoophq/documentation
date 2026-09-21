@@ -267,7 +267,7 @@ The analyzer is the lane's third evaluator, declared in the listener's own `anal
 
 Deprecated `type: ai_analysis` rules still build extra evaluators through the same path, appended after the block, so a lane can run both spellings while it migrates. If more than one evaluator classifies the same statement, the audit record keeps the **highest** risk reported and the action that came with it.
 
-The guardrails engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#why-this-one-fails-open).
+The guardrails engine and OPA fail closed. An unreachable OPA, a 500, or an undefined decision denies. One exception: an undefined **gate** decision allows and requests nothing, because a gate is an optimization over a policy someone already wrote. The analyzer inverts the default, because it depends on a third-party API rather than a service you run. A lane where the analyzer holds statements for review keeps failing closed. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#why-this-one-fails-open).
 
 The `pii` rule type dispatches at the rule-set level rather than per rule, because the detector belongs to the rule set and not to any single rule.
 

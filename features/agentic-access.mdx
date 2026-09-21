@@ -15,7 +15,7 @@ flowchart LR
       direction TB
       BLK["block"]
       ALW["allow"]
-      RVW["review<br/><i>coming soon</i>"]
+      RVW["require_review"]
       GR["Guardrails"]
       DM["Data Masking"]
     end
@@ -42,13 +42,13 @@ The listener's `analyzer` block maps each risk level the model can report to a t
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
-| `review` | Hold the statement for a human to approve. **Coming soon.** |
+| `require_review` | Deny the first attempt and file it for a person to approve. An identical retry after approval forwards once. |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
-<Warning>
-`review` is not available yet — `require_review` is refused at startup, because holding a statement for approval needs a review backend the current build does not ship. Until it lands, `defer` is the closest working thing: the statement is classified and annotated, and Rego makes the call.
-</Warning>
+<Note>
+`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the lane naming the access request rule that decides who may approve. It works on `postgres`, `mysql`, `mssql` and `mongodb` lanes, where the client can resend the statement. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry contract.
+</Note>
 
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
 
@@ -165,6 +165,8 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 The analyzer defaults to `fail_open: true`. It depends on a third-party API, and a provider outage that closes every database connection in your fleet is a worse incident than the one it prevents. Guardrails and OPA fail closed, as they should — they depend on nothing outside your own infrastructure.
 
 Decide which you want per environment, and know that `fail_open: false` makes your model provider a hard dependency of your database.
+
+A lane that uses `require_review` always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
 
 ---
 
