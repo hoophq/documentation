@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 590" role="img" aria-label="Network map: clients reach Sidecar listeners on local ports or a unix socket; each listener forwards to one upstream resource; the Sidecar makes one outbound HTTPS connection to the Control Plane, which connects to PostgreSQL on 5432.">
+        <defs>
+          <marker id="dm1-ink" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#e4e9ef"/>
+          </marker>
+          <marker id="dm1-plane" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="9" markerHeight="8" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#e2a25d"/>
+          </marker>
+          <marker id="dm1-data" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#6ea7d8"/>
+          </marker>
+          <marker id="dm1-muted" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#75808d"/>
+          </marker>
+        </defs>
+
+        <!-- zones -->
+        <rect x="20" y="88" width="540" height="470" fill="#1c232b" stroke="#3b4754" stroke-dasharray="3 4"/>
+        <text x="36" y="112" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#98a4b2" letter-spacing="1.2">WORKLOAD NETWORK</text>
+
+        <rect x="620" y="88" width="360" height="470" fill="#1c232b" stroke="#3b4754" stroke-dasharray="3 4"/>
+        <text x="636" y="112" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#98a4b2" letter-spacing="1.2">CONTROL PLANE NETWORK</text>
+
+        <!-- outbound trunk -->
+        <polyline points="290,140 290,54 600,54 600,242 644,242" fill="none" stroke="#e2a25d" stroke-width="2.4" marker-end="url(#dm1-plane)"/>
+        <text x="306" y="32" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e2a25d">outbound HTTPS — the only arrow that leaves</text>
+        <text x="306" y="48" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#98a4b2">:8009 or :443 · handshake at boot, heartbeat every 60s</text>
+
+        <!-- client -->
+        <rect x="34" y="252" width="130" height="62" fill="#151a21" stroke="#3b4754"/>
+        <text x="99" y="278" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">Application</text>
+        <text x="99" y="296" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">psql · curl · driver</text>
+
+        <!-- sidecar process -->
+        <rect x="190" y="140" width="212" height="332" fill="#151a21" stroke="#a9b8c8" stroke-width="1.6"/>
+        <text x="204" y="164" font-family="Archivo, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e4e9ef">Sidecar process</text>
+        <text x="204" y="180" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">one binary · one config file</text>
+
+        <rect x="202" y="192" width="188" height="56" fill="#1c232b" stroke="#3b4754"/>
+        <text x="212" y="212" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">appdb · postgres</text>
+        <text x="212" y="232" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#98a4b2">tcp 0.0.0.0:15432</text>
+
+        <rect x="202" y="256" width="188" height="56" fill="#1c232b" stroke="#3b4754"/>
+        <text x="212" y="276" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">mssqldb · mssql</text>
+        <text x="212" y="296" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#98a4b2">tcp 0.0.0.0:11433</text>
+
+        <rect x="202" y="320" width="188" height="56" fill="#1c232b" stroke="#3b4754"/>
+        <text x="212" y="340" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">billing · http</text>
+        <text x="212" y="360" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#98a4b2">unix /run/hoop/http.sock</text>
+
+        <rect x="202" y="392" width="188" height="56" fill="none" stroke="#3b4754" stroke-dasharray="3 3"/>
+        <text x="212" y="412" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#98a4b2">admin · read-only API</text>
+        <text x="212" y="432" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#98a4b2">tcp 127.0.0.1:19000</text>
+
+        <!-- client arrows -->
+        <line x1="164" y1="272" x2="198" y2="220" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#dm1-ink)"/>
+        <line x1="164" y1="283" x2="198" y2="284" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#dm1-ink)"/>
+        <line x1="164" y1="294" x2="198" y2="348" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#dm1-ink)"/>
+
+        <!-- upstreams -->
+        <rect x="438" y="192" width="106" height="56" fill="#151a21" stroke="#8fbf5c" stroke-width="1.6"/>
+        <text x="491" y="214" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#e4e9ef">appdb:5432</text>
+        <text x="491" y="232" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11" fill="#98a4b2">pgwire</text>
+
+        <rect x="438" y="256" width="106" height="56" fill="#151a21" stroke="#8fbf5c" stroke-width="1.6"/>
+        <text x="491" y="278" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#e4e9ef">mssql:1433</text>
+        <text x="491" y="296" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11" fill="#98a4b2">TDS</text>
+
+        <rect x="438" y="320" width="106" height="56" fill="#151a21" stroke="#8fbf5c" stroke-width="1.6"/>
+        <text x="491" y="342" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#e4e9ef">billing:8080</text>
+        <text x="491" y="360" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11" fill="#98a4b2">HTTP</text>
+
+        <line x1="392" y1="220" x2="434" y2="220" stroke="#8fbf5c" stroke-width="1.6" marker-end="url(#dm1-ink)"/>
+        <line x1="392" y1="284" x2="434" y2="284" stroke="#8fbf5c" stroke-width="1.6" marker-end="url(#dm1-ink)"/>
+        <line x1="392" y1="348" x2="434" y2="348" stroke="#8fbf5c" stroke-width="1.6" marker-end="url(#dm1-ink)"/>
+
+        <text x="40" y="512" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">One listener per upstream, all in one process.</text>
+        <text x="40" y="532" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#98a4b2">Nothing in this zone ever accepts a connection from the Control Plane.</text>
+
+        <!-- browser + idp -->
+        <rect x="644" y="132" width="146" height="48" fill="#151a21" stroke="#3b4754"/>
+        <text x="717" y="153" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Browser</text>
+        <text x="717" y="169" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">web app · HTTPS</text>
+
+        <rect x="812" y="132" width="146" height="48" fill="none" stroke="#3b4754" stroke-dasharray="3 3"/>
+        <text x="885" y="153" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#98a4b2">Identity provider</text>
+        <text x="885" y="169" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#75808d">OIDC / SAML · optional</text>
+
+        <line x1="717" y1="180" x2="717" y2="216" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#dm1-ink)"/>
+        <line x1="885" y1="180" x2="885" y2="216" stroke="#75808d" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#dm1-muted)"/>
+
+        <!-- control plane -->
+        <rect x="644" y="218" width="314" height="76" fill="#151a21" stroke="#e2a25d" stroke-width="2"/>
+        <text x="801" y="248" text-anchor="middle" font-family="Archivo, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#e4e9ef">Control Plane</text>
+        <text x="801" y="270" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#98a4b2">:8009 · one HTTP port · holds no session</text>
+
+        <!-- cp to db -->
+        <line x1="801" y1="294" x2="801" y2="384" stroke="#6ea7d8" stroke-width="2.2" marker-end="url(#dm1-data)"/>
+        <text x="814" y="326" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#6ea7d8">TCP 5432</text>
+        <text x="814" y="344" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11.5" fill="#98a4b2">required at startup</text>
+
+        <!-- database -->
+        <path d="M644 400 a157 16 0 0 1 314 0 v60 a157 16 0 0 1 -314 0 z" fill="#151a21" stroke="#6ea7d8" stroke-width="2"/>
+        <path d="M644 400 a157 16 0 0 0 314 0" fill="none" stroke="#6ea7d8" stroke-width="2"/>
+        <text x="801" y="438" text-anchor="middle" font-family="Archivo, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#e4e9ef">PostgreSQL</text>
+        <text x="801" y="457" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11.5" fill="#98a4b2">all Control Plane state</text>
+
+        <text x="644" y="512" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Two endpoints to reach.</text>
+        <text x="644" y="532" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#98a4b2">Its database, and whatever address you publish it on.</text>
+      </svg>

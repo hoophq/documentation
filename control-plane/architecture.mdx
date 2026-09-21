@@ -1,0 +1,278 @@
+---
+title: "Architecture"
+description: "The components of a Hoop deployment, the connections between them, and how each tier scales."
+---
+
+A Hoop deployment is made of three components: one or more **Sidecars**, a **Control Plane**, and a **PostgreSQL** database that belongs to the Control Plane. The resources you protect — databases, APIs and hosts — stay where they are and keep their own ports and credentials.
+
+The Sidecar runs next to a resource and carries user traffic. The Control Plane runs on its own and carries none: it stores configuration, serves the web app, and answers Sidecars that ask what their configuration should be.
+
+This page describes each component, the connections between them, the ports involved, and what each tier needs in order to scale.
+
+---
+
+## Overview
+
+<Frame caption="Clients dial a Sidecar listener; each listener forwards to exactly one upstream. The Sidecar makes one outbound HTTPS connection to the Control Plane, which reads and writes its own PostgreSQL database.">
+  <img
+    className="block dark:hidden"
+    src="/images/architecture/network-map-light.svg"
+    alt="Network map: clients reach Sidecar listeners on local ports or a unix socket; each listener forwards to one upstream resource; the Sidecar makes one outbound HTTPS connection to the Control Plane, which connects to PostgreSQL on 5432."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/architecture/network-map-dark.svg"
+    alt="Network map: clients reach Sidecar listeners on local ports or a unix socket; each listener forwards to one upstream resource; the Sidecar makes one outbound HTTPS connection to the Control Plane, which connects to PostgreSQL on 5432."
+  />
+</Frame>
+
+The diagram shows two networks. On the left, clients reach a Sidecar, and the Sidecar reaches the resources it protects. On the right, the Control Plane serves the web app and reads its database. A single connection crosses between them, and the Sidecar is the side that opens it.
+
+Three properties follow from this shape:
+
+- **The Sidecar connects outbound.** The Control Plane never opens a connection to a Sidecar, so a Sidecar host needs no inbound firewall rule — including behind NAT, in a private subnet, or on a laptop.
+- **User traffic stays on the Sidecar.** Statements, result sets and audit records are never sent to the Control Plane. The Control Plane sends configuration out and receives a periodic check-in.
+- **Only the database holds state.** The Sidecar keeps per-connection state and the Control Plane keeps none, so durable state lives in PostgreSQL alone.
+
+<Note>
+A Control Plane outage is not a data-path outage. A Sidecar holds its configuration in memory and keeps serving traffic under the configuration it last received. A failed heartbeat changes nothing.
+</Note>
+
+---
+
+## Components
+
+| Component | Holds state | Listens on | Scales by |
+|---|---|---|---|
+| **Sidecar** | per-connection only | any port you choose, or a unix socket | adding instances |
+| **Control Plane** | nothing in-process | `8009`, one HTTP port | adding instances |
+| **PostgreSQL** | all of it | `5432` | replication |
+| **Your resources** | yours | their own ports | unchanged by Hoop |
+
+### Sidecar
+
+A single binary that sits between a client and one or more protected resources. It decodes the wire protocol, applies the rules it holds, and decides what reaches the resource and what comes back. Guardrails, data masking and audit all run here.
+
+### Control Plane
+
+Serves the HTTP API and the web app, and answers a Sidecar that asks for its configuration. It carries no user traffic: there is no gRPC listener, there are no protocol proxies, and it holds no sessions.
+
+### PostgreSQL
+
+Stores organizations, users, Sidecar registrations, configuration documents and rule sets. It is the Control Plane's only stateful dependency.
+
+### Protected resources
+
+The databases, APIs and hosts behind a Sidecar. They are unchanged by the deployment and keep their own ports, credentials and TLS settings.
+
+---
+
+## Sidecar Connectivity
+
+A Sidecar retrieves its configuration from the Control Plane over HTTP(S). The exchange is an ordinary request and response: nothing is tunnelled, and no bidirectional connection is held open.
+
+<Frame caption="The Sidecar sends a handshake with its token, loads the configuration it receives, and repeats the exchange as a heartbeat every 60 seconds.">
+  <img
+    className="block dark:hidden"
+    src="/images/architecture/sidecar-control-plane-light.svg"
+    alt="Sequence: the Sidecar sends a handshake with its token, receives its configuration, loads it and binds listeners, then repeats a heartbeat every 60 seconds. The Control Plane never initiates."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/architecture/sidecar-control-plane-dark.svg"
+    alt="Sequence: the Sidecar sends a handshake with its token, receives its configuration, loads it and binds listeners, then repeats a heartbeat every 60 seconds. The Control Plane never initiates."
+  />
+</Frame>
+
+| | |
+|---|---|
+| Direction | Sidecar → Control Plane, outbound only |
+| Initiated by | the Sidecar |
+| Protocol | an ordinary HTTP request and response |
+| Port | `8009` by default, or `443` behind TLS or an ingress |
+| Authentication | the per-Sidecar token, on every request |
+| Frequency | once at boot, then every 60 seconds |
+| Required for | booting — a first handshake that fails stops startup, with no fallback to the local file |
+
+Set the Control Plane's address in the Sidecar's configuration file. The token is not written here; it is passed as `--token` or `HOOP_SIDECAR_TOKEN`.
+
+```yaml config.yaml
+control_plane_url: https://hoop.your-company.com
+```
+
+Configuration is pulled rather than pushed, so a change made centrally reaches a Sidecar on its next heartbeat — within a minute. Rule changes, including guardrails, masking, PII, OPA and a listener's analyzer block, are applied in place. A change to listeners, audit, admin or log level requires a restart.
+
+<Note>
+Because this is plain HTTPS to one hostname on one port, an egress proxy or a TLS-terminating gateway carries it without special handling. Neither side needs the other's physical address.
+</Note>
+
+---
+
+## Database Connectivity
+
+The Control Plane connects to PostgreSQL at startup and keeps all of its state there.
+
+| | |
+|---|---|
+| Direction | Control Plane → PostgreSQL |
+| Port | `5432` |
+| Configured by | `POSTGRES_DB_URI`, the only database setting |
+| Required | yes — migrations and the organization bootstrap run before the HTTP listener opens |
+| Encryption | TLS by the connection string; append `?sslmode=disable` if your database cannot use TLS |
+
+```bash
+POSTGRES_DB_URI='postgres://hoopuser:<passwd>@db-host:5432/hoopdb'
+```
+
+Because the listener opens only after the migrations and the bootstrap finish, a successful response from `GET /api/healthz` means the database was reachable and the schema is current. For the same reason, the readiness probe needs a longer initial delay than usual — ten seconds rather than five.
+
+<Warning>
+This database holds the Control Plane's own state. It is not a resource you put a Sidecar in front of, and a Sidecar never connects to it.
+
+Do not share an instance between the two roles in production: one holds administrative state, the other holds the data your guardrails protect. Only the Control Plane needs a route to this one, so keep it on a private subnet whose security group admits the Control Plane and nothing else.
+</Warning>
+
+---
+
+## Listeners
+
+A Sidecar binds one listener per upstream, and all listeners run in a single process. Protecting a second resource means adding a second entry to `listeners`, not starting a second Sidecar.
+
+Each listener binds either a TCP port or a unix socket. There are no reserved or default data ports: choose any address the host has free. On the client side, the only change is the host and port in a connection string.
+
+```yaml config.yaml
+listeners:
+  - name: appdb                       # TCP is the default
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+
+  - name: mssqldb                     # a second protocol, same process
+    protocol: mssql
+    listen: 0.0.0.0:11433
+    upstream: mssql:1433
+
+  - name: billing                     # no port exists for this one
+    protocol: http
+    network: unix
+    listen: /run/hoop/http.sock
+    upstream: billing.internal:8080
+
+admin:
+  listen: 127.0.0.1:19000             # keep this on loopback
+```
+
+Both transports carry the same traffic. They differ in who can reach the listener and what it costs to set up.
+
+| | Unix socket | TCP port |
+|---|---|---|
+| Reachable by | whoever can open the file | anything that can route to the host |
+| Narrowed with | directory and file permissions | a NetworkPolicy or a security group |
+| Fits | a co-located workload | separate hosts, or a laptop |
+
+Listeners are configured independently of one another:
+
+- **Transports are independent.** Moving `billing` to a socket leaves `appdb` on its TCP port. Guardrails, masking and audit behave the same either way, because the gate reads a connection without asking what kind it is.
+- **Protocols are independent.** Any mix of `postgres`, `mysql`, `mssql`, `mongodb`, `http`, `ssh`, `grpc`, `spanner` and `bigquery` runs in one process, each with its own rules and its own audit trail.
+- **Rules are per listener.** Top-level guardrails and masking are defaults that every listener inherits, and any listener can override them. A strict production database and a permissive staging one can run in the same process.
+
+<Warning>
+The admin listener has no authentication of its own and serves a read interface to every statement every user ran. Bind it to loopback, or place it behind whatever already gates your audit trail. Do not expose it on a data port.
+</Warning>
+
+See [Listeners](/setup/configuration/hoop-sidecar/config-file#listeners) and [Transport](/setup/configuration/hoop-sidecar/config-file#transport) for every field.
+
+---
+
+## Scaling and Availability
+
+The Sidecar tier and the Control Plane tier scale for different reasons, and neither holds shared state. Durable state exists only in PostgreSQL, which is where availability has to be configured.
+
+<Frame caption="Both tiers run multiple instances without coordination. All durable state sits in one database.">
+  <img
+    className="block dark:hidden"
+    src="/images/architecture/high-availability-light.svg"
+    alt="Scaling diagram: the Sidecar tier runs multiple independent instances behind a load balancer, each forwarding to the protected resource and each dialling the Control Plane. The Control Plane tier runs stateless instances behind a load balancer, all writing to one PostgreSQL primary with a standby for failover."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/architecture/high-availability-dark.svg"
+    alt="Scaling diagram: the Sidecar tier runs multiple independent instances behind a load balancer, each forwarding to the protected resource and each dialling the Control Plane. The Control Plane tier runs stateless instances behind a load balancer, all writing to one PostgreSQL primary with a standby for failover."
+  />
+</Frame>
+
+### Sidecar
+
+Run as many Sidecar instances as your traffic needs and put them behind anything that spreads connections across them — a load balancer, a virtual IP, or DNS. Each instance is an independent proxy: it holds no shared state, reads the same configuration, and connects to the Control Plane on its own.
+
+Sessions are per-connection, so an instance that goes away drops the connections it was carrying and no others. Clients reconnect through whatever fronts the tier.
+
+Because a Sidecar sits in the data path, replace instances one at a time: start the new one, let it accept connections, then stop the old one. Stopping the whole tier at once closes every open connection with nothing left listening.
+
+Capacity scales with concurrent connections and with what each listener does — detection and masking read the response body, and an AI analyzer adds a network call per statement shape. Size an instance against your own connection count rather than a fixed figure.
+
+### Control Plane
+
+The Control Plane scales horizontally and is stateless HTTP over a shared database. Instances need no coordination, no leader election and no sticky sessions: point each one at the same `POSTGRES_DB_URI` and place them behind an ordinary HTTP load balancer.
+
+A single instance is enough for most deployments, since the Control Plane carries no user traffic. Add instances when your API traffic calls for it, or to run a second instance in another availability zone or failure domain.
+
+Because the process holds no sessions, instances can be replaced one at a time with nothing to drain. Keep one serving while another restarts and the API stays available throughout.
+
+### Summary
+
+| Tier | Multiple instances | Replacing an instance | Losing one instance |
+|---|---|---|---|
+| **Sidecar** | yes, freely | one at a time | drops the connections it carried |
+| **Control Plane** | yes, freely | one at a time | costs nothing on the data path |
+| **PostgreSQL** | replicate instead | managed failover | stops the Control Plane booting |
+| **Protected resource** | its own story | unchanged by Hoop | surfaces as an upstream error |
+
+A lost Sidecar instance drops only its own connections, and clients reconnect through whatever fronts the tier. A lost Control Plane instance leaves every Sidecar serving the configuration it already holds. A lost database stops a Control Plane from completing a boot and leaves running Sidecars untouched.
+
+Losing the Control Plane therefore degrades management — no configuration changes, no new Sidecar registrations, no web app — but not access. Losing a Sidecar degrades access to the resources behind it, which is why that tier is usually the one running more than one instance.
+
+### Health checks
+
+**Control Plane** — `GET /api/healthz` on `8009`, under `API_URL`'s path if it has one. Give it a ten-second initial delay: the listener opens only after migrations, the organization bootstrap and the identity provider, so a response means the bootstrap finished.
+
+**Sidecar** — `GET /healthz` on the admin listener. It runs only when the configuration names an address for it; there is no default port.
+
+---
+
+## Firewall rules
+
+The complete set of connections a deployment makes:
+
+| Flow | Port | Protocol | Required |
+|---|---|---|---|
+| Client → Sidecar listener | yours to choose | the resource's own | yes |
+| Sidecar → protected resource | the resource's | the resource's own | yes |
+| Sidecar → Control Plane | `8009` or `443` | HTTP(S), outbound | with a Control Plane |
+| Control Plane → PostgreSQL | `5432` | TCP, TLS by the URI | yes |
+| Browser → Control Plane | `8009` or `443` | HTTPS | yes |
+| Control Plane → identity provider | `443` | HTTPS | with OIDC or SAML |
+| Monitoring → Sidecar admin API | `19000` | HTTP | no |
+
+A listener on a unix socket opens no port, so the first rule does not apply to it. The admin API belongs on loopback, which makes the last rule a local concern rather than a firewall one.
+
+No rule is needed for Control Plane → Sidecar. The Control Plane never opens a connection to a Sidecar, in any topology or at any scale.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Connect a Sidecar" icon="link" href="/control-plane/connect-sidecar">
+    Issue a token, point a Sidecar at the Control Plane, and confirm the handshake.
+  </Card>
+  <Card title="Install the Control Plane" icon="server" href="/control-plane/install">
+    Docker Compose, Kubernetes and AWS.
+  </Card>
+  <Card title="Environment Variables" icon="list" href="/control-plane/environment-variables">
+    `POSTGRES_DB_URI`, `API_URL`, TLS and the identity provider.
+  </Card>
+  <Card title="Sidecar Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
+    What happens inside one connection, from accept to upstream and back.
+  </Card>
+</CardGroup>
