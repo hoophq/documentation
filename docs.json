@@ -67,7 +67,7 @@
             "pages": [
               "introduction/getting-started",
               "introduction/quickstart",
-              "control-plane/architecture"
+              "introduction/architecture"
             ]
           },
           {
