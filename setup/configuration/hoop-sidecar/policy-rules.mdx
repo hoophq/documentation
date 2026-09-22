@@ -238,7 +238,7 @@ It runs after the local rules and OPA, so a statement a free rule already denied
 It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) before enabling it anywhere real.
 
 <Note>
-`type: ai_analysis` under `guardrails.rules` is the **deprecated** spelling. It still loads and enforces, prints a deprecation naming the listener block, and `--validate --strict` exits non-zero. The rule form takes no `action` field (it defers per risk level, `high: defer`), and the block has no `action` field at all. `require_review` is refused on both.
+`type: ai_analysis` under `guardrails.rules` is the **deprecated** spelling. It still loads and enforces, prints a deprecation naming the listener block, and `--validate --strict` exits non-zero. The rule form takes no `action` field (it defers per risk level, `high: defer`), and the block has no `action` field at all. `require_review` works only on the block: the rule form carries no `approval_rule` to name who may release a held statement, so it refuses the action. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 </Note>
 
 ---

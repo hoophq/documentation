@@ -159,7 +159,7 @@ Every rule takes `name`, `message` and `action` in addition to its own fields.
 `defer` with no `opa.url` configured loads, and `--validate` prints a note naming the lane. The deferred match then denies instead of reporting a finding, because a finding nobody reads would forward every statement while looking like enforcement.
 
 <Note>
-`defer` is the one non-empty `action` a guardrail rule takes. `action: warn` and `require_review` are **refused at startup**: `warn` exists only as a per-risk-level action on the [analyzer](/setup/configuration/hoop-sidecar/risk-analysis), and human review needs a review backend the current build does not ship — see [Agentic Access](/features/agentic-access#the-tools).
+`defer` is the one non-empty `action` a guardrail rule takes. `action: warn` and `action: require_review` are **refused at startup**: both exist only as per-risk-level actions on the [analyzer](/setup/configuration/hoop-sidecar/risk-analysis) block. Human review works only through the analyzer, where `approval_rule` names who may release a held statement. See [Agentic Access](/features/agentic-access#the-tools).
 </Note>
 
 ---
