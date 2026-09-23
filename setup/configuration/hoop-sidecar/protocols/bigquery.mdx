@@ -34,6 +34,18 @@ The rule matches the lowercased service name. Clients get `PERMISSION_DENIED` wi
 
 With `descriptors` and `capture_payload` (the [spanner page](/setup/configuration/hoop-sidecar/protocols/spanner#descriptors) shows the `buf` command; add `--path google/cloud/bigquery/storage`), payload rules also see request fields. `CreateReadSession` names the table it opens, so the audit trail records who read which table. Row payloads stay opaque: `ReadRows` carries serialized Arrow batches inside a protobuf `bytes` field, and no descriptor turns those bytes into named columns. Content scanning and masking stop at that boundary.
 
+### ReadRows and OPA
+
+Capture also turns every `ReadRows` response message into a statement, and a lane with an `opa` block sends each one to OPA. A read that streams 50k messages waits on 50k OPA calls in series. The rows are opaque bytes, so OPA has nothing to read there; keep it on the request side:
+
+```yaml config.yaml
+    opa:
+      url: http://opa:8181/v1/data/hoop/inspect
+      responses: false
+```
+
+`CreateReadSession` and `AppendRows` still reach OPA with the table they name. The guardrails still judge every message, and the audit trail still records each one, marked `opa.skipped: responses`. To decide this per method inside Rego instead, return `responses: false` on the request decision; [Config File](/setup/configuration/hoop-sidecar/config-file#responses) shows the rule.
+
 ---
 
 ## The REST plane

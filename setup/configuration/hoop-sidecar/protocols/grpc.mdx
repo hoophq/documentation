@@ -106,6 +106,10 @@ A gRPC statement carries its un-normalized RPC path as the resource, so the exis
 
 Denials return `PERMISSION_DENIED` with the rule's message, the shape a gRPC client already handles.
 
+### OPA and streamed responses
+
+With `capture_payload: true`, each response message becomes its own statement, and each statement reaches OPA. A server-streaming method that returns 50k messages costs 50k OPA calls in series before the client sees the last one. If your Rego only reads requests, turn the response side off: `opa.responses: false` on the lane, or `responses: false` in the result of a request decision for one method at a time. The guardrails, masking and the audit trail keep running on every message either way. [Config File](/setup/configuration/hoop-sidecar/config-file#responses) has both forms.
+
 ---
 
 ## Identity

@@ -440,9 +440,17 @@ The step-by-step setup for each shape — including both permission traps a unix
 
 ## Identity
 
-Every session records `principal: anonymous` unless a deployment fills it. The plumbing runs end to end: the session carries a subject, and the proxy exposes a seam a deployment fills from a verified JWT, an mTLS peer cert or a credential token. A listener names its `identity_header`, and the current implementation contributes only the peer address.
+A session records `principal: anonymous` until something names the caller. Three lanes can:
 
-The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` — the listener's name — on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. Until that seam is filled, a policy keyed on `input.context.principal` reads `anonymous` from every lane.
+| Lane | Source of the principal |
+|---|---|
+| `http`, `grpc`, `spanner` | the header named by `identity_header`, set by the authenticating proxy in front. An `http` lane reads it from the first request on the connection, before the session exists; a grpc lane reads it per RPC and falls back to the mTLS peer certificate |
+| `postgres` | the `user` the client names in its StartupMessage |
+| `ssh` | the certificate the lane verified itself, mapped by `ssh.identity` |
+
+Every other lane records the peer address and nothing else. `identity_header` on a lane that does not read it is refused at startup.
+
+The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` (the listener's name) on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. A policy that requires a named caller should deny `input.context.principal == "anonymous"`; the Sidecar admits an anonymous session and leaves that call to you.
 
 <Note>
 A sidecar lane used to send an **empty** `input.context`. The gate looked for a bare `*policy.OPAClient` to stamp the session onto, and a lane's policy is a `policy.Chain`, so the assertion never matched and the facts never left the process. The gate now seeds the evaluation context instead, which every evaluator in the chain reads, including both calls on a two-phase lane.
