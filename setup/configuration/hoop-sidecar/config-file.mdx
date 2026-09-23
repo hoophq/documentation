@@ -142,7 +142,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
 | `mysql_auth_key_file` | RSA private key for MySQL clients that pin the lane's public key and send the encrypted password without requesting a key. Requires a `mysql` lane with `upstream_tls`. See [MySQL RSA authentication](/setup/configuration/hoop-sidecar/protocols/mysql#rsa-authentication-on-the-client-leg). |
 | `downstream_tls` | Terminates the client's TLS at the Sidecar. Valid on `postgres` (in-band SSLRequest), `clickhouse` (TLS on connect), `grpc` and `spanner` lanes. Other protocols refuse it when their exchange cannot be inspected after TLS negotiation. Refused on `ssh`, which negotiates its own transport. |
-| `identity_header` | Names an HTTP header carrying the authenticated subject. Refused on `ssh`, where the identity comes from the certificate the lane verified itself. |
+| `identity_header` | Names an HTTP header carrying the authenticated subject. Valid on `http`, `grpc` and `spanner` lanes. An `http` lane reads it from the first request on each connection, before the session exists, so `session_start` and every statement carry the principal; a grpc lane reads it per RPC. Refused on every other protocol, and on `ssh` in particular, where the identity comes from the certificate the lane verified itself. |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
 | `guardrails` | Adds to the top-level rule set for this lane. |
@@ -431,6 +431,7 @@ opa:
   timeout_sec: 2
   fail_open: false
   gate: false          # true adds an earlier decision; see Two phases below
+  responses: true      # false keeps OPA on the request side; see Responses below
 ```
 
 | Field | Meaning |
@@ -439,6 +440,7 @@ opa:
 | `timeout_sec` | Deadline for one decision. |
 | `fail_open` | `false`, the default, denies when the endpoint cannot answer. |
 | `gate` | Adds an earlier decision phase. See [Two phases](#two-phases). |
+| `responses` | `true`, the default, consults OPA on response statements too. `false` keeps it on requests only. See [Responses](#responses). |
 
 The Sidecar does not own policy; it owns the input document:
 
@@ -497,6 +499,38 @@ An **undefined gate decision allows and requests nothing**, even under `fail_ope
 <Warning>
 A single-call lane sends **no** `phase` field, so Rego testing `input.phase == "decide"` is undefined there and `fail_open: false` denies everything. Write `phase := object.get(input, "phase", "decide")` and the same policy serves both arrangements.
 </Warning>
+
+### Responses
+
+OPA sees both directions of an exchange. On a streaming lane that means one round trip per response message: a `grpc` lane with `capture_payload: true` turns each message of a 50k-row `ReadRows` into its own statement, and a policy that only reads `input.direction == "client"` still pays 50k serial calls on the way back. You have two ways to stop that. Both leave the guardrails, masking and the audit trail as they were. Only the round trip goes, and a response statement OPA did not see carries `opa.skipped: responses` on its audit record.
+
+**Per lane.** Set `responses: false` on the `opa` block:
+
+```yaml
+listeners:
+  - name: bqstorage
+    protocol: grpc
+    opa:
+      url: http://opa:8181/v1/data/hoop/inspect
+      responses: false
+```
+
+OPA then answers `client` statements only. Every `server` statement, the response messages and the trailer alike, is decided by the guardrails. A `grpc_status` check belongs in a local rule on such a lane, not in Rego.
+
+**Per exchange.** Return `responses: false` beside the decision on a request:
+
+```rego
+result := {"allow": true, "responses": false} if {
+    input.direction == "client"
+    input.metadata["grpc.method"] == "ReadRows"
+}
+```
+
+The Sidecar skips OPA for that RPC's response statements and asks again on the next RPC. It reads the field on request statements only, on either phase of a two-phase lane, and one answer covers both OPA calls. A client-streaming RPC keeps the opt-out its first request gave; a later request message that says nothing does not undo it. Absent or `true` changes nothing. `input.metadata["grpc.method"]` is the bare method name every gRPC statement carries; the [gRPC page](/setup/configuration/hoop-sidecar/protocols/grpc#rules-on-a-grpc-lane) lists the other `grpc.*` keys.
+
+<Note>
+The per-exchange form works on `grpc` and `spanner` lanes only. Those lanes run one gate per RPC, so the gate knows which responses the opt-out covers. A relay lane (`http`, `postgres`, `mysql` and the rest) serves a whole connection through one gate and cannot pair responses with requests once two are in flight, so it ignores the field and stamps `opa.responses_unscoped: connection` on the request's audit record. Use `responses: false` on the lane's `opa` block there.
+</Note>
 
 See [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) for the finding shape, the status vocabulary and worked Rego.
 

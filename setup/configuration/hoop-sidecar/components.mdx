@@ -376,7 +376,7 @@ sequenceDiagram
 | `error` | transport or upstream failure | the error text |
 | `session_end` | connection closed | duration, statement and denial totals |
 
-`session_start` fires even for a connection that issues nothing, so an abandoned session leaves a trace. Without it, a client that connects and disappears is invisible.
+`session_start` fires even for a connection that issues nothing, so an abandoned session leaves a trace. Without it, a client that connects and disappears is invisible. The one exception is an `http` lane with `identity_header`, which reads the first request before it opens the session: a client that connects and never sends one is closed with no session at all. See [Identity](#identity).
 
 ### Where the events go
 
@@ -440,9 +440,17 @@ The step-by-step setup for each shape — including both permission traps a unix
 
 ## Identity
 
-Every session records `principal: anonymous` unless a deployment fills it. The plumbing runs end to end: the session carries a subject, and the proxy exposes a seam a deployment fills from a verified JWT, an mTLS peer cert or a credential token. A listener names its `identity_header`, and the current implementation contributes only the peer address.
+A session records `principal: anonymous` until something names the caller. Three lanes can:
 
-The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` — the listener's name — on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. Until that seam is filled, a policy keyed on `input.context.principal` reads `anonymous` from every lane.
+| Lane | Source of the principal |
+|---|---|
+| `http`, `grpc`, `spanner` | the header named by `identity_header`, set by the authenticating proxy in front. An `http` lane reads it from the first request on the connection, before the session exists, so `session_start` already carries it; a grpc or spanner lane reads it per RPC and falls back to the mTLS peer certificate |
+| `postgres` | the `user` the client names in its StartupMessage |
+| `ssh` | the certificate the lane verified itself, mapped by `ssh.identity` |
+
+Every other lane records the peer address and nothing else. `identity_header` on a lane that does not read it is refused at startup.
+
+The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` (the listener's name) on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. A policy that requires a named caller should deny `input.context.principal == "anonymous"`; the Sidecar admits an anonymous session and leaves that call to you.
 
 <Note>
 A sidecar lane used to send an **empty** `input.context`. The gate looked for a bare `*policy.OPAClient` to stamp the session onto, and a lane's policy is a `policy.Chain`, so the assertion never matched and the facts never left the process. The gate now seeds the evaluation context instead, which every evaluator in the chain reads, including both calls on a two-phase lane.
@@ -454,7 +462,7 @@ A sidecar lane used to send an **empty** `input.context`. The gate looked for a 
 
 Read these before writing a policy against the Sidecar.
 
-- **Three codecs ship: postgres, mssql and http.** Adding one means a new `codec/<name>` package and nothing else.
+- **Six codecs ship: postgres, mysql, mssql, mongodb, clickhouse and http.** Adding one means a new `codec/<name>` package and nothing else. `grpc`, `spanner` and `ssh` lanes are not codecs: each terminates its protocol itself and builds statements above it.
 - **Relations come from a scanner, not a SQL grammar.** One pass over a labelled region stack, reporting each relation as a read or a write. A statement it cannot finish comes back with no relations and an `unknown` operation carrying the reason in `metadata["sql.incomplete"]`, so "could not determine" never reads as "touches nothing". Set `require_table_match: true` on rules protecting something critical and accept the false positives. `lexer/conformance` holds the scanner to zero wrong answers against PostgreSQL 17.5's grammar.
 - **A response batch can be truncated.** The Postgres codec stops decoding columns past 1000 rows in one result set, to keep the Sidecar's memory out of a query's hands. It keeps counting and marks the batch truncated. A policy must read that as inconclusive, never as proof a value is absent.
 - **A response statement carries no verb.** For database codecs a server-direction statement reports `unknown`, because the operation belongs to the request the audit trail already recorded. Key a response-side SQL rule on the result, not on the operation.
@@ -464,7 +472,6 @@ Read these before writing a policy against the Sidecar.
 - **Plaintext at the Sidecar, with one exception.** A client negotiating TLS end to end past the Sidecar leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the Sidecar walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the Sidecar originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the Sidecar can start.
 - **A session encrypted end to end is refused, not forwarded.** `ENCRYPT_ON`, or a TDS 8.0 client reaching the Sidecar with nothing terminating in front, leaves no statement that can be classified, masked or audited. Both report `rule: stream-unsafe` and name the cause. Such a session used to connect and run uninspected, so check what your driver sets for `Encrypt` before putting an existing MSSQL lane behind this: ODBC Driver 18 and SqlClient 5+ default to `Mandatory`, go-mssqldb to `ENCRYPT_OFF`.
 - **Statements are not transactions.** Each one gets its own verdict, and no cross-statement session state exists.
-- **No SSH lane.** No SSH codec ships. Envoy ships no SSH filter at any fidelity either, so every service reached over SSH sits unpoliced by the Envoy and OPA layer.
 
 ---
 

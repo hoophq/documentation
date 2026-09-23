@@ -5,10 +5,6 @@ description: "Where the Sidecar fits in front of BigQuery: the Storage API on a 
 
 BigQuery exposes two planes, and they take different routes through the Sidecar. The Storage API (`bigquerystorage.googleapis.com`) is gRPC and fits a [gRPC lane](/setup/configuration/hoop-sidecar/protocols/grpc) directly. The jobs and query API (`bigquery.googleapis.com`), the plane the `bq` CLI and the client libraries use for SQL, is REST over HTTPS; a gRPC lane never sees it, and the section below covers what an HTTP lane can and cannot do there.
 
-<Note>
-The configurations on this page ride the `grpc2` branch alongside the [spanner protocol](/setup/configuration/hoop-sidecar/protocols/spanner) and have not shipped in a release yet.
-</Note>
-
 ---
 
 ## The Storage API on a grpc lane
@@ -33,6 +29,18 @@ listeners:
 The rule matches the lowercased service name. Clients get `PERMISSION_DENIED` with that message on `AppendRows` and reach `CreateReadSession` untouched.
 
 With `descriptors` and `capture_payload` (the [spanner page](/setup/configuration/hoop-sidecar/protocols/spanner#descriptors) shows the `buf` command; add `--path google/cloud/bigquery/storage`), payload rules also see request fields. `CreateReadSession` names the table it opens, so the audit trail records who read which table. Row payloads stay opaque: `ReadRows` carries serialized Arrow batches inside a protobuf `bytes` field, and no descriptor turns those bytes into named columns. Content scanning and masking stop at that boundary.
+
+### ReadRows and OPA
+
+Capture also turns every `ReadRows` response message into a statement, and a lane with an `opa` block sends each one to OPA. A read that streams 50k messages waits on 50k OPA calls in series. The rows are opaque bytes, so OPA has nothing to read there; keep it on the request side:
+
+```yaml config.yaml
+    opa:
+      url: http://opa:8181/v1/data/hoop/inspect
+      responses: false
+```
+
+`CreateReadSession` and `AppendRows` still reach OPA with the table they name. The guardrails still judge every message, and the audit trail still records each one, marked `opa.skipped: responses`. To decide this per method inside Rego instead, return `responses: false` on the request decision; [Config File](/setup/configuration/hoop-sidecar/config-file#responses) shows the rule.
 
 ---
 
@@ -64,7 +72,7 @@ SQL-level policy for the REST plane, with the GoogleSQL lexer reading the query 
 
 [`goccy/bigquery-emulator`](https://github.com/goccy/bigquery-emulator) serves the REST plane on one port and the Storage gRPC plane beside it, `BigQueryRead` and `BigQueryWrite` included. We validated both directions through a licensed lane: `AppendRows` came back `PERMISSION_DENIED` with the fence rule's message, and `CreateReadSession` crossed the lane and drew a real answer from the emulator about the named table.
 
-The [`gcloud-stack`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/gcloud-stack) compose file carries the emulator, a method-only `bqstorage` lane in front of it, and the write-plane rule shown above (commented out where the free tier's one-rule budget is already spent).
+The [`gcloud-stack`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/gcloud-stack) compose file carries the emulator, a method-only `bqstorage` lane in front of it, and the write-plane rule shown above (commented out where the free tier's one-rule budget is already spent).
 
 ---
 

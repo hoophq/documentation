@@ -5,10 +5,6 @@ description: "The spanner lane: the gRPC endpoint plus GoogleSQL extraction, so 
 
 A `spanner` lane runs the same in-process HTTP/2 endpoint as a [gRPC lane](/setup/configuration/hoop-sidecar/protocols/grpc) and adds one capability: it extracts the SQL text out of Cloud Spanner RPC payloads and classifies each statement with the lexer for that database's dialect, GoogleSQL or PostgreSQL. A gRPC lane fences Spanner by method name. A spanner lane reads the query, so a rule naming `delete` refuses `ExecuteSql` when the SQL deletes and forwards it when the SQL selects.
 
-<Note>
-The `spanner` protocol lives on the `grpc2` branch and has not shipped in a release yet.
-</Note>
-
 ```yaml config.yaml
 listeners:
   - name: spanner
@@ -125,8 +121,8 @@ SPANNER_EMULATOR_HOST=lane.internal:29010
 
 Two compose stacks in the repository run the lane end to end:
 
-- [`deploy/docker-compose/gcloud-stack/`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/gcloud-stack): the Spanner emulator behind a spanner lane, no Envoy. Its demo proves the lexer decides: `SELECT 1` passes, `DELETE` returns `PERMISSION_DENIED` before the emulator sees the frame, a raw-string evasion stays a select, and an unterminated string denies as `unknown`.
-- [`deploy/docker-compose/envoy-stack/spanner/`](https://github.com/hoophq/hoop/tree/grpc2/deploy/docker-compose/envoy-stack/spanner): the same lane behind Envoy and OPA, plus a direct h2c door that shows the lane standing alone. Its demo also creates a second database with `databaseDialect: POSTGRESQL`, sends `SELECT id, title FROM "songs" ...` to both, and reads the trail: `postgresql` with `tables=[songs]` on one, `googlesql` with no table on the other.
+- [`deploy/docker-compose/gcloud-stack/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/gcloud-stack): the Spanner emulator behind a spanner lane, no Envoy. Its demo proves the lexer decides: `SELECT 1` passes, `DELETE` returns `PERMISSION_DENIED` before the emulator sees the frame, a raw-string evasion stays a select, and an unterminated string denies as `unknown`.
+- [`deploy/docker-compose/envoy-stack/spanner/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/spanner): the same lane behind Envoy and OPA, plus a direct h2c door that shows the lane standing alone. Its demo also creates a second database with `databaseDialect: POSTGRESQL`, sends `SELECT id, title FROM "songs" ...` to both, and reads the trail: `postgresql` with `tables=[songs]` on one, `googlesql` with no table on the other.
 
 ```bash
 cd deploy/docker-compose/gcloud-stack

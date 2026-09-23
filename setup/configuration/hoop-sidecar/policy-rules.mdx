@@ -441,6 +441,8 @@ decision := {"allow": true, "request": {"ai_analysis": true}} if {
 | `false` | skipped, even where its own config would run it |
 | absent | the producer's own config decides |
 
+A second field, `responses`, works on any phase and on request statements only. `{"allow": true, "responses": false}` tells the Sidecar to stop asking OPA about the response side of that exchange, which on a capturing gRPC lane is the difference between one call and one call per streamed message. Only `grpc` and `spanner` lanes honor it, since they run one gate per RPC; a relay lane ignores it and marks the request `opa.responses_unscoped: connection`. See [Responses](/setup/configuration/hoop-sidecar/config-file#responses).
+
 <Note>
 An UNDEFINED gate decision allows and requests nothing, even under `fail_open: false`. A gate is an optimization over a policy someone already wrote, so switching it on must not deny every statement until a second Rego rule exists. The decide phase keeps the normal fail-closed reading of undefined.
 </Note>

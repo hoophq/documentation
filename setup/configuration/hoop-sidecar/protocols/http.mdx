@@ -66,7 +66,9 @@ listeners:
 
 ## Identity
 
-`identity_header` names the header your authenticating proxy sets, and the subject lands in every audit row and in `input.context` for OPA. Trusting a header is safe only when nothing but that proxy can reach the listener, so bind loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
+`identity_header` names the header your authenticating proxy sets. The lane reads it from the first request on each connection, before it opens the session, so the `session_start` audit row, every statement row and `input.context.principal` for OPA all carry the subject. A later request on the same keep-alive connection does not change it; the connection belongs to whoever opened it, the same way an mTLS peer does. A first request without the header leaves the session `anonymous` and forwards it, so a policy that requires a caller must deny `input.context.principal == "anonymous"` itself. A client that connects and sends no request within ten seconds is closed with no session and no `session_start`, the way a pgwire client that abandons its handshake is; HTTP has no server greeting, so waiting on the client's first bytes is the protocol's own ordering.
+
+Trusting a header is safe only when nothing but that proxy can reach the listener, so bind loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
 
 ---
 

@@ -27,7 +27,7 @@ listeners:
 | `capture_payload` | Renders decoded request and response messages into per-message statements, so payload rules (`pii`, `pattern_match`) and OPA read field values as well as the method path. Requires `descriptors`. |
 | `max_payload_bytes` | Truncates a captured rendering. Masking ignores it: a redactor rewrites decoded fields whatever their size. |
 | `strict` | Refuses what the descriptor set cannot explain; see below. |
-| `metadata` | Request metadata headers exposed to policy, matched case-insensitively. No capture-all, and `authorization`, `cookie` and `proxy-authorization` can never be listed. |
+| `metadata` | Request metadata headers exposed to policy, matched case-insensitively. No capture-all, and `authorization`, `cookie` and `proxy-authorization` can never be listed. The `grpc.*` keys under [Rules on a gRPC lane](#rules-on-a-grpc-lane) are present regardless. |
 
 Multiple descriptor sets fit the multi-team shape: each service's CI ships its own artifact and the lane lists them all. Sets merge at startup, byte-identical shared imports dedupe, and two diverged copies of one file refuse to load naming both artifacts.
 
@@ -105,6 +105,23 @@ A gRPC statement carries its un-normalized RPC path as the resource, so the exis
 - `pii` and `pattern_match` read decoded payloads, so startup refuses them on a lane without `capture_payload`: they would only ever scan the method path and would fire on nothing.
 
 Denials return `PERMISSION_DENIED` with the rule's message, the shape a gRPC client already handles.
+
+Every gRPC statement also carries the RPC's identity as metadata, which Rego reads as `input.metadata[...]`:
+
+| Key | Value | On |
+|---|---|---|
+| `grpc.service` | the fully qualified service, `google.cloud.bigquery.storage.v1.BigQueryRead` | every statement |
+| `grpc.method` | the bare method name, `ReadRows` | every statement |
+| `grpc.authority` | the `:authority` pseudo-header | every statement |
+| `grpc.timeout`, `grpc.encoding`, `grpc.message_type`, `grpc.user_agent` | the matching request header, verbatim | when the client sent it |
+| `grpc.status_code`, `grpc.status` | the numeric `grpc-status` and its lower-case name, `permission_denied` | the trailer statement |
+| `grpc.message_index` | the 1-based ordinal of a captured message within its RPC | per-message statements, with `capture_payload` |
+
+A rule keyed on the method, `input.metadata["grpc.method"] == "ReadRows"`, needs no `metadata` allowlist entry. Headers you list in the `grpc` block arrive lower-cased under `input.http.headers` instead.
+
+### OPA and streamed responses
+
+With `capture_payload: true`, each response message becomes its own statement, and each statement reaches OPA. A server-streaming method that returns 50k messages costs 50k OPA calls in series before the client sees the last one. If your Rego only reads requests, turn the response side off: `opa.responses: false` on the lane, or `responses: false` in the result of a request decision for one method at a time. The guardrails, masking and the audit trail keep running on every message either way. [Config File](/setup/configuration/hoop-sidecar/config-file#responses) has both forms.
 
 ---
 
