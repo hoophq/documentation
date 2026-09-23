@@ -82,7 +82,7 @@ envoy :5432 ──cluster hoop_inspect_pg────> lane "appdb"     postgres
 
 Each lane binds a unix socket or a TCP port, set per listener. Nothing above the transport changes, because the gate reads a `net.Conn` and never asks what kind it is.
 
-Most sidecars run one lane. A per-user pod fronting both a database and an API runs two in one process instead of two containers. The Sidecar resolves the merge between top-level defaults and a lane's overrides once at startup, and reports every broken lane in one run.
+Most sidecars run one lane. A per-user pod fronting both a database and an API runs two in one process instead of two containers. The Sidecar resolves the merge between top-level defaults and a lane's overrides at startup and again on every reload of the file, and reports every broken lane in one run.
 
 ---
 
