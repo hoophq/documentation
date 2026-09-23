@@ -458,10 +458,12 @@ An interactive shell never reaches the analyzer at all: it produces no statement
       provider: gemini
       model: gemini-2.5-flash
       credentials_file: /run/secrets/gemini-key
-      # extra: {api: vertex}   # a Google Cloud API key on Vertex AI; the default is the Gemini Developer API
+      # extra: {api: vertex}   # Vertex AI express mode with a Google Cloud API key; the default is the Gemini Developer API
     ```
 
-    `gemini` takes a Google API key, in the `x-goog-api-key` header. Omit `extra.api` for the Gemini Developer API on `generativelanguage.googleapis.com`, billed to a Google account. Set `api: vertex` for a Google Cloud API key on `aiplatform.googleapis.com`, billed to the key's project and inside its IAM and region policy.
+    `gemini` takes a Google API key, in the `x-goog-api-key` header. Omit `extra.api` for the Gemini Developer API on `generativelanguage.googleapis.com`, billed to a Google account. Set `api: vertex` for Vertex AI in express mode on `aiplatform.googleapis.com` with a Google Cloud API key, billed to the key's project.
+
+    Express mode is global. The URL names no location and Google routes the call, so it offers no region selection and no VPC Service Controls. A workload that must stay in one region uses the Google Vertex tab with `publisher: google`, where `region` is part of the URL.
 
     Google documents API keys for testing and Application Default Credentials for production. A key has no identity to audit and no rotation of its own. A pod with a GCP identity should use `provider: vertex` with `publisher: google` instead.
   </Tab>
