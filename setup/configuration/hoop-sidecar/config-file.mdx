@@ -526,7 +526,11 @@ result := {"allow": true, "responses": false} if {
 }
 ```
 
-The Sidecar skips OPA for that exchange's response statements and asks again on the next request. It reads the field on request statements only, on either phase of a two-phase lane, and one answer covers both OPA calls. An exchange is one request and the responses that answer it; a `client` statement that follows a `server` one starts the next. A client-streaming RPC repeats the opt-out on each request message at no extra cost, since request statements reach OPA in full regardless. Absent or `true` changes nothing.
+The Sidecar skips OPA for that RPC's response statements and asks again on the next RPC. It reads the field on request statements only, on either phase of a two-phase lane, and one answer covers both OPA calls. A client-streaming RPC keeps the opt-out its first request gave; a later request message that says nothing does not undo it. Absent or `true` changes nothing. `input.metadata["grpc.method"]` is the bare method name every gRPC statement carries; the [gRPC page](/setup/configuration/hoop-sidecar/protocols/grpc#rules-on-a-grpc-lane) lists the other `grpc.*` keys.
+
+<Note>
+The per-exchange form works on `grpc` and `spanner` lanes only. Those lanes run one gate per RPC, so the gate knows which responses the opt-out covers. A relay lane (`http`, `postgres`, `mysql` and the rest) serves a whole connection through one gate and cannot pair responses with requests once two are in flight, so it ignores the field and stamps `opa.responses_unscoped: connection` on the request's audit record. Use `responses: false` on the lane's `opa` block there.
+</Note>
 
 See [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) for the finding shape, the status vocabulary and worked Rego.
 
