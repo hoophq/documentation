@@ -22,7 +22,7 @@ pii:                               # optional: omit it and every entity is enabl
   entities: [EMAIL_ADDRESS, US_SSN, BR_CPF]
 
 analyzer:                          # the provider, plus the defaults every lane inherits
-  provider: vertex                 # vertex | anthropic | openai
+  provider: vertex                 # vertex | gemini | anthropic | openai
   model: claude-sonnet-4-5@20250929
   extra: {project: my-gcp-project, region: global}
   # credentials_file omitted: Application Default Credentials.
@@ -431,16 +431,41 @@ An interactive shell never reaches the analyzer at all: it produces no statement
       extra:
         project: my-gcp-project
         region: global          # or a region like us-east5
+        # publisher: anthropic  # the default; google serves Gemini, see below
       # credentials_file omitted -> Application Default Credentials
     ```
 
     Vertex authenticates with a GCP OAuth bearer minted from a service account and refreshed before expiry. `--validate` mints one token, so a bad key, a missing `roles/aiplatform.user` binding or a skewed clock fails the config check rather than the first risky statement.
+
+    The same bearer serves Gemini. Set `publisher: google` and a Gemini model:
+
+    ```yaml
+    analyzer:
+      provider: vertex
+      model: gemini-2.5-flash
+      extra: {project: my-gcp-project, region: global, publisher: google}
+    ```
 
     <Tip>
     Prefer Workload Identity and omit `credentials_file`. On GKE there is then **no credential on disk at all**: the pod's identity is the credential, so you have nothing to leak or rotate.
     </Tip>
 
     Set `region: global` or a multi-region endpoint. A single-region endpoint is an availability risk for something sitting on a database hot path.
+  </Tab>
+  <Tab title="Gemini (API key)">
+    ```yaml
+    analyzer:
+      provider: gemini
+      model: gemini-2.5-flash
+      credentials_file: /run/secrets/gemini-key
+      # extra: {api: vertex}   # Vertex AI express mode with a Google Cloud API key; the default is the Gemini Developer API
+    ```
+
+    `gemini` takes a Google API key, in the `x-goog-api-key` header. Omit `extra.api` for the Gemini Developer API on `generativelanguage.googleapis.com`, billed to a Google account. Set `api: vertex` for Vertex AI in express mode on `aiplatform.googleapis.com` with a Google Cloud API key, billed to the key's project.
+
+    Express mode is global. The URL names no location and Google routes the call, so it offers no region selection and no VPC Service Controls. A workload that must stay in one region uses the Google Vertex tab with `publisher: google`, where `region` is part of the URL.
+
+    Google documents API keys for testing and Application Default Credentials for production. A key has no identity to audit and no rotation of its own. A pod with a GCP identity should use `provider: vertex` with `publisher: google` instead.
   </Tab>
   <Tab title="Anthropic">
     ```yaml
@@ -477,7 +502,8 @@ strongest first.
     On GKE, GCE or Cloud Run, omit `credentials_file`. Vertex then resolves
     Application Default Credentials, and **there is no credential on disk at
     all**: the pod's identity is the credential, so nothing can leak from an
-    image layer, a backup or a `kubectl cp`.
+    image layer, a backup or a `kubectl cp`. This covers Claude and Gemini
+    alike; `publisher: google` picks Gemini.
 
     ```yaml config.yaml
     analyzer:
@@ -503,7 +529,9 @@ strongest first.
   </Tab>
 
   <Tab title="Kubernetes Secret">
-    For a cluster outside GCP, or for an Anthropic or OpenAI key.
+    For a cluster outside GCP, or for an Anthropic, OpenAI or Gemini API key.
+    A Vertex `credentials_file` holds a service-account key or a Workload
+    Identity Federation `external_account` file; both mint the same bearer.
 
     ```yaml config.yaml
     analyzer:
