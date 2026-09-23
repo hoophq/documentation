@@ -63,7 +63,7 @@ pii:                               # optional: omit it and every entity is enabl
   entities: [EMAIL_ADDRESS, US_SSN, BR_CPF]
 
 analyzer:
-  provider: vertex                 # vertex | anthropic | openai
+  provider: vertex                 # vertex | gemini | anthropic | openai
   model: claude-sonnet-4-5@20250929
   extra: {project: my-gcp-project, region: global}
   # credentials_file omitted: Application Default Credentials.
