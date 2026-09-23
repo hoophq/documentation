@@ -247,10 +247,14 @@ existingConfigMap: my-sidecar-config
 
 The name is used verbatim, never rewritten with the release prefix. `config` and `existingConfigMap` are mutually exclusive; setting both is refused.
 
-<Warning>
-**Set `configRevision` too, or your edits never reach the pods.**
+<Note>
+**Rule-only edits apply without a rollout.** The Sidecar watches its configuration file (a stat every ten seconds), and the kubelet updates a mounted ConfigMap in place on its sync period, so a change to guardrails, masking, `pii`, OPA, a listener's `analyzer` block or the `license` key reaches the running pods on its own. The log says `config file configuration applied`; open connections keep the rules they started with, new ones get the new rules. This needs the ConfigMap mounted as a volume, which is what the chart does — a `subPath` mount is never updated by the kubelet.
+</Note>
 
-The ConfigMap lives outside the release, so the chart cannot see its contents and its checksum never changes — `helm upgrade` produces a byte-identical pod template and rolls nothing. Nothing else covers the gap: the Sidecar reads its configuration file once at startup and watches nothing, because the hot-reload path is Control Plane only. The kubelet updates the mounted file and the process never looks at it again.
+<Warning>
+**Set `configRevision` too, or restart-bound edits never reach the pods.**
+
+The ConfigMap lives outside the release, so the chart cannot see its contents and its checksum never changes — `helm upgrade` produces a byte-identical pod template and rolls nothing. Listeners, `audit`, `admin`, `log_level` and the top-level `analyzer` section are bound at startup: the Sidecar logs `restart to apply it` and keeps serving the document it booted with until the pod is replaced.
 
 Put anything that changes with the content in `configRevision`, and change it in the same commit that changes the ConfigMap:
 
