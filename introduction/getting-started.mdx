@@ -1,6 +1,7 @@
 ---
-title: "Overview"
-description: "Runtime control for agents"
+title: "Runtime control for AI Agents"
+sidebarTitle: "Overview"
+description: "A protocol-aware reverse proxy between AI and everything it can touch."
 ---
 
 import { HeroAnimation } from '/snippets/annimations/HeroAnimation.jsx';
@@ -9,21 +10,25 @@ import { HeroAnimation } from '/snippets/annimations/HeroAnimation.jsx';
   <HeroAnimation />
 </div>
 
-Agents and engineers reach real infrastructure with real credentials. Someone has to decide what they can do. Hoop decides it at runtime, per command.
+Hoop is a reverse proxy that reads the protocol it carries. Every query, every result set, every API call passes through it, and Hoop decides what gets through. **It adds less than 10ms to the round trip.**
 
-The **Sidecar** is where you start. It is a proxy that runs next to your resource, decodes the wire protocol, and decides what reaches the database and what comes back, blocking destructive statements and masking sensitive values in responses. Nothing else to deploy and no database to run: one binary, one config file.
+Most proxies see bytes. Hoop sees statements. It speaks Postgres, ClickHouse, SQL Server, HTTP and more, right on the wire ([see all protocols](/setup/configuration/hoop-sidecar/protocols/postgres)). So it knows a `DELETE` with no `WHERE` from a harmless `SELECT`. It blocks the first, masks the emails in the second, and records both. Your clients stay the same. Your credentials stay where they are.
+
+**Start with one Sidecar.** One binary and one config file, running next to the resource it protects.
+
+**Grow into a fleet.** When one Sidecar becomes fifty, the Control Plane pushes your rules to all of them from one place. It ships with Hoop Enterprise.
 
 ---
 
 ## Install the Sidecar
 
-The Sidecar ships in the `hoop` CLI — one binary, no external dependency. See [Install the CLI](/install/cli) for macOS, Linux, Windows, WSL and manual installs.
+The Sidecar ships in the `hoop` CLI: one binary, no external dependency. See [Install the CLI](/install/cli) for macOS, Linux, Windows, WSL and manual installs.
 
 ---
 
 ## Next step
 
-Install the Sidecar and get it running — pick the path that fits how you deploy.
+Install the Sidecar and get it running. Pick the path that fits how you deploy.
 
 <CardGroup cols={3}>
   <Card title="Command Line" icon="terminal" href="/install/cli">
@@ -47,14 +52,14 @@ Install the Sidecar and get it running — pick the path that fits how you deplo
 
 <CardGroup cols={2}>
   <Card title="Sidecar" icon="bolt" href="/core-concepts/sidecar">
-    The engine. A proxy beside your resource that reads the wire protocol and decides what gets through — with no external dependency.
+    The engine. A proxy beside your resource that reads the wire protocol and decides what gets through. No external dependency.
 
     <br />
 
     **Learn more** <Icon icon="arrow-right" />
   </Card>
   <Card title="Control Plane" icon="tower-control" href="/core-concepts/control-plane">
-    The brain. Centralizes every Sidecar you run and delivers rule sets to all of them from one place. An Enterprise feature.
+    One place to run every Sidecar. Change a rule once and the whole fleet enforces it. Part of Hoop Enterprise.
 
     <br />
 
