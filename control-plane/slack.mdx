@@ -187,7 +187,7 @@ On a click, hoop finds the approver:
 1. The hoop user with that Slack ID.
 2. Else, exactly one hoop user with the Slack user's email.
 
-The user must be active or invited, and in the group of the button. Otherwise only the clicker sees why:
+On both paths, Slack must still vouch for the user: not deactivated, not a guest, and in your workspace. The hoop user must be active or invited, and in the group of the button. Otherwise only the clicker sees why:
 
 | Message | Cause | Fix |
 |---------|-------|-----|
@@ -195,6 +195,8 @@ The user must be active or invited, and in the group of the button. Otherwise on
 | `No Hoop user has the email …` | No hoop user with that email | Add the user, or run the import |
 | `More than one Hoop user has the email …` | Two users share the email | Fix it on the Users page |
 | `Hoop could not read the email of your Slack user…` | The app lacks `users:read.email` | Add the scope and reinstall, or set the Slack ID |
+| `Hoop could not verify your Slack user. Ask an admin to add the users:read scope…` | The app lacks `users:read` | Add the scope and reinstall |
+| `Your Slack user is deactivated.` | The Slack account is deactivated | None: a deactivated user cannot approve |
 | `Your Hoop user is not active…` | The hoop user is deactivated | Reactivate it on the Users page |
 | `Confirm the email of your Slack user…` | Unconfirmed email in Slack | The user confirms it in Slack |
 | `Slack guests cannot approve a review.` | Slack guest | Use a full member |
@@ -211,6 +213,7 @@ The Sidecar sees the approval on its next poll, within 5 seconds.
 - **Each review arrives twice.** Two Control Plane replicas run with Slack configured. Run one.
 - **The Slack import shows no user groups.** The app lacks `usergroups:read` (add it and reinstall), or the Slack plan has no user groups.
 - **A sync fails with "no longer exists".** The user group was deleted in Slack. Remove it from the import.
+- **A sync fails with "slack returned no email".** The app lacks `users:read.email`. Add it and reinstall the app. The run writes nothing until then.
 
 ---
 
