@@ -144,7 +144,8 @@
                   "control-plane/container-images",
                   "control-plane/environment-variables"
                 ]
-              }
+              },
+              "control-plane/slack"
             ]
           }
         ]
