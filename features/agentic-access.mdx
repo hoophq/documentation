@@ -47,7 +47,9 @@ The listener's `analyzer` block maps each risk level the model can report to a t
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
 <Note>
-`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on every protocol; an ssh listener holds `exec` only and must drop `shell`. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the wait, the retry and what each protocol files.
+`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on every protocol, http included; an ssh listener holds `exec` only and must drop `shell`. See [What a hold files](/setup/configuration/hoop-sidecar/risk-analysis#what-a-hold-files) for what the reviewer reads on each protocol.
+
+The wait ends before 30 minutes when the client hangs up, when `idle_timeout_sec` is shorter, or when the caller's own deadline expires. In practice the caller's deadline is the limit: an http client behind Envoy gives up after the 15 s default route timeout. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry.
 </Note>
 
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
