@@ -219,6 +219,8 @@ ssh:
 
 A listener that refuses `shell` has **no unpoliced surface left**: every action is a statement a rule can read. Reach for this on a lane that needs to enforce rather than observe. Users get `ssh host <command>`, not a prompt.
 
+A listener whose analyzer uses `require_review` **must** drop `shell`, or startup refuses it: what a user types in a shell goes around the hold. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
+
 <Note>
 The analyzer works on an SSH lane and is the only answer to shell expansion: a pattern cannot see through it, and a model reading the command can. [Risk analysis](#risk-analysis) below configures one on this lane.
 </Note>

@@ -37,7 +37,7 @@ Without a Control Plane, protecting a resource means writing a Guardrail, then c
 
 ### Human review of held statements
 
-An analyzer risk level set to `require_review` holds the statement for a person. The Sidecar files it with the Control Plane, and the listener's `approval_rule` names the access request rule that decides who may approve. The first attempt is denied with a review id, and an identical retry after approval goes through once. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
+An analyzer risk level set to `require_review` holds the statement for a person. The Sidecar files it with the Control Plane, and the listener's `approval_rule` names the access request rule that decides who may approve. The statement waits on its connection for up to 30 minutes, and an approval in that time runs it. After a timeout, an identical retry after approval goes through once. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 
 ### One view of every Sidecar
 

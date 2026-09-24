@@ -120,7 +120,7 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
-| `require_review` | Deny, and file the statement with the Control Plane for a person to approve. An identical retry after approval forwards once. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
+| `require_review` | File the statement with the Control Plane and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
@@ -195,18 +195,29 @@ listeners:
 
 `approval_rule` is per listener, so the people who may release a statement against the payments database are not, by accident, the people who may release one against a reporting replica. Editing the block hot-reloads with the listener's rules.
 
-A hold is not a pause. Nothing waits on the connection, because an approval can arrive hours after the client's socket is gone. The contract is a retry:
+Every protocol can hold. What the reviewer reads differs per protocol; see [What a hold files](#what-a-hold-files).
+
+**A hold waits on the connection for up to 30 minutes.** Every 5 seconds the Sidecar asks the Control Plane about that one review, and the poll never files a new review. An approval that arrives in time runs the statement on the same connection, late. A rejection, a revocation, or an approval that another connection already used ends the wait and denies. Every denial carries the review id:
+
+```
+ERROR:  statement held for human approval: still waiting for approval after 30m0s; run the statement again once it is approved (review 9f97…)
+```
+
+The wait and the poll interval are constants, with no config field. A Control Plane older than the Sidecar has no poll route, so the Sidecar denies after the first poll.
+
+**The wait often ends before 30 minutes.** Each of these stops it before an approval is claimed, so the approval stays for the retry:
+
+| Cause | Note |
+|---|---|
+| The client hangs up or the upstream closes | The audit record carries the cause. Ctrl-C in `psql` or `mysql` does **not** end the wait: both send the cancel on a separate connection. Close the client instead. |
+| `idle_timeout_sec` is shorter than 30 minutes | A held connection is idle. `--validate` prints a note. |
+| The caller's own deadline expires | In practice this sets the limit on http, grpc and spanner. An http client behind Envoy gives up after the 15 s default route timeout. |
+
+**A timed-out statement is released by a retry.** The developer asks an approver, then runs the same statement again:
 
 <Steps>
-  <Step title="The first attempt is denied">
-    The Sidecar files a review, and the error the developer reads carries its id:
-
-    ```
-    ERROR:  statement held for human approval: waiting for approval (review 9f97…)
-    ```
-  </Step>
-  <Step title="An identical retry collects the approval">
-    Once an approver releases the review, the developer runs the same statement again. The Sidecar files nothing new: the Control Plane recognizes the statement, consumes the approved review and lets it through.
+  <Step title="The retry collects the approval">
+    The Sidecar files nothing new. The Control Plane recognizes the statement, consumes the approved review and lets it through.
   </Step>
   <Step title="An approval is spent once">
     A third run of the same statement files a new review. A rejection stays, so a rejected statement is denied every time without paging anyone again.
@@ -214,6 +225,39 @@ A hold is not a pause. Nothing waits on the connection, because an approval can 
 </Steps>
 
 The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
+
+#### What a hold files
+
+**postgres, mysql, mssql, mongodb and clickhouse** file the statement as the codec reads it.
+
+**http** files the method, the target and the body: `POST /transfers?dry_run=false`, a blank line, then the body. The analyzer already needs `capture_body: true`. Five consequences:
+
+- A body larger than `http.max_body_bytes` is truncated by the codec, so the hold denies it without filing. The approval would bind to bytes nobody read.
+- A query value the codec redacts, such as a token or a password, is filed redacted. Requests that differ only in that value match one approval.
+- A request carrying a trace id, a nonce or a timestamp never matches twice. Every attempt files its own review and pages the approvers again.
+- A client that retries on its own timeout leaves two attempts in flight. The approval releases whichever claims it first.
+- A request that arrives in more than one read reaches the upstream in part before the analyzer decides: the request line, the headers and the start of the body. A denial does not recall them, so a route that acts on headers alone runs whatever the reviewer decides.
+
+**grpc** files the method path, a newline, then the message as protojson. **spanner** files the SQL alone when it reads SQL from the message, and the grpc form otherwise. The spanner reviewer reads the SQL, not its parameters or the database it runs against, so an approval releases the query with any bound values. Both need `grpc.capture_payload: true`, and the http consequences apply:
+
+- A message larger than `grpc.max_payload_bytes` denies without filing.
+- A message carrying a request id, a nonce or a transaction id never matches twice. Metadata is not filed, so a trace header does not break a match.
+- The request headers reach the upstream before the analyzer decides; the message does not.
+
+**ssh** holds `exec` only, because the analyzer classifies `exec_line` alone. A shell sends no statements, so a user could type in a shell what `exec` would hold. A holding ssh listener must therefore drop `shell` from [`capabilities_allowed`](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#capabilities-allowed). An absent key admits `shell`, so write the list out:
+
+```yaml
+listeners:
+  - name: prod-hosts
+    protocol: ssh
+    # ...
+    ssh:
+      capabilities_allowed: [exec]
+    analyzer:
+      trigger: {operations: [exec_line]}
+      high: require_review
+      approval_rule: prod-approvers
+```
 
 **The approval is exact; the classification is not.** The [cache](#the-three-cost-controls) keys on the statement shape with literals stripped, so `WHERE tenant = 'test'` and `WHERE tenant = 'prod'` share one verdict. A shape rated high holds every statement of that shape, each filing its own review. A shape rated low forwards without a hold, even when a later literal makes it the dangerous one. Set `cache: {size: 0}` on a listener where every statement must be judged on its own, and pay one model call per statement.
 
@@ -706,7 +750,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | `require_review` on a level with no `approval_rule` | Refused: nobody could release the held statement |
 | `approval_rule` with no level asking for `require_review` | Refused: it names reviewers nobody consults |
 | A blank `approval_rule` | Refused: spaces match no rule in the Control Plane |
-| `require_review` on a listener that is not `postgres`, `mysql`, `mssql` or `mongodb` | Refused: a hold needs a client that resends the statement. An HTTP or gRPC caller reads a refusal, and an SSH session is already closed |
+| `require_review` on an ssh listener that admits `shell` | Refused: a shell sends no statements, so what is typed in it goes around the hold. Drop `shell` from `capabilities_allowed` |
 | `require_review` on a Sidecar with no Control Plane | Refused: there is nowhere to file the review |
 | `require_review` on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
 | `action` set on a deprecated `ai_analysis` rule | Refused: risk maps to actions through `high`, `medium` and `low`. The block has no `action` field at all. |

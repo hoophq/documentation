@@ -42,12 +42,12 @@ The listener's `analyzer` block maps each risk level the model can report to a t
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
-| `require_review` | Deny the first attempt and file it for a person to approve. An identical retry after approval forwards once. |
+| `require_review` | Hold the statement on its connection for up to 30 minutes while a person reviews it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
 <Note>
-`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on `postgres`, `mysql`, `mssql` and `mongodb` listeners, where the client can resend the statement. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry contract.
+`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on every protocol; an ssh listener holds `exec` only and must drop `shell`. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the wait, the retry and what each protocol files.
 </Note>
 
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
