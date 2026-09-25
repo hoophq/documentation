@@ -21,7 +21,7 @@ sequenceDiagram
     actor R as Reviewer
 
     S->>CP: hold a statement (approval_rule)
-    CP->>SL: post the review to the Slack channel
+    CP->>SL: post the review to the listener's channels
     R->>SL: click Approve
     SL->>CP: the click (Socket Mode)
     CP->>CP: find the hoop user, check the group
@@ -30,7 +30,7 @@ sequenceDiagram
 ```
 
 - **Reviewers are hoop users.** Their groups come from your identity provider at each login.
-- **One channel.** Every review goes to the channel set in **Settings** → **Slack**.
+- **Channels are per listener.** A listener without channels uses the fallback channel.
 - **Socket Mode.** The Control Plane dials out to Slack. No inbound URL is exposed.
 
 ---
@@ -101,10 +101,10 @@ sequenceDiagram
   <Step title="Create the app-level token">
     Open **Basic Information** → **App-Level Tokens** → **Generate Token and Scopes**. Name it `hoop`, add the scope `connections:write`, and copy the token (`xapp-…`).
   </Step>
-  <Step title="Prepare the channel">
-    Choose the channel for reviews. For a **private** channel, invite the bot: type `/invite @Hoop Bot` in the channel.
+  <Step title="Prepare the channels">
+    Choose a fallback channel, and optionally one channel per listener. For a **private** channel, invite the bot: type `/invite @Hoop Bot` in the channel.
 
-    hoop takes the channel **ID**, not the name. Open the channel details and copy the **Channel ID** at the bottom (`C0…`).
+    hoop takes channel **IDs**, not names. Open the channel details and copy the **Channel ID** at the bottom (`C0…`).
   </Step>
 </Steps>
 
@@ -116,11 +116,18 @@ Already have a Slack app for hoop? Add the `users:read` and `users:read.email` s
 
 ## 2. Configure the Control Plane
 
-Go to **Settings** → **Slack** → **Configurations**. Paste the **Slack bot token**, the **Slack app token** and the **Slack channel** ID. Click **Save**.
+<Steps>
+  <Step title="Save the tokens">
+    Go to **Settings** → **Slack** → **Configurations**. Paste the **Slack bot token** and the **Slack app token**. Optionally set the **Fallback channel**: it receives the reviews of listeners with no channel. Click **Save**.
 
-The Control Plane log shows `connected to Slack with Socket Mode`.
+    The Control Plane log shows `connected to Slack with Socket Mode`.
+  </Step>
+  <Step title="Choose a channel per listener">
+    Open the **Listeners** tab. It lists every listener of every Sidecar. Type the channel IDs in a listener's row and click **Save** on that row.
 
-Without a channel, a review is filed but nobody is notified in Slack, and the Control Plane logs a warning.
+    A listener with no channel posts to the fallback channel. With neither, the review is filed but nobody is notified in Slack, and the Control Plane logs a warning.
+  </Step>
+</Steps>
 
 ---
 
@@ -178,7 +185,7 @@ The Sidecar sees the approval on its next poll, within 5 seconds.
 
 ## Troubleshooting
 
-- **No message in Slack.** No channel is set, the channel ID is wrong, the bot is not in the private channel, or the log lacks `connected to Slack with Socket Mode`.
+- **No message in Slack.** The listener has no channel and there is no fallback, a channel ID is wrong, the bot is not in the private channel, or the log lacks `connected to Slack with Socket Mode`.
 - **A click does nothing, or answers "You are not registered".** Another server uses the same app token, usually a Gateway. Give the Control Plane its own app.
 - **Each review arrives twice.** Two Control Plane replicas run with Slack configured. Run one.
 - **A reviewer is refused after joining a group.** hoop reads groups at login. The reviewer logs in again.
@@ -190,5 +197,5 @@ The Sidecar sees the approval on its next poll, within 5 seconds.
 The Sidecar reports a statement, not a person, so the requester is unknown. Compared with the [Gateway](/integrations/slack):
 
 - No `/hoop subscribe`: hoop matches the Slack user by email.
-- One channel for every review, not channels per connection.
+- Channels are set per listener, not per connection.
 - No message to the requester, no requester groups and no self-approval check.
