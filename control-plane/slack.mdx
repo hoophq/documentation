@@ -119,18 +119,12 @@ Already have a Slack app for hoop? Add the three `users:*` and `usergroups:read`
 
 ## 2. Configure the Control Plane
 
-<Steps>
-  <Step title="Save the tokens">
-    Go to **Settings** → **Slack** → **Configurations**. Paste the **Slack bot token** and the **Slack app token**. Optionally set the **Fallback channel**: it receives the reviews of listeners with no channel. Click **Save**.
+- Go to **Settings** → **Slack** → **Configurations**.
+- Paste the **Slack bot token** and the **Slack app token**.
+- Paste the **Slack channel**: it receives the reviews of listeners.
+- Click **Save**.
 
-    The Control Plane log shows `connected to Slack with Socket Mode`.
-  </Step>
-  <Step title="Choose a channel per listener">
-    Open the **Listeners** tab. It lists every listener of every Sidecar. Type the channel IDs in a listener's row and click **Save** on that row.
-
-    A listener with no channel posts to the fallback channel. With neither, the review is filed but nobody is notified in Slack, and the Control Plane logs a warning.
-  </Step>
-</Steps>
+The Control Plane log shows `connected to Slack with Socket Mode`.
 
 ---
 
