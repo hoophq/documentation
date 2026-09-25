@@ -39,6 +39,10 @@
       "destination": "/install/cli"
     },
     {
+      "source": "/setup/configuration/hoop-sidecar/protocols/http/kubernetes",
+      "destination": "/setup/configuration/hoop-sidecar/protocols/kubernetes"
+    },
+    {
       "source": "/clients/cli",
       "destination": "/install/cli"
     },
@@ -102,13 +106,8 @@
                       "setup/configuration/hoop-sidecar/protocols/grpc",
                       "setup/configuration/hoop-sidecar/protocols/spanner",
                       "setup/configuration/hoop-sidecar/protocols/bigquery",
-                      {
-                        "group": "HTTP",
-                        "pages": [
-                          "setup/configuration/hoop-sidecar/protocols/http",
-                          "setup/configuration/hoop-sidecar/protocols/http/kubernetes"
-                        ]
-                      },
+                      "setup/configuration/hoop-sidecar/protocols/http",
+                      "setup/configuration/hoop-sidecar/protocols/kubernetes",
                       {
                         "group": "SSH",
                         "pages": [
