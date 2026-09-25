@@ -275,31 +275,29 @@ The `pii` rule type dispatches at the rule-set level rather than per rule, becau
 
 ---
 
-## Masking, and why Postgres needed a second mechanism
+## Masking, and why the codec owns it
 
-Masking runs on responses only. The gate picks a mechanism per protocol by asking the codec, not by consulting a list of protocol names:
+Masking runs on responses only. The gate asks the codec for one capability, `Reframer`, and hands it the response bytes and the masker:
 
 ```
 FromServer bytes
    ↓
-├─ codec implements Reframer? ──> maskByReframing()
-│                                  codec rebuilds every frame around
-│                                  the new values
-│
-└─ substitutionSafe(proto)?   ──> maskBySubstitution()
-                                   rewrite in place, then correct
-                                   Content-Length
+codec implements Reframer? ──> maskByReframing()
+                                codec rebuilds its own framing around
+                                the new values
 ```
 
-HTTP declares its body length in a header, so the gate substitutes bytes and retags `Content-Length`. Leave that header stale and the client reads the old count, stops mid-document, and you get a bug report about a corrupt upstream.
+Only the codec knows where a value ends and what declares its length, so only the codec can change a value without breaking the client's read of the stream.
 
 Postgres length-prefixes every row and every column. Substituting `ada@example.com` (15 bytes) with `[REDACTED:EMAIL_ADDRESS]` (24 bytes) desynchronizes psql on the next message, and the user sees "lost synchronization with server". The Postgres codec rebuilds the `DataRow` frames around the masked values instead.
 
-MSSQL has the same problem in a different framing, and no `Content-Length` to correct. Its codec reassembles the TDS token stream across packets, rewrites `ROW` and `NBCROW` values, and lays fresh packets over the result. A column type it cannot measure (`SQL_VARIANT`, `XML`, UDT) stops the rewriting for that connection rather than guessing a length; statements and policy carry on.
+MSSQL has the same problem in a different framing. Its codec reassembles the TDS token stream across packets, rewrites `ROW` and `NBCROW` values, and lays fresh packets over the result. A column type it cannot measure (`SQL_VARIANT`, `XML`, UDT) stops the rewriting for that connection rather than guessing a length; statements and policy carry on.
 
-A codec offering neither mechanism gets its `mask` section refused at startup. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
+HTTP declares its length in `Content-Length` or in chunk sizes, and a WebSocket message in its frames. The HTTP codec walks a JSON body value by value, hands each to the masker under its key path, corrects `Content-Length`, re-chunks a chunked body as it streams, undoes gzip and deflate around the masker, and re-frames a WebSocket text message. A text or JSON body under an encoding it cannot undo (zstd, br) is refused rather than forwarded unmasked. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#masking).
 
-**Source:** [`hoopinspect/codec/postgres/rewrite.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/codec/postgres/rewrite.go), [`hoopinspect/codec/mssql/rewrite.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/codec/mssql/rewrite.go), [`hoopinspect/gate/contentlength.go`](https://github.com/hoophq/hoop/blob/main/hoopinspect/gate/contentlength.go)
+A codec that cannot re-frame gets its `mask` section refused at startup, and a codec handed in through `CodecFactory` that cannot re-frame is refused when the gate is built. Accepting a mask config that can never fire is the failure that ends with an unmasked SSN in a screenshot.
+
+**Source:** [`sidecar/gate/gate.go`](https://github.com/hoophq/hoop/blob/main/sidecar/gate/gate.go) (`maskByReframing`, `MaskSupported`); the codecs in [`hoophq/libhoop`](https://github.com/hoophq/libhoop) under `v2/codec/{postgres,mssql,http}/rewrite*.go`
 
 ---
 

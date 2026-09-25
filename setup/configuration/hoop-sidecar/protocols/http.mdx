@@ -74,11 +74,11 @@ Trusting a header is safe only when nothing but that proxy can reach the listene
 
 ## Masking
 
-The codec rebuilds the response around the masked values. A JSON body is walked value by value, and each string or number reaches the masker under its dotted key path (`data.password`, `items.metadata.name`), so a `columns` rule names a JSON key the way it names a result-set column and masks it whatever it holds. A text body (`text/*`, XML, YAML, form data, or no `Content-Type`) is one cell for entity detection. Binary types and encodings other than gzip pass through untouched.
+The codec rebuilds the response around the masked values. A JSON body is walked value by value, and each string or number reaches the masker under its dotted key path (`data.password`, `items.metadata.name`), so a `columns` rule names a JSON key the way it names a result-set column and masks it whatever it holds. A text body (`text/*`, XML, YAML, form data, or no `Content-Type`) is masked as text. Binary types pass through untouched.
 
-`Content-Length` is corrected. A chunked body is re-chunked and streams: each complete top-level JSON value, or each chunk of text, goes out as soon as it is whole, so a watch or a log follow is not held to its end. A gzip body is inflated around the masker and compressed again. A body the codec is holding that grows past 16 MiB goes out unmasked, and the next response is masked again.
+`Content-Length` is corrected. A chunked body is re-chunked and streams: each complete top-level JSON value, or each line of text, goes out as soon as it is whole, so a watch or a log follow is not held to its end and a value split across two chunks is still masked whole. A gzip or deflate body is undone around the masker and compressed again. A text or JSON body under an encoding the codec cannot undo (zstd, br, lz4) is refused with a 403 and an `error` audit row rather than forwarded unmasked; a binary body under such an encoding passes. A body the codec is holding that grows past 16 MiB goes out unmasked, and the next response is masked again.
 
-See [Kubernetes API](/setup/configuration/hoop-sidecar/protocols/http/kubernetes) for `columns: [data]` against kube-apiserver's chunked responses.
+See [Kubernetes API](/setup/configuration/hoop-sidecar/protocols/http/kubernetes) for `columns: [data]` against kube-apiserver's chunked responses, and the [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse) HTTP interface for TSV, `JSONEachRow` and `FORMAT JSON` results.
 
 ---
 
@@ -127,7 +127,7 @@ curl -sk https://envoy:8443/anything -H 'x-hoop-user: alice'
     kube-apiserver behind an http lane: header guardrails, masking by JSON key, kubectl exec.
   </Card>
   <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
-    `http_resource` globs, `http_status` ranges, `http_header` patterns, and deferring a match to Rego.
+    `http_resource` globs, `http_status` ranges, `http_header` and `headers_not` patterns, and deferring a match to Rego.
   </Card>
   <Card title="Risk Analysis" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis">
     What the lane's analyzer sees with and without `capture_body`, and what it costs.

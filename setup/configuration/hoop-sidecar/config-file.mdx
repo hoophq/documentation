@@ -308,7 +308,7 @@ Each entry in `guardrails.rules` is one rule. A rule matches, and by default it 
 | `deny_words_list` | The text contains any word, case-insensitively | `words` |
 | `http_resource` | The normalized request path matches | `resources`, `methods` |
 | `http_status` | The response status matches | `statuses`, `methods` |
-| `http_header` | Every named captured header matches one of its patterns | `headers`, `resources`, `methods` |
+| `http_header` | Every header in `headers` matches one of its patterns and every header in `headers_not` matches none (or is absent); requests only | `headers`, `headers_not`, `resources`, `methods` |
 | `pii` | The detector finds a listed entity in the statement | `entities` |
 
 The AI analyzer is not in this table because it is not a rule. It is a listener component with its own `analyzer` block beside `guardrails`; the deprecated rule spelling `type: ai_analysis` still loads and warns. See the note below.
