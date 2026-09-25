@@ -15,18 +15,27 @@ This page is for the Control Plane. For the Gateway, see [Slack](/integrations/s
 
 ```mermaid
 sequenceDiagram
+    actor R as Reviewer
+    participant IdP as Identity provider
     participant S as Sidecar
     participant CP as Control Plane
     participant SL as Slack
-    actor R as Reviewer
 
+    R->>IdP: log in to the Control Plane
+    IdP->>CP: the user's groups (each login)
     S->>CP: hold a statement (approval_rule)
-    CP->>SL: post the review to the listener's channels
-    R->>SL: click Approve
+    CP->>SL: post the review to the listener's channels, else the fallback channel
+    R->>SL: click Approve or Reject
     SL->>CP: the click (Socket Mode)
-    CP->>CP: find the hoop user, check the group
-    S->>CP: poll the review
-    CP-->>S: approved, run the statement
+    CP->>SL: read the Slack user (users.info)
+    CP->>CP: find the hoop user by Slack ID, else email; check status and group
+    alt allowed
+        CP->>SL: update the message: approved, or rejected with the reason
+    else refused
+        CP-->>SL: tell only the clicker why
+    end
+    S->>CP: poll the review, every 5 seconds
+    CP-->>S: approved: run the statement
 ```
 
 - **Reviewers are hoop users.** Their groups come from your identity provider at each login.
@@ -158,28 +167,74 @@ With no group, the admin group reviews. The Control Plane sets the listener's `a
 
 ## 5. Approve in Slack
 
-The review shows the Sidecar, the listener, the statement and one button per group that may approve. **Reject** asks for an optional comment. **More details** opens the review on the Control Plane **Reviews** page, which every signed-in user can open.
+The review shows the Sidecar, the listener, the statement and one button per group that may approve. **Reject** asks for an optional reason. **More details** opens the review on the Control Plane **Reviews** page, which every signed-in user can open.
 
 On a click, hoop finds the approver:
 
 1. The hoop user with that Slack ID.
 2. Else, exactly one hoop user with the Slack user's email.
 
-The user must be active or invited, and in the group of the button. Otherwise only the clicker sees why:
+The user must be active or invited, and in the group of the button. Otherwise only the clicker sees why: see [Messages in Slack](#messages-in-slack).
+
+The Sidecar sees the approval on its next poll, within 5 seconds.
+
+---
+
+## Messages in Slack
+
+### On the review message
+
+Everyone in the channel sees these. They replace the buttons as the review changes, whether a reviewer acts in Slack, on the Reviews page or through the API.
+
+| Message | Meaning |
+|---------|---------|
+| `<email> approved this session at <time>` | That group approved |
+| `<email> rejected this session at <time>` | That group rejected |
+| `Approved by N of M required group(s)` | More approvals are needed; the other buttons stay |
+| `Session ready to be executed!` | The review is approved; the Sidecar runs the statement on its next poll |
+| `Rejection reason:` followed by the quoted text | The reason the reviewer typed when rejecting |
+
+### Only to the person who clicked
+
+hoop checks a click in this order and answers with the first check that fails. **Reject** asks for the reason before these checks run, so a refused reviewer sees the answer after sending the reason.
+
+**The Slack user**
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `You do not belong to group "…"` | The user is not in that group | Add them to the group in the identity provider, then they open the login link in the message |
-| `No Hoop user has the email …` | No hoop user with that email | The reviewer opens the login link in the message, or an admin adds them on the Users page |
-| `More than one Hoop user has the email …` | Two users share the email | Fix it on the Users page |
-| `Hoop could not read the email of your Slack user…` | The app lacks `users:read.email` | Add the scope and reinstall, or set the Slack ID |
-| `Hoop could not verify your Slack user. Ask an admin to add the users:read scope…` | The app lacks `users:read` | Add the scope and reinstall |
-| `Your Hoop user is not active…` | The hoop user is deactivated | Reactivate it on the Users page |
-| `Confirm the email of your Slack user…` | Unconfirmed email in Slack | The user confirms it in Slack |
-| `Slack guests cannot approve a review.` | Slack guest | Use a full member |
-| `Users from another Slack workspace cannot approve a review.` | Slack Connect user | Use a member of your workspace |
+| `Hoop could not verify your Slack user. Try again.` | Slack answered `users.info` with an error | Click again. If it persists, check the Control Plane log |
+| `Hoop could not verify your Slack user. Ask an admin to add the users:read scope to the Slack app and reinstall it.` | The Slack ID is set on the hoop user, and the app lacks `users:read` | Add the scope and reinstall the app |
+| `Hoop could not read the email of your Slack user. Ask an admin to add the users:read.email scope to the Slack app, or to set your Slack ID on the Users page.` | The app lacks `users:read.email`, or Slack returns no email | Add the scope and reinstall, or set the Slack ID on the Users page |
+| `Your Slack user is deactivated.` | The Slack account is deactivated | Use an active Slack account |
+| `A bot cannot approve a review.` | A bot or an app clicked | A person approves |
+| `Slack guests cannot approve a review.` | The user is a guest in Slack | Use a full member |
+| `Users from another Slack workspace cannot approve a review.` | A Slack Connect user, or a workspace outside your Enterprise Grid | Use a member of your workspace |
+| `Confirm the email of your Slack user before approving a review.` | The email is not confirmed in Slack. Checked only when hoop matches by email | The user confirms the email in Slack |
 
-The Sidecar sees the approval on its next poll, within 5 seconds.
+**The hoop user**
+
+| Message | Cause | Fix |
+|---------|-------|-----|
+| `No Hoop user has the email <email>. Log in to Hoop once, or ask an admin to add you on the Users page.` | No active or invited hoop user has that email. A deactivated user matched by email gets this too | Open the login link under the message, or an admin adds or reactivates the user on the Users page |
+| `More than one Hoop user has the email <email>. Ask an admin to fix it on the Users page.` | Two hoop users share the email | Remove or change one on the Users page |
+| `Your Hoop user is not active. Ask an admin to reactivate it on the Users page.` | The Slack ID is set on a deactivated hoop user | Reactivate the user on the Users page |
+| `failed obtaining approver's information` | The Control Plane could not read its database | Click again. If it persists, check the Control Plane log |
+
+**The group**
+
+| Message | Cause | Fix |
+|---------|-------|-----|
+| `You do not belong to group "<group>". If you joined it recently, log in to Hoop to refresh your groups.` | The hoop user is not in the group of the button | Add the user to the group in the identity provider, then they open the login link under the message |
+| `failed obtaining approver's groups` | The Control Plane could not read the user's groups | Click again. If it persists, check the Control Plane log |
+
+**The review**
+
+| Message | Cause | Fix |
+|---------|-------|-----|
+| `The review is already approved or rejected` | The review was rejected, revoked, or already run | Nothing to do. The Sidecar holds the next statement in a new review |
+| `review not found` | The review no longer exists | Nothing to do |
+| `You're not eligible to approve/reject this review` | None of the user's groups is on the review | Add the user to one of the review's groups |
+| Any other text | An internal error, shown as it came | Check the Control Plane log |
 
 ---
 
