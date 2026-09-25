@@ -3,7 +3,7 @@ title: "Slack"
 description: "Send held statements to Slack. Reviewers approve there without signing in."
 ---
 
-When a listener holds a statement for a person ([`require_review`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person)), the Control Plane posts a review to Slack. A reviewer clicks **Approve** or **Reject** in the message. They never open the Control Plane: hoop finds the hoop user behind the Slack user and checks that user's groups.
+When a listener holds a statement for a person ([`require_review`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person)), the Control Plane posts a review to Slack. A reviewer clicks **Approve** or **Reject** in the message. They never open the Control Plane: hoop finds the hoop user behind the Slack user and checks their role.
 
 <Note>
 This page is for the Control Plane. For the Gateway, see [Slack](/integrations/slack).
@@ -21,16 +21,16 @@ sequenceDiagram
     actor R as Reviewer
 
     S->>CP: hold a statement (approval_rule)
-    CP->>SL: post the review to the listener's channels
+    CP->>SL: post the review to the channel
     R->>SL: click Approve
     SL->>CP: the click (Socket Mode)
-    CP->>CP: find the hoop user, check the group
+    CP->>CP: find the hoop user, check the role
     S->>CP: poll the review
     CP-->>S: approved, run the statement
 ```
 
-- **Channels are per listener.** A listener without channels uses the fallback channel.
-- **Reviewers are hoop users.** They come from Slack user groups (the Slack import) or from the Users page.
+- **One channel.** Every review goes to the channel set in the Slack settings.
+- **Reviewers are hoop users.** An administrator or an approver on the Users page, with their Slack ID set.
 - **Socket Mode.** The Control Plane dials out to Slack. No inbound URL is exposed.
 
 ---
@@ -39,7 +39,6 @@ sequenceDiagram
 
 - Permission to [create a Slack app](https://api.slack.com/apps) and install it in your workspace.
 - An admin user on the Control Plane.
-- A paid Slack plan (Pro or higher) for the Slack import: Slack user groups do not exist on the free plan. Without it, add reviewers on the Users page.
 - **One Slack app for this Control Plane only.** Slack sends each click to any open connection of the app. A Gateway or a second Control Plane on the same app token takes clicks that are not theirs.
 - **One Control Plane replica** with Slack configured. See [Replicas and Deployment Strategy](/control-plane/deployment/kubernetes#replicas-and-deployment-strategy).
 
@@ -71,8 +70,6 @@ sequenceDiagram
               "bot": [
                 "chat:write",
                 "chat:write.public",
-                "users:read",
-                "users:read.email",
                 "usergroups:read"
               ]
             }
@@ -93,10 +90,8 @@ sequenceDiagram
     | Scope | Why |
     |-------|-----|
     | `chat:write` | Post and update reviews, and answer a reviewer privately |
-    | `chat:write.public` | Post to public channels without inviting the bot |
-    | `users:read` | Read the Slack user who clicked, and the members for the import |
-    | `users:read.email` | Match a Slack user to a hoop user by email |
-    | `usergroups:read` | List user groups for the import |
+    | `chat:write.public` | Post to a public channel without inviting the bot |
+    | `usergroups:read` | Optional. Check the reviewer against a Slack user group named after the role, see [Approve in Slack](#5-approve-in-slack) |
   </Step>
   <Step title="Install it">
     Click **Install to Workspace**. Then open **OAuth & Permissions** and copy the **Bot User OAuth Token** (`xoxb-…`).
@@ -104,97 +99,68 @@ sequenceDiagram
   <Step title="Create the app-level token">
     Open **Basic Information** → **App-Level Tokens** → **Generate Token and Scopes**. Name it `hoop`, add the scope `connections:write`, and copy the token (`xapp-…`).
   </Step>
-  <Step title="Prepare the channels">
-    Choose a fallback channel, and optionally one channel per listener. For a **private** channel, invite the bot: type `/invite @Hoop Bot` in the channel.
+  <Step title="Prepare the channel">
+    Choose the channel that receives the reviews. For a **private** channel, invite the bot: type `/invite @Hoop Bot` in the channel.
 
-    hoop takes channel **IDs**, not names. Open the channel details and copy the **Channel ID** at the bottom (`C0…`).
+    hoop takes the channel **ID**, not the name. Open the channel details and copy the **Channel ID** at the bottom (`C0…`).
   </Step>
 </Steps>
 
 <Tip>
-Already have a Slack app for hoop? Add the three `users:*` and `usergroups:read` scopes and reinstall it. Slack does not apply new scopes before a reinstall. Do not share it with a Gateway.
+Already have a Slack app for hoop? Do not share it with a Gateway. Create a second app for the Control Plane.
 </Tip>
 
 ---
 
 ## 2. Configure the Control Plane
 
-- Go to **Settings** → **Slack** → **Configurations**.
+- Go to **Settings** → **Slack**.
 - Paste the **Slack bot token** and the **Slack app token**.
-- Paste the **Slack channel**: it receives the reviews of listeners.
+- Paste the **Slack channel** ID.
 - Click **Save**.
 
 The Control Plane log shows `connected to Slack with Socket Mode`.
+
+<Warning>
+Without a channel, the Control Plane files the review but posts nothing. The log shows `the org has no default slack channel, nobody was notified of this review`.
+</Warning>
 
 ---
 
 ## 3. Add reviewers
 
-A reviewer is a hoop user in the group the rule names. Add them in one of two ways.
+A reviewer is a hoop user with the **Administrator** or **Approver** role. Go to **Settings** → **Users** → **Add User**, pick the role, and set the **Slack ID**.
 
-<Tabs>
-  <Tab title="Slack import">
-    The members of the Slack user groups you pick become hoop users. `@dba-leads` becomes the group `dba-leads`.
+To copy the Slack ID: in Slack, open the person's profile → **⋮** → **Copy member ID** (`U…`).
 
-    1. Go to **Settings** → **Users** → **Slack import**.
-    2. Pick the user groups and the sync interval (5 minutes or more).
-    3. Click **Save**, then **Sync now**.
-    4. Open **Members**: the users show with their groups and Slack ID.
-
-    What a run does:
-
-    - Finds each member by Slack ID, then by email, else creates the user. The Slack ID links the two.
-    - Skips bots, guests, deactivated users and users of other organizations.
-    - Keeps the group name of the first import. A rename in Slack does not rename the hoop group, so the rules that name it keep working.
-    - A member who leaves the user group loses the hoop group and keeps the account.
-    - A user deactivated in Slack is deactivated in hoop, never an admin. The import never reactivates a user.
-    - Refuses a user group named `admin`, `auditor` or `approver`.
-    - Writes one audit entry with who joined and left each group.
-
-    While the import is on, an SSO login does not overwrite the imported groups. **Remove** stops the import and keeps the users and their groups.
-
-    <Warning>
-    Whoever can edit a picked user group chooses who approves. In Slack, go to **Workspace settings** → **Permissions** → **User Groups** and allow only admins to create and edit user groups.
-    </Warning>
-  </Tab>
-  <Tab title="Users page">
-    Go to **Settings** → **Users** → **Members** → **Add User**. Use the reviewer's Slack email, and add the group.
-
-    If the emails differ, set the **Slack ID** on the user. To copy it in Slack: open the person's profile → **⋮** → **Copy member ID** (`U…`).
-  </Tab>
-</Tabs>
+<Note>
+A click from a Slack user with no hoop user behind it is refused with `You are not registered`. The Slack ID is what links the two.
+</Note>
 
 ---
 
-## 4. Name the reviewers on the rule
+## 4. Hold statements on the rule
 
-Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**, then add the groups in **Reviewers**. The Control Plane sets the listener's `approval_rule` to this rule for you. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
+Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval** and save. The Control Plane sets the listener's `approval_rule` for you and creates the access request rule behind it, named after the analyzer rule. Its reviewers are the `approver` and `admin` roles, and one approval releases the statement. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 
 ---
 
 ## 5. Approve in Slack
 
-The review shows the Sidecar, the listener, the statement and the groups that may approve. **Reject** asks for an optional comment.
+The review shows the Sidecar, the listener, the statement and one button per role that may approve. **Reject** asks for an optional comment.
 
-On a click, hoop finds the approver:
+On a click, hoop finds the hoop user with that Slack ID, then checks the role of the button:
 
-1. The hoop user with that Slack ID.
-2. Else, exactly one hoop user with the Slack user's email.
+1. If the workspace has a Slack user group whose handle or name equals the role (`@approver`, `@admin`), the clicker must be a member of it. This needs the `usergroups:read` scope.
+2. Otherwise, the hoop user must have that role.
 
-On both paths, Slack must still vouch for the user: not deactivated, not a guest, and in your workspace. The hoop user must be active or invited, and in the group of the button. Otherwise only the clicker sees why:
+When the check fails, only the clicker sees why:
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `You do not belong to group "…"` | The user is not in that group | Add them to the group, or to the Slack user group and sync |
-| `No Hoop user has the email …` | No hoop user with that email | Add the user, or run the import |
-| `More than one Hoop user has the email …` | Two users share the email | Fix it on the Users page |
-| `Hoop could not read the email of your Slack user…` | The app lacks `users:read.email` | Add the scope and reinstall, or set the Slack ID |
-| `Hoop could not verify your Slack user. Ask an admin to add the users:read scope…` | The app lacks `users:read` | Add the scope and reinstall |
-| `Your Slack user is deactivated.` | The Slack account is deactivated | None: a deactivated user cannot approve |
-| `Your Hoop user is not active…` | The hoop user is deactivated | Reactivate it on the Users page |
-| `Confirm the email of your Slack user…` | Unconfirmed email in Slack | The user confirms it in Slack |
-| `Slack guests cannot approve a review.` | Slack guest | Use a full member |
-| `Users from another Slack workspace cannot approve a review.` | Slack Connect user | Use a member of your workspace |
+| `You are not registered…` | No hoop user has that Slack ID | Set the Slack ID on the user |
+| `You do not belong to group "…"` | The user does not have that role | Change the role on the Users page |
+| `You do not belong to the Slack group @… mapped to group "…"` | A Slack user group has the role's name and the user is not in it | Add the user to that Slack user group, or rename the user group |
 
 The Sidecar sees the approval on its next poll, within 5 seconds.
 
@@ -202,12 +168,10 @@ The Sidecar sees the approval on its next poll, within 5 seconds.
 
 ## Troubleshooting
 
-- **No message in Slack.** The bot is not in the private channel, the channel ID is wrong, the listener has no channel and there is no fallback, or the log lacks `connected to Slack with Socket Mode`.
-- **A click does nothing, or answers "You are not registered".** Another server uses the same app token, usually a Gateway. Give the Control Plane its own app.
+- **No message in Slack.** The bot is not in the private channel, the channel ID is wrong, no channel is set, or the log lacks `connected to Slack with Socket Mode`.
+- **A click does nothing.** Another server uses the same app token, usually a Gateway. Give the Control Plane its own app.
 - **Each review arrives twice.** Two Control Plane replicas run with Slack configured. Run one.
-- **The Slack import shows no user groups.** The app lacks `usergroups:read` (add it and reinstall), or the Slack plan has no user groups.
-- **A sync fails with "no longer exists".** The user group was deleted in Slack. Remove it from the import.
-- **A sync fails with "slack returned no email".** The app lacks `users:read.email`. Add it and reinstall the app. The run writes nothing until then.
+- **The log says `failed listing slack user groups`.** The app lacks `usergroups:read`. hoop falls back to the hoop role. Add the scope and reinstall the app, or ignore it.
 
 ---
 
@@ -215,6 +179,7 @@ The Sidecar sees the approval on its next poll, within 5 seconds.
 
 The Sidecar reports a statement, not a person, so the requester is unknown. Compared with the [Gateway](/integrations/slack):
 
-- No `/hoop subscribe`: add reviewers with the Slack import or on the Users page.
-- Channels are set per listener, not per connection.
+- No `/hoop subscribe`: add reviewers on the Users page, with their Slack ID.
+- One channel for every review, not one per resource role.
+- Reviewers are the `approver` and `admin` roles, not the groups of a rule.
 - No message to the requester, no requester groups and no self-approval check.
