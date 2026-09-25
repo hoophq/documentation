@@ -308,6 +308,7 @@ Each entry in `guardrails.rules` is one rule. A rule matches, and by default it 
 | `deny_words_list` | The text contains any word, case-insensitively | `words` |
 | `http_resource` | The normalized request path matches | `resources`, `methods` |
 | `http_status` | The response status matches | `statuses`, `methods` |
+| `http_header` | Every named captured header matches one of its patterns | `headers`, `resources`, `methods` |
 | `pii` | The detector finds a listed entity in the statement | `entities` |
 
 The AI analyzer is not in this table because it is not a rule. It is a listener component with its own `analyzer` block beside `guardrails`; the deprecated rule spelling `type: ai_analysis` still loads and warns. See the note below.
@@ -972,7 +973,7 @@ An `ssh` lane terminates its protocol instead of relaying it, so several keys th
 | `capabilities_allowed` naming `local_forward` or `forward` | Forwarding is not a member of that list. `ssh.destinations_allowed` decides where a forward may be carried, and an absent or empty one denies every forward. |
 | a malformed `destinations_allowed` entry | Write a prefix such as `10.0.0.0/8`, a single host as `10.0.0.5/32`, or `any`. Parsed at load, never at connection time. |
 | `ssh.identity` naming a source other than `key_id`, `principals` or `extensions.<name>` | A source the lane cannot read would leave the field empty, and an empty subject is an audit trail that cannot say who ran a command. |
-| a `table`, `http_resource`, `http_status` or `grpc_status` rule | An SSH statement has nothing for them to read. Match a path with `pattern_match` scoped to the `sftp_*` operations instead. |
+| a `table`, `http_resource`, `http_status`, `http_header` or `grpc_status` rule | An SSH statement has nothing for them to read. Match a path with `pattern_match` scoped to the `sftp_*` operations instead. |
 | a `mask` rule whose strategy is not `mask`, or whose `mask_char` is not ASCII | The lane masks bytes in place and cannot change length. |
 
 **`--validate` cannot check the accounts.** The login name arrives in the handshake, so a host missing an account it meant to serve is discovered by the first session that asks for it. See [Host Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/hosts#verification).

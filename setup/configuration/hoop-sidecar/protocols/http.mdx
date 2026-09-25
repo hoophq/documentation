@@ -60,9 +60,9 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `capture_body` | Includes request and response bodies in the statement. Required for `pii`/`pattern_match` rules that must read payloads, and for the lane's analyzer. Startup refuses those without it, because they would load and then fire on nothing. |
+| `capture_body` | Includes request and response bodies in the statement. A `pii` or `pattern_match` rule that reads payloads needs it, and so does the analyzer to see what a POST carries. The analyzer judges a bodiless request from its request line and headers without it. |
 | `max_body_bytes` | Truncates a captured body. Default 64 KiB. |
-| `headers` | Headers exposed to policy, matched case-insensitively. `authorization`, `cookie` and `proxy-authorization` can never be listed. |
+| `headers` | Headers exposed to policy, the audit trail and the analyzer, matched case-insensitively. An `http_header` rule may name only headers listed here. `authorization`, `cookie`, `proxy-authorization` and `set-cookie` can never be listed. |
 
 ## Identity
 
@@ -74,9 +74,11 @@ Trusting a header is safe only when nothing but that proxy can reach the listene
 
 ## Masking
 
-HTTP declares its body length in a header the gate can correct, so masking works by **substitution**: the gate rewrites values in place and retags `Content-Length` for the size delta. It rewrites only when it can do so soundly, meaning a complete header block, exactly one `Content-Length`, and a declared length matching the bytes present. In any other case it forwards the original bytes, because a wrong `Content-Length` desynchronizes each request that follows on a keep-alive connection.
+The codec rebuilds the response around the masked values. A JSON body is walked value by value, and each string or number reaches the masker under its dotted key path (`data.password`, `items.metadata.name`), so a `columns` rule names a JSON key the way it names a result-set column and masks it whatever it holds. A text body (`text/*`, XML, YAML, form data, or no `Content-Type`) is one cell for entity detection. Binary types and encodings other than gzip pass through untouched.
 
-A **chunked** response has no `Content-Length` and goes through unmasked. Where masking is the control, keep the upstream on plain responses, or put a guardrail on the resource instead.
+`Content-Length` is corrected. A chunked body is re-chunked and streams: each complete top-level JSON value, or each chunk of text, goes out as soon as it is whole, so a watch or a log follow is not held to its end. A gzip body is inflated around the masker and compressed again. A body the codec is holding that grows past 16 MiB goes out unmasked, and the next response is masked again.
+
+See [Kubernetes API](/setup/configuration/hoop-sidecar/protocols/http/kubernetes) for `columns: [data]` against kube-apiserver's chunked responses.
 
 ---
 
@@ -121,10 +123,13 @@ curl -sk https://envoy:8443/anything -H 'x-hoop-user: alice'
 ## Next
 
 <CardGroup cols={2}>
+  <Card title="Kubernetes API" icon="dharmachakra" href="/setup/configuration/hoop-sidecar/protocols/http/kubernetes">
+    kube-apiserver behind an http lane: header guardrails, masking by JSON key, kubectl exec.
+  </Card>
   <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
-    `http_resource` globs, `http_status` ranges, and deferring a match to Rego.
+    `http_resource` globs, `http_status` ranges, `http_header` patterns, and deferring a match to Rego.
   </Card>
   <Card title="Risk Analysis" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis">
-    Why the lane's analyzer requires `capture_body`, and what it costs.
+    What the lane's analyzer sees with and without `capture_body`, and what it costs.
   </Card>
 </CardGroup>
