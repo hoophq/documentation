@@ -477,13 +477,23 @@ An interactive shell never reaches the analyzer at all: it produces no statement
       extra:
         project: my-gcp-project
         region: global          # or a region like us-east5
-        # publisher: anthropic  # the default; google serves Gemini, see below
+        # publisher: anthropic  # the default; see the table below for google and openapi
       # credentials_file omitted -> Application Default Credentials
     ```
 
     Vertex authenticates with a GCP OAuth bearer minted from a service account and refreshed before expiry. `--validate` mints one token, so a bad key, a missing `roles/aiplatform.user` binding or a skewed clock fails the config check rather than the first risky statement.
 
-    The same bearer serves Gemini. Set `publisher: google` and a Gemini model:
+    You choose the model family with `publisher`, and the relay calls that family's Vertex API:
+
+    | `publisher` | Models | Vertex API | `model` format |
+    |---|---|---|---|
+    | `anthropic` (default) | Claude | `rawPredict` | `claude-sonnet-4-5@20250929` |
+    | `google` | Gemini | `generateContent` | `gemini-2.5-flash` |
+    | `openapi` | Model Garden open models with an API endpoint, such as Llama, DeepSeek, Qwen and gpt-oss | OpenAI-compatible Chat Completions | `<publisher>/<model>`, e.g. `meta/llama-4-maverick-17b-128e-instruct-maas` |
+
+    One bearer token covers all three. The relay keeps no model list, so any model name Vertex accepts works, and it refuses an unknown `publisher` at startup.
+
+    For Gemini, set `publisher: google` and a Gemini model:
 
     ```yaml
     analyzer:
@@ -492,11 +502,26 @@ An interactive shell never reaches the analyzer at all: it produces no statement
       extra: {project: my-gcp-project, region: global, publisher: google}
     ```
 
+    For an open model, set `publisher: openapi` and the model ID from its Model Garden card, publisher prefix included. Enable the model on that card first. Some open models have no `global` endpoint, so pick a `region` from the card.
+
+    ```yaml
+    analyzer:
+      provider: vertex
+      model: meta/llama-4-maverick-17b-128e-instruct-maas
+      extra: {project: my-gcp-project, region: us-east5, publisher: openapi}
+    ```
+
+    Vertex routes the shared `openapi` endpoint by that prefix, so the relay refuses a model name without `<publisher>/` at startup.
+
+    <Warning>
+    The analyzer reads its verdict from a forced tool call, so pick a model with function calling. A model without it fails each statement with `model called no risk tool`, and under `fail_open: true` the relay lets those statements through unscored.
+    </Warning>
+
     <Tip>
     Prefer Workload Identity and omit `credentials_file`. On GKE there is then **no credential on disk at all**: the pod's identity is the credential, so you have nothing to leak or rotate.
     </Tip>
 
-    Set `region: global` or a multi-region endpoint. A single-region endpoint is an availability risk for something sitting on a database hot path.
+    Set `region: global` or a multi-region endpoint where the model offers one. A single-region endpoint is an availability risk for something sitting on a database hot path.
   </Tab>
   <Tab title="Gemini (API key)">
     ```yaml
@@ -548,8 +573,8 @@ strongest first.
     On GKE, GCE or Cloud Run, omit `credentials_file`. Vertex then resolves
     Application Default Credentials, and **there is no credential on disk at
     all**: the pod's identity is the credential, so nothing can leak from an
-    image layer, a backup or a `kubectl cp`. This covers Claude and Gemini
-    alike; `publisher: google` picks Gemini.
+    image layer, a backup or a `kubectl cp`. This works for all three Vertex
+    publishers: Claude, Gemini and the open models.
 
     ```yaml config.yaml
     analyzer:
@@ -766,6 +791,8 @@ Each of these would otherwise load, evaluate and do nothing:
 | An `http` block on a non-HTTP lane | Refused, naming the lane |
 | `authorization`, `cookie` or `proxy-authorization` allowlisted | Refused, naming the header |
 | A Vertex credential that cannot mint a token | Refused, distinguishing parse, IAM and clock failures |
+| A Vertex `publisher` other than `anthropic`, `google` or `openapi` | Refused, listing the three |
+| `publisher: openapi` with a model lacking its `<publisher>/` prefix | Refused: the shared endpoint cannot route it |
 
 One former refusal moved to runtime: a risk level set to `defer` on a lane with no `opa.url` now loads, `--validate` prints a note, and a deferred verdict **denies** instead of reporting a finding nobody reads.
 
