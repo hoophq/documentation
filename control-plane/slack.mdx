@@ -28,7 +28,7 @@ sequenceDiagram
     R->>SL: click Approve or Reject
     SL->>CP: the click (Socket Mode)
     CP->>SL: read the Slack user (users.info)
-    CP->>CP: find the hoop user by Slack ID, else email; check status and group
+    CP->>CP: find the hoop user by Slack ID, else email, then check status and group
     alt allowed
         CP->>SL: update the message: approved, or rejected with the reason
     else refused
