@@ -49,7 +49,7 @@ listeners:
     protocol: http
     listen: 0.0.0.0:18080
     upstream: internal-api:8080
-    http:                          # required, see below
+    http:                          # what the model sees, see below
       capture_body: true
       max_body_bytes: 8192
       headers: [Content-Type]
@@ -412,9 +412,9 @@ Changing a prompt invalidates cached verdicts for the lanes it applies to, so a 
 
 ---
 
-## The HTTP lane needs `capture_body`
+## What the HTTP lane shows the model
 
-The HTTP codec exposes nothing by default: no bodies, no headers. Without a body the analyzer sees `POST /orders` and nothing else, which tells a model nothing.
+The HTTP codec exposes nothing by default: no bodies, no headers. The `http` block decides what the analyzer sees.
 
 ```yaml
   - name: api
@@ -422,16 +422,18 @@ The HTTP codec exposes nothing by default: no bodies, no headers. Without a body
     http:
       capture_body: true
       max_body_bytes: 8192
-      headers: [Content-Type]
+      headers: [Content-Type, Accept]
 ```
 
-An analyzer block on an HTTP lane **without** `capture_body: true` is refused at startup, because it could never classify anything. A `grpc` or `spanner` lane needs `grpc.capture_payload: true` for the same reason, and a lane whose protocol has no content builder at all is refused rather than left classifying nothing.
+A request with no body is classified from its request line and the headers in `http.headers`. On a REST API the path is the operation: `GET /api/v1/namespaces/prod/secrets/db-root` says what a kubectl user is about to read, and the `Accept` header says whether they want the names or the contents. `capture_body: true` adds a POST's payload; without it a write reaches the model as its request line alone. A bodiless response (a 204, a 101) is never classified.
 
-A request that carries no body is still skipped at runtime once capture is on, and that stays intentional: paying for a verdict on `POST /orders` with no payload is the cost this design avoids. The startup check only asserts that the proxy *could* capture a body.
+Headers you allowlist reach the model under the same terms as policy and the audit trail. `authorization`, `cookie`, `proxy-authorization` and `set-cookie` cannot be listed. The cache keys on the headers the model sees, so a per-request header such as kubectl's `Kubectl-Session` UUID turns every request into a model call; leave it out.
+
+A `grpc` or `spanner` lane needs `grpc.capture_payload: true`, because a payload is the only thing an RPC has to show. A lane whose protocol has no content builder at all is refused rather than left classifying nothing.
 
 ### What the model receives
 
-The Sidecar sends the request line as the client wrote it, then the resource the trigger matched on its own line where it differs, then the content type and the body. For `POST /orders/12345?export=all`:
+The Sidecar sends the request line as the client wrote it, then the resource the trigger matched on its own line where it differs, then the content type, the allowlisted headers in name order, and the body. For `POST /orders/12345?export=all`:
 
 ```
 POST /orders/12345?export=all
@@ -758,7 +760,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | A `provider` the binary does not link | Refused, listing what it does link |
 | A credential file readable by group or other | Refused, reporting the mode |
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
-| An analyzer on an HTTP lane without `http.capture_body`, or on a gRPC lane without `grpc.capture_payload` | Refused: every request would be skipped |
+| An analyzer on a gRPC lane without `grpc.capture_payload` | Refused: every RPC would be skipped |
 | A trigger naming an operation the lane never classifies — any SSH operation but `exec_line` | Refused, naming the operation and what the lane does classify |
 | A negative `max_calls`, `cache.size`, `cache.ttl_sec` or `max_output_tokens` | Refused: a negative reads as "off" with no warning |
 | An `http` block on a non-HTTP lane | Refused, naming the lane |

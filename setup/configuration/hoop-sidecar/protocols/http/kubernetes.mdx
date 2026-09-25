@@ -1,0 +1,213 @@
+---
+title: "Kubernetes API"
+description: "Put kube-apiserver behind an http lane: read kubectl's headers as a guardrail, mask Secret and ConfigMap data by JSON key, judge bodiless requests with the analyzer, and audit kubectl exec frames"
+---
+
+kubectl sends no request body. A `GET` on `/api/v1/namespaces/prod/secrets/db-root` is the whole operation, and the `Accept` header says whether the caller wants a table of names or the object itself. An `http` lane in front of kube-apiserver reads those three things, path, query and headers, and applies rules, masking and analysis to them.
+
+This page walks the configuration the [kubernetes overlay](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/kubernetes) of the compose stack runs. The same file works against your own cluster with the `upstream` and TLS paths changed.
+
+```yaml config.yaml
+listeners:
+  - name: kube
+    protocol: http
+    listen: 127.0.0.1:19999
+    upstream: 192.168.1.60:6443
+    upstream_tls:
+      ca_file: /Users/you/.kube/cluster-ca.crt
+      cert_file: /Users/you/.kube/admin.crt     # the lane authenticates upstream
+      key_file: /Users/you/.kube/admin.key
+    http:
+      headers: [Accept, Kubectl-Command, Upgrade, Sec-WebSocket-Protocol, X-Stream-Protocol-Version]
+    guardrails:
+      rules:
+        - name: no-secret-contents
+          type: http_header
+          methods: [GET]
+          resources: ["/api/v1/secrets", "/api/v1/namespaces/*/secrets/**"]
+          headers_not:
+            accept: ["application/json;as=Table;*"]
+          message: listing secrets is fine; reading one is not permitted through this proxy
+        - name: no-kubectl-delete
+          type: http_header
+          headers:
+            kubectl-command: ["kubectl delete*", "kubectl drain*"]
+          message: kubectl delete and drain are not permitted through this proxy
+    mask:
+      rules:
+        - name: k8s-data
+          columns: [data]
+          entities: [K8S_DATA]
+          strategy: redact
+        - name: credentials-in-responses
+          entities: [EMAIL_ADDRESS, JWT, PRIVATE_KEY, AWS_ACCESS_KEY]
+          strategy: redact
+```
+
+Point kubectl at the lane. It speaks plain HTTP to the loopback address; the lane presents the client certificate to the apiserver.
+
+```bash
+hoop start sidecar --config config.yaml
+kubectl --server http://127.0.0.1:19999 get pods -A
+```
+
+<Note>
+The free tier allows one guardrail and one mask rule per process. The file above needs a license for its second rule of each kind; drop `no-kubectl-delete` and `credentials-in-responses` to run it unlicensed.
+</Note>
+
+---
+
+## Two TLS shapes
+
+**The lane holds the credential.** kubectl connects to loopback without TLS and without a token. The lane opens TLS to the apiserver with `upstream_tls.cert_file` and `key_file`, so every request reaches the cluster as that certificate's identity. Use this on a workstation, or wherever one Sidecar serves one principal. Nothing in the request names a user, so the audit trail records `anonymous` unless you set `identity_header`.
+
+**A proxy holds the credential.** In the compose stack, Envoy terminates kubectl's TLS, OPA resolves the bearer token to a user and writes it back as `x-hoop-user`, and the lane verifies the apiserver with `upstream_tls.ca_file` alone. Set `identity_header: X-Hoop-User` so the audit row names the principal. `Authorization` cannot be allowlisted, so the token never reaches the audit trail, OPA or a model.
+
+Offer no ALPN on the upstream hop. The apiserver then answers in HTTP/1.1, the dialect the codec reads.
+
+---
+
+## Read the request through its headers
+
+kubectl stamps two headers the lane can act on:
+
+| Header | kubectl sends | Use |
+|---|---|---|
+| `Accept` | `application/json;as=Table;v=v1;g=meta.k8s.io,application/json` for `kubectl get`; `application/json` for `-o yaml`, `-o json`, `-o jsonpath` and `describe` | tells a listing from a read of the object |
+| `Kubectl-Command` | `kubectl get`, `kubectl delete`, `kubectl exec` | the subcommand, however the path spells it |
+
+`no-secret-contents` scopes an `http_header` rule to `GET` on the Secret collections and names, with `headers_not`, the one safe `Accept`: the table view. Every other request on a secret is refused: `kubectl get secret db-root -o yaml` (`Accept: application/json`), a client adding `;q=1`, one asking for `application/vnd.kubernetes.protobuf`, and a curl that sends no `Accept` at all. `kubectl get secrets` lists names. The `resources` patterns cover both spellings kubectl uses: `/api/v1/secrets` for `-A`, and `/api/v1/namespaces/<ns>/secrets` with or without a name for one namespace. A `*` segment before a trailing `/**` stays a wildcard.
+
+Write a rule that protects something with `headers_not`, naming what is safe. The other map, `headers`, names what is unsafe and matches when every named header is present with a listed value; `no-kubectl-delete` uses it, because there the header is the evidence. A request without the header cannot match `headers`, which is what makes it the wrong form for a guardrail on secrets.
+
+Values in both maps compare case-insensitively. A bare `*` matches any run of characters, which is what `kubectl delete*` needs to cover `kubectl delete pod x`, `kubectl delete -f` and `--all`, and what `application/json;as=Table;*` needs to cover the version and group parameters that follow. Write `\*` for a literal star. Several header names in one rule must all be satisfied; several values under one name are alternatives; an empty list means present (`headers`) or absent (`headers_not`). Only a request matches: a response carries the server's headers.
+
+The rule reads only headers the lane captures. Name one outside `http.headers`, in either map, and startup refuses the config with the header to add.
+
+```bash
+export K='kubectl --server http://127.0.0.1:19999'
+$K get secrets -A                                  # allowed: table view
+$K get secret db-root -n prod -o yaml              # 403 no-secret-contents
+$K describe secret db-root -n prod                 # 403: describe fetches the object
+$K delete pod web-0 -n prod                        # 403 no-kubectl-delete
+$K scale deploy web -n prod --replicas=1           # allowed
+```
+
+A `curl -X DELETE` against the lane carries no `Kubectl-Command` and passes `no-kubectl-delete`. The rule matches kubectl's statement of intent; use `http_resource` with `methods: [DELETE]` to match the verb itself.
+
+---
+
+## Mask by JSON key
+
+The codec walks a JSON response value by value and hands each string and number to the masker under its dotted key path: `data.ca.crt`, `items.data.password`, `metadata.name`. A `columns` rule names a key the way it names a result-set column. `columns: [data]` masks every value under a `data` object, in a ConfigMap, a Secret, one object or a list of them, whatever the value holds. `data.password` masks that one key; `password` masks that key at any depth. Where two rules match, the longer path wins, then the one nearest the leaf.
+
+```bash
+$K get cm kube-root-ca.crt                                        # table view: no data, untouched
+$K get cm kube-root-ca.crt -o jsonpath='{.data.ca\.crt}'          # [REDACTED:K8S_DATA]
+$K get cm -A -o json | jq '.items[0].data'                        # every data.* redacted
+```
+
+The apiserver answers with `Transfer-Encoding: chunked`. The codec re-chunks what it rewrote, and a chunked stream goes out as it arrives: each complete top-level JSON value (one watch event) or each chunk of text (one log line) is masked and forwarded when it is whole. A `kubectl get -w` or `kubectl logs -f` is not held to its end.
+
+```bash
+$K get cm kube-root-ca.crt -w -o jsonpath='{.metadata.name} {.data.ca\.crt}{"\n"}'
+```
+
+Responses the apiserver compresses (`Content-Encoding: gzip`, on bodies over 128 KiB when kubectl offers it) are inflated around the masker and compressed again. A response body above `MaxMessageBytes` (16 MiB) goes out unmasked and the next response is masked again.
+
+`credentials-in-responses` runs beside the key rule. It redacts by class wherever the detector finds a match: an annotation, a pod's environment, a log line. The two rules do not collide; one claims a key path, the other claims entities.
+
+---
+
+## Judge a request that has no body
+
+An `analyzer` block on the lane classifies bodiless requests. The model receives the request line, the normalized resource where it differs, and the allowlisted headers in name order:
+
+```
+GET /api/v1/namespaces/prod/secrets/db-root
+Accept: application/json
+Kubectl-Command: kubectl get
+X-Hoop-User: alice
+```
+
+```yaml config.yaml
+analyzer:
+  provider: anthropic
+  model: claude-sonnet-4-5
+  credentials_file: /run/secrets/anthropic-api-key
+  send: redacted
+  cache: {size: 4096, ttl_sec: 900}
+
+listeners:
+  - name: kube
+    # ...
+    analyzer:
+      trigger: {resources: ["/api/v1/namespaces/*/secrets/**", "/api/v1/secrets", "/api/v1/namespaces/*/pods/*/exec"]}
+      high: block
+      medium: warn
+      prompt: |
+        You are classifying kubectl requests to a Kubernetes API server made
+        on behalf of an automated agent. Reading the contents of a Secret is
+        high risk; listing Secrets by name is low risk; exec into a pod is
+        medium risk. A request is its method, path, resource and headers:
+        the Accept header says whether the caller wants the table view or
+        the object itself.
+```
+
+The cache keys on the headers the model sees, so the table view and the object view of one secret are two shapes and two verdicts. Leave `Kubectl-Session` out of `http.headers`: kubectl mints a fresh UUID per invocation, and allowlisting it makes every request a model call.
+
+Guardrails run first and cost nothing. `kubectl get secret db-root -o yaml` is refused by `no-secret-contents` before the analyzer sees it; what reaches the model is what the guardrails let through.
+
+---
+
+## kubectl exec over WebSocket
+
+kubectl 1.30 and later opens `exec`, `attach` and `port-forward` as a WebSocket: `GET /api/v1/namespaces/prod/pods/web-0/exec?command=sh&...` with `Upgrade: websocket`, answered `101 Switching Protocols` with subprotocol `v5.channel.k8s.io`.
+
+The lane records the GET, the 101 and then one `ws_message` row per frame, each keyed on the exec path, and a `ws_close` row when the session ends:
+
+```
+ALLOW http  get         GET /api/v1/namespaces/prod/pods/web-0/exec?command=sh...
+ALLOW http  unknown     101 Switching Protocols
+ALLOW http  ws_message  WS binary /api/v1/namespaces/prod/pods/web-0/exec?...
+ALLOW http  ws_message  WS binary /api/v1/namespaces/prod/pods/web-0/exec?...
+ALLOW http  ws_close    WS close 1000 /api/v1/namespaces/prod/pods/web-0/exec?...
+```
+
+exec frames are binary: one channel byte (stdin, stdout, stderr, error, resize), then the stream's bytes. The trail records them; the codec hands only text messages to a masker. Allowlist `Upgrade`, `Sec-WebSocket-Protocol` and `X-Stream-Protocol-Version` so the handshake rows show the subprotocol selected.
+
+Behind Envoy, the listener needs `upgrade_configs: [{upgrade_type: websocket}]` or Envoy answers the upgrade with a plain 200 and kubectl reports "unable to upgrade connection". Remove the route timeout on that listener; an exec or watch stays open as long as the user does.
+
+---
+
+## What the audit trail holds
+
+Every request row carries the allowlisted headers. The refused GET above records as:
+
+```json
+{"kind":"violation","principal":"alice","statement":"GET /api/v1/namespaces/prod/secrets/db-root",
+ "allowed":false,"rule":"no-secret-contents",
+ "http":{"method":"GET","resource":"/api/v1/namespaces/prod/secrets/db-root",
+         "headers":{"accept":"application/json","kubectl-command":"kubectl get","x-hoop-user":"alice"}}}
+```
+
+A masked response adds a `masked` event naming the entity and the count, `K8S_DATA` and `3` for the ConfigMap above. No masked value appears in the trail.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="HTTP" icon="globe" href="/setup/configuration/hoop-sidecar/protocols/http">
+    The normalized resource, the `http` block, identity and denials.
+  </Card>
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    `http_header` beside `http_resource` and `http_status`.
+  </Card>
+  <Card title="Risk Analysis" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis">
+    Triggers, actions, the cache and what a lane's analyzer costs.
+  </Card>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Entity rules, column rules and the strategies.
+  </Card>
+</CardGroup>

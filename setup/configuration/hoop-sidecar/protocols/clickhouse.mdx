@@ -435,12 +435,28 @@ listeners and do not share capabilities.
 | ClickHouse interface | Listener protocol | Use it for |
 |---|---|---|
 | native `9000` / secure native port | `clickhouse` | **Recommended:** native clients, query guardrails and typed response masking |
-| HTTP `8123` | `http` | HTTP method/path policy and bounded body capture; ClickHouse POST SQL is body metadata, not SQL guardrail text, and chunked results are not masked |
+| HTTP `8123` | `http` | HTTP method/path policy, bounded body capture, and result masking: TSV, CSV, `JSONEachRow` and `FORMAT JSON` results are masked as they stream. ClickHouse POST SQL is body metadata, not SQL guardrail text |
 | MySQL emulation `9004` | `mysql` | clients that require MySQL compatibility, subject to MySQL capability negotiation |
 | PostgreSQL emulation `9005` | `postgres` | clients that require pgwire compatibility |
 
 Do not point a `clickhouse` listener at the HTTP or emulation ports. The
 `protocol` field selects the wire decoder; a mismatch fails the connection.
+
+**The HTTP interface behind an `http` lane.** ClickHouse answers every
+request `Transfer-Encoding: chunked`, and the codec re-chunks what it
+rewrites. `FORMAT TSV` and `CSV` rows are lines and go out line by line;
+`JSONEachRow` is NDJSON and goes out row by row, each value handed to the
+masker under its column name, so `columns: [email]` names the column the way
+it does on the native lane; `FORMAT JSON` is one document with the rows under
+`data`; `RowBinary` and `Native` are binary and pass untouched. With
+`enable_http_compression=1`, gzip and deflate are undone around the masker;
+a client that asks for zstd, br or lz4 on a text or JSON result is answered
+403 and the trail gets an `error` row, because that response would be the
+one that left unmasked. Guardrails read the request line, so a SQL rule
+never sees the POST body; `?query=` and `?param_x=` on a GET are on the line
+and are scanned. Set `http.capture_body: true` to record the SQL in the audit
+trail; it records the response as the server sent it too, so the trail holds
+the unmasked result set even when the client received it masked.
 
 ---
 
