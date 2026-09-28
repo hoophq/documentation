@@ -118,6 +118,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `opa` | Default OPA endpoint for every lane. Omit it and no lane calls OPA. |
 | `mask` | Default response rewriting for every lane. |
 | `analyzer` | The AI risk classifier: the provider, the model, the credential, and the defaults every listener inherits. Each listener carries its own `analyzer` block beside `guardrails`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
+| `trust` | Extra CA certificates added to the host trust store for outbound TLS. See [Adding a CA to the trust store](#adding-a-ca-to-the-trust-store). |
 | `listeners` | One entry per upstream. |
 
 Keys starting `x-` are dropped before validation, so a YAML anchor block does not need a matching config field. See [sharing rules between lanes](#sharing-a-rule-block-between-lanes).
@@ -141,8 +142,9 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `upstream` | The real backend, `host:port`. Required on every lane except `ssh`, where it is **refused**: an end-hop spawns a local process and a bastion carries forwards the client chooses. |
 | `upstream_tls` | Encrypts the hop to the backend. See [Upstream TLS](#upstream-tls). |
 | `mysql_auth_key_file` | RSA private key for MySQL clients that pin the lane's public key and send the encrypted password without requesting a key. Requires a `mysql` lane with `upstream_tls`. See [MySQL RSA authentication](/setup/configuration/hoop-sidecar/protocols/mysql#rsa-authentication-on-the-client-leg). |
-| `downstream_tls` | Terminates the client's TLS at the Sidecar. Valid on `postgres` (in-band SSLRequest), `clickhouse` (TLS on connect), `grpc` and `spanner` lanes. Other protocols refuse it when their exchange cannot be inspected after TLS negotiation. Refused on `ssh`, which negotiates its own transport. |
-| `identity_header` | Names an HTTP header carrying the authenticated subject. Valid on `http`, `grpc` and `spanner` lanes. An `http` lane reads it from the first request on each connection, before the session exists, so `session_start` and every statement carry the principal; a grpc lane reads it per RPC. Refused on every other protocol, and on `ssh` in particular, where the identity comes from the certificate the lane verified itself. |
+| `downstream_tls` | Terminates the client's TLS at the Sidecar. Valid on `postgres` (in-band SSLRequest), `clickhouse` (TLS on connect), `http` (TLS on connect, `h2` and `http/1.1` by ALPN), `grpc` and `spanner` lanes. Other protocols refuse it when their exchange cannot be inspected after TLS negotiation. Refused on `ssh`, which negotiates its own transport. |
+| `identity_header` | Names an HTTP header carrying the authenticated subject. Valid on `http`, `grpc` and `spanner` lanes. An `http` lane reads it on every request: a request naming a different principal ends the session and opens a new one on the same connection, so a proxy that pools one upstream connection across users is attributed correctly. A grpc lane reads it per RPC. Refused on every other protocol, and on `ssh` in particular, where the identity comes from the certificate the lane verified itself. See [HTTP identity](/setup/configuration/hoop-sidecar/protocols/http#identity). |
+| `google_identity` | Names the caller from the request's Google OAuth2 bearer, verified with Google's tokeninfo endpoint. `{}` uses the default endpoint; `tokeninfo_url` overrides it and must be `https`. Valid on `http` lanes only, and exclusive with `identity_header`. See [Google identity](/setup/configuration/hoop-sidecar/protocols/http#google-identity). |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
 | `max_conns` | Bounds concurrency. Zero is unlimited. |
 | `guardrails` | Adds to the top-level rule set for this lane. |
@@ -782,7 +784,7 @@ listeners:
     listen: 0.0.0.0:15432
     upstream: appdb:5432
     upstream_tls:
-      ca_file: /etc/hoop-inspect/certs/appdb.crt   # omit to use the host trust store
+      ca_file: /etc/hoop-inspect/certs/appdb.crt   # omit to use the host trust store plus trust.ca_file
       server_name: appdb                           # defaults to the upstream host
       # cert_file / key_file    for mTLS
       # insecure_skip_verify    logs a warning; do not ship it
@@ -830,6 +832,26 @@ On an MSSQL lane, `upstream_tls` performs a TLS-on-connect handshake for TDS
 `network.forceencryption`, which negotiates the TDS 7.x form inside `0x12`
 PRELOGIN packets. Leave `upstream_tls` off that lane and keep the hop on
 loopback or a private network.
+
+### Adding a CA to the trust store
+
+`trust.ca_file` adds certificate authorities to the host trust store, for a network that re-signs egress TLS. A transparent MITM proxy in front of Google's APIs is the usual case.
+
+```yaml
+trust:
+  ca_file: /etc/hoop-inspect/certs/egress-proxy-ca.pem   # one or more PEM certificates
+```
+
+The bundle is **added** to the system trust store. Go's own `SSL_CERT_FILE` **replaces** it, so a CA added that way costs every public root, and each endpoint the proxy does not intercept then fails verification.
+
+| Reaches | Does not reach |
+|---|---|
+| `upstream_tls` with no `ca_file`. An explicit `ca_file` still pins that upstream to its own bundle alone. | The upstream TLS of a `grpc` or `spanner` lane. Set `upstream_tls.ca_file` there; the startup log says so. |
+| Every analyzer provider, Vertex token minting included. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). | OPA |
+| The `gs://` descriptor fetch | The Control Plane |
+| `google_identity`'s tokeninfo calls | The analytics client |
+
+A missing file, or one with no certificate in it, fails validation naming the path. The section is read at startup, so a change needs a restart.
 
 ### The client leg is a different hop
 
@@ -967,7 +989,7 @@ An `ssh` lane terminates its protocol instead of relaying it, so several keys th
 |---|---|
 | `protocol: ssh` with no `ssh` block | The listener has no host key and no trusted CA, so it could not complete a handshake. |
 | `ssh.host_key` or `ssh.trusted_ca` missing, or unreadable | Both are opened at load. An unreadable CA is a listener that refuses everyone and cannot say why. |
-| `upstream`, `upstream_tls`, `downstream_tls`, `identity_header` | None applies: there is no fixed backend, no TLS to terminate, and the identity comes from the certificate the lane verified itself. |
+| `upstream`, `upstream_tls`, `downstream_tls`, `identity_header`, `google_identity` | None applies: there is no fixed backend, no TLS to terminate, and the identity comes from the certificate the lane verified itself. |
 | `capabilities_allowed:` written with no value | `null` is indistinguishable from an absent key, and absent means *admit the delivered set* while `[]` means *admit none*. Write one or the other. |
 | `capabilities_allowed` naming `x11`, `subsystem`, `agent_forward` or `remote_forward` | This version does not deliver them: no handler exists, so admitting one would leave you believing the capability is on. |
 | `capabilities_allowed` naming `local_forward` or `forward` | Forwarding is not a member of that list. `ssh.destinations_allowed` decides where a forward may be carried, and an absent or empty one denies every forward. |

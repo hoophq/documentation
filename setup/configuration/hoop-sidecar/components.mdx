@@ -367,14 +367,14 @@ sequenceDiagram
 
 | Kind | Fires | Carries |
 |---|---|---|
-| `session_start` | connection accepted | principal, protocol, listener name |
+| `session_start` | connection accepted, or an `http` lane's caller changed | principal, protocol, listener name |
 | `statement` | each inspected statement | text, operation, tables, `allowed=true` |
 | `violation` | a denied statement | same, plus `rule` and `message` |
 | `masked` | response data rewritten | entity names and a count, never values |
 | `error` | transport or upstream failure | the error text |
-| `session_end` | connection closed | duration, statement and denial totals |
+| `session_end` | connection closed, or an `http` lane's caller changed | duration, statement and denial totals |
 
-`session_start` fires even for a connection that issues nothing, so an abandoned session leaves a trace. Without it, a client that connects and disappears is invisible. The one exception is an `http` lane with `identity_header`, which reads the first request before it opens the session: a client that connects and never sends one is closed with no session at all. See [Identity](#identity).
+`session_start` fires even for a connection that issues nothing, so an abandoned session leaves a trace. Without it, a client that connects and disappears is invisible. The one exception is an `http` lane with `identity_header` or `google_identity`, which reads the first request before it opens the session: a client that connects and never sends one is closed with no session at all. See [Identity](#identity).
 
 ### Where the events go
 
@@ -442,11 +442,12 @@ A session records `principal: anonymous` until something names the caller. Three
 
 | Lane | Source of the principal |
 |---|---|
-| `http`, `grpc`, `spanner` | the header named by `identity_header`, set by the authenticating proxy in front. An `http` lane reads it from the first request on the connection, before the session exists, so `session_start` already carries it; a grpc or spanner lane reads it per RPC and falls back to the mTLS peer certificate |
+| `http`, `grpc`, `spanner` | the header named by `identity_header`, set by the authenticating proxy in front. An `http` lane reads it on every request: the first names the first session, so `session_start` already carries it, and a request naming a different caller ends that session and opens a new one on the same connection. A grpc or spanner lane reads it per RPC and falls back to the mTLS peer certificate |
+| `http` | the request's Google OAuth2 bearer, verified per request, with `google_identity`. See [Google identity](/setup/configuration/hoop-sidecar/protocols/http#google-identity) |
 | `postgres` | the `user` the client names in its StartupMessage |
 | `ssh` | the certificate the lane verified itself, mapped by `ssh.identity` |
 
-Every other lane records the peer address and nothing else. `identity_header` on a lane that does not read it is refused at startup.
+Every other lane records the peer address and nothing else. `identity_header` or `google_identity` on a lane that does not read it is refused at startup.
 
 The session reaches Rego as `input.context`, carrying `principal`, `session_id` and `connection` (the listener's name) on every statement, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity supplies them. A policy that requires a named caller should deny `input.context.principal == "anonymous"`; the Sidecar admits an anonymous session and leaves that call to you.
 
@@ -466,8 +467,8 @@ Read these before writing a policy against the Sidecar.
 - **A response statement carries no verb.** For database codecs a server-direction statement reports `unknown`, because the operation belongs to the request the audit trail already recorded. Key a response-side SQL rule on the result, not on the operation.
 - **MSSQL statement extraction covers `sp_executesql`.** `sp_prepare`, `sp_prepexec` and the cursor family yield no statement, which is how JDBC and .NET send prepared statements. `EXEC('DELETE ...')` reports `unknown` with the reason "stored procedure; body is in the catalog", so a rule naming `unknown` refuses it and one naming `call` no longer matches.
 - **PII detection is neither sound nor complete.** A checksum-verified identifier holds up. Everything else is a pattern. Detecting a name column needs NER, which this does not wire, and a caller can split a value across two responses. Masking raises the cost of accidental exposure without replacing "do not grant access to that table".
-- **HTTP/1.x only for stream decoding.** HTTP/2 and HTTP/3 framing belongs to whatever terminated the connection.
-- **Plaintext at the Sidecar, with one exception.** A client negotiating TLS end to end past the Sidecar leaves nothing to parse. Something in front terminates it: an HTTPS listener covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the Sidecar walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the Sidecar originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the Sidecar can start.
+- **HTTP/1.x only for stream decoding.** An `http` lane accepts HTTP/2 (h2c, or h2 over `downstream_tls`) and bridges each stream into its HTTP/1.1 relay; the upstream hop stays HTTP/1.1, and an h2 `CONNECT` gets `501`. See [h2 and h2c](/setup/configuration/hoop-sidecar/protocols/http#h2-and-h2c). HTTP/3 framing belongs to whatever terminated the connection.
+- **Plaintext at the Sidecar, with one exception.** A client negotiating TLS end to end past the Sidecar leaves nothing to parse. Something in front terminates it: an HTTPS listener or the lane's own `downstream_tls` covers HTTP, `postgres_proxy` with a `starttls` socket covers Postgres, and a plain `DownstreamTlsContext` covers TDS 8.0. TDS 7.x is the exception, because nothing can terminate it: PRELOGIN's `ENCRYPT_OFF` encrypts the first LOGIN7 packet and leaves every statement in the clear, so the Sidecar walks that region by TLS record framing and reads the session after it. See [Kerberos and SQL Server](/setup/configuration/hoop-sidecar/kerberos#tds-7x-encrypts-the-login-and-nothing-else). The upstream leg may be TLS, which the Sidecar originates itself, except on MSSQL where SQL Server on Linux accepts no handshake the Sidecar can start.
 - **A session encrypted end to end is refused, not forwarded.** `ENCRYPT_ON`, or a TDS 8.0 client reaching the Sidecar with nothing terminating in front, leaves no statement that can be classified, masked or audited. Both report `rule: stream-unsafe` and name the cause. Such a session used to connect and run uninspected, so check what your driver sets for `Encrypt` before putting an existing MSSQL lane behind this: ODBC Driver 18 and SqlClient 5+ default to `Mandatory`, go-mssqldb to `ENCRYPT_OFF`.
 - **Statements are not transactions.** Each one gets its own verdict, and no cross-statement session state exists.
 

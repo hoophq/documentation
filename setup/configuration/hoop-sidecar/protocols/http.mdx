@@ -66,9 +66,52 @@ listeners:
 
 ## Identity
 
-`identity_header` names the header your authenticating proxy sets. The lane reads it from the first request on each connection, before it opens the session, so the `session_start` audit row, every statement row and `input.context.principal` for OPA all carry the subject. A later request on the same keep-alive connection does not change it; the connection belongs to whoever opened it, the same way an mTLS peer does. A first request without the header leaves the session `anonymous` and forwards it, so a policy that requires a caller must deny `input.context.principal == "anonymous"` itself. A client that connects and sends no request within ten seconds is closed with no session and no `session_start`, the way a pgwire client that abandons its handshake is; HTTP has no server greeting, so waiting on the client's first bytes is the protocol's own ordering.
+`identity_header` names the header your authenticating proxy sets. The lane reads it on **every request**, because Envoy pools upstream connections and sends requests from different callers down one keep-alive connection. The first request names the first session before it opens, so the `session_start` audit row already carries the subject. A later request that names a different principal ends that session (`session_end`) and opens a new one on the same connection (`session_start`), so each request's statement row and `input.context.principal` for OPA carry its own caller. A caller change while an earlier response on the connection is still outstanding is refused with a 403 under rule `identity`: that response belongs to the session that sent its request. A request without the header runs as `anonymous` and is forwarded, so a policy that requires a caller must deny `input.context.principal == "anonymous"` itself. The header value reaches policy input and the audit trail only when `http.headers` names it. A client that connects and sends no request within ten seconds is closed with no session and no `session_start`, the way a pgwire client that abandons its handshake is; HTTP has no server greeting, so waiting on the client's first bytes is the protocol's own ordering.
 
 Trusting a header is safe only when nothing but that proxy can reach the listener, so bind loopback or a unix socket. On a listener reachable from anywhere else, a caller can assert any identity.
+
+### Google identity
+
+`google_identity` names the caller from Google's own bearer, for a lane with no authenticating proxy in front. kubectl through [GKE Connect Gateway](/setup/configuration/hoop-sidecar/protocols/kubernetes#gke-connect-gateway) sends a Google OAuth2 access token on every request; without this block, Envoy would need `ext_authz` only to learn the name the token already holds.
+
+```yaml
+listeners:
+  - name: gke
+    protocol: http
+    google_identity: {}         # the caller is whoever holds the request's Google bearer
+    # google_identity:
+    #   tokeninfo_url: https://...   # Private Service Connect or a private.googleapis.com VIP; https only
+```
+
+- The lane verifies the request's `Authorization: Bearer` token with a POST to `https://oauth2.googleapis.com/tokeninfo`. It never sends the token in a query string, because proxies log URLs.
+- The principal is the verified email, else the account's Google `sub`.
+- A verified answer is cached under the token's SHA-256 for the token's lifetime, at most five minutes. A rejected token is cached for 30 seconds. An unreachable Google is never cached.
+- Any failure (no bearer, a token Google rejects, Google unreachable) refuses that request with a 403. A caller that cannot be verified is never served under the identity the connection had before.
+- The token reaches no audit row, no policy input and no analyzer prompt.
+- `http` lanes only, and exclusive with `identity_header`: startup refuses a lane that sets both.
+
+The result names who holds the token, not what it may do. The upstream still checks the same token against its own IAM and RBAC. The tokeninfo call trusts the [`trust.ca_file`](/setup/configuration/hoop-sidecar/config-file#adding-a-ca-to-the-trust-store) bundle, so it works through a proxy that re-signs egress TLS.
+
+---
+
+## h2 and h2c
+
+An http lane accepts HTTP/2 beside HTTP/1.1:
+
+| Lane | Client can send |
+|---|---|
+| No `downstream_tls` | HTTP/1.1, or h2c by prior knowledge: a connection that opens with the HTTP/2 preface is HTTP/2, so Envoy can forward h2 without downgrading it. `Upgrade: h2c` is not honoured. |
+| `downstream_tls` | `h2` or `http/1.1`, chosen by ALPN. kubectl picks h2 from anything that offers it. |
+
+Each h2 stream is bridged into the unchanged HTTP/1.1 relay as one request, so policy, the per-stream 403, masking, audit, per-request identity and `Via` apply to it exactly as to an HTTP/1.1 client. The upstream hop stays HTTP/1.1. Streams do not count toward `max_conns`: the client connection was admitted once, and HTTP/2's concurrent-stream limit bounds its streams.
+
+An h2 `CONNECT`, extended CONNECT included, gets `501`. A request with an `Upgrade` header (kubectl `exec`, `attach`, `port-forward`) must reach the lane as HTTP/1.1. kubectl already does that when it talks to the lane directly; an Envoy with an h2 cluster to the lane needs a route that sends `Upgrade` requests to a second, HTTP/1.1 cluster. See [The Envoy lane](#the-envoy-lane).
+
+---
+
+## Via and loop detection
+
+Every http lane appends `Via: <request version> hoop-<16 hex>` as the last request header, so the upstream sees one extra header. The pseudonym is random per process. A request that already carries this process's pseudonym is refused with a 403 whose message starts `request loop:`. That catches a transparent MITM proxy that routes the Sidecar's own upstream traffic back into its listener, where each lap would otherwise look like a fresh client. After a request with `Upgrade`, or a `CONNECT`, the rest of that connection is another protocol and is no longer marked.
 
 ---
 
@@ -94,6 +137,8 @@ Connection: close
 the admin API is not reachable through this proxy
 ```
 
+A request refused for its [identity](#identity) or as a [request loop](#via-and-loop-detection) is also answered with a 403. On an h2 connection the 403 ends that stream only.
+
 ---
 
 ## The Envoy lane
@@ -112,10 +157,22 @@ route_config:
             timeout: 60s
 ```
 
-Envoy already terminated the client's TLS on the HTTPS listener, so this lane carries plaintext HTTP/1.1 to the Sidecar and there is nothing extra to configure. The compose stack's `httpbin` lane in [`deploy/docker-compose/envoy-stack/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack) runs exactly this shape:
+Envoy already terminated the client's TLS on the HTTPS listener, so this lane carries plaintext HTTP/1.1 or h2c to the Sidecar and there is nothing extra to configure. The compose stack's `httpbin` lane in [`deploy/docker-compose/envoy-stack/`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack) runs exactly this shape:
 
 ```bash
 curl -sk https://envoy:8443/anything -H 'x-hoop-user: alice'
+```
+
+To keep h2 on the hop to the lane, give Envoy two clusters to the same lane port: one with `http2_protocol_options` for ordinary requests, one plain HTTP/1.1 for upgrades. Match `Upgrade` first, because Envoy turns an upgrade on an h2 cluster into an extended CONNECT, which the lane answers with `501`:
+
+```yaml envoy.yaml
+routes:
+  - match:
+      prefix: "/"
+      headers: [{ name: upgrade, present_match: true }]
+    route: { cluster: hoop_inspect_h1, timeout: 0s }    # kubectl exec, attach, port-forward
+  - match: { prefix: "/" }
+    route: { cluster: hoop_inspect_h2c, timeout: 0s }   # everything else, no downgrade
 ```
 
 ---

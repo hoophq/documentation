@@ -561,6 +561,10 @@ An interactive shell never reaches the analyzer at all: it produces no statement
 
 One provider serves every lane, so the credential is read once.
 
+<Note>
+Behind a proxy that re-signs egress TLS (a transparent MITM in front of Google's APIs, for Vertex or Gemini), add its CA with [`trust.ca_file`](/setup/configuration/hoop-sidecar/config-file#adding-a-ca-to-the-trust-store). Every provider call uses that pool, Vertex token minting included. Do not use `SSL_CERT_FILE`: it replaces the system roots instead of adding to them.
+</Note>
+
 ---
 
 ## The credential

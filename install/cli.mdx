@@ -653,7 +653,7 @@ The setgid bit on the directory and `umask 0002` on the Sidecar are what make th
 
 ### Terminating client TLS
 
-The Sidecar reads plaintext. Something in front has to decrypt whatever the client encrypted before the gate sees a statement; the Sidecar terminates **no** downstream TLS.
+The Sidecar reads plaintext. Something in front has to decrypt whatever the client encrypted before the gate sees a statement. In the Envoy shapes on this page the Sidecar terminates **no** downstream TLS; a lane that must terminate it itself sets [`downstream_tls`](/setup/configuration/hoop-sidecar/config-file#listeners), accepted on postgres, clickhouse, http, grpc and spanner lanes.
 
 On the HTTP lane Envoy already does it, because an HTTPS listener terminates TLS by definition. On the Postgres lane the stock `tcp_proxy` does not, which is why the client connects with `PGSSLMODE=disable`. An MSSQL lane is the easy case: TDS 8.0 hands Envoy an ordinary TLS-on-connect handshake, which the tab above terminates.
 
