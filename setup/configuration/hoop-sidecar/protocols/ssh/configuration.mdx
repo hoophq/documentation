@@ -23,6 +23,8 @@ listeners:
 
 Five keys, three jobs. Two say **who may connect at all** (`host_key`, `trusted_ca`). Two say **what a connection may then do** (`capabilities_allowed`, `destinations_allowed`). One says **who policy and audit think is on the other end** (`identity`).
 
+A sixth key, [`relay`](#relay), is optional and changes the listener's role rather than its settings.
+
 Everything a lane admits, refuses, matches, masks and records is decided here, so this page carries the enforcement surface alongside the keys:
 
 | Looking for | Section |
@@ -32,6 +34,7 @@ Everything a lane admits, refuses, matches, masks and records is decided here, s
 | the twelve operations a rule can name | [Operations](#operations) |
 | a model reading the command a pattern cannot see | [Risk analysis](#risk-analysis) |
 | what the trail records, and what it never does | [Audit trail](#audit-trail) |
+| turning the listener into a terminating bastion | [relay](#relay) |
 
 ---
 
@@ -277,6 +280,46 @@ Because the **listener** evaluates it:
 - A bastion that permits only an end-hop's SSH port is a jump host and nothing else — nobody reaches a database through it.
 - An end-hop that permits a database port lets someone tunnel there after they land.
 - An end-hop that permits nothing lets them land and no more.
+
+---
+
+## relay
+
+Optional, and its presence changes what the listener **is**. Without it, an `ssh` listener is an endpoint: it spawns processes locally, or carries forwards blind. With it, destinations named in `relay.targets` are **terminated** — the listener runs a second SSH server inside the forward channel and relays the session to a stock `sshd`.
+
+```yaml
+relay:
+  known_hosts: /etc/hoop-sidecar/known_hosts
+  host_key_check: strict
+  identities: /etc/hoop-sidecar/identities
+  targets:
+    "*.prod":
+      private_key: /etc/hoop-sidecar/keys/prod
+      capabilities_allowed: [exec, env]
+```
+
+| Key | Required | What it does |
+|---|---|---|
+| `known_hosts` | **yes** | Verifies each target's host key. Lane default |
+| `host_key_check` | no — `strict` | `strict`, `accept_new` or `off` |
+| `identities` | no | Directory of per-user upstream keys, named by certificate subject |
+| `login` | no | Upstream account for the lane |
+| `targets` | **yes** | Which destinations are terminated, keyed by name, glob, address or network |
+
+Two of the keys above change meaning on a relay lane:
+
+- **`capabilities_allowed` becomes a ceiling.** The bastion serves no session of its own; each target narrows this list.
+- **`destinations_allowed` still decides reach**, and is checked first. A target it does not cover is unreachable.
+
+`guardrails`, `mask`, `analyzer` and `opa` stay outside the block and have no per-target form, so they apply to every target. Nothing inside `relay` can subtract from policy — only narrow what policy applies to.
+
+<Warning>
+**`sftp` is not delivered over a terminated session**, and naming it on a target fails at load. A relay lane has no file transfer.
+</Warning>
+
+<Card title="Bastion SSH Termination" icon="arrows-split-up-and-left" href="/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination">
+  Every `relay` and `targets.<key>` option, the three upstream credential sources, host-key modes, `forwards_allowed`, the audit events, and the security trade this mode makes.
+</Card>
 
 ---
 
@@ -681,5 +724,8 @@ Nothing needs to be running. The notes state the facts an operator believes they
   </Card>
   <Card title="File Transfer" icon="folder-tree" href="/setup/configuration/hoop-sidecar/protocols/ssh/file-transfer">
     How `sftp`, `scp` and `rsync` each produce different statements from the same file.
+  </Card>
+  <Card title="Bastion SSH Termination" icon="arrows-split-up-and-left" href="/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination">
+    The `relay` block in full: targets, upstream credentials and host-key checking.
   </Card>
 </CardGroup>

@@ -29,6 +29,44 @@ flowchart LR
 
 ---
 
+## Not supported on a terminating bastion
+
+<Warning>
+**File transfer does not work on a listener that carries an `ssh.relay` block.** `sftp`, `scp` on OpenSSH 9 defaults, and `rsync` all fail against a terminated target.
+
+Everything on the rest of this page describes an **end-hop** — a listener where the sidecar is the file-transfer server. It does not apply to [Bastion SSH Termination](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination).
+</Warning>
+
+```bash
+sftp db-01.prod
+```
+```
+hoop: file transfer is not delivered over a terminated session; against a
+remote sftp-server it is an opaque subsystem stream, and path gating and
+download masking would need it decoded both ways
+```
+
+**Why it is refused rather than relayed.** On an end-hop the sidecar *is* the `sftp` server: it decodes each request, so it sees the operation and the path, can gate them, and can mask a download. Against a **remote** `sftp-server` the subsystem is an opaque stream. Passing it through un-decoded would leave file transfer as the only un-inspected path on a listener whose entire job is inspection — a rule scoped to `sftp_read` would load, never fire, and look like it was working.
+
+So it is refused in two places:
+
+| Where | What happens |
+|---|---|
+| config load | naming `sftp` in a target's `capabilities_allowed` is an error |
+| runtime | the subsystem request is rejected on the channel, with the reason above |
+
+`rsync` and `scp -O` route through `exec` rather than the `sftp` subsystem, so the channel opens — but `exec_line` is all you get. The path is still visible to a `pattern_match` rule as part of the command line, and the file's bytes still move without per-operation gating or download masking. Treat them as commands, not as file transfer.
+
+### Alternatives
+
+| You want | Do this |
+|---|---|
+| gated, masked file transfer | run an **end-hop** on that host — Modes 1–3 in [Topologies](/setup/configuration/hoop-sidecar/protocols/ssh/topologies) |
+| to block file transfer entirely on a bastion | nothing. It is already refused |
+| to fence paths on a bastion anyway | scope `pattern_match` rules to `exec_line`, which catches `cat`, `rsync` and `scp -O` |
+
+---
+
 ## Fencing a path
 
 A rule never sees the client. It sees a **statement**, and tests its `pattern_regex` against that statement's **text**. So the only question that matters is what string each route puts into that text.
@@ -212,5 +250,8 @@ Both are defects with fixes pending, not design. Knowing them stops you reading 
   </Card>
   <Card title="Guardrail Rules" icon="scale-balanced" href="/setup/configuration/hoop-sidecar/policy-rules">
     Every rule type, and the full operation vocabulary across protocols.
+  </Card>
+  <Card title="Bastion SSH Termination" icon="triangle-exclamation" href="/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination#file-transfer">
+    The one topology where none of this applies, and why.
   </Card>
 </CardGroup>

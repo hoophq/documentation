@@ -1,16 +1,19 @@
 ---
 title: "Topologies"
-description: "Deploy the SSH listerner in three different ways, all enforcing the same rules at the end of the hop"
+description: "Four ways to deploy an SSH listener: three that enforce at the end of the hop, and one that terminates in the middle"
 ---
 
-A listener is one of two things, and the config decides which:
+A listener is one of three things, and the config decides which:
 
 | Role | What it is | The keys that make it one |
 |---|---|---|
 | **End-hop** | a complete SSH server. Terminates the handshake, resolves the account, spawns the process, runs the whole decision chain | `capabilities_allowed` admits session capabilities (omitting the key is enough) |
-| **Bastion** | a jump host. Terminates the handshake, checks the destination the client named, dials it and forwards bytes blind | `destinations_allowed` names where; `capabilities_allowed: []` drops the shell |
+| **Blind bastion** | a jump host. Terminates the handshake, checks the destination the client named, dials it and forwards bytes blind | `destinations_allowed` names where; `capabilities_allowed: []` drops the shell |
+| **Terminating bastion** | a jump host that also terminates the inner session and relays it to a stock `sshd` | `ssh.relay` — its presence is the whole switch |
 
-Those two roles compose into three deployment modes. **The end-hop is the same configuration in all three** — which is the point: hoop puts the whole decision (the certificate, the capabilities, the guardrails, the masking, the audit trail) at the end, so what sits in front changes nothing about what is enforced.
+The first two roles compose into modes 1–3. **The end-hop is the same configuration in all three** — which is the point: hoop puts the whole decision (the certificate, the capabilities, the guardrails, the masking, the audit trail) at the end, so what sits in front changes nothing about what is enforced.
+
+Mode 4 breaks that rule on purpose, and it is the only mode that does. Use it when the target cannot run a sidecar at all.
 
 ---
 
@@ -55,6 +58,8 @@ flowchart LR
 
 **Two SSH sessions, nested.** The bastion terminates the outer one — that is how `destinations_allowed` can be checked at all — and carries the inner one blind. SSH #2 is encrypted between the client and the end-hop, so the bastion cannot read those bytes, and it re-signs no identity.
 
+That holds because this listener has **no `ssh.relay` block**. Add one and every destination it names is terminated at the bastion instead — that is [Mode 4](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination), with a different security model.
+
 The client's own config does the work:
 
 ```
@@ -93,7 +98,7 @@ listeners:
 
 **The address checked is the address dialled.** The endpoint resolves the name once, hands the resolved address to the policy check, and connects to that exact value. Checking a name and then dialling it again would leave a window where the resolver answers differently the second time and the connection lands somewhere policy never saw.
 
-A forward gets no statement, deliberately — its bytes are relayed blind, so there is nothing to evaluate. It gets an audit event carrying the destination, the resolved address, the duration and the byte count.
+A forward gets no statement, deliberately — its bytes are relayed blind, so there is nothing to evaluate. (On a listener with `ssh.relay`, this applies only to destinations the relay map does not cover; covered ones are terminated and inspected as in Mode 4.) It gets an audit event carrying the destination, the resolved address, the duration and the byte count.
 
 ---
 
@@ -124,6 +129,78 @@ The forwarding is what a corporate jump host already does. It carries the sessio
 
 ---
 
+## Mode 4 — Bastion SSH Termination
+
+```mermaid
+flowchart LR
+    C["client"]
+    B["terminating bastion :2222<br/>terminates SSH #1 AND SSH #2"]
+    T["stock sshd :22<br/>nothing installed"]
+    C ==>|"SSH #1 — the jump"| B
+    C ==>|"SSH #2 — the session"| B
+    B ==>|"upstream"| T
+
+    classDef term fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#24292f
+    class B term
+```
+
+**The one mode where the endpoint is not on the target.** The bastion accepts the jump channel and, instead of dialling the target and piping bytes, runs an SSH server inside that channel and opens its own connection to a stock `sshd`.
+
+It decrypts both hops, so guardrails, the analyzer, masking and the audit trail all apply — to a host with nothing installed on it.
+
+```yaml config.yaml
+listeners:
+  - name: prod-bastion
+    protocol: ssh
+    listen: 0.0.0.0:2222
+    ssh:
+      host_key: /etc/hoop-sidecar/keys/bastion_host_key
+      trusted_ca: /etc/hoop-sidecar/keys/ca.pub
+      capabilities_allowed: [shell, pty, exec, env]   # the ceiling targets narrow, and inherit
+      destinations_allowed:
+        - 10.0.0.0/8:22
+      relay:                                          # <- the whole mode switch
+        known_hosts: /etc/hoop-sidecar/known_hosts
+        targets:
+          "*.prod":
+            private_key: /etc/hoop-sidecar/keys/prod
+            capabilities_allowed: [exec, env]
+```
+
+Two lines in the client config, and neither names a host:
+
+```
+Host *.prod
+    ProxyJump jump@10.0.0.20:2222
+    HostKeyAlias hoop-bastion
+    User devuser
+```
+
+### Trade-offs
+
+<Warning>
+**This mode inverts the security model of the other three.** The bastion holds the plaintext of every session for every host behind it, plus credentials that reach all of them. Modes 1–3 degrade one host at a time; this one loses the fleet.
+
+Use it when the target **cannot** run a sidecar — an appliance, a vendor-managed host, or an evaluation where you don't want to install anything. If you can put the endpoint on the target, put it there.
+</Warning>
+
+| | Mode 2 (blind) | Mode 4 (terminating) |
+|---|---|---|
+| Who terminates the session | the end-hop | **the bastion** |
+| What the target must run | a sidecar | **nothing** — a stock `sshd` |
+| What the bastion can read | nothing | **everything** |
+| Guardrails, masking, analyzer | at the end-hop | **at the bastion** |
+| Certificate the target verifies | the client's | the **bastion's** credential, unless `agent_identity` |
+| File transfer | full `sftp` gating and masking | **not delivered** |
+
+A destination the relay map does not cover is still carried blind, exactly as in mode 2 — so one listener can do both.
+
+<Card title="Bastion SSH Termination" icon="arrows-split-up-and-left" href="/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination">
+  The full mode: every `relay` key, the three credential sources, host-key checking, per-target capabilities, forwards the target dials, and what the audit trail holds.
+</Card>
+
+---
+
 ## Why they are equivalent
 
 Mechanically, the end-hop authenticates the same certificate and enforces the same chain whether it was reached directly, through a hoop bastion, or through a stock `sshd`. The modes differ only in whether a middle hop exists and who operates it.
@@ -137,6 +214,8 @@ Mechanically, the end-hop authenticates the same certificate and enforces the sa
 | What the middle can read | — | nothing: the inner session is encrypted | nothing |
 
 Mode 3 is the strongest form of the claim, because the bastion there has never heard of hoop.
+
+**Mode 4 is the deliberate exception**, and the only one. There the middle *is* the endpoint, so the table above does not describe it — see [what it costs](#trade-offs).
 
 ---
 
@@ -162,5 +241,8 @@ ssh-keygen -s ca -I alice@corp.example -n devuser,jump -V +8h alice.pub
   </Card>
   <Card title="Host Configuration" icon="server" href="/setup/configuration/hoop-sidecar/protocols/ssh/hosts">
     What the end-hop's host must already have for a login to succeed.
+  </Card>
+  <Card title="Bastion SSH Termination" icon="arrows-split-up-and-left" href="/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination">
+    Mode 4 in full: the `relay` block, credentials, host keys and what it costs.
   </Card>
 </CardGroup>

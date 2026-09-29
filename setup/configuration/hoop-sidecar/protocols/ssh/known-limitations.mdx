@@ -27,6 +27,24 @@ which is the other half: what `sshd` does that this lane does not.
 
 ---
 
+## Terminating bastion limits
+
+These apply only to a listener carrying an [`ssh.relay`](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination) block. Everything in the list above still applies as well.
+
+| Limit | Why |
+|---|---|
+| **No file transfer at all** | `sftp`, `scp` and `rsync` do not work against a terminated target. Against a remote `sftp-server` the subsystem is an opaque stream, and path gating and download masking would need it decoded both ways. Naming `sftp` on a target fails at load |
+| **No remote forwarding (`ssh -R`)** | it exposes the user's machine to the target rather than the reverse, and needs a listener on the target plus reverse-channel plumbing that does not exist |
+| **Forwarded bytes are not inspected** | an arbitrary TCP stream has no statement and no terminal output. `forwards_allowed` is the only control, which is why it is required whenever a target admits `local_forward` |
+| **No per-user or per-group forwarding grants** | anyone who can reach a target gets that target's whole `forwards_allowed`. `permit-port-forwarding` is already required to jump, so it cannot distinguish who may forward from who may merely connect |
+| **The bastion holds every session's plaintext** | that is the mode, not a defect. It also holds credentials that reach every target behind it, which makes it the highest-value host in the deployment |
+| **`HostKeyAlias` collapses per-target host identity** | the bastion presents its own key in the target's place, so one alias covers the fleet and a user who bypasses the bastion gets a first-contact prompt rather than a mismatch warning. A host CA would fix this and does not exist yet |
+| **`agent_identity` does not work for automation** | a client with no agent is refused, never downgraded. A certificate carrying `source-address` is also checked against the **bastion's** address, so certs pinned to user networks stop working through a bastion |
+| **No per-target rule sets** | `guardrails`, `mask` and the analyzer apply to every target on the lane |
+| **Changing `relay` needs a restart** | the whole block is listener topology. `identities` is the exception: its keys are read per session, so enrolment takes effect on the next connection |
+
+---
+
 ## A value that crosses a read boundary
 
 The session stream is read in 32 KB blocks, and each block is masked on its
@@ -77,5 +95,8 @@ newline, so it would sit in the held tail and never be displayed.
   </Card>
   <Card title="Configuration" icon="file-code" href="/setup/configuration/hoop-sidecar/protocols/ssh/configuration">
     Every attribute, the full capability surface, and what each one can carry.
+  </Card>
+  <Card title="Bastion SSH Termination" icon="arrows-split-up-and-left" href="/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination">
+    The mode these extra limits belong to, and the trade it makes.
   </Card>
 </CardGroup>
