@@ -74,6 +74,80 @@ Two upstream details:
 
 ---
 
+## Trace ids from the startup packet
+
+The lane reads the client's `StartupMessage` before any statement. It records `user` as the principal, in the audit trail and in OPA's `input.context.principal`. **By default it also records every setting the client sends in `options`**, so a caller can stamp a trace id on a connection with nothing but libpq and no Sidecar config:
+
+```bash
+PGOPTIONS='-c claude.session.id=xyz1234678' psql -h 127.0.0.1 -p 15432 appdb
+# DSN form: postgres://u@host:15432/appdb?options=-c%20claude.session.id%3Dxyz1234678
+```
+
+Every statement record and the `session_end` record carry the value in `metadata`, and OPA reads it as `input.context["postgres.option.claude.session.id"]`:
+
+```json
+{"kind": "statement", "principal": "alice", "statement": "SELECT 1",
+ "metadata": {"postgres.option.claude.session.id": "xyz1234678"}}
+```
+
+PostgreSQL accepts a dotted name as a custom setting, so the database runs with the same value and `current_setting('claude.session.id', true)` returns it.
+
+| Place | Carries the values |
+|---|---|
+| each `statement` / `violation` event, and `session_end` | yes |
+| `session_start` | no: it is written before the `StartupMessage` arrives |
+| the session row in `GET /api/sessions` and `/api/sessions/{id}` | once the session ends |
+| OPA `input.context` | yes, from the first statement |
+| the `session opened` / `session closed` log lines | yes, under one `metadata` object |
+
+```json
+{"msg": "session opened", "session": "de2f…", "principal": "alice",
+ "metadata": {"postgres.option.claude.agent.id": "agent-7", "postgres.option.claude.session.id": "xyz1234678"}}
+```
+
+To record only one or two values, or none, add a `postgres` block:
+
+```yaml config.yaml
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 127.0.0.1:15432
+    upstream: appdb:5432
+    postgres:
+      startup_metadata:                 # a list records ONLY these
+        - option: claude.session.id     # from options "-c claude.session.id=..."
+          as: claude.session.id         # the metadata key
+        - parameter: application_name   # a plain startup parameter
+```
+
+| `startup_metadata` | Records |
+|---|---|
+| absent, or no `postgres` block | every `options` setting, as `postgres.option.<name>` |
+| a list | only those fields |
+| `[]` | nothing |
+
+`startup_metadata:` written with no value is refused at startup, because it reads as absent: the opposite of what it looks like.
+
+| Field | Meaning |
+|---|---|
+| `option` | A setting in the `options` startup parameter (`PGOPTIONS`, pgjdbc's `options`). Read the way the server reads it: `-c name=value`, `-cname=value` or `--name=value`, `\` escapes a space, names match case-insensitively with `-` read as `_`, and the last assignment wins. If the client also sends the setting as a startup parameter of its own, that parameter's value is recorded, because the server applies it after `options`. |
+| `parameter` | A `StartupMessage` parameter, matched exactly. Exclusive with `option`. Parameters are recorded only when a list names them. |
+| `as` | The metadata key. Absent, it is `postgres.option.<name>` (the key the default writes, so narrowing a lane keeps your dashboards) or `postgres.parameter.<parameter>`. Keys must be unique on the lane. |
+
+A source the client did not send records no key. A value longer than 256 bytes is cut at a character boundary.
+
+<Warning>
+These values are the client's claim. PostgreSQL authenticates the user, not the options beside it, so use a recorded value to trace a session, never to decide who it is. For that reason startup refuses an `as` that names a key the Sidecar writes into `input.context` itself (`principal`, `subject`, `session_id` and the rest), and the default keeps every client-chosen name under `postgres.option.`.
+</Warning>
+
+<Note>
+The default records whatever the client puts in `options`, `search_path` and application settings included, in the audit trail, in what OPA receives and in the Sidecar's process log, which your log pipeline ships under its own retention and access rules. `audit.redact_statements` covers statement text, not metadata. If your clients may carry a secret in `options`, name the settings you want, or write `[]`.
+</Note>
+
+One limit: **PgBouncer in front of the database** refuses an unknown `options` parameter unless `ignore_startup_parameters` lists it, and listing it drops the value before the database sees it. The Sidecar still records it.
+
+---
+
 ## Masking
 
 Every row and column in a pgwire `DataRow` is length-prefixed, so the codec **re-frames**: it rebuilds each message around the rewritten values, and a mask that grows or shrinks a value cannot desynchronize the client. Both rule shapes work:

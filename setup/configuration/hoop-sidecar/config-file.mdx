@@ -153,6 +153,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `analyzer` | This lane's AI analyzer: trigger, risk→action map, prompt, and per-lane overrides of the top-level defaults. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `http` | What the HTTP codec captures. Only valid on an `http` lane. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#the-http-block). |
 | `clickhouse` | Native frame and block memory limits. Only valid on a `clickhouse` lane. See [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse#compression-and-memory-limits). |
+| `postgres` | What a postgres lane records from the client's `StartupMessage` onto the session's metadata. Without it, every `options` setting (such as `-c claude.session.id=...`) is recorded as `postgres.option.<name>`; `startup_metadata` narrows that to a list, or `[]` turns it off. Only valid on a `postgres` lane. See [Trace ids from the startup packet](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet). |
 | `grpc` | Descriptor sets and capture for a gRPC lane. Only valid on a `grpc` or `spanner` lane. Each descriptor entry is a file path or a `gs://` URL. See [gRPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-grpc-block). |
 | `spanner` | Which SQL dialect each database speaks, GoogleSQL or PostgreSQL, keyed on the database resource name. Only valid on a `spanner` lane; absent means GoogleSQL. See [Spanner](/setup/configuration/hoop-sidecar/protocols/spanner#dialects-googlesql-and-postgresql). |
 | `ssh` | The host key, trusted CA, admitted capabilities, forward destinations and certificate-to-identity mapping. **Required** on an `ssh` lane and refused on every other. See [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration). |
@@ -467,7 +468,7 @@ The Sidecar does not own policy; it owns the input document:
 
 `operation` is the worst effect and `tables` the flattened relation names, both unchanged. `effects` and `relations` say what those two could not: a data-modifying CTE both deletes and selects, and a flat name list cannot separate the table a statement writes from the one it reads. `findings` carries what each deferring rule established, keyed by producer source. A lane with no producers sends a byte-identical document to the one it sent before findings existed.
 
-`context` comes from the session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them.
+`context` comes from the session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them, plus the session's metadata keys, such as the [`postgres.option.<name>`](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) keys a postgres lane records from the client's `options`. On a postgres lane, `principal` is the `StartupMessage` `user`.
 
 The document also carries `statement` (the text verbatim), `database`, `metadata` from the codec, and `http` with the method, path and normalized resource on an HTTP lane.
 
