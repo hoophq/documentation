@@ -41,7 +41,7 @@ That is a working end-hop. A client reaches it with `ssh -p 2222 devuser@host`, 
 | | Every other lane | `ssh` |
 |---|---|---|
 | Position | relay: listens here, connects there | **endpoint**: the handshake terminates here |
-| `upstream` | required | **refused**. An end-hop spawns a local process; a bastion carries forwards the client picks one at a time |
+| `upstream` | required | **refused**. An end-hop spawns a local process; a bastion carries forwards the client picks one at a time. A terminating bastion names its targets in `ssh.relay.targets`, not in `upstream` |
 | `downstream_tls` / `upstream_tls` | terminate or originate TLS | **refused**. SSH negotiates its own transport; the listener's identity is `ssh.host_key` |
 | `identity_header` | trusts a header a proxy in front set | **refused**. The identity comes from the certificate this lane verified itself |
 | Who the principal is | claimed by something upstream | **verified here**, at the handshake |
@@ -69,7 +69,7 @@ The same end-hop configuration serves the first three. What changes is what sits
 
 Mode 4 is the exception to everything above: the endpoint moves to the middle, the bastion decrypts every session behind it, and file transfer is not available. It is the right answer for an appliance, a vendor-managed host, or an evaluation with no install budget — and the wrong one anywhere you could put the endpoint on the target. [Bastion SSH Termination](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination) states the trade in full.
 
-The client's own `ssh -J` runs two independent handshakes over one TCP path, presenting the same certificate to both. Nothing is re-signed in the middle, and no Sidecar anywhere holds a private signing key. [Topologies](/setup/configuration/hoop-sidecar/protocols/ssh/topologies) has the sequence for each, and what config makes a listener a bastion instead of an end-hop.
+In modes 2 and 3, the client's own `ssh -J` runs two independent handshakes over one TCP path, presenting the same certificate to both. Nothing is re-signed in the middle, and no Sidecar anywhere holds a private signing key. Mode 4 is different: the bastion terminates the inner session and authenticates to the target with a credential **it** holds (or the client's forwarded agent). [Topologies](/setup/configuration/hoop-sidecar/protocols/ssh/topologies) has the sequence for each, and what config makes a listener a bastion instead of an end-hop.
 
 ---
 
@@ -84,6 +84,8 @@ The client's own `ssh -J` runs two independent handshakes over one TCP path, pre
 | What may it run or touch | `guardrails.rules` scoped by `operations` | per statement, before the act |
 | What may come back | `mask.rules` | in flight, on output and downloads |
 | Who the trail names | `ssh.identity` mapped from certificate fields | once per connection |
+
+In modes 1–3 every row above is enforced at the end-hop. On a listener with `ssh.relay`, the same controls are enforced **at the bastion** for every destination the relay map covers, and the target's stock `sshd` enforces only its own authentication. See [Bastion SSH Termination](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination).
 
 And the honest other half: **an interactive shell carries no guardrails.** A keystroke stream has no statement boundary a rule could act on, and reconstructing one is unsound. A shell is admitted, its output is masked, and it is recorded as events — never as content. A deployment that needs every action to be a rule-readable statement drops `shell` from `capabilities_allowed`. [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#interactive-shells) states this in full.
 

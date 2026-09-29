@@ -58,6 +58,8 @@ flowchart LR
 
 **Two SSH sessions, nested.** The bastion terminates the outer one — that is how `destinations_allowed` can be checked at all — and carries the inner one blind. SSH #2 is encrypted between the client and the end-hop, so the bastion cannot read those bytes, and it re-signs no identity.
 
+That holds because this listener has **no `ssh.relay` block**. Add one and every destination it names is terminated at the bastion instead — that is [Mode 4](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination), with a different security model.
+
 The client's own config does the work:
 
 ```
@@ -96,7 +98,7 @@ listeners:
 
 **The address checked is the address dialled.** The endpoint resolves the name once, hands the resolved address to the policy check, and connects to that exact value. Checking a name and then dialling it again would leave a window where the resolver answers differently the second time and the connection lands somewhere policy never saw.
 
-A forward gets no statement, deliberately — its bytes are relayed blind, so there is nothing to evaluate. It gets an audit event carrying the destination, the resolved address, the duration and the byte count.
+A forward gets no statement, deliberately — its bytes are relayed blind, so there is nothing to evaluate. (On a listener with `ssh.relay`, this applies only to destinations the relay map does not cover; covered ones are terminated and inspected as in Mode 4.) It gets an audit event carrying the destination, the resolved address, the duration and the byte count.
 
 ---
 
