@@ -5,6 +5,14 @@ description: "Send held statements to Slack. Reviewers approve there without sig
 
 When a listener holds a statement for a person ([`require_review`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person)), the Control Plane posts a review to Slack. A reviewer clicks **Approve** or **Reject** in the message. hoop finds the hoop user behind the Slack user by email and checks that user's groups.
 
+<Frame caption="A held statement in Slack. The reviewer sees who ran it, on which connection, and the exact statement.">
+  <img
+    className="block"
+    src="/images/integrations/control-plane-slack.webp"
+    alt="A Hoop Bot message in Slack showing a held DELETE statement on the appdb connection, with Approve and Reject buttons"
+  />
+</Frame>
+
 <Note>
 This page is for the Control Plane. For the Gateway, see [Slack](/integrations/slack).
 </Note>
