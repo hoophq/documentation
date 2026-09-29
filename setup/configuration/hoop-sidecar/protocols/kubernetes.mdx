@@ -67,6 +67,63 @@ Offer no ALPN on the upstream hop. The apiserver then answers in HTTP/1.1, the d
 
 ---
 
+## GKE Connect Gateway
+
+Connect Gateway fronts a registered cluster's API server at `/v1/projects/P/locations/L/gkeMemberships/M/api/v1/namespaces/N/secrets/S`, while a rule is written against the Kubernetes path. On host `connectgateway.googleapis.com` or a regional `<region>-connectgateway.googleapis.com` (port ignored), the lane removes the leading `<v1|v1beta1|v1alpha1>/projects/*/locations/*/<gkeMemberships|memberships>/*` from the normalized resource before rules and the analyzer trigger see it. `/api/v1/namespaces/*/secrets/**` then matches through the gateway as it does against the API server; without the strip such a rule would match nothing and let kubectl through untouched. The raw path stays in the audit row and the analyzer prompt, and `metadata["http.resource_prefix"]` records what was removed. Any other host or path shape is left alone.
+
+The usual topology is a transparent MITM proxy (Envoy here) that intercepts kubectl's TLS to `connectgateway.googleapis.com` with your own CA and forwards it to the lane as h2c:
+
+```mermaid
+flowchart LR
+    K[kubectl] -->|TLS h2, re-signed| E[Envoy MITM]
+    E -->|"h2c, or HTTP/1.1 for Upgrade"| L[gke lane]
+    L -->|TLS, exempt from interception| G[connectgateway.googleapis.com]
+    L -->|tokeninfo| O[oauth2.googleapis.com]
+```
+
+```yaml config.yaml
+trust:
+  ca_file: /etc/hoop-inspect/certs/egress-proxy-ca.pem   # the proxy's CA, added to the system roots
+
+listeners:
+  - name: gke
+    protocol: http
+    listen: 0.0.0.0:16443                    # h2c from Envoy; HTTP/1.1 on the same port
+    upstream: connectgateway.googleapis.com:443
+    upstream_tls:
+      server_name: connectgateway.googleapis.com
+    google_identity: {}                      # the caller is whoever holds kubectl's Google bearer
+    http:
+      headers: [Accept, Kubectl-Command, Upgrade, Sec-WebSocket-Protocol, X-Stream-Protocol-Version]
+    guardrails:
+      rules:
+        - name: no-secret-contents
+          type: http_header
+          methods: [GET]
+          resources: ["/api/v1/secrets", "/api/v1/namespaces/*/secrets/**"]
+          headers_not:
+            accept: ["application/json;as=Table;*"]
+          message: listing secrets is fine; reading one is not permitted through this proxy
+    mask:
+      rules:
+        - name: k8s-data
+          columns: [data]
+          entities: [K8S_DATA]
+          strategy: redact
+```
+
+- **[`google_identity`](/setup/configuration/hoop-sidecar/protocols/http#google-identity)** names each caller from the bearer kubectl already sends, so Envoy needs no `ext_authz` and sets no identity header. Connect Gateway still authorizes the same token.
+- **[`trust.ca_file`](/setup/configuration/hoop-sidecar/config-file#adding-a-ca-to-the-trust-store)** lets every Google call the proxy re-signs verify: this `upstream_tls` sets no `ca_file`, and the tokeninfo and any Vertex analyzer calls use the same pool.
+- **Envoy needs two clusters to the lane:** h2 for ordinary requests and HTTP/1.1 for requests with an `Upgrade` header, because the lane answers an h2 extended CONNECT with `501`. See [The Envoy lane](/setup/configuration/hoop-sidecar/protocols/http#the-envoy-lane).
+
+<Warning>
+Exempt the Sidecar's own egress to `connectgateway.googleapis.com` from the interception. Otherwise the proxy routes the lane's upstream connection back into the lane, and the lane refuses the second pass with a 403 `request loop:` (see [Via and loop detection](/setup/configuration/hoop-sidecar/protocols/http#via-and-loop-detection)).
+</Warning>
+
+The [gke overlay](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/gke) of the compose stack runs this topology locally against a fake Connect Gateway, including a lane with no egress exemption that shows the loop refusal.
+
+---
+
 ## Read the request through its headers
 
 kubectl stamps two headers the lane can act on:

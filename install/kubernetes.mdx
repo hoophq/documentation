@@ -535,7 +535,7 @@ Ports here are literal. The chart does not read them from `config.listeners`, so
 <Warning>
 **Before setting `type: LoadBalancer`.**
 
-The Sidecar terminates no client TLS unless the lane sets `downstream_tls`, and that is accepted on **postgres, grpc and spanner only**. On http, mysql, mssql and mongodb it is refused at startup, so those lanes are always plaintext — a public load balancer in front of one of them puts credentials and query results in the clear on the internet.
+The Sidecar terminates no client TLS unless the lane sets `downstream_tls`, and that is accepted on **postgres, clickhouse, http, grpc and spanner only**. On mysql, mssql and mongodb it is refused at startup, so those lanes are always plaintext — a public load balancer in front of one of them puts credentials and query results in the clear on the internet.
 
 Expose a lane publicly only when the lane terminates TLS itself, or when something in front of it does: Envoy, an ingress controller, a service mesh. `loadBalancerSourceRanges` narrows who can reach it; it does not encrypt anything.
 </Warning>

@@ -152,12 +152,12 @@ Every session is recorded whether or not it issues a statement, so a client that
 
 | Event | Fires when | Carries |
 |---|---|---|
-| `session_start` | a connection is accepted | principal, protocol, listener name |
+| `session_start` | a connection is accepted, or an `http` lane's caller changes | principal, protocol, listener name |
 | `statement` | a statement is inspected and allowed | text, operation, tables, `allowed=true` |
 | `violation` | a statement is denied | the same, plus the rule that denied it and the message the client read |
 | `masked` | a response was rewritten | entity names and a cell count, never the values |
 | `error` | a transport or upstream failure | the error text |
-| `session_end` | the connection closes | duration, statement and denial totals |
+| `session_end` | the connection closes, or an `http` lane's caller changes | duration, statement and denial totals |
 
 A denial writes `violation` **instead of** `statement`, not in addition to it, so pulling every denial never means scanning every statement anyone ever ran.
 
