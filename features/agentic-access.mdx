@@ -52,6 +52,12 @@ A risk level you do not name defaults to `allow`, so you opt into blocking a tie
 The wait ends before 30 minutes when the client hangs up, when `idle_timeout_sec` is shorter, or when the caller's own deadline expires. In practice the caller's deadline is the limit: an http client behind Envoy gives up after the 15 s default route timeout. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry.
 </Note>
 
+<Note>
+An agent should not wait on a held statement. With `review_mode: return` the Sidecar files the review and denies at once with the review id; the agent resends the identical statement after approval. `return` applies to every client on the listener, so give agents their own listener, or keep `hold` and let each agent opt in with `x-hoop-review-mode: return` (http, grpc), `hoop-review=return` in `application_name` (postgres) or the `hoop_review_mode` connection attribute (mysql).
+
+Resend the exact bytes, once, after approval. Never resend a rejected review, and run holdable statements in autocommit: a denial on a database connection closes it and rolls back an open transaction. See [The retry contract](/setup/configuration/hoop-sidecar/risk-analysis#the-retry-contract).
+</Note>
+
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
 
 ---
