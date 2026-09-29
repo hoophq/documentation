@@ -92,6 +92,19 @@ Every statement record and the `session_end` record carry the value in `metadata
 
 PostgreSQL accepts a dotted name as a custom setting, so the database runs with the same value and `current_setting('claude.session.id', true)` returns it.
 
+| Place | Carries the values |
+|---|---|
+| each `statement` / `violation` event, and `session_end` | yes |
+| `session_start` | no: it is written before the `StartupMessage` arrives |
+| the session row in `GET /api/sessions` and `/api/sessions/{id}` | once the session ends |
+| OPA `input.context` | yes, from the first statement |
+| the `session opened` / `session closed` log lines | yes, under one `metadata` object |
+
+```json
+{"msg": "session opened", "session": "de2f…", "principal": "alice",
+ "metadata": {"postgres.option.claude.agent.id": "agent-7", "postgres.option.claude.session.id": "xyz1234678"}}
+```
+
 To record only one or two values, or none, add a `postgres` block:
 
 ```yaml config.yaml
@@ -128,13 +141,10 @@ These values are the client's claim. PostgreSQL authenticates the user, not the 
 </Warning>
 
 <Note>
-The default records whatever the client puts in `options`, `search_path` and application settings included, in the audit trail and in what OPA receives. `audit.redact_statements` covers statement text, not metadata. If your clients may carry a secret in `options`, name the settings you want, or write `[]`.
+The default records whatever the client puts in `options`, `search_path` and application settings included, in the audit trail, in what OPA receives and in the Sidecar's process log, which your log pipeline ships under its own retention and access rules. `audit.redact_statements` covers statement text, not metadata. If your clients may carry a secret in `options`, name the settings you want, or write `[]`.
 </Note>
 
-Two limits:
-
-- **`session_start` does not carry the values.** It is written before the `StartupMessage` arrives.
-- **PgBouncer in front of the database** refuses an unknown `options` parameter unless `ignore_startup_parameters` lists it, and listing it drops the value before the database sees it. The Sidecar still records it.
+One limit: **PgBouncer in front of the database** refuses an unknown `options` parameter unless `ignore_startup_parameters` lists it, and listing it drops the value before the database sees it. The Sidecar still records it.
 
 ---
 
