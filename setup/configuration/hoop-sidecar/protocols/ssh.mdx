@@ -9,6 +9,8 @@ Use it to put policy in front of the hosts people still need a shell on — a pr
 
 It is also the one lane that does not relay. **SSH is encrypted end to end, so nothing in a middle position can read it**; to see a command at all, a component has to *be* one end of the connection. So an `ssh` lane terminates the handshake itself: it verifies the client's certificate against a CA it trusts, resolves the requested login name to an account on the host, and spawns the shell or the command locally. There is no upstream to proxy to and no `sshd` behind it.
 
+The one exception proves the rule. A listener carrying an [`ssh.relay`](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination) block terminates the client's session too — it just terminates it in the middle, then opens its **own** connection to a stock `sshd`. It still has to *be* one end of the client's connection to read a command; what changes is that it is also one end of a second connection the client never makes.
+
 ```yaml config.yaml
 listeners:
   - name: prod-endhost
@@ -56,13 +58,16 @@ A lane that terminates the protocol also means there is **no** `authorized_keys`
 
 ## Topologies
 
-The same end-hop configuration serves all three. What changes is what sits in front of it, and the answer to "what is enforced" does not change with it.
+The same end-hop configuration serves the first three. What changes is what sits in front of it, and the answer to "what is enforced" does not change with it.
 
 | Mode | Path | Reach for it when |
 |---|---|---|
 | **1. Direct** | `client → end-hop` | Start here. The end-hop is a complete SSH server, so nothing needs to sit in front |
 | **2. Hoop bastion** | `client → hoop bastion → end-hop` | You want one address in front of a fleet, and the jump host itself to be policy-bound and audited |
 | **3. Stock `sshd` bastion** | `client → existing sshd → end-hop` | You already have a jump host and are not replacing it. It needs one config line: trust the same CA |
+| **4. Bastion SSH termination** | `client → terminating bastion → stock sshd` | The target **cannot** run a sidecar. The bastion terminates the session itself and relays it, so the target runs nothing |
+
+Mode 4 is the exception to everything above: the endpoint moves to the middle, the bastion decrypts every session behind it, and file transfer is not available. It is the right answer for an appliance, a vendor-managed host, or an evaluation with no install budget — and the wrong one anywhere you could put the endpoint on the target. [Bastion SSH Termination](/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination) states the trade in full.
 
 The client's own `ssh -J` runs two independent handshakes over one TCP path, presenting the same certificate to both. Nothing is re-signed in the middle, and no Sidecar anywhere holds a private signing key. [Topologies](/setup/configuration/hoop-sidecar/protocols/ssh/topologies) has the sequence for each, and what config makes a listener a bastion instead of an end-hop.
 
@@ -119,7 +124,10 @@ cd deploy/docker-compose/ssh-stack
 
 <CardGroup cols={2}>
   <Card title="Topologies" icon="route" href="/setup/configuration/hoop-sidecar/protocols/ssh/topologies">
-    The three topologies, what makes a listener a bastion, and why the end-hop enforces the same thing in all of them.
+    The four topologies, what makes a listener a bastion, and why the end-hop enforces the same thing in three of them.
+  </Card>
+  <Card title="Bastion SSH Termination" icon="arrows-split-up-and-left" href="/setup/configuration/hoop-sidecar/protocols/ssh/bastion-termination">
+    Mode 4: the `ssh.relay` block, upstream credentials, host-key checking, and inspecting a host that runs nothing.
   </Card>
   <Card title="Configuration" icon="file-code" href="/setup/configuration/hoop-sidecar/protocols/ssh/configuration">
     Every attribute: `host_key`, `trusted_ca`, the tri-state `capabilities_allowed`, `destinations_allowed` and `identity`.
