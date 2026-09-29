@@ -130,7 +130,7 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `option` | A setting in the `options` startup parameter (`PGOPTIONS`, pgjdbc's `options`). Read the way the server reads it: `-c name=value`, `-cname=value` or `--name=value`, `\` escapes a space, names match case-insensitively with `-` read as `_`, and the last assignment wins. |
+| `option` | A setting in the `options` startup parameter (`PGOPTIONS`, pgjdbc's `options`). Read the way the server reads it: `-c name=value`, `-cname=value` or `--name=value`, `\` escapes a space, names match case-insensitively with `-` read as `_`, and the last assignment wins. If the client also sends the setting as a startup parameter of its own, that parameter's value is recorded, because the server applies it after `options`. |
 | `parameter` | A `StartupMessage` parameter, matched exactly. Exclusive with `option`. Parameters are recorded only when a list names them. |
 | `as` | The metadata key. Absent, it is `postgres.option.<name>` (the key the default writes, so narrowing a lane keeps your dashboards) or `postgres.parameter.<parameter>`. Keys must be unique on the lane. |
 
