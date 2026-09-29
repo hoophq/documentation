@@ -220,7 +220,7 @@ The wait and the poll interval are constants, with no config field. A Control Pl
     The Sidecar files nothing new. The Control Plane recognizes the statement, consumes the approved review and lets it through.
   </Step>
   <Step title="An approval is spent once">
-    A third run of the same statement files a new review. A rejection stays, so a rejected statement is denied every time without paging anyone again.
+    A third run of the same statement files a new review. A rejection or a revocation ends that one review, so running the statement again files a new one and pages the approvers.
   </Step>
 </Steps>
 
