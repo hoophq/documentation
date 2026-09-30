@@ -603,6 +603,7 @@ The example above omits these, so it classifies every command, with no cache and
 |---|---|
 | `trigger.operations` | the only thing that narrows **which** statements are classified. Omit the trigger and every `exec_line` on the lane is sent |
 | `max_calls` | a process-lifetime ceiling. Past it, statements fall through to the guardrails — the same outcome as a lane with no analyzer |
+| `rate_limit` | `calls` per `per_sec` seconds, bursts of `burst`. It refills: a throttled command falls through the same way, and the lane classifies again as tokens come back |
 | `cache` | same command shape, same verdict, one call |
 | `send` | `redacted` replaces detected entities before the command leaves the process; `raw` sends it verbatim; `refuse` skips the call rather than send anything |
 

@@ -5,7 +5,7 @@ description: "Classify statements with a language model and block on the risk it
 
 The analyzer is a per-listener component: an `analyzer:` block declared beside `guardrails`, `opa` and `mask`, not inside them. It sends a statement to a language model and denies on the risk that comes back. It runs wherever a content builder renders the statement for a model: SQL on a `postgres`, `mysql`, `mssql` or `clickhouse` listener, request bodies on an `http` one.
 
-It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-three-cost-controls) before you enable it anywhere real.
+It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-four-cost-controls) before you enable it anywhere real.
 
 <Note>
 Classification runs entirely in the Sidecar: it holds the provider credential and reads one YAML file, same as every other feature here. The one exception is [`require_review`](#holding-a-statement-for-a-person), which files a held statement with the Control Plane.
@@ -31,7 +31,8 @@ analyzer:                          # the provider, plus the defaults every lane 
   send: redacted                   # raw | redacted | refuse
   max_input_bytes: 8192
   cache: {size: 4096, ttl_sec: 900}
-  max_calls: 500
+  max_calls: 500                   # lifetime ceiling, resets only on restart
+  rate_limit: {calls: 30, per_sec: 60}   # 30 calls a minute; refills
 
 listeners:
   - name: appdb
@@ -58,9 +59,10 @@ listeners:
       high: block
       medium: warn
       send: refuse                 # overrides the inherited redacted, this lane only
+      rate_limit: {calls: 10}      # per_sec is still inherited
 ```
 
-A field the block does not name inherits the top-level value, so the block overrides exactly what it writes down. `send`, `fail_open`, `timeout_sec`, `max_input_bytes`, `max_calls` and `cache` all work this way. Provider, model, endpoint and credential are never per lane: a second provider per lane would double the credential surface, so those stay in the top-level section. That split is also the reload boundary: editing a listener's block hot-reloads like a rule edit, while the top-level section requires a restart, because the credential lives there.
+A field the block does not name inherits the top-level value, so the block overrides exactly what it writes down. `send`, `fail_open`, `timeout_sec`, `max_input_bytes`, `max_calls`, `rate_limit` and `cache` all work this way; `rate_limit` and `cache` merge field by field, so a block naming only `calls` keeps the inherited `per_sec` and `burst`. Provider, model, endpoint and credential are never per lane: a second provider per lane would double the credential surface, so those stay in the top-level section. That split is also the reload boundary: editing a listener's block hot-reloads like a rule edit, while the top-level section requires a restart, because the credential lives there.
 
 ---
 
@@ -80,7 +82,7 @@ The trailing decide-phase call appears only on a lane where a risk level or a gu
 
 ---
 
-## The three cost controls
+## The four cost controls
 
 An ORM issues the same statement shape thousands of times in one session. Without these, that is thousands of API calls.
 
@@ -88,17 +90,28 @@ An ORM issues the same statement shape thousands of times in one session. Withou
   <Step title="trigger narrows what is classified">
     Only statements naming these operations, tables or resources are sent. Everything else allows for free.
 
-    **Omit the trigger and every statement on the lane is classified**: declaring the analyzer is the opt-in, and the cache and `max_calls` bound the bill. `--validate` prints a per-lane note naming that cost, so nobody ships it by accident. A lane running [the gate](#the-gate-phase) behaves differently: there the policy decides what gets classified, and an omitted trigger leaves it fully in charge — Rego's silence means skip, and nothing is spent without an explicit `request`.
+    **Omit the trigger and every statement on the lane is classified**: declaring the analyzer is the opt-in, and the cache, `max_calls` and `rate_limit` bound the bill. `--validate` prints a per-lane note naming that cost, so nobody ships it by accident. A lane running [the gate](#the-gate-phase) behaves differently: there the policy decides what gets classified, and an omitted trigger leaves it fully in charge — Rego's silence means skip, and nothing is spent without an explicit `request`.
   </Step>
   <Step title="The cache keys on the statement shape">
     `WHERE id = 1` and `WHERE id = 2` are one verdict: the Sidecar strips literals from SQL before hashing. On an HTTP lane the key holds the method, the normalized resource, the query string and the body, so `/users/12345/orders` and `/users/67890/orders` share an entry while `?export=all` and `?export=none` do not. A query value changes what a request does; a path id does not.
 
     Caching on shape beats caching on bytes. The shape carries the risk.
   </Step>
+  <Step title="rate_limit caps the speed">
+    A token bucket per listener: `calls` per `per_sec` seconds, with at most `burst` sent back to back after a quiet period (`burst` defaults to `calls`). `calls` and `per_sec` are required together, after inheritance. An empty bucket reports `rate_limited`, and the listener classifies again as the bucket refills: `30` per `60` sends 30 at once, then one every two seconds.
+
+    A throttled statement falls through like one past `max_calls`, and a listener that [holds statements for review](#holding-a-statement-for-a-person) denies it until a token is back. A throttled call does not spend `max_calls`, and a cache hit spends neither. The bucket keys on the listener name, so a hot reload continues it rather than refilling it; a lower `burst` takes effect at once, a higher one only as the bucket refills.
+
+    `--validate` prints what each listener can spend in any 24 hours, and how long `max_calls` lasts at the full rate. The process log gets one warning when a bucket runs empty and one line, with the refused count, when it grants again.
+  </Step>
   <Step title="max_calls is a backstop">
-    A process-lifetime budget for the listener. Past it, statements fall through to the guardrails and OPA, the same outcome as a listener with no analyzer. A listener that [holds statements for review](#holding-a-statement-for-a-person) denies instead: a statement with no risk level cannot be forwarded past a human gate. The budget keys on the listener name, so a hot reload that edits the block continues the running count rather than re-arming it.
+    A process-lifetime budget for the listener. Past it, statements fall through to the guardrails and OPA, the same outcome as a listener with no analyzer. A listener that [holds statements for review](#holding-a-statement-for-a-person) denies instead: a statement with no risk level cannot be forwarded past a human gate. The budget keys on the listener name, so a hot reload that edits the block continues the running count rather than re-arming it. Unlike `rate_limit` it never refills: once spent, it stays spent until a restart. With both spent, the status is `budget_exhausted`.
   </Step>
 </Steps>
+
+<Note>
+A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses to serve a configuration that carries it to one, naming the release to upgrade to.
+</Note>
 
 Watch the hit rate before you enable a blocking action:
 
@@ -325,7 +338,7 @@ listeners:
       approval_rule: prod-approvers
 ```
 
-**The approval is exact; the classification is not.** The [cache](#the-three-cost-controls) keys on the statement shape with literals stripped, so `WHERE tenant = 'test'` and `WHERE tenant = 'prod'` share one verdict. A shape rated high holds every statement of that shape, each filing its own review. A shape rated low forwards without a hold, even when a later literal makes it the dangerous one. Set `cache: {size: 0}` on a listener where every statement must be judged on its own, and pay one model call per statement.
+**The approval is exact; the classification is not.** The [cache](#the-four-cost-controls) keys on the statement shape with literals stripped, so `WHERE tenant = 'test'` and `WHERE tenant = 'prod'` share one verdict. A shape rated high holds every statement of that shape, each filing its own review. A shape rated low forwards without a hold, even when a later literal makes it the dangerous one. Set `cache: {size: 0}` on a listener where every statement must be judged on its own, and pay one model call per statement.
 
 **A holding listener fails closed.** `fail_open` answers for a model vendor's outage, not for a human gate, so it is not consulted on a listener where any risk level asks for `require_review`. Each of these denies there:
 
@@ -333,6 +346,7 @@ listeners:
 |---|---|
 | The provider fails or times out | `risk analysis unavailable and this lane holds statements for approval; denying` |
 | `max_calls` is spent | `the risk analysis budget is spent and this lane holds statements for approval; denying` |
+| `rate_limit` is empty | `the risk analysis rate limit is reached and this lane holds statements for approval; denying`. Classification resumes as the bucket refills |
 | The Control Plane times out, refuses the review or answers something unreadable | `statement held for human approval: the review could not be filed` |
 
 A statement the trigger does not match still forwards, as on any listener.
@@ -404,7 +418,7 @@ The verdict still carries the error, so it reaches the audit trail and `/stats` 
 Set `fail_open: false` where the classification is a compliance requirement, and accept that a provider outage then stops traffic.
 </Note>
 
-A listener that holds statements for review is the exception. There `fail_open` is not consulted, and a failed classification, a spent `max_calls` or an unreachable Control Plane denies. See [Holding a statement for a person](#holding-a-statement-for-a-person).
+A listener that holds statements for review is the exception. There `fail_open` is not consulted, and a failed classification, a spent `max_calls`, an empty `rate_limit` bucket or an unreachable Control Plane denies. See [Holding a statement for a person](#holding-a-statement-for-a-person).
 
 ---
 
@@ -809,7 +823,7 @@ Every classified statement carries its risk into the audit trail, on allowed sta
               "ai_status": "ok", "ai_rule": "appdb"}}
 ```
 
-`ai_status` is the analyzer's own vocabulary and keeps the specific word: `ok`, `cached`, `skipped`, `error`, `budget_exhausted`, `refused`. A Rego policy sees a generic status instead, because a policy should not have to learn this package's reasons: `budget_exhausted` and `refused` both arrive as `unavailable`, with the specific word in the finding's `reason`. `ai_rule` names what produced the level: the listener name for an analyzer block, the rule name for a deprecated `ai_analysis` rule.
+`ai_status` is the analyzer's own vocabulary and keeps the specific word: `ok`, `cached`, `skipped`, `error`, `budget_exhausted`, `rate_limited`, `refused`. A Rego policy sees a generic status instead, because a policy should not have to learn this package's reasons: `budget_exhausted`, `rate_limited` and `refused` all arrive as `unavailable`, with the specific word in the finding's `reason`. Where several analyzers see one statement, `ai_status` keeps the most degraded word, as the finding does, so a second analyzer that answered cannot hide a first one's outage or throttling. `ai_rule` names what produced the level: the listener name for an analyzer block, the rule name for a deprecated `ai_analysis` rule.
 
 That feeds a per-session rollup that keeps the **highest** risk the session reached:
 
@@ -859,7 +873,10 @@ Each of these would otherwise load, evaluate and do nothing:
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
 | An analyzer on a gRPC lane without `grpc.capture_payload` | Refused: every RPC would be skipped |
 | A trigger naming an operation the lane never classifies — any SSH operation but `exec_line` | Refused, naming the operation and what the lane does classify |
-| A negative `max_calls`, `cache.size`, `cache.ttl_sec` or `max_output_tokens` | Refused: a negative reads as "off" with no warning |
+| A negative `max_calls`, `cache.size`, `cache.ttl_sec`, `max_output_tokens` or `rate_limit` field | Refused: a negative reads as "off" with no warning |
+| `rate_limit` with `calls` but no `per_sec`, or the reverse, after inheritance; or `burst` with neither | Refused: `rate_limit needs both calls and per_sec` |
+| An empty `rate_limit: {}` | Refused: it limits nothing |
+| `rate_limit.per_sec` above 9223372036 | Refused: past the longest period the Sidecar can hold |
 | An `http` block on a non-HTTP lane | Refused, naming the lane |
 | `authorization`, `cookie` or `proxy-authorization` allowlisted | Refused, naming the header |
 | A Vertex credential that cannot mint a token | Refused, distinguishing parse, IAM and clock failures |
