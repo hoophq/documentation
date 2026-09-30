@@ -709,20 +709,6 @@ Every path is read and checked before anything binds:
 
 ---
 
-## Try it locally
-
-```bash
-cd deploy/docker-compose/ssh-bastion-stack
-./run.sh       # mint a CA and certificates, build, bring up
-./demo.sh      # run every check and assert the result
-```
-
-<Card title="ssh-bastion-stack on GitHub" icon="github" href="https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/ssh-bastion-stack">
-  Six hosts behind one terminating bastion: a shared key, a key per person, `agent_identity`, `accept_new`, a forward the target dials, and one host deliberately carried blind so you can see the difference.
-</Card>
-
----
-
 ## Next
 
 <CardGroup cols={2}>
