@@ -120,7 +120,7 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
-| `require_review` | File the statement with the Control Plane and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
+| `require_review` | File the statement with the Control Plane and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
@@ -225,6 +225,72 @@ The wait and the poll interval are constants, with no config field. A Control Pl
 </Steps>
 
 The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
+
+#### Return mode for agents
+
+An agent's tool call ends long before a person answers, so a 30-minute hold is a hang to it. `review_mode: return` files the review and denies at once with the review id. The agent resends the identical statement after approval.
+
+```yaml
+    analyzer:
+      trigger: {operations: [delete, update]}
+      high: require_review
+      approval_rule: payments-approvers
+      review_mode: return   # hold (the default) or return
+```
+
+```
+ERROR:  statement held for human approval: waiting for approval; resend the identical statement once it is approved (review 9f97…)
+```
+
+When the Sidecar config has an `mcp:` block, the denial leads with the review id and names the MCP tool `review_wait`, which waits for the decision.
+
+`review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.191.0 or later, and refuses the config for an older one.
+
+<Warning>
+`review_mode: return` applies to every client on the listener, people included. A developer in `psql` gets the denial too, and has to run the statement again after approval. Give agents their own listener with `return`, or keep `hold` on a shared listener and let each agent opt in.
+</Warning>
+
+#### A client picks its own mode
+
+A client asks for `hold` or `return`, and that overrides the listener for its statements:
+
+| Protocol | How the client asks | Scope |
+|---|---|---|
+| http | header `x-hoop-review-mode: return` | one request |
+| grpc, spanner | metadata `x-hoop-review-mode: return` | one call |
+| postgres | `application_name` ends in `hoop-review=return` | the connection |
+| mysql | connection attribute `hoop_review_mode=return` | the connection |
+
+```bash
+PGAPPNAME='billing-agent hoop-review=return' psql -h relay -p 15432 appdb
+```
+
+```
+user:pass@tcp(relay:13306)/appdb?connectionAttributes=hoop_review_mode:return
+```
+
+The postgres token is the whole `application_name`, or follows a space or a `;`, so the client keeps its own name in front. A value other than `hold` or `return` is ignored and the listener mode applies, so a typo does not make an agent wait for a person.
+
+The choice is safe to leave to the client: both modes need the approval, and only the wait changes. The audit record carries `review_mode` and `review_mode_source` (`listener` or `client`). The header reaches policy and audit, and never the analyzer prompt or the verdict cache, so both modes share one classification.
+
+#### The retry contract
+
+An agent in return mode follows four rules:
+
+<Steps>
+  <Step title="Resend the identical bytes">
+    The Control Plane matches an approval on the exact statement. A reformatted statement (other whitespace, other quoting, a new comment, a new trace id) files a new review and pages the approvers again.
+  </Step>
+  <Step title="Resend once, after approval">
+    Wait with the MCP tool `review_wait`, or poll `review_status`. An approval releases one run.
+  </Step>
+  <Step title="Do not resend a rejected or revoked review">
+    The decision is final for that review. A resend files a new review and pages the approvers again, so only a person asks again.
+  </Step>
+  <Step title="Run a holdable statement in autocommit">
+    On postgres, mysql, mssql and mongodb a denial closes the connection, and the database rolls back any open transaction with it. The earlier statements of that transaction are lost, and the retry runs on a new connection. This holds for every denial: return mode, a hold that times out, a rejection.
+  </Step>
+</Steps>
 
 #### What a hold files
 
@@ -783,6 +849,8 @@ Each of these would otherwise load, evaluate and do nothing:
 | A blank `approval_rule` | Refused: spaces match no rule in the Control Plane |
 | `require_review` on an ssh listener that admits `shell` | Refused: a shell sends no statements, so what is typed in it goes around the hold. Drop `shell` from `capabilities_allowed` |
 | `require_review` on a Sidecar with no Control Plane | Refused: there is nowhere to file the review |
+| `review_mode` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
+| `review_mode` other than `hold` or `return` | Refused |
 | `require_review` on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
 | `action` set on a deprecated `ai_analysis` rule | Refused: risk maps to actions through `high`, `medium` and `low`. The block has no `action` field at all. |
 | `opa.gate: true` on a lane with no analyzer block | Refused: a round trip per statement that gates nothing |
