@@ -75,9 +75,9 @@ The Sidecar picks a codec per listener, and the codec decides how much of the tr
 | `postgres` | full statement text, its worst effect, every effect, and each relation as a read or a write | result columns, row count, masking by re-framing |
 | `clickhouse` | native Query text, query id, operation and tables | typed result columns, row count, bounded LZ4 decoding and masking by block re-framing |
 | `mssql` | SQLBatch and RPC, with `sp_executesql` unwrapped | result columns, masking by re-framing the TDS token stream |
-| `http` | method, path, normalized resource; body and headers only when the listener opts in with `http.capture_body` | status; body and headers under the same setting |
+| `http` | method, path, normalized resource; body and headers only when the listener opts in with `http.capture_body`; the request body also when the listener holds for review | status; body and headers under the same setting |
 
-The HTTP codec captures **nothing** by default — no bodies, no headers. Everything captured reaches the guardrails engine, the audit trail and, where an analyzer is configured, a third party, so each listener opts in explicitly.
+The HTTP codec captures **nothing** by default: no bodies, no headers. A listener that holds for review captures request bodies. Everything captured reaches the guardrails engine, the audit trail and, where an analyzer is configured, a third party, so each listener opts in explicitly.
 
 ---
 

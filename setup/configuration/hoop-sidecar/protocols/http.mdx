@@ -60,7 +60,7 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `capture_body` | Includes request and response bodies in the statement. A `pii` or `pattern_match` rule that reads payloads needs it, and so does the analyzer to see what a POST carries. The analyzer judges a bodiless request from its request line and headers without it. |
+| `capture_body` | Includes request and response bodies in the statement. A `pii` or `pattern_match` rule that reads payloads needs it. It is optional for the analyzer, which judges a request from its request line and headers without it. A lane that holds for review captures request bodies without it; response bodies still need it. |
 | `max_body_bytes` | Truncates a captured body. Default 64 KiB. |
 | `headers` | Headers exposed to policy, the audit trail and the analyzer, matched case-insensitively. An `http_header` rule may name only headers listed here. `authorization`, `cookie`, `proxy-authorization` and `set-cookie` can never be listed. |
 
