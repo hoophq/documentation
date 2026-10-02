@@ -55,7 +55,7 @@ The mode is chosen by the subcommand: `hoop start control-plane` rather than
 
 ## Keeping it current
 
-See [Updating](/setup/updating) for the upgrade process. Sidecars and the Control Plane are versioned independently, but keep them within a minor release of each other.
+Upgrade the Control Plane first, then the Sidecars. A Control Plane at 1.210.0 or later serves each Sidecar only what its version can read, so Sidecars can lag behind it. See [Upgrading](/control-plane/connect-sidecar#upgrading) for the details.
 
 ---
 

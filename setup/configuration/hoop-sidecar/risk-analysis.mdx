@@ -237,6 +237,8 @@ The wait and the poll interval are constants, with no config field. A Control Pl
   </Step>
 </Steps>
 
+**An approval can be revoked until the Sidecar uses it.** Revoke it from the review page, or with `PUT /api/reviews/<id>` and status `REVOKED`. A hold that is still waiting denies on its next poll, and the Slack message says the approval was revoked. Once the Sidecar uses the approval, the review is `EXECUTED` and a revoke answers `400`: the statement already ran. Any decision that loses that race to the Sidecar answers `400` the same way.
+
 The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
 
 #### Return mode for agents
@@ -257,7 +259,7 @@ ERROR:  statement held for human approval: waiting for approval; resend the iden
 
 When the Sidecar config has an `mcp:` block, the denial leads with the review id and names the MCP tool `review_wait`, which waits for the decision.
 
-`review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.191.0 or later, and refuses the config for an older one.
+`review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.196.0 or later, and refuses the config for an older one.
 
 <Warning>
 `review_mode: return` applies to every client on the listener, people included. A developer in `psql` gets the denial too, and has to run the statement again after approval. Give agents their own listener with `return`, or keep `hold` on a shared listener and let each agent opt in.
