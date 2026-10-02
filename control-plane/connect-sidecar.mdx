@@ -126,7 +126,7 @@ Upgrade the Control Plane first, then the Sidecars.
 A Sidecar refuses the whole configuration when one key in it is unknown to its version. From 1.210.0 the Control Plane knows what each Sidecar can read:
 
 - It sends only the settings an admin set. Upgrading the Control Plane alone changes nothing an older Sidecar receives.
-- A save that uses a setting, a rule type or a protocol that a connected Sidecar's version lacks is refused with `422`. The error names the Sidecar and the release that adds it.
+- A save that uses a setting, a rule type or a protocol that a connected Sidecar's version lacks is refused with `422`. The error names the Sidecar and the upgrade it needs. A Sidecar that never connected is checked at its first handshake instead.
 - This covers every Sidecar from 1.162.0.
 
 A Sidecar newer than its Control Plane runs, but cannot use a setting the Control Plane does not know. Its first import fails when its config file uses such a setting, and the Sidecar does not start. Do not roll the Control Plane back below a setting a stored configuration uses: the Control Plane then answers `500` to that Sidecar.
@@ -148,7 +148,7 @@ curl -X PATCH https://hoop.your-company.com/api/sidecars/<name> \
   -d '{"configuration": {"load_from_disk": true}}'
 ```
 
-The Control Plane then sends only that flag and the license, and the Sidecar runs the config file it was started with. Send `{"configuration": {"load_from_disk": false}}` alone to hand it back. The Sidecar then imports its config file again.
+The Control Plane then sends only that flag and the license, and the Sidecar runs the config file it was started with. The switch deletes the Control Plane rules imported from this Sidecar that nothing else uses, and unbinds the rest. Send `{"configuration": {"load_from_disk": false}}` alone to hand it back: the stored configuration is cleared, and the Sidecar imports its config file again.
 
 ---
 
