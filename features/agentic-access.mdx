@@ -117,9 +117,9 @@ Neither mode needs a `pii` section: with the section omitted every supported ent
 
 The credential is always a path (`credentials_file`), never inline, and the file must be `0600` or stricter.
 
-### HTTP listeners must opt into capture
+### What an HTTP listener shows the analyzer
 
-The HTTP codec captures nothing by default, so an analyzer block on an HTTP listener without `capture_body` is refused at startup:
+The HTTP codec captures no body and no header by default. Without `capture_body`, the analyzer judges a request from its request line. A listener that holds for review captures request bodies without it.
 
 ```yaml
   - name: api

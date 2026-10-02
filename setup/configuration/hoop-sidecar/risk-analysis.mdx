@@ -309,7 +309,7 @@ An agent in return mode follows four rules:
 
 **postgres, mysql, mssql, mongodb and clickhouse** file the statement as the codec reads it.
 
-**http** files the method, the target and the body: `POST /transfers?dry_run=false`, a blank line, then the body. The analyzer already needs `capture_body: true`. Five consequences:
+**http** files the method, the target and the body: `POST /transfers?dry_run=false`, a blank line, then the body. The lane captures the request body without `capture_body`, and the body also reaches policy, the analyzer and the audit trail. Five consequences:
 
 - A body larger than `http.max_body_bytes` is truncated by the codec, so the hold denies it without filing. The approval would bind to bytes nobody read.
 - A query value the codec redacts, such as a token or a password, is filed redacted. Requests that differ only in that value match one approval.
@@ -494,7 +494,7 @@ Changing a prompt invalidates cached verdicts for the lanes it applies to, so a 
 
 ## What the HTTP lane shows the model
 
-The HTTP codec exposes nothing by default: no bodies, no headers. The `http` block decides what the analyzer sees.
+The HTTP codec exposes nothing by default: no bodies, no headers. The `http` block decides what the analyzer sees, except that a lane that holds for review captures request bodies.
 
 ```yaml
   - name: api
@@ -505,7 +505,7 @@ The HTTP codec exposes nothing by default: no bodies, no headers. The `http` blo
       headers: [Content-Type, Accept]
 ```
 
-A request with no body is classified from its request line and the headers in `http.headers`. On a REST API the path is the operation: `GET /api/v1/namespaces/prod/secrets/db-root` says what a kubectl user is about to read, and the `Accept` header says whether they want the names or the contents. `capture_body: true` adds a POST's payload; without it a write reaches the model as its request line alone. A bodiless response (a 204, a 101) is never classified.
+A request with no body is classified from its request line and the headers in `http.headers`. On a REST API the path is the operation: `GET /api/v1/namespaces/prod/secrets/db-root` says what a kubectl user is about to read, and the `Accept` header says whether they want the names or the contents. `capture_body: true` adds a POST's payload. Without it, a write reaches the model as its request line alone, unless the lane holds for review. A bodiless response (a 204, a 101) is never classified.
 
 Headers you allowlist reach the model under the same terms as policy and the audit trail. `authorization`, `cookie`, `proxy-authorization` and `set-cookie` cannot be listed. The cache keys on the headers the model sees, so a per-request header such as kubectl's `Kubectl-Session` UUID turns every request into a model call; leave it out.
 
