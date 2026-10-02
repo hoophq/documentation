@@ -133,7 +133,7 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
-| `require_review` | File the statement with the Control Plane and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
+| `require_review` | File the statement with the Control Plane and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. A rule can [limit the time](#time-limits) to decide and to use the approval. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
@@ -230,7 +230,7 @@ The wait and the poll interval are constants, with no config field. A Control Pl
 
 <Steps>
   <Step title="The retry collects the approval">
-    The Sidecar files nothing new. The Control Plane recognizes the statement, consumes the approved review and lets it through.
+    The Sidecar files nothing new. The Control Plane recognizes the statement, consumes the approved review and lets it through, unless the approval [expired](#time-limits).
   </Step>
   <Step title="An approval is spent once">
     A third run of the same statement files a new review. A rejection or a revocation ends that one review, so running the statement again files a new one and pages the approvers.
@@ -238,6 +238,21 @@ The wait and the poll interval are constants, with no config field. A Control Pl
 </Steps>
 
 The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
+
+#### Time limits
+
+A review stays open until a person decides it and the Sidecar uses the approval, unless its rule sets a limit. On the Control Plane **AI Analyzer** rule, two optional fields show under **Reviewers**:
+
+| Field | Counts from | When it passes |
+|---|---|---|
+| **Time to decide** | the filing | The review is **Expired**. A decision on it answers `review expired` |
+| **Time to use an approval** | the approval | The approval is **Expired**. The statement does not run, and a revoke answers `review expired` |
+
+Each field takes minutes, from 1 minute to 7 days. An empty field means no limit, and a rule with no limit works as before. Through the API the fields are `pending_ttl_sec` and `approval_ttl_sec`, in seconds, from 60 to 604800, and `0` clears one. A review keeps the limits that its rule had when the review was filed.
+
+An expired review releases nothing. The Sidecar denies with `the review expired; running the statement again files a new review`, and an older Sidecar with `the statement was not released`. Running the statement again files a new review and pages the approvers. The Reviews page shows the deadline, and `GET /api/sidecars/reviews/<id>` and the MCP tool `review_status` carry it as `expires_at`. All three show **Expired** when it passes.
+
+A time to decide shorter than 30 minutes ends a hold sooner: the next poll reads **Expired** and denies. A limit longer than 30 minutes does not make a hold wait longer.
 
 #### Return mode for agents
 
@@ -297,9 +312,9 @@ An agent in return mode follows four rules:
     The Control Plane matches an approval on the exact statement. A reformatted statement (other whitespace, other quoting, a new comment, a new trace id) files a new review and pages the approvers again.
   </Step>
   <Step title="Resend once, after approval">
-    Wait with the MCP tool `review_wait`, or poll `review_status`. An approval releases one run.
+    Wait with the MCP tool `review_wait`, or poll `review_status`. An approval releases one run. When `review_status` shows `expires_at`, resend before it: an expired approval releases nothing.
   </Step>
-  <Step title="Do not resend a rejected or revoked review">
+  <Step title="Do not resend a rejected, revoked or expired review">
     The decision is final for that review. A resend files a new review and pages the approvers again, so only a person asks again.
   </Step>
   <Step title="Run a holdable statement in autocommit">
