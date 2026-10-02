@@ -255,6 +255,8 @@ An agent's tool call ends long before a person answers, so a 30-minute hold is a
 ERROR:  statement held for human approval: waiting for approval; resend the identical statement once it is approved (review 9f97…)
 ```
 
+On the Control Plane, set **While held for approval** on the **AI Analyzer** rule: **Wait for the decision (hold)** or **Deny at once, run again after approval (return)**. The field shows when a risk level is **Hold for approval**.
+
 When the Sidecar config has an `mcp:` block, the denial leads with the review id and names the MCP tool `review_wait`, which waits for the decision.
 
 `review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.191.0 or later, and refuses the config for an older one.
@@ -316,6 +318,16 @@ An agent in return mode follows four rules:
 - A request carrying a trace id, a nonce or a timestamp never matches twice. Every attempt files its own review and pages the approvers again.
 - A client that retries on its own timeout leaves two attempts in flight. The approval releases whichever claims it first.
 - A request that arrives in more than one read reaches the upstream in part before the analyzer decides: the request line, the headers and the start of the body. A denial does not recall them, so a route that acts on headers alone runs whatever the reviewer decides.
+
+**A statement that is not text**, such as the protobuf body kubectl sends for `create`, reaches the reviewer as a notice line, then the bytes. A byte that is not printable shows as `\xNN`, and a backslash as `\\`:
+
+```
+[binary statement, 16 bytes: a byte that is not printable shows as \xNN, a backslash as \\]
+k8s\x00
+\x04configmap\xff
+```
+
+Text a reviewer cannot see, such as a zero-width space or a bidi control, takes the same form, so the text shown is the bytes that run. The match stays on the raw bytes.
 
 **grpc** files the method path, a newline, then the message as protojson. **spanner** files the SQL alone when it reads SQL from the message, and the grpc form otherwise. The spanner reviewer reads the SQL, not its parameters or the database it runs against, so an approval releases the query with any bound values. Both need `grpc.capture_payload: true`, and the http consequences apply:
 

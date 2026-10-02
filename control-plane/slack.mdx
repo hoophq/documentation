@@ -169,6 +169,8 @@ If a reviewer's Slack email differs from their hoop email, set their **Slack ID*
 
 Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**, then pick the groups in **Reviewers**. The list shows every group of the organization. One approval from any of them releases the statement.
 
+**While held for approval** picks how the client waits: for the decision, or denied at once to run the statement again after approval. See [Return mode for agents](/setup/configuration/hoop-sidecar/risk-analysis#return-mode-for-agents).
+
 With no group, the admin group reviews. The Control Plane sets the listener's `approval_rule` to this rule for you. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 
 ---
@@ -201,6 +203,8 @@ Everyone in the channel sees these. They replace the buttons as the review chang
 | `Approved by N of M required group(s)` | More approvals are needed; the other buttons stay |
 | `Session ready to be executed!` | The review is approved; the Sidecar runs the statement on its next poll |
 | `Rejection reason:` followed by the quoted text | The reason the reviewer typed when rejecting |
+| `<email> revoked this session at <time>` | That group revoked the approval before the Sidecar used it |
+| `Approval revoked. Running the statement again files a new review.` | The approval was revoked. Nothing ran |
 
 ### Only to the person who clicked
 
