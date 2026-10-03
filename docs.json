@@ -87,6 +87,7 @@
                 ]
               },
               "control-plane/connect-sidecar",
+              "control-plane/service-account-enrollment",
               {
                 "group": "Reference",
                 "pages": [

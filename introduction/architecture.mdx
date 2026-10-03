@@ -90,11 +90,11 @@ A Sidecar retrieves its configuration from the Control Plane over HTTP(S). The e
 | Initiated by | the Sidecar |
 | Protocol | an ordinary HTTP request and response |
 | Port | `8009` by default, or `443` behind TLS or an ingress |
-| Authentication | the per-Sidecar token, on every request |
+| Authentication | the per-Sidecar token, or the Sidecar's service account, on every request |
 | Frequency | once at boot, then every 60 seconds |
 | Required for | booting — a first handshake that fails stops startup, with no fallback to the local file |
 
-Set the Control Plane's address in the Sidecar's configuration file. The token is not written here; it is passed as `--token` or `HOOP_SIDECAR_TOKEN`.
+Set the Control Plane's address in the Sidecar's configuration file. The credential is not written here: the token is passed as `--token` or `HOOP_SIDECAR_TOKEN`, or a [service account](/control-plane/service-account-enrollment) is used instead.
 
 ```yaml config.yaml
 control_plane_url: https://hoop.your-company.com
