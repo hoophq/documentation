@@ -588,7 +588,7 @@ controlPlane:
   identityAudience: ''          # empty: controlPlane.url
 ```
 
-With `identity: kubernetes` the chart mounts a projected token whose audience is `controlPlane.identityAudience`, or `controlPlane.url` when it is empty, and sets `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`. With `gcp` it sets `HOOP_SIDECAR_IDENTITY_GCP=true` and passes the audience as `HOOP_SIDECAR_IDENTITY_AUDIENCE`. Set `identityAudience` only when the Control Plane is shared by several organizations; each needs its own. `token` and `identity` are exclusive, and the chart refuses to render both. See [Enroll Sidecars with a Service Account](/control-plane/service-account-enrollment) for the Control Plane side.
+With `identity: kubernetes` the chart mounts a projected token whose audience is `controlPlane.identityAudience`, or `controlPlane.url` when it is empty, and sets `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`. With `gcp` it sets `HOOP_SIDECAR_IDENTITY_GCP=true` and passes the audience as `HOOP_SIDECAR_IDENTITY_AUDIENCE`. Set `identityAudience` only when the Control Plane is shared by several organizations; each needs its own. `token` and `identity` are exclusive, and the chart refuses to render both. See [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) for the Control Plane side.
 
 ### License
 

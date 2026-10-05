@@ -735,7 +735,7 @@ A Sidecar that knows nothing about a Control Plane reads its config file from di
 | Google service account | Environment | `HOOP_SIDECAR_IDENTITY_GCP=true` |
 | Google ID token audience | Environment | `HOOP_SIDECAR_IDENTITY_AUDIENCE`, default the Control Plane URL |
 
-The environment variable outranks the config file for the URL, the same as every other source pair in this file. Set exactly one credential: a token and a service account together stop startup. See [Enroll Sidecars with a Service Account](/control-plane/service-account-enrollment) for the service account credentials.
+The environment variable outranks the config file for the URL, the same as every other source pair in this file. Set exactly one credential: a token and a service account together stop startup. See [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) for the service account credentials.
 
 There is no config file key for the token. A token is a bearer credential for this Sidecar's identity, and a config file is the thing most likely to end up committed, backed up, or pasted into a support ticket — so the only two sources are the flag and the environment variable, never something written to disk in the file this Sidecar's own diagnostics might echo back.
 

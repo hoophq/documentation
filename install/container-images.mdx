@@ -102,7 +102,7 @@ The relay reads these variables, and the Helm chart sets all of them:
 | `HOOP_LICENSE` | The license document, or a path to one |
 | `HOOP_CONTROL_PLANE_URL` | The Control Plane to take configuration from |
 | `HOOP_SIDECAR_TOKEN` | The token from the Sidecar's registration |
-| `HOOP_SIDECAR_IDENTITY_TOKEN_FILE` | Path to a projected Kubernetes service account token, instead of a token. See [Enroll Sidecars with a Service Account](/control-plane/service-account-enrollment) |
+| `HOOP_SIDECAR_IDENTITY_TOKEN_FILE` | Path to a projected Kubernetes service account token, instead of a token. See [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) |
 | `HOOP_SIDECAR_IDENTITY_GCP` | `true` to use a Google ID token from the metadata server, instead of a token |
 | `HOOP_SIDECAR_IDENTITY_AUDIENCE` | The Google ID token's audience. Default: the Control Plane URL |
 
