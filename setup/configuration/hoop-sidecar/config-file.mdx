@@ -731,8 +731,8 @@ A Sidecar that knows nothing about a Control Plane reads its config file from di
 | Control Plane URL | Environment | `HOOP_CONTROL_PLANE_URL` |
 | Token | Command line | `hoop start sidecar --token …` |
 | Token | Environment | `HOOP_SIDECAR_TOKEN` |
-| Kubernetes service account | Environment | `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`, the path to a projected token |
-| Google service account | Environment | `HOOP_SIDECAR_IDENTITY_GCP=true` |
+| Service account | Environment | `HOOP_SIDECAR_IDENTITY_TYPE=kubernetes` or `=gcp` |
+| Kubernetes token path | Environment | `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`, default `/var/run/hoop-sidecar/token` |
 | Google ID token audience | Environment | `HOOP_SIDECAR_IDENTITY_AUDIENCE`, default the Control Plane URL |
 
 The environment variable outranks the config file for the URL, the same as every other source pair in this file. Set exactly one credential: a token and a service account together stop startup. See [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) for the service account credentials.
