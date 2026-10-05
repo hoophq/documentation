@@ -30,7 +30,7 @@ license: /etc/hoop-inspect/license.json
 control_plane_url: https://hoop.your-company.com
 
 admin:
-  listen: 127.0.0.1:19000   # /healthz /stats /config /events /api/*
+  listen: 127.0.0.1:19000   # /healthz /stats /metrics /config /events /api/*
 
 audit:
   file: "-"                 # stdout as JSON lines; a path appends to that file
@@ -111,7 +111,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
 | `license` | The license this process runs under. A path or the document itself. `--license` and `HOOP_LICENSE` outrank it. See [Licensing](#licensing). |
 | `control_plane_url` | The Control Plane this Sidecar reports to. `HOOP_CONTROL_PLANE_URL` outranks it. Omit it to run standalone from the local config file alone. See [Control Plane](#control-plane). |
-| `admin` | Health, stats and the audit query API. Disabled when `listen` is empty. |
+| `admin` | Health, stats, Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics) and the audit query API. Disabled when `listen` is empty. |
 | `audit` | Where events go and what a failed write means. |
 | `pii` | The detector engine. Omit it and every supported entity is enabled. |
 | `guardrails` | Default Hoop rule set for every lane. |
@@ -203,7 +203,7 @@ Both carry the same traffic. They differ in who can reach the lane and what it c
 
 A socket gives the tighter boundary: no port exists, so reachability is a filesystem question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
 
-Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` to a scraper, and moving it to a socket means exec-ing into the container to read either.
+Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` and `/metrics` to a scraper, and moving it to a socket means exec-ing into the container to read any of them.
 
 #### Which transport is running
 
