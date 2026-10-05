@@ -88,7 +88,18 @@ An ORM issues the same statement shape thousands of times in one session. Withou
 
 <Steps>
   <Step title="trigger narrows what is classified">
-    Only statements naming these operations, tables or resources are sent. Everything else allows for free.
+    Only statements the trigger matches are sent. Everything else allows for free. The flat lists match a statement that names any listed operation, table or resource. An `any` item matches only when every field it names matches, and an `exclude` item removes a statement whatever matched it:
+
+    ```yaml
+    trigger:
+      operations: [delete]                 # each value matches on its own
+      any:
+        - {operations: [patch], resources: ["/api/**"]}   # patch AND under /api
+      exclude:
+        - {resources: ["/api/healthz"]}    # never classified
+    ```
+
+    With only `exclude`, a plain lane classifies every statement except the excluded ones. On a gated lane a gate `request` replaces the whole trigger, `exclude` included.
 
     **Omit the trigger and every statement on the lane is classified**: declaring the analyzer is the opt-in, and the cache, `max_calls` and `rate_limit` bound the bill. `--validate` prints a per-lane note naming that cost, so nobody ships it by accident. A lane running [the gate](#the-gate-phase) behaves differently: there the policy decides what gets classified, and an omitted trigger leaves it fully in charge — Rego's silence means skip, and nothing is spent without an explicit `request`.
   </Step>
@@ -110,7 +121,7 @@ An ORM issues the same statement shape thousands of times in one session. Withou
 </Steps>
 
 <Note>
-A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses to serve a configuration that carries it to one, naming the release to upgrade to.
+A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses to serve a configuration that carries it to one, naming the release to upgrade to. The same holds for a trigger's `any` and `exclude`, which need a Sidecar that reports `analyzer_trigger_items`.
 </Note>
 
 Watch the hit rate before you enable a blocking action:
@@ -209,6 +220,8 @@ listeners:
 `approval_rule` is per listener, so the people who may release a statement against the payments database are not, by accident, the people who may release one against a reporting replica. Editing the block hot-reloads with the listener's rules.
 
 Every protocol can hold. What the reviewer reads differs per protocol; see [What a hold files](#what-a-hold-files).
+
+**The review runs last.** The Sidecar files a review only after every other check allowed the statement, the decide-phase OPA call included. A decide denial files nothing, pages nobody and spends no approval. The decide call sees the pending review as `input.review` (see [the OPA input document](/setup/configuration/hoop-sidecar/config-file#opa)), and it can deny the statement but cannot skip the review.
 
 **A hold waits on the connection for up to 30 minutes.** Every 5 seconds the Sidecar asks the Control Plane about that one review, and the poll never files a new review. An approval that arrives in time runs the statement on the same connection, late. A rejection, a revocation, or an approval that another connection already used ends the wait and denies. Every denial carries the review id:
 
@@ -875,6 +888,8 @@ Each of these would otherwise load, evaluate and do nothing:
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
 | An analyzer on a gRPC lane without `grpc.capture_payload` | Refused: every RPC would be skipped |
 | A trigger naming an operation the lane never classifies — any SSH operation but `exec_line` | Refused, naming the operation and what the lane does classify |
+| A trigger `any` or `exclude` item that names no field, or an operation no codec reports | Refused: the item would match every statement, or none |
+| `exclude` with no other trigger condition on a lane with `opa.gate: true` | Refused: the gate decides there, so nothing reads the exclusion |
 | A negative `max_calls`, `cache.size`, `cache.ttl_sec`, `max_output_tokens` or `rate_limit` field | Refused: a negative reads as "off" with no warning |
 | `rate_limit` with `calls` but no `per_sec`, or the reverse, after inheritance; or `burst` with neither | Refused: `rate_limit needs both calls and per_sec` |
 | An empty `rate_limit: {}` | Refused: it limits nothing |
