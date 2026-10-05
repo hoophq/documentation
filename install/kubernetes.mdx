@@ -584,10 +584,11 @@ serviceAccount:
 controlPlane:
   url: https://cp.example.com
   identity: kubernetes          # or gcp, for a Google service account
-  tokenExpirationSeconds: 3600  # projected token lifetime; minimum 600
+  tokenExpirationSeconds: 3600  # projected token lifetime; the chart refuses less than 600
+  identityAudience: ''          # empty: controlPlane.url
 ```
 
-With `identity: kubernetes` the chart mounts a projected token whose audience is `controlPlane.url` and sets `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`; with `gcp` it sets `HOOP_SIDECAR_IDENTITY_GCP=true`. `token` and `identity` are exclusive, and the chart refuses to render both. See [Enroll Sidecars with a Service Account](/control-plane/service-account-enrollment) for the Control Plane side.
+With `identity: kubernetes` the chart mounts a projected token whose audience is `controlPlane.identityAudience`, or `controlPlane.url` when it is empty, and sets `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`. With `gcp` it sets `HOOP_SIDECAR_IDENTITY_GCP=true` and passes the audience as `HOOP_SIDECAR_IDENTITY_AUDIENCE`. Set `identityAudience` only when the Control Plane is shared by several organizations; each needs its own. `token` and `identity` are exclusive, and the chart refuses to render both. See [Enroll Sidecars with a Service Account](/control-plane/service-account-enrollment) for the Control Plane side.
 
 ### License
 
@@ -622,7 +623,7 @@ license: missing, running the free tier. Add one with the license flag, ...
 
 ### Extra Environment Variables
 
-The chart sets the variables the Sidecar reads: `HOOP_SIDECAR_CONFIG`, `HOOP_LICENSE`, `HOOP_CONTROL_PLANE_URL`, `HOOP_SIDECAR_TOKEN`, `HOOP_SIDECAR_IDENTITY_TOKEN_FILE` and `HOOP_SIDECAR_IDENTITY_GCP`. Anything else a configuration references — an analyzer provider's API key, for instance — goes in `extraSecret`, which becomes a second Secret attached with `envFrom`.
+The chart sets the variables the Sidecar reads: `HOOP_SIDECAR_CONFIG`, `HOOP_LICENSE`, `HOOP_CONTROL_PLANE_URL`, `HOOP_SIDECAR_TOKEN`, `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`, `HOOP_SIDECAR_IDENTITY_GCP` and `HOOP_SIDECAR_IDENTITY_AUDIENCE`. Anything else a configuration references — an analyzer provider's API key, for instance — goes in `extraSecret`, which becomes a second Secret attached with `envFrom`.
 
 ```yaml
 extraSecret:

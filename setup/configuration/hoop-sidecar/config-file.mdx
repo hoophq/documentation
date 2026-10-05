@@ -733,6 +733,7 @@ A Sidecar that knows nothing about a Control Plane reads its config file from di
 | Token | Environment | `HOOP_SIDECAR_TOKEN` |
 | Kubernetes service account | Environment | `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`, the path to a projected token |
 | Google service account | Environment | `HOOP_SIDECAR_IDENTITY_GCP=true` |
+| Google ID token audience | Environment | `HOOP_SIDECAR_IDENTITY_AUDIENCE`, default the Control Plane URL |
 
 The environment variable outranks the config file for the URL, the same as every other source pair in this file. Set exactly one credential: a token and a service account together stop startup. See [Enroll Sidecars with a Service Account](/control-plane/service-account-enrollment) for the service account credentials.
 
