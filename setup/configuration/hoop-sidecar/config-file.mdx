@@ -468,6 +468,14 @@ The Sidecar does not own policy; it owns the input document:
 
 `operation` is the worst effect and `tables` the flattened relation names, both unchanged. `effects` and `relations` say what those two could not: a data-modifying CTE both deletes and selects, and a flat name list cannot separate the table a statement writes from the one it reads. `findings` carries what each deferring rule established, keyed by producer source. A lane with no producers sends a byte-identical document to the one it sent before findings existed.
 
+`review` rides the decide phase only, and only when a risk level asked for `require_review`. The review is filed after decide allows, so the key carries no id or status:
+
+```json
+"review": {"required": true, "mode": "hold", "mode_source": "listener"}
+```
+
+`mode` is `hold` or `return`, and `mode_source` is `listener` or `client`. A denial here files nothing.
+
 `context` comes from the session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them, plus the session's metadata keys, such as the [`postgres.option.<name>`](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) keys a postgres lane records from the client's `options`. On a postgres lane, `principal` is the `StartupMessage` `user`.
 
 The document also carries `statement` (the text verbatim), `database`, `metadata` from the codec, and `http` with the method, path and normalized resource on an HTTP lane.
