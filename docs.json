@@ -91,6 +91,7 @@
                 "group": "Reference",
                 "pages": [
                   "setup/configuration/hoop-sidecar/config-file",
+                  "setup/configuration/hoop-sidecar/service-accounts",
                   "setup/configuration/hoop-sidecar/policy-rules",
                   "setup/configuration/hoop-sidecar/risk-analysis",
                   "setup/configuration/hoop-sidecar/components",
