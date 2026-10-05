@@ -692,7 +692,7 @@ Gemini 3 and later models reason before they answer. The default tier, `MEDIUM` 
 | `extra.thinking_level` | Gemini 3 and later | `minimal`, `low`, `medium`, `high` |
 | `extra.thinking_budget` | Gemini 2.5 | a token count; `0` turns thinking off on 2.5 Flash and Flash-Lite; `-1` lets the model decide |
 
-Both keys apply to `provider: gemini` and to `provider: vertex` with `publisher: google`. Set one, never both: Google rejects a request with both, so startup refuses it. Any other publisher refuses them too.
+Both keys apply to `provider: gemini` and to `provider: vertex` with `publisher: google`. Set one, never both: Google rejects a request with both, so startup refuses it. Any other publisher refuses them too. `thinking_budget: 0` and `thinking_budget: "0"` load the same; quotes are optional for any `extra` value.
 
 <Warning>
 Each model accepts only some levels. `gemini-3.8-flash` takes `low`, `medium` and `high`, and has no `minimal`. Gemini 2.5 Pro cannot turn thinking off. The Sidecar cannot check this at startup, so an unsupported value fails every call with a 400, which [`/metrics`](#metrics) shows as `outcome="error"`. Check the model's card before you set it.
@@ -723,7 +723,7 @@ Sampling narrows a model's answer. It does not make two calls agree. The [cache]
 
 ### Retries
 
-`max_retries` re-sends a classification after a 408, 429, 500, 502, 503 or 504. The first retry waits about 250 ms, each next one twice as long, at most 4 s. A `Retry-After` from the provider replaces that wait.
+`max_retries` re-sends a classification after a 408, 429, 500, 502, 503 or 504. The first retry waits about 250 ms, each next one twice as long, at most 4 s. A `Retry-After` from the provider replaces that wait, and `Retry-After: 0` retries at once.
 
 - **Every attempt shares `timeout_sec`.** A retry never holds a connection longer than one call could. A wait that would outlast the deadline is not taken, and the provider's own answer is reported.
 - **Other failures are final.** Any other status, a transport error or a timeout is not retried.
@@ -733,7 +733,7 @@ Zero, the default, sends once.
 
 ### Labels
 
-`extra.labels` tags every call for GCP billing, as `key=value` pairs separated by commas. Keys start with a lowercase letter. Keys and values hold lowercase letters, digits, `_` and `-`, up to 63 characters. Only `provider: vertex` with `publisher: google` sends them; another publisher refuses them at startup.
+`extra.labels` tags every call for GCP billing, as `key=value` pairs separated by commas. Keys start with a lowercase letter. Keys and values hold lowercase letters, digits, `_` and `-`, up to 63 characters. Only `provider: vertex` with `publisher: google` sends them. `provider: gemini` and the other Vertex publishers refuse them at startup.
 
 <Note>
 The Control Plane serves `temperature`, `top_p`, `top_k` and `seed` only to a Sidecar that reports `analyzer_sampling`, and `max_retries` only to one that reports `analyzer_retries`. The `extra` keys need no check: a Sidecar ignores an `extra` key it does not read.
@@ -1097,7 +1097,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | A `seed` outside 32 bits on Gemini | Refused: the API field is 32-bit |
 | A `thinking_level` other than `minimal`, `low`, `medium` or `high`, or a `thinking_budget` that is not `-1`, `0` or a token count | Refused: every call would be a 400 |
 | `thinking_level` and `thinking_budget` together | Refused: Google rejects a request with both |
-| `thinking_level`, `thinking_budget` or `labels` on a Vertex publisher other than `google` | Refused, naming the publisher |
+| `labels` on `provider: gemini`; `thinking_level`, `thinking_budget` or `labels` on a Vertex publisher other than `google` | Refused, naming the provider or publisher |
 | A `labels` entry that is not `key=value`, breaks GCP's label rules or repeats a key | Refused, naming the entry |
 
 One former refusal moved to runtime: a risk level set to `defer` on a lane with no `opa.url` now loads, `--validate` prints a note, and a deferred verdict **denies** instead of reporting a finding nobody reads.
