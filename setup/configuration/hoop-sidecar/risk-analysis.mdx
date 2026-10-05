@@ -121,13 +121,13 @@ An ORM issues the same statement shape thousands of times in one session. Withou
 </Steps>
 
 <Note>
-A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses to serve a configuration that carries it to one, naming the release to upgrade to. The same holds for a trigger's `any` and `exclude`, which need a Sidecar that reports `analyzer_trigger_items`.
+A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses to serve a configuration that carries it to one, naming the release to upgrade to. The same holds for a trigger's `any` and `exclude`, which need a Sidecar that reports `analyzer_trigger_items`, and for the [sampling keys and `max_retries`](#tuning-the-model-call).
 </Note>
 
-Watch the hit rate before you enable a blocking action:
+Watch the hit rate before you enable a blocking action. `status="cached"` against `status="ok"` is the share of statements that cost nothing:
 
 ```bash
-curl -s localhost:19000/stats | python3 -m json.tool
+curl -s localhost:19000/metrics | grep hoop_inspect_analyzer_statements_total
 ```
 
 <Tip>
@@ -427,7 +427,7 @@ Every other evaluator in the Sidecar fails **closed**. This one defaults to `fai
 
 OPA is a service you run, usually on the same host. A language model is a third-party API over the public internet. Fail closed there and a vendor outage refuses every `UPDATE` on the lane: you have turned "we could not score this statement" into "the database is down", which is a bigger incident than the one you were guarding against.
 
-The verdict still carries the error, so it reaches the audit trail and `/stats` counts it. The guardrails and OPA both ran and both allowed, so a lane whose analyzer is down keeps every control except the paid one.
+The verdict still carries the error, so it reaches the audit trail, and [`/metrics`](#metrics) counts it under `outcome="error"` or `outcome="timeout"`. The guardrails and OPA both ran and both allowed, so a lane whose analyzer is down keeps every control except the paid one.
 
 <Note>
 Set `fail_open: false` where the classification is a compliance requirement, and accept that a provider outage then stops traffic.
@@ -662,6 +662,85 @@ Behind a proxy that re-signs egress TLS (a transparent MITM in front of Google's
 
 ---
 
+## Tuning the model call
+
+Every key here is optional. Unset, the Sidecar sends nothing for it and the model's own default applies, so a config that names none of them sends the request it always did. They are process-wide, like the model, and a change needs a restart.
+
+```yaml config.yaml
+analyzer:
+  provider: vertex
+  model: gemini-3.8-flash
+  extra:
+    project: my-gcp-project
+    region: global
+    publisher: google
+    thinking_level: low              # Gemini 3+: minimal | low | medium | high
+    labels: team=platform,env=prod   # GCP billing labels
+  timeout_sec: 15
+  max_retries: 2                     # re-send after a 408, 429 or 5xx
+  temperature: 0                     # 0 is a value, not "unset"
+  seed: 7
+  max_output_tokens: 1024            # the default
+```
+
+### Thinking
+
+Gemini 3 and later models reason before they answer. The default tier, `MEDIUM` on the 3.x Flash models, can take one call past `timeout_sec`. A classification is one forced tool call and needs little reasoning, so `thinking_level: low` is the usual setting.
+
+| Key | Models | Values |
+|---|---|---|
+| `extra.thinking_level` | Gemini 3 and later | `minimal`, `low`, `medium`, `high` |
+| `extra.thinking_budget` | Gemini 2.5 | a token count; `0` turns thinking off on 2.5 Flash and Flash-Lite; `-1` lets the model decide |
+
+Both keys apply to `provider: gemini` and to `provider: vertex` with `publisher: google`. Set one, never both: Google rejects a request with both, so startup refuses it. Any other publisher refuses them too.
+
+<Warning>
+Each model accepts only some levels. `gemini-3.8-flash` takes `low`, `medium` and `high`, and has no `minimal`. Gemini 2.5 Pro cannot turn thinking off. The Sidecar cannot check this at startup, so an unsupported value fails every call with a 400, which [`/metrics`](#metrics) shows as `outcome="error"`. Check the model's card before you set it.
+</Warning>
+
+### Sampling
+
+`temperature` (0 to 2), `top_p` (0 to 1), `top_k` (1 or more) and `seed` go to the provider under its own field names. A provider whose API has no field for one refuses it at startup, rather than send a setting that does nothing:
+
+| Provider | `temperature` | `top_p` | `top_k` | `seed` |
+|---|---|---|---|---|
+| `anthropic`, or `vertex` with `publisher: anthropic` | sent | sent | sent | refused |
+| `openai`, or `vertex` with `publisher: openapi` | sent | sent | refused | sent |
+| `gemini`, or `vertex` with `publisher: google` | sent | sent | sent | sent |
+
+Two limits come from the APIs, not from the Sidecar:
+
+- Gemini 3 and later models accept `temperature`, `top_p` and `top_k` and ignore them. Google points to `thinking_level` instead. The Sidecar does not check for this, because the model name is the only signal and it changes with every release.
+- Some Claude models refuse `temperature` and `top_p` together. That error comes from the API on each call.
+
+<Note>
+Sampling narrows a model's answer. It does not make two calls agree. The [cache](#the-four-cost-controls) does: statements of one shape share one verdict for `ttl_sec`, with no second call. The shape of the answer is already fixed: every provider must call one of three risk tools, so the verdict is always `low`, `medium` or `high`.
+</Note>
+
+### Output length
+
+`max_output_tokens` caps the length of the reply, 1024 by default. It does not set its shape; the forced tool call does. A tool call with a title and a short explanation needs a few hundred tokens.
+
+### Retries
+
+`max_retries` re-sends a classification after a 408, 429, 500, 502, 503 or 504. The first retry waits about 250 ms, each next one twice as long, at most 4 s. A `Retry-After` from the provider replaces that wait.
+
+- **Every attempt shares `timeout_sec`.** A retry never holds a connection longer than one call could. A wait that would outlast the deadline is not taken, and the provider's own answer is reported.
+- **Other failures are final.** Any other status, a transport error or a timeout is not retried.
+- **It costs no budget.** A retry is not charged to `max_calls` or `rate_limit`, which count classifications.
+
+Zero, the default, sends once.
+
+### Labels
+
+`extra.labels` tags every call for GCP billing, as `key=value` pairs separated by commas. Keys start with a lowercase letter. Keys and values hold lowercase letters, digits, `_` and `-`, up to 63 characters. Only `provider: vertex` with `publisher: google` sends them; another publisher refuses them at startup.
+
+<Note>
+The Control Plane serves `temperature`, `top_p`, `top_k` and `seed` only to a Sidecar that reports `analyzer_sampling`, and `max_retries` only to one that reports `analyzer_retries`. The `extra` keys need no check: a Sidecar ignores an `extra` key it does not read.
+</Note>
+
+---
+
 ## The credential
 
 The config holds a **path**, never the key itself. Three ways to supply one,
@@ -859,8 +938,122 @@ One block per lane. A lane wanting several analyzers, say different triggers wit
 </Note>
 
 <Tip>
-Roll out with every tier on `warn`, watch `by_risk` in `/api/stats` and the cache hit rate in `/stats` for a week, then move `high` to `block`.
+Roll out with every tier on `warn`, watch `by_risk` in `/api/stats` and the cache hit rate in [`/metrics`](#metrics) for a week, then move `high` to `block`.
 </Tip>
+
+---
+
+## Metrics
+
+The admin listener serves `GET /metrics` in the Prometheus text format. Prometheus, an OpenTelemetry Collector with the `prometheus` receiver, or any agent that reads that format can scrape it. A Sidecar with no analyzer answers an empty document, so one scrape job can cover every Sidecar.
+
+```bash
+curl -s localhost:19000/metrics
+```
+
+```text
+# TYPE hoop_inspect_analyzer_request_duration_seconds histogram
+hoop_inspect_analyzer_request_duration_seconds_bucket{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok",le="5"} 31
+hoop_inspect_analyzer_request_duration_seconds_bucket{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok",le="+Inf"} 40
+hoop_inspect_analyzer_request_duration_seconds_sum{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok"} 93.4
+hoop_inspect_analyzer_request_duration_seconds_count{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok"} 40
+# TYPE hoop_inspect_analyzer_retries_total counter
+hoop_inspect_analyzer_retries_total{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash"} 3
+# TYPE hoop_inspect_analyzer_statements_total counter
+hoop_inspect_analyzer_statements_total{analyzer="k8sapi",status="ok",risk_level="high",action="block"} 4
+hoop_inspect_analyzer_statements_total{analyzer="k8sapi",status="cached",risk_level="low",action="allow"} 212
+hoop_inspect_analyzer_statements_total{analyzer="k8sapi",status="skipped",risk_level="",action=""} 1870
+```
+
+### The series
+
+| Series | Type | Labels | Counts |
+|---|---|---|---|
+| `hoop_inspect_analyzer_request_duration_seconds` | histogram | `analyzer`, `provider`, `model`, `outcome` | Time one classification spent with the provider, retries included |
+| `hoop_inspect_analyzer_retries_total` | counter | `analyzer`, `provider`, `model` | Classifications re-sent after a 408, 429 or 5xx |
+| `hoop_inspect_analyzer_statements_total` | counter | `analyzer`, `status`, `risk_level`, `action` | Every statement the analyzer was eligible to classify, cache hits and skips included |
+
+| Label | Values |
+|---|---|
+| `analyzer` | The listener name for an analyzer block; the rule name for a deprecated `ai_analysis` rule. The same value as `ai_rule` in the audit trail |
+| `outcome` | `ok`: a usable verdict. `error`: the provider answered with an error, or with no risk tool. `timeout`: `timeout_sec` ran out |
+| `status` | The `ai_status` values: `ok`, `cached`, `skipped`, `error`, `budget_exhausted`, `rate_limited`, `refused` |
+| `risk_level`, `action` | Set when the statement was classified (`ok`, `cached`), empty otherwise. A `refused` statement carries `action="block"` |
+
+Histogram buckets are 0.25, 0.5, 1, 2, 3, 5, 7.5, 10, 15, 20, 30, 45 and 60 seconds. A timeout lands at about `timeout_sec`, because the duration covers the whole classification. The counters live for the life of the process and survive a hot reload.
+
+### Queries worth having
+
+```promql
+# p99 call time per listener: set timeout_sec above this, not by guess
+histogram_quantile(0.99, sum by (le, analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_bucket[5m])))
+
+# Share of classifications that timed out
+sum by (analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_count{outcome="timeout"}[5m]))
+  / sum by (analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_count[5m]))
+
+# Statements the analyzer could not score; under fail_open: true each was allowed
+sum by (analyzer, status) (rate(hoop_inspect_analyzer_statements_total{status=~"error|budget_exhausted|rate_limited"}[5m]))
+
+# Cache hit rate
+sum by (analyzer) (rate(hoop_inspect_analyzer_statements_total{status="cached"}[1h]))
+  / sum by (analyzer) (rate(hoop_inspect_analyzer_statements_total{status=~"ok|cached"}[1h]))
+
+# Risk mix over a day
+sum by (analyzer, risk_level) (increase(hoop_inspect_analyzer_statements_total{status=~"ok|cached"}[1d]))
+
+# Provider pressure: retries per classification
+sum by (analyzer) (rate(hoop_inspect_analyzer_retries_total[5m]))
+  / sum by (analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_count[5m]))
+```
+
+Two alerts cover most incidents: the timeout share above a few percent, and any sustained `status="error"` rate. Under `fail_open: true` both mean statements go through with no verdict.
+
+### Scraping it
+
+```yaml prometheus.yml
+scrape_configs:
+  - job_name: hoop-sidecar
+    static_configs:
+      - targets: ["sidecar:19000"]
+```
+
+<Warning>
+`/metrics` shares the admin listener with the audit query API, which has no authentication. Scrape it on a private network or from inside the pod. Do not expose the admin port to reach the metrics. See [the admin listener](/setup/configuration/hoop-sidecar/config-file).
+</Warning>
+
+### The same numbers in the log
+
+A failed classification's error says how long it ran and the limit, so a fast failure and an expired deadline read differently:
+
+```json
+{"level":"WARN","msg":"inspection reported an error","listener":"k8sapi",
+ "error":"analyzer/vertex: Post \"https://aiplatform.googleapis.com/...\": context deadline exceeded (after 10.002s, timeout 10s)"}
+```
+
+A retried failure adds the attempt count: `(after 1.2s, timeout 10s, 3 attempts)`. With `log_level: debug`, each call also writes one line:
+
+```json
+{"level":"DEBUG","msg":"analyzer call","analyzer":"k8sapi","outcome":"ok",
+ "duration_ms":2314,"timeout_ms":10000,"attempts":1}
+```
+
+### Reading a timeout
+
+<Steps>
+  <Step title="Confirm it is the deadline">
+    The error ends in `(after N, timeout T)` with N close to T, and `outcome="timeout"` grows. An N far below T is a fast failure: read the status in the error.
+  </Step>
+  <Step title="Read the p99">
+    If the p99 of `outcome="ok"` sits near `timeout_sec`, the model is slow, not down. Raise `timeout_sec` on that listener only, above the p99.
+  </Step>
+  <Step title="Cut the work per call">
+    On Gemini 3 and later, set `thinking_level: low`. Lower `max_input_bytes` on listeners with large bodies. Narrow the `trigger` and turn on the `cache` so fewer statements reach the model.
+  </Step>
+  <Step title="Absorb transient failures">
+    If `outcome="error"` comes with 429 or 503 in the log, set `max_retries: 2`. Retries share `timeout_sec`, so they never hold a connection longer.
+  </Step>
+</Steps>
 
 ---
 
@@ -890,7 +1083,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | A trigger naming an operation the lane never classifies — any SSH operation but `exec_line` | Refused, naming the operation and what the lane does classify |
 | A trigger `any` or `exclude` item that names no field, or an operation no codec reports | Refused: the item would match every statement, or none |
 | `exclude` with no other trigger condition on a lane with `opa.gate: true` | Refused: the gate decides there, so nothing reads the exclusion |
-| A negative `max_calls`, `cache.size`, `cache.ttl_sec`, `max_output_tokens` or `rate_limit` field | Refused: a negative reads as "off" with no warning |
+| A negative `max_calls`, `cache.size`, `cache.ttl_sec`, `max_output_tokens`, `max_retries` or `rate_limit` field | Refused: a negative reads as "off" with no warning |
 | `rate_limit` with `calls` but no `per_sec`, or the reverse, after inheritance; or `burst` with neither | Refused: `rate_limit needs both calls and per_sec` |
 | An empty `rate_limit: {}` | Refused: it limits nothing |
 | `rate_limit.per_sec` above 9223372036 | Refused: past the longest period the Sidecar can hold |
@@ -899,6 +1092,13 @@ Each of these would otherwise load, evaluate and do nothing:
 | A Vertex credential that cannot mint a token | Refused, distinguishing parse, IAM and clock failures |
 | A Vertex `publisher` other than `anthropic`, `google` or `openapi` | Refused, listing the three |
 | `publisher: openapi` with a model lacking its `<publisher>/` prefix | Refused: the shared endpoint cannot route it |
+| `temperature` outside 0 to 2, `top_p` outside 0 to 1, or `top_k` below 1 | Refused, naming the key and the range |
+| A sampling key the provider's API has no field for: `seed` on Claude, `top_k` on OpenAI or `publisher: openapi` | Refused: it would read as set and do nothing |
+| A `seed` outside 32 bits on Gemini | Refused: the API field is 32-bit |
+| A `thinking_level` other than `minimal`, `low`, `medium` or `high`, or a `thinking_budget` that is not `-1`, `0` or a token count | Refused: every call would be a 400 |
+| `thinking_level` and `thinking_budget` together | Refused: Google rejects a request with both |
+| `thinking_level`, `thinking_budget` or `labels` on a Vertex publisher other than `google` | Refused, naming the publisher |
+| A `labels` entry that is not `key=value`, breaks GCP's label rules or repeats a key | Refused, naming the entry |
 
 One former refusal moved to runtime: a risk level set to `defer` on a lane with no `opa.url` now loads, `--validate` prints a note, and a deferred verdict **denies** instead of reporting a finding nobody reads.
 
@@ -965,7 +1165,7 @@ Three things change with the move, all visible rather than behavioral traps:
 
 ## Limits worth knowing
 
-- **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
+- **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. `temperature: 0` and a `seed` narrow the spread on models that honor them; Gemini 3 and later ignore `temperature`. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
 - **Requests only.** A response verdict cannot prevent a write that already ran.
 - **A slow classification can outlive the upstream's idle budget.** The Sidecar dials the upstream when it accepts, then holds the request while it classifies. An upstream with a short keep-alive (gunicorn defaults to 2s) hangs up before a 3s model call returns, and the client reads an empty reply. Raise the upstream's idle timeout above your analyzer's p99. The cache hides this after the first call for a given shape, so it shows up as a rare first-request failure.
 - **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. A listener that holds statements for review denies it instead. The Sidecar records `model refused to classify this statement`. Watch for these in the audit trail while the listener is still on staging: a model that refuses is the wrong model for this job.
