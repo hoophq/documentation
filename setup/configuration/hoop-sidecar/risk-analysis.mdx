@@ -8,7 +8,7 @@ The analyzer is a per-listener component: an `analyzer:` block declared beside `
 It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-four-cost-controls) before you enable it anywhere real.
 
 <Note>
-Classification runs entirely in the Sidecar: it holds the provider credential and reads one YAML file, same as every other feature here. The one exception is [`require_review`](#holding-a-statement-for-a-person), which files a held statement with the Control Plane.
+Classification runs entirely in the Sidecar: it holds the provider credential and reads one YAML file, same as every other feature here. The one exception is [`require_review`](#holding-a-statement-for-a-person), which files a held statement with the Control Plane, or, on a Sidecar with no Control Plane, with the person running it in a terminal.
 </Note>
 
 ---
@@ -144,7 +144,7 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
-| `require_review` | File the statement with the Control Plane and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
+| `require_review` | File the statement with the Control Plane, or [the person at the terminal](#approving-in-the-terminal), and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
@@ -218,6 +218,32 @@ listeners:
 ```
 
 `approval_rule` is per listener, so the people who may release a statement against the payments database are not, by accident, the people who may release one against a reporting replica. Editing the block hot-reloads with the listener's rules.
+
+#### Approving in the terminal
+
+A Sidecar with no Control Plane can still hold statements, when it runs as `hoop start sidecar` in a terminal: stdin and stdout both a TTY. Each held statement waits for the person running it, in the TUI's **Approvals** section. That section shows the statement, the analyzer's risk level and explanation, and the listener, and the person approves or rejects it there. Such a listener needs no `approval_rule`, because there is no Control Plane to hold one.
+
+```yaml
+listeners:
+  - name: payments
+    protocol: postgres
+    # ...
+    analyzer:
+      trigger: {operations: [update, delete]}
+      high: require_review   # no approval_rule: the person at the terminal decides
+```
+
+The rules are the Control Plane's:
+- An approval releases one statement.
+- A resend of the same bytes answers from the same review.
+- A rejection is final for that review.
+- A review nobody decided, and an approval nobody used, expire after the 30-minute wait.
+
+Approve stays off until the whole statement has been on screen. Each decision is written to the Sidecar's log with the approver's name. The TUI also saves the captured audit trail and log under `~/.hoop/sidecar/`.
+
+<Note>
+A configured Control Plane always wins. Its `approval_rule` decides who approves, and the terminal never releases a statement the Control Plane governs. Off a terminal (a pipe, a container, CI), there is nobody to ask, and the Sidecar refuses `require_review` at startup as before.
+</Note>
 
 Every protocol can hold. What the reviewer reads differs per protocol; see [What a hold files](#what-a-hold-files).
 
@@ -1066,11 +1092,11 @@ Each of these would otherwise load, evaluate and do nothing:
 | An analyzer block with no top-level `analyzer` section | Refused: the provider, the model and the credential live there |
 | An analyzer block with no `trigger` | **Not refused.** On a plain lane it classifies every statement (a model call per statement shape; `--validate` prints a note naming the cost). Under `opa.gate: true` the policy decides what gets classified. |
 | An analyzer block naming no action for any risk level | Refused: every verdict would allow while looking like enforcement |
-| `require_review` on a level with no `approval_rule` | Refused: nobody could release the held statement |
+| `require_review` on a level with no `approval_rule`, on a Sidecar with a Control Plane | Refused: the Control Plane refuses a review that names no rule. A [Sidecar in a terminal](#approving-in-the-terminal) needs none |
 | `approval_rule` with no level asking for `require_review` | Refused: it names reviewers nobody consults |
 | A blank `approval_rule` | Refused: spaces match no rule in the Control Plane |
 | `require_review` on an ssh listener that admits `shell` | Refused: a shell sends no statements, so what is typed in it goes around the hold. Drop `shell` from `capabilities_allowed` |
-| `require_review` on a Sidecar with no Control Plane | Refused: there is nowhere to file the review |
+| `require_review` on a Sidecar with no Control Plane, off a terminal | Refused: there is nowhere to file the review. In a terminal, the person running the Sidecar approves |
 | `review_mode` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
 | `review_mode` other than `hold` or `return` | Refused |
 | `require_review` on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
