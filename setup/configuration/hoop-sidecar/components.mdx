@@ -29,7 +29,7 @@ flowchart TB
     subgraph si["Sidecar process"]
       LH["lane httpbin<br/>http codec"]
       LP["lane appdb<br/>postgres codec"]
-      ADM["admin :19000<br/>/healthz /stats /config /api"]
+      ADM["admin :19000<br/>/healthz /stats /metrics /config /api"]
     end
 
     H["httpbin:8080"]

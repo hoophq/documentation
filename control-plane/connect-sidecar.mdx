@@ -5,6 +5,10 @@ description: "Issue a token, point a Sidecar at the Control Plane, and let it pu
 
 A [Sidecar](/core-concepts/sidecar) that knows nothing about a Control Plane reads its config file from disk and runs. Connecting it changes one thing: on boot, it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
 
+<Tip>
+Deploying many Sidecars with automation? Skip the per-Sidecar token: [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) lets each one authenticate with its Kubernetes or Google service account, and the Control Plane creates it on the first handshake.
+</Tip>
+
 ---
 
 ## The handshake
@@ -24,7 +28,7 @@ sequenceDiagram
 Four properties fall out of this shape, and they are the reason it looks like this:
 
 - **No session to maintain.** The Sidecar loads its configuration into memory and keeps running. A Control Plane that goes down does not take running Sidecars with it. A listener using `require_review` is the exception: it files each held statement with the Control Plane, and denies that statement while the Control Plane is unreachable.
-- **The token is the authentication.** There is no second credential and no certificate exchange.
+- **The token is the authentication.** There is no second credential and no certificate exchange. A Sidecar can use a [service account](/setup/configuration/hoop-sidecar/service-accounts) instead of a token, never both.
 - **Ordinary HTTP.** A plain request and a plain response. Nothing is tunnelled and nothing bidirectional stays open.
 - **Neither side knows the other's physical address.** The Sidecar dials out; the Control Plane never dials in. No inbound firewall rule, no NAT traversal.
 
@@ -119,6 +123,39 @@ Reviews do not ride on the heartbeat. A listener using [`require_review`](/setup
 
 ---
 
+## Upgrading
+
+Upgrade the Control Plane first, then the Sidecars.
+
+A Sidecar refuses the whole configuration when one key in it is unknown to its version. From 1.210.0 the Control Plane knows what each Sidecar can read:
+
+- It sends only the settings an admin set. Upgrading the Control Plane alone changes nothing an older Sidecar receives.
+- A save that uses a setting, a rule type or a protocol that a connected Sidecar's version lacks is refused with `422`. The error names the Sidecar and the upgrade it needs. A Sidecar that never connected is checked at its first handshake instead.
+- This covers every Sidecar from 1.162.0.
+
+A Sidecar newer than its Control Plane runs, but cannot use a setting the Control Plane does not know. Its first import fails when its config file uses such a setting, and the Sidecar does not start. Do not roll the Control Plane back below a setting a stored configuration uses: the Control Plane then answers `500` to that Sidecar.
+
+When a Sidecar refuses a configuration anyway:
+
+| When | What happens |
+|---|---|
+| At startup | The Sidecar exits with an error that names the key. |
+| On a heartbeat | The Sidecar keeps running its last rules and reports `refused`. |
+
+The Sidecar page in the Control Plane shows the state, the Sidecar's version and the reason until a configuration applies. `Not applied` for longer than a few minutes means the Sidecar is restarting in a loop.
+
+**Escape hatch.** An admin can hand the Sidecar back to its own config file:
+
+```bash
+curl -X PATCH https://hoop.your-company.com/api/sidecars/<name> \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"configuration": {"load_from_disk": true}}'
+```
+
+The Control Plane then sends only that flag and the license, and the Sidecar runs the config file it was started with. The switch deletes the Control Plane rules imported from this Sidecar that nothing else uses, and unbinds the rest. Send `{"configuration": {"load_from_disk": false}}` alone to hand it back: the stored configuration is cleared, and the Sidecar imports its config file again.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Check |
@@ -130,6 +167,8 @@ Reviews do not ride on the heartbeat. A listener using [`require_review`](/setup
 | The admin API refuses the connection | `admin.listen` is not in the configuration the Control Plane serves. There is no default address. |
 | Rules changed centrally but the Sidecar did not | Configuration is picked up on the heartbeat, not pushed. Wait up to a minute. A listener change needs a restart. |
 | Authentication fails | The token is per-Sidecar. Reusing one across two Sidecars is not a supported shape. |
+| The Sidecar page shows `Refused` or `Not applied` | The Sidecar's version cannot read the configuration. The page shows the reason. Upgrade the Sidecar, or remove the setting. See [Upgrading](#upgrading). |
+| `more than one control plane credential is set` | Set either `HOOP_SIDECAR_TOKEN` (or `--token`) or `HOOP_SIDECAR_IDENTITY_TYPE`, not both. |
 | Held statements are denied with `the review could not be filed` | Outbound HTTPS to the Control Plane host, and that the listener's `approval_rule` names an access request rule the Control Plane holds. A listener that holds statements fails closed. |
 
 ---
@@ -144,6 +183,9 @@ Reviews do not ride on the heartbeat. A listener using [`require_review`](/setup
     Docker Compose, Kubernetes and AWS.
   </Card>
   <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file#control-plane">
-    Every source for `control_plane_url` and the token, in precedence order.
+    Every source for `control_plane_url` and the credential, in precedence order.
+  </Card>
+  <Card title="Service Accounts" icon="id-badge" href="/setup/configuration/hoop-sidecar/service-accounts">
+    No token per Sidecar: one entry per cluster, Sidecars created on first contact.
   </Card>
 </CardGroup>

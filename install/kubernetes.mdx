@@ -573,6 +573,23 @@ Passing the token with `--set` writes it into the Helm release and your shell hi
 
 See [Connect a Sidecar](/control-plane/connect-sidecar) for issuing the token and what the handshake carries.
 
+#### With a service account instead of a token
+
+For a fleet that automation deploys, let each release authenticate with its own service account. No token is issued before the deploy; the Control Plane creates the Sidecar on its first handshake.
+
+```yaml
+serviceAccount:
+  create: true
+  name: hoop-sidecar
+controlPlane:
+  url: https://cp.example.com
+  identity: kubernetes          # or gcp, for a Google service account
+  tokenExpirationSeconds: 3600  # kubernetes only: projected token lifetime; the chart refuses less than 600
+  identityAudience: ''          # empty: controlPlane.url
+```
+
+With `identity: kubernetes` the chart mounts a projected token whose audience is `controlPlane.identityAudience`, or `controlPlane.url` when it is empty, and sets `HOOP_SIDECAR_IDENTITY_TYPE=kubernetes` with `HOOP_SIDECAR_IDENTITY_TOKEN_FILE` pointing at it. With `gcp` it sets `HOOP_SIDECAR_IDENTITY_TYPE=gcp` and passes the audience as `HOOP_SIDECAR_IDENTITY_AUDIENCE`. Set `identityAudience` only when the Control Plane is shared by several organizations; each needs its own. `token` and `identity` are exclusive, and the chart refuses to render both. See [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) for the Control Plane side.
+
 ### License
 
 Without a license, guardrails and masking are capped at one rule each. The value is a path or the document itself — a value starting with `{` is read as the license — so a mounted Secret and a Helm value are the same field.
@@ -606,7 +623,7 @@ license: missing, running the free tier. Add one with the license flag, ...
 
 ### Extra Environment Variables
 
-The chart sets the four variables the Sidecar reads: `HOOP_SIDECAR_CONFIG`, `HOOP_LICENSE`, `HOOP_CONTROL_PLANE_URL` and `HOOP_SIDECAR_TOKEN`. Anything else a configuration references — an analyzer provider's API key, for instance — goes in `extraSecret`, which becomes a second Secret attached with `envFrom`.
+The chart sets the variables the Sidecar reads: `HOOP_SIDECAR_CONFIG`, `HOOP_LICENSE`, `HOOP_CONTROL_PLANE_URL`, `HOOP_SIDECAR_TOKEN`, `HOOP_SIDECAR_IDENTITY_TYPE`, `HOOP_SIDECAR_IDENTITY_TOKEN_FILE` and `HOOP_SIDECAR_IDENTITY_AUDIENCE`. Anything else a configuration references — an analyzer provider's API key, for instance — goes in `extraSecret`, which becomes a second Secret attached with `envFrom`.
 
 ```yaml
 extraSecret:
@@ -653,7 +670,7 @@ A CA certificate is public and needs no such mode. An analyzer credential does.
 
 ### Service Account
 
-With `create: true` the chart makes one named after the release. With `create: false`, `name` points at an account that already exists — the shape GKE Workload Identity wants, so an [AI risk analyzer](/setup/configuration/hoop-sidecar/risk-analysis) reaches Vertex with no credential on disk.
+With `create: true` the chart makes one named `name`, or after the release when `name` is empty. With `create: false`, `name` points at an account that already exists. Either shape works with GKE Workload Identity: with `create: true`, put `iam.gke.io/gcp-service-account` in `annotations`; with `create: false`, annotate the existing account yourself. Then an [AI risk analyzer](/setup/configuration/hoop-sidecar/risk-analysis) reaches Vertex, and a Sidecar with `controlPlane.identity: gcp` reaches the Control Plane, with no credential on disk.
 
 ```yaml
 serviceAccount:

@@ -30,7 +30,7 @@ license: /etc/hoop-inspect/license.json
 control_plane_url: https://hoop.your-company.com
 
 admin:
-  listen: 127.0.0.1:19000   # /healthz /stats /config /events /api/*
+  listen: 127.0.0.1:19000   # /healthz /stats /metrics /config /events /api/*
 
 audit:
   file: "-"                 # stdout as JSON lines; a path appends to that file
@@ -111,7 +111,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
 | `license` | The license this process runs under. A path or the document itself. `--license` and `HOOP_LICENSE` outrank it. See [Licensing](#licensing). |
 | `control_plane_url` | The Control Plane this Sidecar reports to. `HOOP_CONTROL_PLANE_URL` outranks it. Omit it to run standalone from the local config file alone. See [Control Plane](#control-plane). |
-| `admin` | Health, stats and the audit query API. Disabled when `listen` is empty. |
+| `admin` | Health, stats, Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics) and the audit query API. Disabled when `listen` is empty. |
 | `audit` | Where events go and what a failed write means. |
 | `pii` | The detector engine. Omit it and every supported entity is enabled. |
 | `guardrails` | Default Hoop rule set for every lane. |
@@ -203,7 +203,7 @@ Both carry the same traffic. They differ in who can reach the lane and what it c
 
 A socket gives the tighter boundary: no port exists, so reachability is a filesystem question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
 
-Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` to a scraper, and moving it to a socket means exec-ing into the container to read either.
+Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` and `/metrics` to a scraper, and moving it to a socket means exec-ing into the container to read any of them.
 
 #### Which transport is running
 
@@ -468,6 +468,14 @@ The Sidecar does not own policy; it owns the input document:
 
 `operation` is the worst effect and `tables` the flattened relation names, both unchanged. `effects` and `relations` say what those two could not: a data-modifying CTE both deletes and selects, and a flat name list cannot separate the table a statement writes from the one it reads. `findings` carries what each deferring rule established, keyed by producer source. A lane with no producers sends a byte-identical document to the one it sent before findings existed.
 
+`review` rides the decide phase only, and only when a risk level asked for `require_review`. The review is filed after decide allows, so the key carries no id or status:
+
+```json
+"review": {"required": true, "mode": "hold", "mode_source": "listener"}
+```
+
+`mode` is `hold` or `return`, and `mode_source` is `listener` or `client`. A denial here files nothing.
+
 `context` comes from the session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them, plus the session's metadata keys, such as the [`postgres.option.<name>`](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) keys a postgres lane records from the client's `options`. On a postgres lane, `principal` is the `StartupMessage` `user`.
 
 The document also carries `statement` (the text verbatim), `database`, `metadata` from the codec, and `http` with the method, path and normalized resource on an HTTP lane.
@@ -715,7 +723,7 @@ Re-applying the caps to a running relay would mean deleting rules, and that is w
 
 ## Control Plane
 
-A Sidecar that knows nothing about a Control Plane reads its config file from disk and runs standalone. Pointing it at one is two independent settings: where the Control Plane is, and the token that identifies this Sidecar to it.
+A Sidecar that knows nothing about a Control Plane reads its config file from disk and runs standalone. Pointing it at one is two independent settings: where the Control Plane is, and the credential that identifies this Sidecar to it.
 
 | Setting | Source | Spelling |
 |---|---|---|
@@ -723,8 +731,11 @@ A Sidecar that knows nothing about a Control Plane reads its config file from di
 | Control Plane URL | Environment | `HOOP_CONTROL_PLANE_URL` |
 | Token | Command line | `hoop start sidecar --token …` |
 | Token | Environment | `HOOP_SIDECAR_TOKEN` |
+| Service account | Environment | `HOOP_SIDECAR_IDENTITY_TYPE=kubernetes` or `=gcp` |
+| Kubernetes token path | Environment | `HOOP_SIDECAR_IDENTITY_TOKEN_FILE`, default `/var/run/hoop-sidecar/token` |
+| Google ID token audience | Environment | `HOOP_SIDECAR_IDENTITY_AUDIENCE`, default the Control Plane URL |
 
-The environment variable outranks the config file for the URL, the same as every other source pair in this file.
+The environment variable outranks the config file for the URL, the same as every other source pair in this file. Set exactly one credential: a token and a service account together stop startup. See [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) for the service account credentials.
 
 There is no config file key for the token. A token is a bearer credential for this Sidecar's identity, and a config file is the thing most likely to end up committed, backed up, or pasted into a support ticket — so the only two sources are the flag and the environment variable, never something written to disk in the file this Sidecar's own diagnostics might echo back.
 

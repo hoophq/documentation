@@ -8,7 +8,7 @@ The analyzer is a per-listener component: an `analyzer:` block declared beside `
 It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-four-cost-controls) before you enable it anywhere real.
 
 <Note>
-Classification runs entirely in the Sidecar: it holds the provider credential and reads one YAML file, same as every other feature here. The one exception is [`require_review`](#holding-a-statement-for-a-person), which files a held statement with the Control Plane.
+Classification runs entirely in the Sidecar: it holds the provider credential and reads one YAML file, same as every other feature here. The one exception is [`require_review`](#holding-a-statement-for-a-person), which files a held statement with the Control Plane, or, on a Sidecar with no Control Plane, with the person running it in a terminal.
 </Note>
 
 ---
@@ -88,7 +88,18 @@ An ORM issues the same statement shape thousands of times in one session. Withou
 
 <Steps>
   <Step title="trigger narrows what is classified">
-    Only statements naming these operations, tables or resources are sent. Everything else allows for free.
+    Only statements the trigger matches are sent. Everything else allows for free. The flat lists match a statement that names any listed operation, table or resource. An `any` item matches only when every field it names matches, and an `exclude` item removes a statement whatever matched it:
+
+    ```yaml
+    trigger:
+      operations: [delete]                 # each value matches on its own
+      any:
+        - {operations: [patch], resources: ["/api/**"]}   # patch AND under /api
+      exclude:
+        - {resources: ["/api/healthz"]}    # never classified
+    ```
+
+    With only `exclude`, a plain lane classifies every statement except the excluded ones. On a gated lane a gate `request` replaces the whole trigger, `exclude` included.
 
     **Omit the trigger and every statement on the lane is classified**: declaring the analyzer is the opt-in, and the cache, `max_calls` and `rate_limit` bound the bill. `--validate` prints a per-lane note naming that cost, so nobody ships it by accident. A lane running [the gate](#the-gate-phase) behaves differently: there the policy decides what gets classified, and an omitted trigger leaves it fully in charge — Rego's silence means skip, and nothing is spent without an explicit `request`.
   </Step>
@@ -110,13 +121,13 @@ An ORM issues the same statement shape thousands of times in one session. Withou
 </Steps>
 
 <Note>
-A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses to serve a configuration that carries it to one, naming the release to upgrade to.
+A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses to serve a configuration that carries it to one, naming the release to upgrade to. The same holds for a trigger's `any` and `exclude`, which need a Sidecar that reports `analyzer_trigger_items`, and for the [sampling keys and `max_retries`](#tuning-the-model-call).
 </Note>
 
-Watch the hit rate before you enable a blocking action:
+Watch the hit rate before you enable a blocking action. `status="cached"` against `status="ok"` is the share of statements that cost nothing:
 
 ```bash
-curl -s localhost:19000/stats | python3 -m json.tool
+curl -s localhost:19000/metrics | grep hoop_inspect_analyzer_statements_total
 ```
 
 <Tip>
@@ -133,7 +144,7 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
-| `require_review` | File the statement with the Control Plane and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. A rule can [limit the time](#time-limits) to decide and to use the approval. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
+| `require_review` | File the statement with the Control Plane, or [the person at the terminal](#approving-in-the-terminal), and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. A rule can [limit the time](#time-limits) to decide and to use the approval. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
@@ -208,7 +219,35 @@ listeners:
 
 `approval_rule` is per listener, so the people who may release a statement against the payments database are not, by accident, the people who may release one against a reporting replica. Editing the block hot-reloads with the listener's rules.
 
+#### Approving in the terminal
+
+A Sidecar with no Control Plane can still hold statements, when it runs as `hoop start sidecar` in a terminal: stdin and stdout both a TTY. Each held statement waits for the person running it, in the TUI's **Approvals** section. That section shows the statement, the analyzer's risk level and explanation, and the listener, and the person approves or rejects it there. Such a listener needs no `approval_rule`, because there is no Control Plane to hold one.
+
+```yaml
+listeners:
+  - name: payments
+    protocol: postgres
+    # ...
+    analyzer:
+      trigger: {operations: [update, delete]}
+      high: require_review   # no approval_rule: the person at the terminal decides
+```
+
+The rules are the Control Plane's:
+- An approval releases one statement.
+- A resend of the same bytes answers from the same review.
+- A rejection is final for that review.
+- A review nobody decided, and an approval nobody used, expire after the 30-minute wait.
+
+Approve stays off until the whole statement has been on screen. Each decision is written to the Sidecar's log with the approver's name. The TUI also saves the captured audit trail and log under `~/.hoop/sidecar/`.
+
+<Note>
+A configured Control Plane always wins. Its `approval_rule` decides who approves, and the terminal never releases a statement the Control Plane governs. Off a terminal (a pipe, a container, CI), there is nobody to ask, and the Sidecar refuses `require_review` at startup as before.
+</Note>
+
 Every protocol can hold. What the reviewer reads differs per protocol; see [What a hold files](#what-a-hold-files).
+
+**The review runs last.** The Sidecar files a review only after every other check allowed the statement, the decide-phase OPA call included. A decide denial files nothing, pages nobody and spends no approval. The decide call sees the pending review as `input.review` (see [the OPA input document](/setup/configuration/hoop-sidecar/config-file#opa)), and it can deny the statement but cannot skip the review.
 
 **A hold waits on the connection for up to 30 minutes.** Every 5 seconds the Sidecar asks the Control Plane about that one review, and the poll never files a new review. An approval that arrives in time runs the statement on the same connection, late. A rejection, a revocation, or an approval that another connection already used ends the wait and denies. Every denial carries the review id:
 
@@ -236,6 +275,8 @@ The wait and the poll interval are constants, with no config field. A Control Pl
     A third run of the same statement files a new review. A rejection or a revocation ends that one review, so running the statement again files a new one and pages the approvers.
   </Step>
 </Steps>
+
+**An approval can be revoked until the Sidecar uses it.** Revoke it from the review page, or with `PUT /api/reviews/<id>` and status `REVOKED`. A hold that is still waiting denies on its next poll, and the Slack message says the approval was revoked. Once the Sidecar uses the approval, the review is `EXECUTED` and a revoke answers `400`: the statement already ran. Any decision that loses that race to the Sidecar answers `400` the same way.
 
 The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
 
@@ -274,7 +315,7 @@ On the Control Plane, set **While held for approval** on the **AI Analyzer** rul
 
 When the Sidecar config has an `mcp:` block, the denial leads with the review id and names the MCP tool `review_wait`, which waits for the decision.
 
-`review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.191.0 or later, and refuses the config for an older one.
+`review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.196.0 or later, and refuses the config for an older one.
 
 <Warning>
 `review_mode: return` applies to every client on the listener, people included. A developer in `psql` gets the denial too, and has to run the statement again after approval. Give agents their own listener with `return`, or keep `hold` on a shared listener and let each agent opt in.
@@ -439,7 +480,7 @@ Every other evaluator in the Sidecar fails **closed**. This one defaults to `fai
 
 OPA is a service you run, usually on the same host. A language model is a third-party API over the public internet. Fail closed there and a vendor outage refuses every `UPDATE` on the lane: you have turned "we could not score this statement" into "the database is down", which is a bigger incident than the one you were guarding against.
 
-The verdict still carries the error, so it reaches the audit trail and `/stats` counts it. The guardrails and OPA both ran and both allowed, so a lane whose analyzer is down keeps every control except the paid one.
+The verdict still carries the error, so it reaches the audit trail, and [`/metrics`](#metrics) counts it under `outcome="error"` or `outcome="timeout"`. The guardrails and OPA both ran and both allowed, so a lane whose analyzer is down keeps every control except the paid one.
 
 <Note>
 Set `fail_open: false` where the classification is a compliance requirement, and accept that a provider outage then stops traffic.
@@ -674,6 +715,85 @@ Behind a proxy that re-signs egress TLS (a transparent MITM in front of Google's
 
 ---
 
+## Tuning the model call
+
+Every key here is optional. Unset, the Sidecar sends nothing for it and the model's own default applies, so a config that names none of them sends the request it always did. They are process-wide, like the model, and a change needs a restart.
+
+```yaml config.yaml
+analyzer:
+  provider: vertex
+  model: gemini-3.8-flash
+  extra:
+    project: my-gcp-project
+    region: global
+    publisher: google
+    thinking_level: low              # Gemini 3+: minimal | low | medium | high
+    labels: team=platform,env=prod   # GCP billing labels
+  timeout_sec: 15
+  max_retries: 2                     # re-send after a 408, 429 or 5xx
+  temperature: 0                     # 0 is a value, not "unset"
+  seed: 7
+  max_output_tokens: 1024            # the default
+```
+
+### Thinking
+
+Gemini 3 and later models reason before they answer. The default tier, `MEDIUM` on the 3.x Flash models, can take one call past `timeout_sec`. A classification is one forced tool call and needs little reasoning, so `thinking_level: low` is the usual setting.
+
+| Key | Models | Values |
+|---|---|---|
+| `extra.thinking_level` | Gemini 3 and later | `minimal`, `low`, `medium`, `high` |
+| `extra.thinking_budget` | Gemini 2.5 | a token count; `0` turns thinking off on 2.5 Flash and Flash-Lite; `-1` lets the model decide |
+
+Both keys apply to `provider: gemini` and to `provider: vertex` with `publisher: google`. Set one, never both: Google rejects a request with both, so startup refuses it. Any other publisher refuses them too. `thinking_budget: 0` and `thinking_budget: "0"` load the same; quotes are optional for any `extra` value.
+
+<Warning>
+Each model accepts only some levels. `gemini-3.8-flash` takes `low`, `medium` and `high`, and has no `minimal`. Gemini 2.5 Pro cannot turn thinking off. The Sidecar cannot check this at startup, so an unsupported value fails every call with a 400, which [`/metrics`](#metrics) shows as `outcome="error"`. Check the model's card before you set it.
+</Warning>
+
+### Sampling
+
+`temperature` (0 to 2), `top_p` (0 to 1), `top_k` (1 or more) and `seed` go to the provider under its own field names. A provider whose API has no field for one refuses it at startup, rather than send a setting that does nothing:
+
+| Provider | `temperature` | `top_p` | `top_k` | `seed` |
+|---|---|---|---|---|
+| `anthropic`, or `vertex` with `publisher: anthropic` | sent | sent | sent | refused |
+| `openai`, or `vertex` with `publisher: openapi` | sent | sent | refused | sent |
+| `gemini`, or `vertex` with `publisher: google` | sent | sent | sent | sent |
+
+Two limits come from the APIs, not from the Sidecar:
+
+- Gemini 3 and later models accept `temperature`, `top_p` and `top_k` and ignore them. Google points to `thinking_level` instead. The Sidecar does not check for this, because the model name is the only signal and it changes with every release.
+- Some Claude models refuse `temperature` and `top_p` together. That error comes from the API on each call.
+
+<Note>
+Sampling narrows a model's answer. It does not make two calls agree. The [cache](#the-four-cost-controls) does: statements of one shape share one verdict for `ttl_sec`, with no second call. The shape of the answer is already fixed: every provider must call one of three risk tools, so the verdict is always `low`, `medium` or `high`.
+</Note>
+
+### Output length
+
+`max_output_tokens` caps the length of the reply, 1024 by default. It does not set its shape; the forced tool call does. A tool call with a title and a short explanation needs a few hundred tokens.
+
+### Retries
+
+`max_retries` re-sends a classification after a 408, 429, 500, 502, 503 or 504. The first retry waits about 250 ms, each next one twice as long, at most 4 s. A `Retry-After` from the provider replaces that wait, and `Retry-After: 0` retries at once.
+
+- **Every attempt shares `timeout_sec`.** A retry never holds a connection longer than one call could. A wait that would outlast the deadline is not taken, and the provider's own answer is reported.
+- **Other failures are final.** Any other status, a transport error or a timeout is not retried.
+- **It costs no budget.** A retry is not charged to `max_calls` or `rate_limit`, which count classifications.
+
+Zero, the default, sends once.
+
+### Labels
+
+`extra.labels` tags every call for GCP billing, as `key=value` pairs separated by commas. Keys start with a lowercase letter. Keys and values hold lowercase letters, digits, `_` and `-`, up to 63 characters. Only `provider: vertex` with `publisher: google` sends them. `provider: gemini` and the other Vertex publishers refuse them at startup.
+
+<Note>
+The Control Plane serves `temperature`, `top_p`, `top_k` and `seed` only to a Sidecar that reports `analyzer_sampling`, and `max_retries` only to one that reports `analyzer_retries`. The `extra` keys need no check: a Sidecar ignores an `extra` key it does not read.
+</Note>
+
+---
+
 ## The credential
 
 The config holds a **path**, never the key itself. Three ways to supply one,
@@ -871,8 +991,122 @@ One block per lane. A lane wanting several analyzers, say different triggers wit
 </Note>
 
 <Tip>
-Roll out with every tier on `warn`, watch `by_risk` in `/api/stats` and the cache hit rate in `/stats` for a week, then move `high` to `block`.
+Roll out with every tier on `warn`, watch `by_risk` in `/api/stats` and the cache hit rate in [`/metrics`](#metrics) for a week, then move `high` to `block`.
 </Tip>
+
+---
+
+## Metrics
+
+The admin listener serves `GET /metrics` in the Prometheus text format. Prometheus, an OpenTelemetry Collector with the `prometheus` receiver, or any agent that reads that format can scrape it. A Sidecar with no analyzer answers an empty document, so one scrape job can cover every Sidecar.
+
+```bash
+curl -s localhost:19000/metrics
+```
+
+```text
+# TYPE hoop_inspect_analyzer_request_duration_seconds histogram
+hoop_inspect_analyzer_request_duration_seconds_bucket{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok",le="5"} 31
+hoop_inspect_analyzer_request_duration_seconds_bucket{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok",le="+Inf"} 40
+hoop_inspect_analyzer_request_duration_seconds_sum{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok"} 93.4
+hoop_inspect_analyzer_request_duration_seconds_count{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash",outcome="ok"} 40
+# TYPE hoop_inspect_analyzer_retries_total counter
+hoop_inspect_analyzer_retries_total{analyzer="k8sapi",provider="vertex",model="gemini-3.8-flash"} 3
+# TYPE hoop_inspect_analyzer_statements_total counter
+hoop_inspect_analyzer_statements_total{analyzer="k8sapi",status="ok",risk_level="high",action="block"} 4
+hoop_inspect_analyzer_statements_total{analyzer="k8sapi",status="cached",risk_level="low",action="allow"} 212
+hoop_inspect_analyzer_statements_total{analyzer="k8sapi",status="skipped",risk_level="",action=""} 1870
+```
+
+### The series
+
+| Series | Type | Labels | Counts |
+|---|---|---|---|
+| `hoop_inspect_analyzer_request_duration_seconds` | histogram | `analyzer`, `provider`, `model`, `outcome` | Time one classification spent with the provider, retries included |
+| `hoop_inspect_analyzer_retries_total` | counter | `analyzer`, `provider`, `model` | Classifications re-sent after a 408, 429 or 5xx |
+| `hoop_inspect_analyzer_statements_total` | counter | `analyzer`, `status`, `risk_level`, `action` | Every statement the analyzer was eligible to classify, cache hits and skips included |
+
+| Label | Values |
+|---|---|
+| `analyzer` | The listener name for an analyzer block; the rule name for a deprecated `ai_analysis` rule. The same value as `ai_rule` in the audit trail |
+| `outcome` | `ok`: a usable verdict. `error`: the provider answered with an error, or with no risk tool. `timeout`: `timeout_sec` ran out |
+| `status` | The `ai_status` values: `ok`, `cached`, `skipped`, `error`, `budget_exhausted`, `rate_limited`, `refused` |
+| `risk_level`, `action` | Set when the statement was classified (`ok`, `cached`), empty otherwise. A `refused` statement carries `action="block"` |
+
+Histogram buckets are 0.25, 0.5, 1, 2, 3, 5, 7.5, 10, 15, 20, 30, 45 and 60 seconds. A timeout lands at about `timeout_sec`, because the duration covers the whole classification. The counters live for the life of the process and survive a hot reload.
+
+### Queries worth having
+
+```promql
+# p99 call time per listener: set timeout_sec above this, not by guess
+histogram_quantile(0.99, sum by (le, analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_bucket[5m])))
+
+# Share of classifications that timed out
+sum by (analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_count{outcome="timeout"}[5m]))
+  / sum by (analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_count[5m]))
+
+# Statements the analyzer could not score; under fail_open: true each was allowed
+sum by (analyzer, status) (rate(hoop_inspect_analyzer_statements_total{status=~"error|budget_exhausted|rate_limited"}[5m]))
+
+# Cache hit rate
+sum by (analyzer) (rate(hoop_inspect_analyzer_statements_total{status="cached"}[1h]))
+  / sum by (analyzer) (rate(hoop_inspect_analyzer_statements_total{status=~"ok|cached"}[1h]))
+
+# Risk mix over a day
+sum by (analyzer, risk_level) (increase(hoop_inspect_analyzer_statements_total{status=~"ok|cached"}[1d]))
+
+# Provider pressure: retries per classification
+sum by (analyzer) (rate(hoop_inspect_analyzer_retries_total[5m]))
+  / sum by (analyzer) (rate(hoop_inspect_analyzer_request_duration_seconds_count[5m]))
+```
+
+Two alerts cover most incidents: the timeout share above a few percent, and any sustained `status="error"` rate. Under `fail_open: true` both mean statements go through with no verdict.
+
+### Scraping it
+
+```yaml prometheus.yml
+scrape_configs:
+  - job_name: hoop-sidecar
+    static_configs:
+      - targets: ["sidecar:19000"]
+```
+
+<Warning>
+`/metrics` shares the admin listener with the audit query API, which has no authentication. Scrape it on a private network or from inside the pod. Do not expose the admin port to reach the metrics. See [the admin listener](/setup/configuration/hoop-sidecar/config-file).
+</Warning>
+
+### The same numbers in the log
+
+A failed classification's error says how long it ran and the limit, so a fast failure and an expired deadline read differently:
+
+```json
+{"level":"WARN","msg":"inspection reported an error","listener":"k8sapi",
+ "error":"analyzer/vertex: Post \"https://aiplatform.googleapis.com/...\": context deadline exceeded (after 10.002s, timeout 10s)"}
+```
+
+A retried failure adds the attempt count: `(after 1.2s, timeout 10s, 3 attempts)`. With `log_level: debug`, each call also writes one line:
+
+```json
+{"level":"DEBUG","msg":"analyzer call","analyzer":"k8sapi","outcome":"ok",
+ "duration_ms":2314,"timeout_ms":10000,"attempts":1}
+```
+
+### Reading a timeout
+
+<Steps>
+  <Step title="Confirm it is the deadline">
+    The error ends in `(after N, timeout T)` with N close to T, and `outcome="timeout"` grows. An N far below T is a fast failure: read the status in the error.
+  </Step>
+  <Step title="Read the p99">
+    If the p99 of `outcome="ok"` sits near `timeout_sec`, the model is slow, not down. Raise `timeout_sec` on that listener only, above the p99.
+  </Step>
+  <Step title="Cut the work per call">
+    On Gemini 3 and later, set `thinking_level: low`. Lower `max_input_bytes` on listeners with large bodies. Narrow the `trigger` and turn on the `cache` so fewer statements reach the model.
+  </Step>
+  <Step title="Absorb transient failures">
+    If `outcome="error"` comes with 429 or 503 in the log, set `max_retries: 2`. Retries share `timeout_sec`, so they never hold a connection longer.
+  </Step>
+</Steps>
 
 ---
 
@@ -885,11 +1119,11 @@ Each of these would otherwise load, evaluate and do nothing:
 | An analyzer block with no top-level `analyzer` section | Refused: the provider, the model and the credential live there |
 | An analyzer block with no `trigger` | **Not refused.** On a plain lane it classifies every statement (a model call per statement shape; `--validate` prints a note naming the cost). Under `opa.gate: true` the policy decides what gets classified. |
 | An analyzer block naming no action for any risk level | Refused: every verdict would allow while looking like enforcement |
-| `require_review` on a level with no `approval_rule` | Refused: nobody could release the held statement |
+| `require_review` on a level with no `approval_rule`, on a Sidecar with a Control Plane | Refused: the Control Plane refuses a review that names no rule. A [Sidecar in a terminal](#approving-in-the-terminal) needs none |
 | `approval_rule` with no level asking for `require_review` | Refused: it names reviewers nobody consults |
 | A blank `approval_rule` | Refused: spaces match no rule in the Control Plane |
 | `require_review` on an ssh listener that admits `shell` | Refused: a shell sends no statements, so what is typed in it goes around the hold. Drop `shell` from `capabilities_allowed` |
-| `require_review` on a Sidecar with no Control Plane | Refused: there is nowhere to file the review |
+| `require_review` on a Sidecar with no Control Plane, off a terminal | Refused: there is nowhere to file the review. In a terminal, the person running the Sidecar approves |
 | `review_mode` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
 | `review_mode` other than `hold` or `return` | Refused |
 | `require_review` on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
@@ -900,7 +1134,9 @@ Each of these would otherwise load, evaluate and do nothing:
 | An endpoint with userinfo or a query string | Refused: `/config` would publish it |
 | An analyzer on a gRPC lane without `grpc.capture_payload` | Refused: every RPC would be skipped |
 | A trigger naming an operation the lane never classifies — any SSH operation but `exec_line` | Refused, naming the operation and what the lane does classify |
-| A negative `max_calls`, `cache.size`, `cache.ttl_sec`, `max_output_tokens` or `rate_limit` field | Refused: a negative reads as "off" with no warning |
+| A trigger `any` or `exclude` item that names no field, or an operation no codec reports | Refused: the item would match every statement, or none |
+| `exclude` with no other trigger condition on a lane with `opa.gate: true` | Refused: the gate decides there, so nothing reads the exclusion |
+| A negative `max_calls`, `cache.size`, `cache.ttl_sec`, `max_output_tokens`, `max_retries` or `rate_limit` field | Refused: a negative reads as "off" with no warning |
 | `rate_limit` with `calls` but no `per_sec`, or the reverse, after inheritance; or `burst` with neither | Refused: `rate_limit needs both calls and per_sec` |
 | An empty `rate_limit: {}` | Refused: it limits nothing |
 | `rate_limit.per_sec` above 9223372036 | Refused: past the longest period the Sidecar can hold |
@@ -909,6 +1145,13 @@ Each of these would otherwise load, evaluate and do nothing:
 | A Vertex credential that cannot mint a token | Refused, distinguishing parse, IAM and clock failures |
 | A Vertex `publisher` other than `anthropic`, `google` or `openapi` | Refused, listing the three |
 | `publisher: openapi` with a model lacking its `<publisher>/` prefix | Refused: the shared endpoint cannot route it |
+| `temperature` outside 0 to 2, `top_p` outside 0 to 1, or `top_k` below 1 | Refused, naming the key and the range |
+| A sampling key the provider's API has no field for: `seed` on Claude, `top_k` on OpenAI or `publisher: openapi` | Refused: it would read as set and do nothing |
+| A `seed` outside 32 bits on Gemini | Refused: the API field is 32-bit |
+| A `thinking_level` other than `minimal`, `low`, `medium` or `high`, or a `thinking_budget` that is not `-1`, `0` or a token count | Refused: every call would be a 400 |
+| `thinking_level` and `thinking_budget` together | Refused: Google rejects a request with both |
+| `labels` on `provider: gemini`; `thinking_level`, `thinking_budget` or `labels` on a Vertex publisher other than `google` | Refused, naming the provider or publisher |
+| A `labels` entry that is not `key=value`, breaks GCP's label rules or repeats a key | Refused, naming the entry |
 
 One former refusal moved to runtime: a risk level set to `defer` on a lane with no `opa.url` now loads, `--validate` prints a note, and a deferred verdict **denies** instead of reporting a finding nobody reads.
 
@@ -975,7 +1218,7 @@ Three things change with the move, all visible rather than behavioral traps:
 
 ## Limits worth knowing
 
-- **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
+- **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. `temperature: 0` and a `seed` narrow the spread on models that honor them; Gemini 3 and later ignore `temperature`. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
 - **Requests only.** A response verdict cannot prevent a write that already ran.
 - **A slow classification can outlive the upstream's idle budget.** The Sidecar dials the upstream when it accepts, then holds the request while it classifies. An upstream with a short keep-alive (gunicorn defaults to 2s) hangs up before a 3s model call returns, and the client reads an empty reply. Raise the upstream's idle timeout above your analyzer's p99. The cache hides this after the first call for a given shape, so it shows up as a rare first-request failure.
 - **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. A listener that holds statements for review denies it instead. The Sidecar records `model refused to classify this statement`. Watch for these in the audit trail while the listener is still on staging: a model that refuses is the wrong model for this job.
