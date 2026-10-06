@@ -169,6 +169,10 @@ If a reviewer's Slack email differs from their hoop email, set their **Slack ID*
 
 Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**, then pick the groups in **Reviewers**. The list shows every group of the organization. One approval from any of them releases the statement.
 
+**While held for approval** picks how the client waits: for the decision, or denied at once to run the statement again after approval. See [Return mode for agents](/setup/configuration/hoop-sidecar/risk-analysis#return-mode-for-agents).
+
+**Time to decide** and **Time to use an approval** limit how long the review stays open. Both are optional. See [Time limits](/setup/configuration/hoop-sidecar/risk-analysis#time-limits).
+
 With no group, the admin group reviews. The Control Plane sets the listener's `approval_rule` to this rule for you. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 
 ---
@@ -201,6 +205,11 @@ Everyone in the channel sees these. They replace the buttons as the review chang
 | `Approved by N of M required group(s)` | More approvals are needed; the other buttons stay |
 | `Session ready to be executed!` | The review is approved; the Sidecar runs the statement on its next poll |
 | `Rejection reason:` followed by the quoted text | The reason the reviewer typed when rejecting |
+| `<email> revoked this session at <time>` | That group revoked the approval before the Sidecar used it |
+| `Approval revoked. Running the statement again files a new review.` | The approval was revoked. Nothing ran |
+| `Decide before <time>; after it the review expires.` | The rule sets a time to decide. Shown when the review is posted |
+| `The approval expires at <time> if the statement does not run again.` | The rule sets a time to use an approval. Shown under the approval |
+| `Review expired. Nothing was released. Running the statement again files a new review.` | The review passed its limit. The buttons are removed when the expiry is recorded: on a click, on the next poll of a hold that still waits, or when the statement runs again |
 
 ### Only to the person who clicked
 
@@ -241,6 +250,7 @@ hoop checks a click in this order and answers with the first check that fails. *
 |---------|-------|-----|
 | `The review is already approved or rejected` | The review was rejected, revoked, or already run | Nothing to do. The Sidecar holds the next statement in a new review |
 | `review not found` | The review no longer exists | Nothing to do |
+| `This review expired. Nothing was released; running the statement again files a new review.` | The review passed its [time limit](/setup/configuration/hoop-sidecar/risk-analysis#time-limits) | Nothing to approve. Running the statement again files a new review |
 | `You're not eligible to approve/reject this review` | None of the user's groups is on the review | Add the user to one of the review's groups |
 | Any other text | An internal error, shown as it came | Check the Control Plane log |
 
