@@ -24,6 +24,13 @@ The [Control Plane](/core-concepts/control-plane) is the service your Sidecars r
 The mode is chosen by the subcommand: `hoop start control-plane` rather than
 `hoop start gateway`. One image serves both.
 
+<Note>
+  From the release that merges the Control Plane into the Gateway,
+  `hoop start control-plane` starts the Gateway. Existing installs keep
+  working with no change: the command has no removal date. New installs can
+  use `hoop start gateway`.
+</Note>
+
 <CardGroup cols={2}>
   <Card title="Docker Compose" icon="docker" href="/control-plane/deployment/docker-compose">
     Postgres and the Control Plane on a single host, with an optional Sidecar
