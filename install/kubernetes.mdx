@@ -584,7 +584,7 @@ serviceAccount:
 controlPlane:
   url: https://cp.example.com
   identity: kubernetes          # or gcp, for a Google service account
-  tokenExpirationSeconds: 3600  # projected token lifetime; the chart refuses less than 600
+  tokenExpirationSeconds: 3600  # kubernetes only: projected token lifetime; the chart refuses less than 600
   identityAudience: ''          # empty: controlPlane.url
 ```
 
@@ -670,7 +670,7 @@ A CA certificate is public and needs no such mode. An analyzer credential does.
 
 ### Service Account
 
-With `create: true` the chart makes one named after the release. With `create: false`, `name` points at an account that already exists — the shape GKE Workload Identity wants, so an [AI risk analyzer](/setup/configuration/hoop-sidecar/risk-analysis) reaches Vertex with no credential on disk.
+With `create: true` the chart makes one named `name`, or after the release when `name` is empty. With `create: false`, `name` points at an account that already exists. Either shape works with GKE Workload Identity: with `create: true`, put `iam.gke.io/gcp-service-account` in `annotations`; with `create: false`, annotate the existing account yourself. Then an [AI risk analyzer](/setup/configuration/hoop-sidecar/risk-analysis) reaches Vertex, and a Sidecar with `controlPlane.identity: gcp` reaches the Control Plane, with no credential on disk.
 
 ```yaml
 serviceAccount:
