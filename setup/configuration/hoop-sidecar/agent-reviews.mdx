@@ -97,15 +97,7 @@ mcp:
 - A reload does not start, stop or move the server. Restart the Sidecar after you add, remove or change the block.
 - A bind failure stops the Sidecar, as a listener's bind failure does.
 
-With a Control Plane, the Sidecar runs the configuration the Control Plane stores for it, so add the block there. The local config file carries it only on the first import, or when the Sidecar [runs from its config file](/control-plane/connect-sidecar#upgrading).
-
-```bash
-curl -X PATCH https://hoop.your-company.com/api/sidecars/<name> \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"configuration": {"mcp": {"listen": "127.0.0.1:8765"}}}'
-```
-
-Then restart the Sidecar. From 1.210.0, the Control Plane refuses the block with `422` for a Sidecar older than 1.199.0.
+Add the block to the Sidecar's config file, beside `listeners`, then restart the Sidecar. On a Sidecar connected to a Control Plane, the file applies on the first import, or when the Sidecar [runs from its config file](/control-plane/connect-sidecar#upgrading).
 
 <Warning>
 The MCP endpoint has no authentication, the same as the listener ports. A caller reads every review of this Sidecar: its id, status, listener name and approval rule, never the statement. Bind it where only the agent reaches it: loopback when the agent runs on the same host, a ClusterIP Service on Kubernetes, never a public load balancer. The server refuses cross-origin browser requests, so a web page cannot use it from a visitor's browser.
@@ -220,7 +212,7 @@ An agent that uses two Sidecars needs two entries, for example `hoop-reviews-pay
 
 ## On Kubernetes
 
-Set `listen: 0.0.0.0:8765` in the configuration the Control Plane stores, so the Service reaches the pod. Then publish the port with one [`laneServices`](/install/kubernetes#exposing-lanes) entry in the chart values:
+Set `listen: 0.0.0.0:8765` in the config file, so the Service reaches the pod. Then publish the port with one [`laneServices`](/install/kubernetes#exposing-lanes) entry in the chart values:
 
 ```yaml values.yaml
 laneServices:
