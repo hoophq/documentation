@@ -1,0 +1,248 @@
+---
+title: "Review Status for Agents"
+description: "Let an agent learn when a person decides a held statement: the review fields on a denial, a status path on the http listener, and an MCP server, none of which needs the Sidecar token."
+---
+
+A listener in [return mode](/setup/configuration/hoop-sidecar/risk-analysis#return-mode-for-agents) files a review and denies at once with its id. The agent resends the identical statement after a person approves it, so it needs a way to learn the decision.
+
+`GET /api/sidecars/reviews/<id>` on the Control Plane answers, but it takes the Sidecar token, which an agent must not hold. The Sidecar gives the agent three ways that need no credential:
+
+| Way | Protocols | Since |
+|---|---|---|
+| [Review fields on the denial](#find-the-review-in-the-denial) | http, grpc | 1.214.0 |
+| [The status path on the listener](#read-the-status-on-an-http-listener) | http | 1.214.0 |
+| [The MCP server](#the-mcp-server) | every protocol | 1.199.0 |
+
+The status path and the MCP server need a Control Plane, because the review status lives there. None of the three returns the statement, and none approves anything.
+
+---
+
+## Find the review in the denial
+
+On http and grpc, a review denial carries the review in structured fields, so a client does not parse the message. http sends them as headers on the `403`. grpc sends the same keys, in lowercase, as trailing metadata beside `PERMISSION_DENIED`.
+
+| Field | Value |
+|---|---|
+| `X-Hoop-Denied` | `review`. Any other denial says `policy` |
+| `X-Hoop-Review-Id` | The review id |
+| `X-Hoop-Review-Status` | The Control Plane status, such as `PENDING` or `REJECTED`. Absent when the Sidecar could not read it |
+| `Retry-After` | `5`, in return mode while the review is pending only |
+
+The body stays the text message, so a client that knows nothing about reviews still reads it. kubectl prints it as `Error from server (Forbidden): ...`.
+
+On postgres, mysql, mssql and mongodb, the review id is in the error text only:
+
+```
+ERROR:  statement held for human approval: waiting for approval; resend the identical statement once it is approved (review 9f97…)
+```
+
+---
+
+## Read the status on an http listener
+
+An http listener answers `GET /.well-known/hoop/reviews/<id>` itself, for a review filed on that listener. The agent asks the same host and port it sends its requests to:
+
+```bash
+curl -s http://relay:18080/.well-known/hoop/reviews/9f97…
+```
+
+```json
+{
+  "id": "9f97…",
+  "status": "PENDING",
+  "listener_name": "billing-api",
+  "approval_rule": "billing-approvers",
+  "created_at": "2026-09-29T14:02:11Z",
+  "decided_at": null,
+  "expires_at": "2026-09-29T14:32:11Z",
+  "next": "wait"
+}
+```
+
+`next` says what the agent does, so it never interprets a status on its own. See [Status and next](#status-and-next). `rejection_reason` is present on a rejection that gave one. `expires_at` is present only when the approval rule sets a [time limit](/setup/configuration/hoop-sidecar/risk-analysis#time-limits).
+
+| Status code | When |
+|---|---|
+| `200` | The review, as above |
+| `404` | The id is unknown, or the review belongs to another listener or another Sidecar. Stop: it reads the same as a wrong id |
+| `405` | A method other than `GET` or `HEAD` |
+| `502` | The Control Plane could not report the review, or is older than the Sidecar. A person checks the review in the Control Plane |
+| `503` | The Sidecar has no Control Plane |
+
+An error body is `{"message": "..."}`. Every answer sends `Cache-Control: no-store` and closes the connection.
+
+**The whole `/.well-known/hoop/` prefix belongs to the Sidecar.** Every http listener keeps it, with or without a Control Plane, and never forwards it to the upstream. A route the upstream serves under that prefix is not reachable through the Sidecar.
+
+**The Sidecar answers it only as the first request on a connection.** Behind another request, the listener closes the connection unanswered, because HTTP/1.1 pairs responses with requests by order. curl and Go clients resend on a new connection.
+
+<Warning>
+The path needs no credential, the same as the listener port. A caller who reaches the listener and holds a review id reads that review's status, listener name and approval rule. It never reads the statement.
+</Warning>
+
+Other protocols have no path to reserve, so they read the status over [MCP](#the-mcp-server).
+
+---
+
+## The MCP server
+
+The `mcp` block starts a [Model Context Protocol](https://modelcontextprotocol.io) server with three read-only tools. It serves every listener of the Sidecar, whatever the protocol.
+
+```yaml config.yaml
+mcp:
+  listen: 127.0.0.1:8765    # the endpoint is http://<host>:8765/mcp
+```
+
+- `listen` is required. Remove the block to turn the server off.
+- The Sidecar needs a Control Plane. A config with the block and no Control Plane is refused at startup.
+- A reload does not start, stop or move the server. Restart the Sidecar after you add, remove or change the block.
+- A bind failure stops the Sidecar, as a listener's bind failure does.
+
+With a Control Plane, the Sidecar runs the configuration the Control Plane stores for it, so add the block there. The local config file carries it only on the first import, or when the Sidecar [runs from its config file](/control-plane/connect-sidecar#upgrading).
+
+```bash
+curl -X PATCH https://hoop.your-company.com/api/sidecars/<name> \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"configuration": {"mcp": {"listen": "127.0.0.1:8765"}}}'
+```
+
+Then restart the Sidecar. From 1.210.0, the Control Plane refuses the block with `422` for a Sidecar older than 1.199.0.
+
+<Warning>
+The MCP endpoint has no authentication, the same as the listener ports. A caller reads every review of this Sidecar: its id, status, listener name and approval rule, never the statement. Bind it where only the agent reaches it: loopback when the agent runs on the same host, a ClusterIP Service on Kubernetes, never a public load balancer. The server refuses cross-origin browser requests, so a web page cannot use it from a visitor's browser.
+</Warning>
+
+### Tools
+
+| Tool | Input | Does |
+|---|---|---|
+| `review_status` | `id` | Reads the review once |
+| `review_wait` | `id`, `timeout_seconds` (default 60, max 300) | Reads the review every 2 seconds until a person decides or the timeout ends |
+| `review_list` | `status`, `limit` (default 20, max 200) | Lists this Sidecar's reviews, newest first, across every listener. Needs 1.214.0 |
+
+`review_status` and `review_wait` return one review and what to do next. `review_list` returns `{"reviews": [...]}` of the same shape, and `status` filters on `PENDING`, `APPROVED`, `REJECTED`, `REVOKED`, `EXECUTED` or `EXPIRED`.
+
+```json
+{
+  "id": "9f97…",
+  "status": "APPROVED",
+  "listener_name": "payments",
+  "approval_rule": "payments-approvers",
+  "created_at": "2026-09-29T14:02:11Z",
+  "decided_at": "2026-09-29T14:03:40Z",
+  "next": "resend_identical_statement",
+  "instruction": "Approved. Resend the identical statement, byte for byte, to listener payments. It runs once.",
+  "timed_out": false,
+  "waited_seconds": 42
+}
+```
+
+`instruction` is `next` in words, for an agent that reads prose. `timed_out` and `waited_seconds` come from `review_wait` only. `timed_out: true` is not an error: call again.
+
+Keep the 60-second default for `review_wait`. Some MCP clients drop a tool call that blocks for longer than 60 to 120 seconds. `review_wait` sends a progress notification every 2 seconds to a client that asks for them.
+
+When the config has an `mcp` block, a return-mode denial leads with the review id and names the tool:
+
+```
+ERROR:  review 9f97…: waiting for approval; call the MCP tool review_wait with the review id, then resend the identical statement once it is approved (statement held for human approval)
+```
+
+### Status and next
+
+The status path and the MCP tools map a status to `next` the same way:
+
+| `status` | `next` | The agent |
+|---|---|---|
+| `PENDING` | `wait` | Waits again. It does not resend |
+| `APPROVED` | `resend_identical_statement` | Resends the identical statement once, before `expires_at` when it is set |
+| `REJECTED`, `REVOKED`, `EXECUTED`, `EXPIRED`, any other | `stop` | Stops. Only a person asks again |
+
+The resend runs through the listener like any statement, so the analyzer, the audit trail and masking apply, and the resend uses the approval. See [The retry contract](/setup/configuration/hoop-sidecar/risk-analysis#the-retry-contract).
+
+Two tool answers are errors:
+
+| Error | The agent |
+|---|---|
+| Not found on this Sidecar | Stops. The Control Plane scopes the read to this Sidecar, so another Sidecar's review reads the same as a wrong id |
+| The Control Plane is older than this Sidecar | Stops. A person checks the review in the Control Plane |
+
+---
+
+## Connect an agent
+
+Add one MCP entry per Sidecar the agent uses, next to the connection string it pairs with. One entry covers every listener and every replica of that Sidecar: the server keeps no session, so it can sit behind a load balancer.
+
+| The agent connects to | The agent's MCP entry |
+|---|---|
+| `postgres://agent@payments-sidecar:15432/payments?application_name=claude%20hoop-review%3Dreturn` | `hoop-reviews` at `http://payments-sidecar:8765/mcp` |
+
+<Tabs>
+  <Tab title="Claude Code">
+    For one developer:
+
+    ```bash
+    claude mcp add --transport http hoop-reviews http://payments-sidecar:8765/mcp
+    ```
+
+    For a team, commit `.mcp.json` at the repository root. `claude mcp add --scope project` writes it:
+
+    ```json .mcp.json
+    {
+      "mcpServers": {
+        "hoop-reviews": {
+          "type": "http",
+          "url": "http://payments-sidecar:8765/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    Cursor reads the same shape without `type`, from `.cursor/mcp.json` in the project or `~/.cursor/mcp.json`:
+
+    ```json .cursor/mcp.json
+    {
+      "mcpServers": {
+        "hoop-reviews": {
+          "url": "http://payments-sidecar:8765/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Other clients">
+    Any client that speaks the Streamable HTTP transport takes the same URL: `http://<host>:8765/mcp`.
+  </Tab>
+</Tabs>
+
+An agent that uses two Sidecars needs two entries, for example `hoop-reviews-payments` and `hoop-reviews-ledger`. The denial does not name the Sidecar, so name each entry after the connection string it pairs with, and tell the agent to call the entry of the Sidecar that denied.
+
+---
+
+## On Kubernetes
+
+Set `listen: 0.0.0.0:8765` in the configuration the Control Plane stores, so the Service reaches the pod. Then publish the port with one [`laneServices`](/install/kubernetes#exposing-lanes) entry in the chart values:
+
+```yaml values.yaml
+laneServices:
+  mcp:
+    enabled: true           # ClusterIP by default; keep it
+    ports:
+      - {name: mcp, port: 8765}
+```
+
+The agent's URL is `http://<fullname>-mcp.<namespace>.svc:8765/mcp`. `<fullname>` is `<release>-hoopsidecar`, or the release name alone when it already contains `hoopsidecar`. `kubectl get svc` shows it.
+
+Every pod in the cluster can reach a ClusterIP Service. Add a NetworkPolicy that admits only the agent's pods.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Risk Analysis" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person">
+    Holding a statement for a person, return mode, and the retry contract.
+  </Card>
+  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every other section of the config, and what startup refuses.
+  </Card>
+</CardGroup>

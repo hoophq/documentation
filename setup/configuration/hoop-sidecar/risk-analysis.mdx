@@ -313,7 +313,7 @@ ERROR:  statement held for human approval: waiting for approval; resend the iden
 
 On the Control Plane, set **While held for approval** on the **AI Analyzer** rule: **Wait for the decision (hold)** or **Deny at once, run again after approval (return)**. The field shows when a risk level is **Hold for approval**.
 
-When the Sidecar config has an `mcp:` block, the denial leads with the review id and names the MCP tool `review_wait`, which waits for the decision.
+When the Sidecar config has an `mcp:` block, the denial leads with the review id and names the MCP tool `review_wait`, which waits for the decision. See [Review Status for Agents](/setup/configuration/hoop-sidecar/agent-reviews) for the MCP server, the status path on an http listener and the review fields on a denial.
 
 `review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.196.0 or later, and refuses the config for an older one.
 
@@ -353,7 +353,7 @@ An agent in return mode follows four rules:
     The Control Plane matches an approval on the exact statement. A reformatted statement (other whitespace, other quoting, a new comment, a new trace id) files a new review and pages the approvers again.
   </Step>
   <Step title="Resend once, after approval">
-    Wait with the MCP tool `review_wait`, or poll `review_status`. An approval releases one run. When `review_status` shows `expires_at`, resend before it: an expired approval releases nothing.
+    Wait with the MCP tool `review_wait`, poll `review_status`, or on an http listener read [the status path](/setup/configuration/hoop-sidecar/agent-reviews#read-the-status-on-an-http-listener). An approval releases one run. When `review_status` shows `expires_at`, resend before it: an expired approval releases nothing.
   </Step>
   <Step title="Do not resend a rejected, revoked or expired review">
     The decision is final for that review. A resend files a new review and pages the approvers again, so only a person asks again.
