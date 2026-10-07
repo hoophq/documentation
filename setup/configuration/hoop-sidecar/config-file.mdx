@@ -119,6 +119,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `mask` | Default response rewriting for every lane. |
 | `analyzer` | The AI risk classifier: the provider, the model, the credential, and the defaults every listener inherits. Each listener carries its own `analyzer` block beside `guardrails`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `trust` | Extra CA certificates added to the host trust store for outbound TLS. See [Adding a CA to the trust store](#adding-a-ca-to-the-trust-store). |
+| `mcp` | An MCP server that tells agents the status of this Sidecar's reviews. Needs a Control Plane. See [Review Status for Agents](/setup/configuration/hoop-sidecar/agent-reviews#the-mcp-server). |
 | `listeners` | One entry per upstream. |
 
 Keys starting `x-` are dropped before validation, so a YAML anchor block does not need a matching config field. See [sharing rules between lanes](#sharing-a-rule-block-between-lanes).
