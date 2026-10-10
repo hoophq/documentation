@@ -126,6 +126,14 @@
                         ]
                       }
                     ]
+                  },
+                  {
+                    "group": "Plug-ins",
+                    "pages": [
+                      "setup/configuration/hoop-sidecar/plugins/overview",
+                      "setup/configuration/hoop-sidecar/plugins/writing",
+                      "setup/configuration/hoop-sidecar/plugins/abi"
+                    ]
                   }
                 ]
               }

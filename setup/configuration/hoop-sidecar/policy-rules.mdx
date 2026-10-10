@@ -42,6 +42,7 @@ Deferring moves the DETERMINATION and leaves the matching where it is. The local
 | `http_status` | the response status | HTTP |
 | `http_header` | the value of one or more captured headers | HTTP |
 | `grpc_status` | the outcome in the `grpc-status` trailer | gRPC |
+| `metadata` | a key the codec put on the statement, such as a plug-in's native verb | any |
 
 Every rule also takes `name` and `message`. `message` reaches the user in the protocol's own error frame, so write one: the fallback names the rule and the operation and nothing else.
 
@@ -236,6 +237,18 @@ Two maps, and a rule uses one or both:
 Both map a header name to value patterns. Every named header must satisfy its map; any listed value will do; an empty list means present (`headers`) or absent (`headers_not`). Values compare case-insensitively. A bare `*` matches any run of characters, and `\*` is a literal star. Only a request matches: a response carries the server's headers, and this rule reads the client's intent. `methods` and `resources` scope the rule as they scope `http_resource`.
 
 The lane's codec fills a statement's headers from `http.headers` and nothing else. A rule naming a header the lane does not capture, in either map, is refused at startup with the name to add; it would load and match nothing.
+
+### metadata
+
+```yaml
+- name: no-purge
+  type: metadata
+  metadata:
+    x-acmewire.verb: [PURGE, TRUNCATE_ALL]
+  message: purges are refused on acme-db
+```
+
+A codec records facts the statement has no field for under `metadata`: a [plug-in](/setup/configuration/hoop-sidecar/plugins/overview) puts its native verb under `<protocol>.verb`, the MongoDB codec puts the command under `mongodb.command`. This rule reads that map. Each key in the rule must be present on the statement with one of its listed values; keys are ANDed, values under one key are ORed, and the rule lowercases both sides before an exact comparison. A key the statement lacks never matches, so a rule written for one protocol's keys stays silent on every other lane in a shared rule set. `operations` scopes it as it scopes the other types.
 
 ### The AI analyzer is not one of them
 
