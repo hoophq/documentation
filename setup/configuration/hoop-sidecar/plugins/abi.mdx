@@ -37,7 +37,7 @@ Optional, each announced by a name in the manifest's `capabilities`. The host re
 | `deny` | `deny` | `(conn, dir, ptr, len) -> u64` | render the message at `(ptr, len)` as the protocol's error frame; bytes out |
 | `filter` | `filter` | `(conn, dir, ptr, len) -> u64` | transform bytes before inspection and forwarding; bytes out. May hold a prefix and return nothing |
 | `rewrite` | `enable_rewrite`, `rewrite`, `flush` | `enable_rewrite(conn)`, `rewrite(conn, ptr, len) -> u64`, `flush(conn) -> u64` | response masking; see below |
-| `credential` | `take_credential` | `(conn, ptr, len) -> u64` | lift the credential from the request statement at `(ptr, len)`; returns CredentialResult JSON |
+| `credential` | `take_credential` | `(conn, ptr, len) -> u64` | trade the handle under `metadata["<protocol>.credential"]` of the request statement at `(ptr, len)` for the credential it stands for; returns CredentialResult JSON |
 | `content` | `content` | `(conn, ptr, len) -> u64` | render a statement for the AI analyzer; returns ContentResult JSON |
 
 Optional without a capability:
@@ -140,6 +140,7 @@ Field names are the JSON names of the Sidecar's `Statement`. The host refuses un
 - The module lowercases table and relation names. The policy compares them as they arrive.
 - `consumed` counts the input bytes the module finished with. An incomplete trailing message is not an error: return the statements before it and stop `consumed` at its first byte. The host keeps the rest and passes it again, prefixed to the next read, up to `max_reassembly`.
 - A non-empty `error` means the bytes are malformed for this protocol. The host drops the connection and ignores `consumed` and `statements`.
+- A request that carries a credential never puts it on the statement. The module keeps the value in its connection state and puts an opaque handle (a counter is enough) under `metadata["<protocol>.credential"]`. The host calls `take_credential` only on a lane with per-request identity; audit, policy and the analyzer on every other lane see the statement as `decode` returned it.
 
 ### SQLAnalysis, from `analyze_sql`
 
@@ -154,10 +155,10 @@ Field names are the JSON names of the Sidecar's `Statement`. The host refuses un
 ### CredentialResult, from `take_credential`
 
 ```json
-{"credential": "Bearer eyJ...", "ok": true, "statement": {"...": "the statement with the credential removed"}}
+{"credential": "Bearer eyJ...", "ok": true, "statement": {"...": "the statement with the handle removed"}}
 ```
 
-`ok: false` means the request carried none. With `ok: true` the module returns `statement` with no trace of the credential; the host replaces the statement with it before policy, audit or the analyzer see it.
+The module reads the handle under `metadata["<protocol>.credential"]`, returns the credential it stands for, removes the key from `statement` and forgets the entry, so a second call with the same handle answers `ok: false`. `ok: false` also means the request carried none. With `ok: true` the module returns `statement` with neither the handle nor the credential on it; the host replaces the statement with it before policy, audit or the analyzer see it.
 
 ### ContentResult, from `content`
 
