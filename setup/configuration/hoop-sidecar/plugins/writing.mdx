@@ -1,0 +1,253 @@
+---
+title: "Writing a Plug-in"
+description: "Decode a proprietary protocol in Rust, Go or C, prove it against the ABI, and ship one .wasm file"
+---
+
+A plug-in implements one function over bytes: given a chunk of a connection, return the statements it completes and the number of bytes it consumed. The SDKs wrap the ABI so you write that function in your language and get the exports, the allocator and the JSON for free.
+
+Start from [`hoophq/plugins`](https://github.com/hoophq/plugins): one worked example per language, each with the fixtures the conformance tool replays and a config that runs it. `examples/resp` (Redis, Rust), `examples/memcache` (memcached, Go) and `examples/sqlframe` (a binary framing over SQL, C++) cover every capability between them. The SDK source and the `x-acmewire` reference live in the Sidecar repository under `sidecar/codec/wasm`.
+
+---
+
+## The contract in one paragraph
+
+`decode(dir, bytes)` returns statements and a consumed count. An incomplete trailing message is not an error: return the statements before it and stop `consumed` at its first byte. The Sidecar keeps the rest and passes it again, prefixed to the next read. Malformed bytes are an error, and the Sidecar drops the connection. The Sidecar fills the `protocol` field itself; the module sets `operation` from the Sidecar's vocabulary and puts its native verb under `metadata["<protocol>.verb"]`.
+
+Table and relation names are lowercased by the module. The policy compares them as they arrive.
+
+---
+
+## Rust
+
+Add the crate from crates.io and the wasm32 target:
+
+```bash
+rustup target add wasm32-unknown-unknown
+```
+
+```toml Cargo.toml
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hoop-codec = "0.1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+```
+
+Implement `Codec`, describe the module in a `Manifest`, and let the macro emit the exports for the capabilities you list:
+
+```rust src/lib.rs
+use hoop_codec::{host, Capability, Codec, Decoded, Direction, Manifest, Operation, SqlDialect, Statement};
+
+pub fn manifest() -> Manifest {
+    let mut m = Manifest::new("x-acmewire", "Acme Wire");
+    m.version = "0.1.0".into();
+    m.capabilities = vec![Capability::Deny];
+    m.sql_dialect = Some(SqlDialect::Mysql);
+    m
+}
+
+hoop_codec::export_codec!(AcmeWire, manifest, [deny]);
+
+#[derive(Default)]
+pub struct AcmeWire;
+
+impl Codec for AcmeWire {
+    fn decode(&mut self, dir: Direction, data: &[u8]) -> Result<Decoded, String> {
+        let mut out = Decoded::default();
+        let mut pos = 0;
+        while let Some((opcode, payload, len)) = frame(&data[pos..])? {
+            pos += len;
+            if dir == Direction::Client && opcode == b'Q' {
+                let sql = String::from_utf8_lossy(payload).into_owned();
+                let stmt = Statement::new(Operation::Unknown, &sql)
+                    .with_analysis(host::analyze_sql(&sql))
+                    .with_metadata("x-acmewire.verb", "QUERY");
+                out.statements.push(stmt);
+            }
+        }
+        out.consumed = pos;
+        Ok(out)
+    }
+
+    fn deny(&self, _dir: Direction, message: &str) -> Vec<u8> {
+        error_frame(message)
+    }
+}
+```
+
+`frame` returns `Ok(None)` on a partial header or payload, so `consumed` stops there. The capability list in `export_codec!` and `manifest.capabilities` must name the same set; `describe` traps when they differ, which the conformance tool reports as check 1.
+
+Build and test:
+
+```bash
+cargo build --release --target wasm32-unknown-unknown
+cargo test                        # runs on the host, no wasm needed
+```
+
+The optional methods (`filter`, `rewrite`, `flush`, `take_credential`, `content`, `open`) have defaults, so add one at a time and list its capability when you do.
+
+---
+
+## Go (TinyGo)
+
+Package `codec` is the module `github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo`; add it with `go get github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo@v0.1.0`. The tag carries the module path as a prefix because the module sits below the repository root. A plug-in implements `codec.Codec`, the capability interfaces it supports, and calls `codec.Serve` from `init`:
+
+```go main.go
+package main
+
+import codec "github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo"
+
+type acmeWire struct{}
+
+func (acmeWire) Open(options map[string]string) error { return nil }
+
+func (acmeWire) Decode(dir codec.Direction, data []byte) (codec.Decoded, error) {
+    // same shape as the Rust example
+}
+
+func (acmeWire) Deny(dir codec.Direction, message string) []byte {
+    return errorFrame(message)
+}
+
+func init() {
+    codec.Serve(func() codec.Codec { return &acmeWire{} }, codec.Manifest{
+        Protocol:     "x-acmewire",
+        Label:        "Acme Wire",
+        Version:      "0.1.0",
+        Capabilities: []codec.Capability{codec.CapDeny},
+        SQLDialect:   "mysql",
+    })
+}
+```
+
+Each optional export sits behind a build tag, so the module's exports and the manifest's capabilities cannot disagree:
+
+```bash
+tinygo build -o acmewire.wasm -target wasm-unknown -opt=z -no-debug \
+  -tags hoop_deny ./
+```
+
+| tag | capability | interface |
+|---|---|---|
+| `hoop_deny` | `deny` | `Denier` |
+| `hoop_filter` | `filter` | `Filterer` |
+| `hoop_rewrite` | `rewrite` | `Rewriter` |
+| `hoop_credential` | `credential` | `CredentialSource` |
+| `hoop_content` | `content` | `ContentRenderer` |
+
+`-target wasm-unknown` is the freestanding target: no WASI, no scheduler, and `main` never runs, so `Serve` goes in `init`. The package also compiles with the standard Go toolchain, so `go test` exercises your decoder on the host.
+
+---
+
+## C
+
+`hoop_codec.h` is a single header: import declarations, an export macro, packed-return helpers and an optional arena allocator. It carries a skeleton you fill in. Fetch it from the release that matches your Sidecar: `curl -fsSLO https://github.com/hoophq/hoop/releases/download/hoop-codec-v0.1.0/hoop_codec.h`.
+
+```c
+#include "hoop_codec.h"
+
+HOOP_EXPORT("describe") uint64_t describe(void) {
+    static const char m[] = "{\"abi\":1,\"protocol\":\"x-cfix\",\"label\":\"C Fixture\",\"capabilities\":[\"deny\"]}";
+    return hoop_pack(m, sizeof m - 1);
+}
+
+HOOP_EXPORT("decode") uint64_t decode(uint32_t conn, uint32_t dir, const uint8_t *data, uint32_t len) {
+    /* parse frames, write a DecodeResult JSON into the arena, return hoop_pack(buf, n) */
+}
+```
+
+```bash
+clang --target=wasm32-unknown-unknown -nostdlib -O2 -fno-builtin \
+  -Wl,--no-entry -o cfix.wasm cfix.c
+```
+
+`HOOP_EXPORT` uses `export_name`, so you need no `--export` flags. A module calls only the imports it needs; the linker drops the rest.
+
+---
+
+## Other languages
+
+The ABI is a C ABI over linear memory with JSON payloads. Zig and AssemblyScript target it directly. JavaScript and Python work through an engine compiled into the module (Javy, componentize-py); such a module sets `"wasi": true` in its manifest and `"instances": "per_lane"`, because one instance per connection costs megabytes each. See the [ABI reference](/setup/configuration/hoop-sidecar/plugins/abi).
+
+---
+
+## Fixtures
+
+Fixtures are scripts the conformance tool replays: bytes in, expectations out. Keep them beside the module.
+
+```json acmewire.fixtures.json
+[
+  {
+    "name": "purge is a delete",
+    "options": {"deny_prefix": "ACME"},
+    "steps": [
+      {"dir": "client", "hex": "50000000066f7264657273",
+       "expect": {"consumed": 11,
+                  "statements": [{"operation": "delete", "tables": ["orders"],
+                                  "metadata": {"x-acmewire.verb": "PURGE"}}]}},
+      {"dir": "client", "hex": "ff00", "expect": {"error": true}}
+    ]
+  }
+]
+```
+
+`expect.statements` compares only the fields it names. `expect.error: true` means `decode` must report an error on that step, and the script ends there.
+
+---
+
+## Prove it
+
+```bash
+hoop start sidecar --codec-test acmewire.wasm acmewire.fixtures.json
+```
+
+```
+check result detail
+1     ok     describe: x-acmewire "Acme Wire" v0.1.0, capabilities [deny filter rewrite credential content], instances per_connection, sql_dialect "mysql"
+2     ok     decode of zero bytes: nothing consumed, nothing returned, both directions
+3     ok     deny: client 28 bytes, server 28 bytes
+4     ok     operations: 10 statement(s), every operation listed by inspect.Operations
+5     ok     garbage input returned without a hang or a panic
+6     ok     9 script(s) replayed whole
+7     ok     9 script(s) replayed one byte at a time match the whole replay
+8     ok     9 script pair(s) interleaved on two connections match their solo replays
+```
+
+Checks 1 to 5 need no fixtures. Check 7 is the one that catches most decoders: the tool feeds each script one byte at a time through the Sidecar's reassembly and requires the same statements as the whole replay. Check 8 interleaves two scripts on two connections and requires each connection to see only its own statements.
+
+The tool exits non-zero on any failure and names the step, so it runs in CI.
+
+---
+
+## Ship it
+
+One `.wasm` file runs on amd64 and arm64. Publish it with its sha256 and the fixtures, then hand operators a `plugins` entry:
+
+```yaml
+plugins:
+  - protocol: x-acmewire
+    module: https://plugins.acme.example/hoop/acmewire-0.1.0.wasm
+    sha256: 9f2158623935803038f7f8c7b143b518d946ef6d54f8728c1797bd3680833ebf
+```
+
+The Sidecar verifies the digest before it compiles the module and refuses a mismatch at startup.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="ABI Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/plugins/abi">
+    Every export and import, the manifest, the payloads and the failure rules.
+  </Card>
+  <Card title="Codec Plug-ins" icon="puzzle-piece" href="/setup/configuration/hoop-sidecar/plugins/overview">
+    Configure a lane and understand how a plug-in fails.
+  </Card>
+</CardGroup>
