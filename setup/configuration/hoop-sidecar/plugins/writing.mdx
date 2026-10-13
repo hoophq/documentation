@@ -5,7 +5,7 @@ description: "Decode a proprietary protocol in Rust, Go or C, prove it against t
 
 A plug-in implements one function over bytes: given a chunk of a connection, return the statements it completes and the number of bytes it consumed. The SDKs wrap the ABI so you write that function in your language and get the exports, the allocator and the JSON for free.
 
-The `x-acmewire` example in the Sidecar repository (`sidecar/codec/wasm/sdk/rust/examples/acmewire`) is the template: a made-up protocol that exercises every capability, with the fixtures the conformance tool replays.
+Start from [`hoophq/plugins`](https://github.com/hoophq/plugins): one worked example per language, each with the fixtures the conformance tool replays and a config that runs it. `examples/resp` (Redis, Rust), `examples/memcache` (memcached, Go) and `examples/sqlframe` (a binary framing over SQL, C++) cover every capability between them. The SDK source and the `x-acmewire` reference live in the Sidecar repository under `sidecar/codec/wasm`.
 
 ---
 
@@ -19,7 +19,7 @@ Table and relation names are lowercased by the module. The policy compares them 
 
 ## Rust
 
-Add the crate from `sidecar/codec/wasm/sdk/rust` and the wasm32 target:
+Add the crate from crates.io and the wasm32 target:
 
 ```bash
 rustup target add wasm32-unknown-unknown
@@ -30,7 +30,7 @@ rustup target add wasm32-unknown-unknown
 crate-type = ["cdylib"]
 
 [dependencies]
-hoop-codec = { path = "../sidecar/codec/wasm/sdk/rust" }
+hoop-codec = "0.1"
 
 [profile.release]
 opt-level = "s"
@@ -97,7 +97,7 @@ The optional methods (`filter`, `rewrite`, `flush`, `take_credential`, `content`
 
 ## Go (TinyGo)
 
-Package `codec` lives at `sidecar/codec/wasm/sdk/tinygo`. A plug-in implements `codec.Codec`, the capability interfaces it supports, and calls `codec.Serve` from `init`:
+Package `codec` is the module `github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo`; add it with `go get github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo@v0.1.0`. The tag carries the module path as a prefix because the module sits below the repository root. A plug-in implements `codec.Codec`, the capability interfaces it supports, and calls `codec.Serve` from `init`:
 
 ```go main.go
 package main
@@ -144,15 +144,11 @@ tinygo build -o acmewire.wasm -target wasm-unknown -opt=z -no-debug \
 
 `-target wasm-unknown` is the freestanding target: no WASI, no scheduler, and `main` never runs, so `Serve` goes in `init`. The package also compiles with the standard Go toolchain, so `go test` exercises your decoder on the host.
 
-<Note>
-The SDK module is outside the repository's `go.work`. Run `go` commands in it with `GOWORK=off`.
-</Note>
-
 ---
 
 ## C
 
-`sidecar/codec/wasm/sdk/c/hoop_codec.h` is a single header: import declarations, an export macro, packed-return helpers and an optional arena allocator. It carries a skeleton you fill in.
+`hoop_codec.h` is a single header: import declarations, an export macro, packed-return helpers and an optional arena allocator. It carries a skeleton you fill in. Fetch it from the release that matches your Sidecar: `curl -fsSLO https://github.com/hoophq/hoop/releases/download/hoop-codec-v0.1.0/hoop_codec.h`.
 
 ```c
 #include "hoop_codec.h"
