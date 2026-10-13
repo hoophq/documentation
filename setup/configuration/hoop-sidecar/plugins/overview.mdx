@@ -75,6 +75,74 @@ A module that carries SQL text calls the Sidecar's own classifier through a host
 
 ---
 
+## Where the plug-in runs
+
+The Sidecar owns the socket, the policy, the audit trail and the masker. The module owns one thing: the meaning of the bytes. Every box the module touches below is one export the ABI names; everything else is the same code path a `postgres` lane runs.
+
+```mermaid
+flowchart TB
+    C(["Client"])
+    U(["Upstream"])
+
+    subgraph REQ["request path, client to upstream"]
+      direction LR
+      F1["filter"]:::plugin --> D1["decode"]:::plugin --> P["policy<br/>guardrails · OPA · analyzer"] --> A1["audit"]
+    end
+
+    subgraph RESP["response path, upstream to client"]
+      direction LR
+      F2["filter"]:::plugin --> D2["decode"]:::plugin --> P2["policy"] --> RW["rewrite"]:::plugin --> A2["audit"]
+    end
+
+    subgraph HOST["host imports"]
+      direction LR
+      L["lexer<br/>SQL classifier"]
+      M["masker<br/>PII detectors"]
+    end
+
+    C -- bytes --> REQ
+    A1 -- allowed --> U
+    P -. denied .-> DN["deny frame"]:::plugin -. error frame .-> C
+    U -- bytes --> RESP
+    A2 -- masked bytes --> C
+    D1 -. "analyze_sql(text)" .-> L
+    RW -. "mask(column, value)" .-> M
+
+    classDef plugin fill:#d68a3c,color:#fff,stroke:#b5702a
+    style L fill:#2d5016,color:#fff
+    style M fill:#2d5016,color:#fff
+```
+
+Orange is the module; green is the host answering a module's import. The two dotted calls are the whole of what a module can ask the host for on the data path, and both run on the stack of the export that called them.
+
+Reading the request path left to right:
+
+1. **`filter`** sees every chunk first, before inspection and before forwarding. A module without the capability passes bytes through untouched.
+2. **`decode`** turns the chunk into statements and reports how many bytes it consumed. The Sidecar keeps the remainder and hands it back with the next read, so the module never sees a torn frame as an error. A SQL-carrying module calls `analyze_sql` here and gets the same classification a `mysql` lane gets.
+3. **policy** runs on the statements: guardrail rules (including `metadata` on the module's verb), OPA, the AI analyzer. The module is not consulted.
+4. **audit** writes the statement before the forward. A denial writes a `violation` instead and the Sidecar asks the module for a **`deny`** frame to send the client; without the capability it closes the socket.
+
+The response path mirrors it, with one addition: after policy has seen the statements, **`rewrite`** receives the same chunk, calls `mask(column, value)` for each cell it can name, and returns rebuilt frames. The host decides what to mask; the module decides which bytes are cells and recomputes its own length prefixes. The audit `masked` event counts what the masker changed.
+
+Not on the data path: **`take_credential`** runs between `decode` and policy on a lane with per-request identity, trading the handle the module left on the statement for the credential; **`content`** runs when the analyzer wants a rendering of a statement.
+
+Load time is a separate, one-off sequence:
+
+```mermaid
+flowchart LR
+    CFG["config:<br/>plugins[].module + sha256"] --> R["read or fetch<br/>(path, https://, gs://)"] --> H{"sha256<br/>matches?"}
+    H -- no --> X1["refuse: lane never starts"]
+    H -- yes --> CO["compile<br/>(wazero)"] --> DS["describe<br/>on a throwaway instance"]:::plugin --> V{"manifest valid,<br/>exports ⇔ capabilities,<br/>imports allowed?"}
+    V -- no --> X2["refuse: lane never starts"]
+    V -- yes --> LANE["lane ready"] --> I["one instance<br/>per connection"]:::plugin
+
+    classDef plugin fill:#d68a3c,color:#fff,stroke:#b5702a
+```
+
+Each accepted connection gets its own instance of the compiled module (or, under `instances: per_lane`, its own `conn` id in one shared instance). A trap, a deadline or a memory cap kills that instance and that connection only; the compiled module and every other connection stay up.
+
+---
+
 ## How it fails
 
 Every failure stays inside the connection or the lane it belongs to, and none of them forwards a byte the module did not judge:
