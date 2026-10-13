@@ -148,7 +148,7 @@ tinygo build -o acmewire.wasm -target wasm-unknown -opt=z -no-debug \
 
 ## C
 
-`hoop_codec.h` is a single header: import declarations, an export macro, packed-return helpers and an optional arena allocator. It carries a skeleton you fill in. Fetch it from the release that matches your Sidecar: `curl -fsSLO https://github.com/hoophq/hoop/releases/download/hoop-codec-v0.1.0/hoop_codec.h`.
+`hoop_codec.h` is a single header: import declarations, an export macro, packed-return helpers and an optional arena allocator. It carries a skeleton you fill in. Fetch it from the `hoophq/plugins` repository, where each SDK release places it beside `sdk/VERSION`: `curl -fsSLO https://raw.githubusercontent.com/hoophq/plugins/main/sdk/c/hoop_codec.h`.
 
 ```c
 #include "hoop_codec.h"
