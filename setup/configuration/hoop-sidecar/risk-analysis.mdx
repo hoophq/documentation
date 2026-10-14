@@ -278,7 +278,7 @@ The wait and the poll interval are constants, with no config field. A Control Pl
 
 **An approval can be revoked until the Sidecar uses it.** Revoke it from the review page, or with `PUT /api/reviews/<id>` and status `REVOKED`. A hold that is still waiting denies on its next poll, and the Slack message says the approval was revoked. Once the Sidecar uses the approval, the review is `EXECUTED` and a revoke answers `400`: the statement already ran. Any decision that loses that race to the Sidecar answers `400` the same way.
 
-The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
+The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. On an http listener, the match does not bind a body value that [`match_ignore`](#ignoring-a-volatile-body-value) names. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
 
 #### Time limits
 
@@ -350,7 +350,7 @@ An agent in return mode follows four rules:
 
 <Steps>
   <Step title="Resend the identical bytes">
-    The Control Plane matches an approval on the exact statement. A reformatted statement (other whitespace, other quoting, a new comment, a new trace id) files a new review and pages the approvers again.
+    The Control Plane matches an approval on the exact statement. A reformatted statement (other whitespace, other quoting, a new comment, a new trace id) files a new review and pages the approvers again. A body value that [`match_ignore`](#ignoring-a-volatile-body-value) names can differ.
   </Step>
   <Step title="Resend once, after approval">
     Wait with the MCP tool `review_wait`, poll `review_status`, or on an http listener read [the status path](/setup/configuration/hoop-sidecar/agent-reviews#read-the-status-on-an-http-listener). An approval releases one run. When `review_status` shows `expires_at`, resend before it: an expired approval releases nothing.
@@ -371,7 +371,7 @@ An agent in return mode follows four rules:
 
 - A body larger than `http.max_body_bytes` is truncated by the codec, so the hold denies it without filing. The approval would bind to bytes nobody read.
 - A query value the codec redacts, such as a token or a password, is filed redacted. Requests that differ only in that value match one approval.
-- A request carrying a trace id, a nonce or a timestamp never matches twice. Every attempt files its own review and pages the approvers again.
+- A request carrying a trace id, a nonce or a timestamp never matches twice. Every attempt files its own review and pages the approvers again, unless [`match_ignore`](#ignoring-a-volatile-body-value) names that value in the body.
 - A client that retries on its own timeout leaves two attempts in flight. The approval releases whichever claims it first.
 - A request that arrives in more than one read reaches the upstream in part before the analyzer decides: the request line, the headers and the start of the body. A denial does not recall them, so a route that acts on headers alone runs whatever the reviewer decides.
 
@@ -383,7 +383,7 @@ k8s\x00
 \x04configmap\xff
 ```
 
-Text a reviewer cannot see, such as a zero-width space or a bidi control, takes the same form, so the text shown is the bytes that run. The match stays on the raw bytes.
+Text a reviewer cannot see, such as a zero-width space or a bidi control, takes the same form, so the text shown is the bytes that run, apart from a body value that `match_ignore` names. The match stays on the filed bytes, not on the escaped form.
 
 **grpc** files the method path, a newline, then the message as protojson. **spanner** files the SQL alone when it reads SQL from the message, and the grpc form otherwise. The spanner reviewer reads the SQL, not its parameters or the database it runs against, so an approval releases the query with any bound values. Both need `grpc.capture_payload: true`, and the http consequences apply:
 
@@ -406,7 +406,7 @@ listeners:
       approval_rule: prod-approvers
 ```
 
-**The approval is exact; the classification is not.** The [cache](#the-four-cost-controls) keys on the statement shape with literals stripped, so `WHERE tenant = 'test'` and `WHERE tenant = 'prod'` share one verdict. A shape rated high holds every statement of that shape, each filing its own review. A shape rated low forwards without a hold, even when a later literal makes it the dangerous one. Set `cache: {size: 0}` on a listener where every statement must be judged on its own, and pay one model call per statement.
+**The approval is exact, apart from a body value that `match_ignore` names; the classification is not.** The [cache](#the-four-cost-controls) keys on the statement shape with literals stripped, so `WHERE tenant = 'test'` and `WHERE tenant = 'prod'` share one verdict. A shape rated high holds every statement of that shape, each filing its own review. A shape rated low forwards without a hold, even when a later literal makes it the dangerous one. Set `cache: {size: 0}` on a listener where every statement must be judged on its own, and pay one model call per statement.
 
 **A holding listener fails closed.** `fail_open` answers for a model vendor's outage, not for a human gate, so it is not consulted on a listener where any risk level asks for `require_review`. Each of these denies there:
 
@@ -420,6 +420,45 @@ listeners:
 A statement the trigger does not match still forwards, as on any listener.
 
 Human review works only through the analyzer. A guardrail rule and a deprecated `ai_analysis` rule both refuse `require_review` at startup, along with the other misconfigurations listed in [What startup refuses](#what-startup-refuses).
+
+#### Ignoring a volatile body value
+
+`kubectl rollout restart` writes the current second into its patch, so a resend never matches the approval. Name that value in `match_ignore`, and the Sidecar files a fixed marker in its place:
+
+```yaml
+    analyzer:
+      high: require_review
+      approval_rule: k8s-approvers
+      review_mode: return
+      match_ignore:
+        - methods: [PATCH]          # empty means every method
+          resources: [/apis/apps/v1/namespaces/*/deployments/*]
+          fields:
+            - [spec, template, metadata, annotations, "kubectl.kubernetes.io/restartedAt"]
+```
+
+The reviewer reads:
+
+```
+PATCH /apis/apps/v1/namespaces/default/deployments/web?fieldManager=kubectl-rollout
+
+{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"<ignored by match_ignore>"}}}}}
+```
+
+<Warning>
+The approval does not bind an ignored value. The request that runs carries a value the reviewer did not read. Name only a value that cannot change the reviewer's decision.
+</Warning>
+
+- `resources` is required. It takes the same globs as an `http_resource` rule, and matches the [normalized resource](/setup/configuration/hoop-sidecar/protocols/http#the-normalized-resource).
+- A field is a list of object keys from the body root, so a key with dots stays one key.
+- The Sidecar replaces only a string, number, boolean or null. It files these unchanged: an object or array at the path, a path through an array, and a body that is not JSON.
+- The Sidecar replaces the value in the client's bytes. Every other byte, a duplicate key included, reaches the reviewer as sent.
+- The audit record carries `review_match_ignored`, the count of ignored values.
+- `match_ignore` is valid only on an http listener where a risk level asks for `require_review`.
+
+On the Control Plane, the **AI Analyzer** rule has no `match_ignore` field. Put it in the Sidecar's config file before the [first import](/control-plane/connect-sidecar), or send it in `sidecar_spec` with `PUT /api/ai/session-analyzer/rules/<name>`. That call replaces the whole Sidecar block of the rule. A save in the UI keeps `match_ignore` while a risk level is **Hold for approval**.
+
+The Control Plane serves `match_ignore` only to a Sidecar that reports the `analyzer_match_ignore` capability on its handshake, which 1.238.0 and later do. It refuses the config for an older one.
 
 ---
 
@@ -1126,6 +1165,9 @@ Each of these would otherwise load, evaluate and do nothing:
 | `require_review` on a Sidecar with no Control Plane, off a terminal | Refused: there is nowhere to file the review. In a terminal, the person running the Sidecar approves |
 | `review_mode` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
 | `review_mode` other than `hold` or `return` | Refused |
+| `match_ignore` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
+| `match_ignore` on a listener that is not http | Refused: it replaces values only in an http body |
+| A `match_ignore` item with no `resources` or no `fields`, or with an empty method, resource, field or key | Refused: the item is unscoped or names nothing |
 | `require_review` on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
 | `action` set on a deprecated `ai_analysis` rule | Refused: risk maps to actions through `high`, `medium` and `low`. The block has no `action` field at all. |
 | `opa.gate: true` on a lane with no analyzer block | Refused: a round trip per statement that gates nothing |
