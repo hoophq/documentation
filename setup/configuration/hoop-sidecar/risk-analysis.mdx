@@ -458,7 +458,7 @@ The approval does not bind an ignored value. The request that runs carries a val
 
 On the Control Plane, the **AI Analyzer** rule has no `match_ignore` field. Put it in the Sidecar's config file before the [first import](/control-plane/connect-sidecar), or send it in `sidecar_spec` with `PUT /api/ai/session-analyzer/rules/<name>`. That call replaces the whole Sidecar block of the rule. A save in the UI keeps `match_ignore` while a risk level is **Hold for approval**.
 
-The Control Plane serves `match_ignore` only to a Sidecar at 1.238.0 or later, and refuses the config for an older one.
+The Control Plane serves `match_ignore` only to a Sidecar that reports the `analyzer_match_ignore` capability on its handshake, which 1.238.0 and later do. It refuses the config for an older one.
 
 ---
 
@@ -1166,7 +1166,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | `review_mode` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
 | `review_mode` other than `hold` or `return` | Refused |
 | `match_ignore` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
-| `match_ignore` on a listener that is not http | Refused: it names http body fields, and no other protocol files a body |
+| `match_ignore` on a listener that is not http | Refused: it replaces values only in an http body |
 | A `match_ignore` item with no `resources` or no `fields`, or with an empty method, resource, field or key | Refused: the item is unscoped or names nothing |
 | `require_review` on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
 | `action` set on a deprecated `ai_analysis` rule | Refused: risk maps to actions through `high`, `medium` and `low`. The block has no `action` field at all. |
