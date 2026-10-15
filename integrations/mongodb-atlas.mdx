@@ -30,7 +30,7 @@ The Sidecar sees driver connections only. The Atlas UI, including Data Explorer,
 
 ## Requirements
 
-- An Atlas cluster. The free M0 tier works.
+- An Atlas cluster. This page was tested on the free M0 tier.
 - A database user with a password.
 - Docker on a host with a static public IP.
 - A MongoDB client, such as `mongosh`.
@@ -64,7 +64,7 @@ The Sidecar sees driver connections only. The Atlas UI, including Data Explorer,
     | The primary member, port `27017` | **Yes.** |
     | A secondary member | No. Writes fail with `NotWritablePrimary`. |
     | The `mongodb+srv://` host | No. It is a DNS record, not a server. |
-    | A private endpoint host | Not covered on this page yet. |
+    | A private endpoint host | Not covered on this page yet. M0 and Flex clusters have no private endpoints. |
   </Step>
 
   <Step title="Write the config">
@@ -131,7 +131,7 @@ The Sidecar sees driver connections only. The Atlas UI, including Data Explorer,
 
     - `authSource=admin` was set for you by the `+srv` string. Atlas keeps database users in `admin`.
     - `directConnection=true` keeps the driver on the Sidecar. Without it, the driver reads the member list from the server, dials Atlas directly and fails.
-    - Leave out `compressors=`. The Sidecar refuses compressed traffic.
+    - Leave out `compressors=` and `loadBalanced=`. The Sidecar supports neither.
 
     The new string has no `tls=true`. That applies only to the hop from the client to the Sidecar on the same host. When clients reach the Sidecar over a network, put TLS in front of it. See [TLS on each leg](/setup/configuration/hoop-sidecar/protocols/mongodb#tls-on-each-leg).
   </Step>
@@ -197,7 +197,7 @@ Drivers also open monitoring connections. They show in `/api/sessions` with no s
 
 Atlas accepts connections only from the IP addresses on the project's IP access list.
 
-Leave only the Sidecar's egress IP on it, and no client can connect to Atlas directly and skip your rules. This needs a Sidecar host with a static egress IP, such as an Elastic IP or a NAT gateway.
+Leave only the Sidecar's egress IP on it, and no client with another IP can connect to Atlas directly and skip your rules. Workloads that share the Sidecar's host or NAT gateway keep that access, so give the Sidecar a static egress IP of its own, such as an Elastic IP.
 
 1. In the Atlas UI, open **Security**, then **Database & Network Access**, then **IP Access List**.
 2. Click **Add IP Address** and add the Sidecar's IP.
@@ -207,10 +207,12 @@ Leave only the Sidecar's egress IP on it, and no client can connect to Atlas dir
   <img src="/images/integrations/mongodb-atlas-network-access.png" alt="Atlas IP Access List with one IP address allowed" />
 </Frame>
 
-Or with the Atlas CLI:
+Or with the Atlas CLI. Add the Sidecar's IP, list the entries, then delete each of the others:
 
 ```bash
 atlas accessLists create <ip> --type ipAddress --projectId <project-id> --comment "Hoop Sidecar"
+atlas accessLists list --projectId <project-id>
+atlas accessLists delete <entry> --projectId <project-id>
 ```
 
 Editing the list needs the Project Owner or Project Network Access Manager role.
@@ -232,7 +234,7 @@ If the Sidecar's own IP leaves the list, clients see only `connection closed`. T
 
 - **A denied command closes the connection.** The client reads the rule's message as error code `13`, `Unauthorized`, and an open transaction rolls back. Drivers retry reads and retryable writes on a new connection. Other commands, such as `createIndex`, can fail once with `connection closed`.
 - **Sessions show `principal: anonymous`.** The Sidecar relays the login to Atlas and does not read the user name from it. Use one Atlas database user per application or team to tell sessions apart.
-- **Database users need a password.** X.509 users cannot log in through the Sidecar, because the Sidecar opens its own TLS connection to Atlas.
+- **This page covers password users.** A client's X.509 certificate does not reach Atlas, because the Sidecar opens its own TLS connection.
 
 ---
 
@@ -240,7 +242,7 @@ If the Sidecar's own IP leaves the list, clients see only `connection closed`. T
 
 <EnterpriseLimit />
 
-- **More rules:** an Enterprise license lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **More rules:** an Enterprise license with the guardrails and data-masking features lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
 - **Reviews and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds reviews, shared rule sets and one view of many Sidecars.
 
 ---
