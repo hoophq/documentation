@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 40 1000 470" role="img" aria-label="MongoDB Atlas with the Hoop Sidecar: AI agents, backends, mongosh and Compass connect to the Sidecar in your infrastructure, which applies guardrails, data masking and audit, then connects over verified TLS to the primary of the Atlas replica set. The IP access list allows only the Sidecar's IP. The Atlas UI reaches the cluster inside Atlas and does not pass through the Sidecar.">
+        <defs>
+          <marker id="ds-ink" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#e4e9ef"/>
+          </marker>
+          <marker id="ds-data" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#8fbf5c"/>
+          </marker>
+          <marker id="ds-db" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#6ea7d8"/>
+          </marker>
+          <marker id="ds-muted" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#75808d"/>
+          </marker>
+        </defs>
+
+        <!-- zones -->
+        <rect x="20" y="60" width="560" height="440" fill="#1c232b" stroke="#3b4754" stroke-dasharray="3 4"/>
+        <text x="36" y="84" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#98a4b2" letter-spacing="1.2">YOUR INFRASTRUCTURE</text>
+        <rect x="620" y="60" width="360" height="440" fill="#1c232b" stroke="#3b4754" stroke-dasharray="3 4"/>
+        <text x="636" y="84" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#98a4b2" letter-spacing="1.2">MONGODB ATLAS</text>
+
+        <!-- clients -->
+        <rect x="36" y="120" width="150" height="52" fill="#151a21" stroke="#3b4754"/>
+        <text x="111" y="143" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">AI agent</text>
+        <text x="111" y="160" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">Claude Code · Cursor</text>
+        <rect x="36" y="184" width="150" height="52" fill="#151a21" stroke="#3b4754"/>
+        <text x="111" y="207" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">Backend · ODM</text>
+        <text x="111" y="224" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">any MongoDB driver</text>
+        <rect x="36" y="248" width="150" height="52" fill="#151a21" stroke="#3b4754"/>
+        <text x="111" y="271" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">mongosh · Compass</text>
+        <text x="111" y="288" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">developers</text>
+        <line x1="186" y1="146" x2="236" y2="178" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#ds-ink)"/>
+        <line x1="186" y1="210" x2="236" y2="214" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#ds-ink)"/>
+        <line x1="186" y1="274" x2="236" y2="250" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#ds-ink)"/>
+
+        <!-- sidecar -->
+        <rect x="240" y="110" width="240" height="250" fill="#151a21" stroke="#a9b8c8" stroke-width="1.6"/>
+        <text x="254" y="134" font-family="Archivo, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e4e9ef">Hoop Sidecar</text>
+        <text x="254" y="150" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">one container · listens on :27017</text>
+        <rect x="252" y="164" width="216" height="52" fill="#1c232b" stroke="#3b4754"/>
+        <text x="262" y="186" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Guardrails</text>
+        <text x="262" y="204" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">block drop · delete</text>
+        <rect x="252" y="224" width="216" height="52" fill="#1c232b" stroke="#3b4754"/>
+        <text x="262" y="246" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Data Masking</text>
+        <text x="262" y="264" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">redact email fields</text>
+        <rect x="252" y="284" width="216" height="52" fill="#1c232b" stroke="#3b4754"/>
+        <text x="262" y="306" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Audit</text>
+        <text x="262" y="324" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">every command · /api/sessions</text>
+
+        <!-- inspected path -->
+        <line x1="480" y1="199" x2="672" y2="199" stroke="#8fbf5c" stroke-width="2.2" marker-end="url(#ds-data)"/>
+        <text x="492" y="189" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#8fbf5c">verified TLS</text>
+
+        <!-- ip access list gate -->
+        <line x1="620" y1="170" x2="620" y2="228" stroke="#e2a25d" stroke-width="5"/>
+        <text x="636" y="112" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e2a25d">IP Access List</text>
+        <text x="636" y="128" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">the Sidecar's IP only</text>
+
+        <!-- replica set -->
+        <rect x="660" y="146" width="300" height="146" fill="#151a21" stroke="#6ea7d8" stroke-width="2"/>
+        <text x="676" y="166" font-family="Archivo, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Replica set</text>
+        <rect x="676" y="176" width="268" height="46" fill="#1c232b" stroke="#8fbf5c" stroke-width="1.6"/>
+        <text x="810" y="196" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">Primary</text>
+        <text x="810" y="213" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">the Sidecar's upstream · :27017</text>
+        <rect x="676" y="232" width="130" height="46" fill="#1c232b" stroke="#3b4754"/>
+        <text x="741" y="252" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Secondary</text>
+        <text x="741" y="268" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">:27017</text>
+        <rect x="814" y="232" width="130" height="46" fill="#1c232b" stroke="#3b4754"/>
+        <text x="879" y="252" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Secondary</text>
+        <text x="879" y="268" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">:27017</text>
+
+        <!-- path the sidecar does not see -->
+        <rect x="36" y="372" width="150" height="52" fill="none" stroke="#75808d" stroke-dasharray="3 3"/>
+        <text x="111" y="395" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#98a4b2">Browser</text>
+        <text x="111" y="412" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#75808d">Atlas UI users</text>
+        <line x1="186" y1="398" x2="656" y2="398" stroke="#75808d" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ds-muted)"/>
+        <text x="250" y="390" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11.5" fill="#98a4b2">does not pass through the Sidecar</text>
+        <rect x="660" y="372" width="300" height="52" fill="none" stroke="#75808d" stroke-dasharray="3 3"/>
+        <text x="810" y="394" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#98a4b2">Atlas UI</text>
+        <text x="810" y="412" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#75808d">Data Explorer</text>
+        <line x1="810" y1="372" x2="810" y2="296" stroke="#75808d" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ds-muted)"/>
+
+        <!-- notes -->
+        <text x="36" y="462" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Clients point their connection string at the Sidecar.</text>
+        <text x="36" y="480" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#98a4b2">The Sidecar relays the login and stores no database password.</text>
+        <text x="636" y="462" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Only the Sidecar's IP passes the access list.</text>
+        <text x="636" y="480" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#98a4b2">The Atlas UI reaches the cluster inside Atlas.</text>
+      </svg>
