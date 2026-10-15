@@ -272,11 +272,11 @@ The wait and the poll interval are constants, with no config field. A Control Pl
     The Sidecar files nothing new. The Control Plane recognizes the statement, consumes the approved review and lets it through, unless the approval [expired](#time-limits).
   </Step>
   <Step title="An approval is spent once">
-    A third run of the same statement files a new review. A rejection or a revocation ends that one review, so running the statement again files a new one and pages the approvers.
+    A third run of the same statement files a new review. A rejection or a revocation ends that one review, so running the statement again files a new one and pages the approvers. With [`spend_approval_on: accepted`](#spend-an-approval-only-on-an-accepted-answer), a retry that the upstream refuses does not spend the approval.
   </Step>
 </Steps>
 
-**An approval can be revoked until the Sidecar uses it.** Revoke it from the review page, or with `PUT /api/reviews/<id>` and status `REVOKED`. A hold that is still waiting denies on its next poll, and the Slack message says the approval was revoked. Once the Sidecar uses the approval, the review is `EXECUTED` and a revoke answers `400`: the statement already ran. Any decision that loses that race to the Sidecar answers `400` the same way.
+**An approval can be revoked until the Sidecar uses it.** Revoke it from the review page, or with `PUT /api/reviews/<id>` and status `REVOKED`. A hold that is still waiting denies on its next poll, and the Slack message says the approval was revoked. Once the Sidecar uses the approval, the review is `EXECUTED` and a revoke answers `400`: the statement already ran. Any decision that loses that race to the Sidecar answers `400` the same way. A reserved approval (`PROCESSING`) cannot be revoked either. If the upstream refuses the statement, the approval is `APPROVED` again and can be revoked.
 
 The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. On an http listener, the match does not bind a body value that [`match_ignore`](#ignoring-a-volatile-body-value) names. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
 
@@ -294,6 +294,34 @@ Each field takes minutes, from 1 minute to 7 days. An empty field means no limit
 An expired review releases nothing. The Sidecar denies with `the review expired; running the statement again files a new review`, and an older Sidecar with `the statement was not released`. Running the statement again files a new review and pages the approvers. The Reviews page shows the deadline, and `GET /api/sidecars/reviews/<id>` and the MCP tool `review_status` carry it as `expires_at`. All three show **Expired** when it passes.
 
 A time to decide shorter than 30 minutes ends a hold sooner: the next poll reads **Expired** and denies. A limit longer than 30 minutes does not make a hold wait longer.
+
+#### Spend an approval only on an accepted answer
+
+By default the Sidecar spends an approval when it releases the statement. An http or grpc request that the upstream refuses still uses it, for example a `401` because a bearer token expired during the hold. With `spend_approval_on: accepted`, the Control Plane reserves the approval (`PROCESSING`), and the Sidecar reports the upstream's answer before the client reads it:
+
+```yaml
+    analyzer:
+      high: require_review
+      approval_rule: payments-approvers
+      spend_approval_on: accepted   # forward (the default) or accepted
+```
+
+| Upstream answer | Approval |
+|---|---|
+| http `4xx` | Given back (`APPROVED`) |
+| grpc `INVALID_ARGUMENT`, `NOT_FOUND`, `ALREADY_EXISTS`, `PERMISSION_DENIED`, `RESOURCE_EXHAUSTED`, `FAILED_PRECONDITION`, `ABORTED`, `OUT_OF_RANGE`, `UNIMPLEMENTED`, `UNAUTHENTICATED` | Given back |
+| Any other status, or a grpc response message | Spent (`EXECUTED`) |
+| None: the connection ends first | Spent |
+
+A refused request ran nothing, so a resend of the identical statement with a fresh credential takes the approval again. A `5xx` spends it, because the upstream can do the work before it fails.
+
+A resend while the approval is `PROCESSING` is not released a second time. A hold waits for the answer. `review_mode: return` denies with `another request is using this approval; check the review before resending`.
+
+If the Sidecar never reports the answer (it stopped, or the Control Plane was unreachable), the approval is spent 10 minutes after the release. A late answer can spend it, but cannot give it back.
+
+On one HTTP/1 connection, a reserved request pipelined ahead of another held request is forwarded only when that hold ends. If that takes more than 10 minutes, the approval is spent, as with `forward`.
+
+`spend_approval_on: accepted` is valid on http, grpc and spanner listeners where a risk level asks for `require_review`, on a Sidecar with a Control Plane. The Control Plane serves it only to a Sidecar that supports it, and refuses the config for an older one. A Control Plane older than the setting ignores it and spends the approval at release, and the Sidecar logs a warning.
 
 #### Return mode for agents
 
@@ -1165,6 +1193,10 @@ Each of these would otherwise load, evaluate and do nothing:
 | `require_review` on a Sidecar with no Control Plane, off a terminal | Refused: there is nowhere to file the review. In a terminal, the person running the Sidecar approves |
 | `review_mode` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
 | `review_mode` other than `hold` or `return` | Refused |
+| `spend_approval_on` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
+| `spend_approval_on` other than `forward` or `accepted` | Refused |
+| `spend_approval_on: accepted` on a listener other than http, grpc or spanner | Refused: the Sidecar does not read the upstream's answer there |
+| `spend_approval_on: accepted` on a Sidecar with no Control Plane | Refused: only the Control Plane keeps a reservation |
 | `match_ignore` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
 | `match_ignore` on a listener that is not http | Refused: it replaces values only in an http body |
 | A `match_ignore` item with no `resources` or no `fields`, or with an empty method, resource, field or key | Refused: the item is unscoped or names nothing |

@@ -111,7 +111,7 @@ The MCP endpoint has no authentication, the same as the listener ports. A caller
 | `review_wait` | `id`, `timeout_seconds` (default 60, max 300) | Reads the review every 2 seconds until a person decides or the timeout ends |
 | `review_list` | `status`, `limit` (default 20, max 200) | Lists this Sidecar's reviews, newest first, across every listener. Needs 1.214.0 |
 
-`review_status` and `review_wait` return one review and what to do next. `review_list` returns `{"reviews": [...]}` of the same shape, and `status` filters on `PENDING`, `APPROVED`, `REJECTED`, `REVOKED`, `EXECUTED` or `EXPIRED`.
+`review_status` and `review_wait` return one review and what to do next. `review_list` returns `{"reviews": [...]}` of the same shape, and `status` filters on `PENDING`, `APPROVED`, `REJECTED`, `REVOKED`, `PROCESSING`, `EXECUTED` or `EXPIRED`.
 
 ```json
 {
@@ -146,9 +146,10 @@ The status path and the MCP tools map a status to `next` the same way:
 |---|---|---|
 | `PENDING` | `wait` | Waits again. It does not resend |
 | `APPROVED` | `resend_identical_statement` | Resends the identical statement once, before `expires_at` when it is set |
+| `PROCESSING` | `wait` | Waits again. Another request is using the approval, and the upstream's answer spends it or gives it back. Only on a listener with [`spend_approval_on: accepted`](/setup/configuration/hoop-sidecar/risk-analysis#spend-an-approval-only-on-an-accepted-answer) |
 | `REJECTED`, `REVOKED`, `EXECUTED`, `EXPIRED`, any other | `stop` | Stops. Only a person asks again |
 
-The resend runs through the listener like any statement, so the analyzer, the audit trail and masking apply, and the resend uses the approval. See [The retry contract](/setup/configuration/hoop-sidecar/risk-analysis#the-retry-contract).
+The resend runs through the listener like any statement, so the analyzer, the audit trail and masking apply, and the resend uses the approval. With `spend_approval_on: accepted`, a resend that the upstream refuses gives the approval back. See [The retry contract](/setup/configuration/hoop-sidecar/risk-analysis#the-retry-contract).
 
 Two tool answers are errors:
 
