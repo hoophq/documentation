@@ -172,14 +172,14 @@ postgres=> drop table customers;
 FATAL:  destructive statements are blocked by Hoop
 ```
 
-The audit lists each session with its principal and counts:
+The audit lists each session with its principal and counts (fields trimmed):
 
 ```bash
 curl -s 127.0.0.1:19000/api/sessions
 ```
 
 ```json
-{"principal":"postgres.<project-ref>","protocol":"postgres","connection":"supabase","denied_count":1,"masked_count":1,"verdict":"denied"}
+{"sessions":[{"principal":"postgres.<project-ref>","protocol":"postgres","connection":"supabase","denied_count":1,"masked_count":1,"verdict":"denied"}],"total":1}
 ```
 
 ---
@@ -255,7 +255,8 @@ The audit records the full statement text. Run `CREATE ROLE ... PASSWORD` from t
 
 <EnterpriseLimit />
 
-Reviews, shared rule sets and one view of many Sidecars need the [Control Plane](/core-concepts/control-plane).
+- **More rules:** an Enterprise license lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **Reviews and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds reviews, shared rule sets and one view of many Sidecars.
 
 ---
 
