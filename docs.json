@@ -92,6 +92,12 @@
               },
               "control-plane/connect-sidecar",
               {
+                "group": "Integrations",
+                "pages": [
+                  "integrations/supabase"
+                ]
+              },
+              {
                 "group": "Reference",
                 "pages": [
                   "setup/configuration/hoop-sidecar/config-file",

@@ -1,0 +1,278 @@
+---
+title: "Supabase"
+description: "Guardrails, data masking and audit in front of a Supabase Postgres database, with no app code change."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+The Sidecar runs in your infrastructure, between your Postgres clients and the Supabase connection pooler.
+
+Clients change only the host and port of their connection string. Every statement from an AI agent, an ORM, a backend or `psql` then passes through your guardrails, masking rules and audit trail.
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/integrations/supabase-sidecar-light.svg"
+    alt="AI agents, backends and psql connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Supabase session pooler and Postgres. Network Restrictions allow only the Sidecar's IP. supabase-js reaches the Supabase HTTPS APIs and does not pass through the Sidecar."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/integrations/supabase-sidecar-dark.svg"
+    alt="AI agents, backends and psql connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Supabase session pooler and Postgres. Network Restrictions allow only the Sidecar's IP. supabase-js reaches the Supabase HTTPS APIs and does not pass through the Sidecar."
+  />
+</Frame>
+
+<Warning>
+The Sidecar sees Postgres connections only. Supabase's HTTPS APIs (PostgREST and `supabase-js`, Storage, Auth, Realtime) and the dashboard SQL editor reach the database inside Supabase, so their traffic does not pass through the Sidecar.
+</Warning>
+
+---
+
+## Requirements
+
+- A Supabase project. The free plan works.
+- Docker on a host with outbound IPv4 access.
+- A Postgres client, such as `psql`.
+
+---
+
+## Setup
+
+<Steps>
+  <Step title="Copy the session pooler host">
+    In the Supabase dashboard, click **Connect**, open the **Direct** tab and select **Session pooler**.
+
+    <Frame>
+      <img src="/images/integrations/supabase-connect-session-pooler.png" alt="Supabase Connect dialog with Session pooler selected" />
+    </Frame>
+
+    The URI below the options holds the two values you need:
+
+    ```
+    postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres
+    ```
+
+    - **Host:** `aws-0-<region>.pooler.supabase.com`. Copy it exactly, because some projects use `aws-1`.
+    - **User:** `postgres.<project-ref>`.
+
+    | Connection method | Use with the Sidecar |
+    |---|---|
+    | Session pooler, port `5432` | **Yes.** IPv4, and one server connection per client, like a direct connection. |
+    | Direct connection | Only from a host with IPv6 egress, or with the IPv4 add-on. It is IPv6 only by default. |
+    | Transaction pooler, port `6543` | No. It does not support prepared statements, which most drivers and ORMs use. |
+  </Step>
+
+  <Step title="Download the Supabase root certificate">
+    Open **Database**, then **Settings**. In **SSL configuration**, click **Download certificate** and save the file as `certs/supabase-root.crt`.
+
+    <Frame>
+      <img src="/images/integrations/supabase-ssl-certificate.png" alt="Supabase SSL configuration with the Download certificate button" />
+    </Frame>
+
+    The pooler presents a certificate signed by Supabase's own CA (`Supabase Root 2021 CA`). That CA is not in public trust stores, so the Sidecar needs this file to verify the pooler.
+  </Step>
+
+  <Step title="Write the config">
+    Save this as `config.yaml` next to the `certs` folder. Replace the `upstream` host with yours.
+
+    ```yaml config.yaml
+    admin:
+      listen: 0.0.0.0:19000
+
+    audit:
+      file: "-"
+      query_sessions: 500
+
+    guardrails:
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are blocked by Hoop
+
+    mask:
+      rules:
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+
+    listeners:
+      - name: supabase
+        protocol: postgres
+        listen: 0.0.0.0:15432
+        upstream: aws-0-<region>.pooler.supabase.com:5432
+        upstream_tls:
+          ca_file: /etc/hoop-inspect/certs/supabase-root.crt
+    ```
+
+    - `guardrails` blocks `DROP`, `DELETE` and `TRUNCATE`.
+    - `mask` replaces email addresses in results.
+    - `audit` writes every statement to stdout as JSON lines, and `query_sessions` turns on the `/api/sessions` endpoint.
+    - `upstream_tls` encrypts the hop to Supabase and verifies it against the root certificate.
+    - `admin` serves health checks and the audit API. It has no authentication, so the next step publishes it on loopback only.
+
+    The config holds no database password. The Sidecar relays the login from the client to Supabase.
+  </Step>
+
+  <Step title="Validate and start the Sidecar">
+    ```bash
+    docker run --rm \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
+      hoophq/hoopsidecar:<version> hoop start sidecar --validate
+
+    docker run -d --name hoop-supabase \
+      -p 127.0.0.1:15432:15432 -p 127.0.0.1:19000:19000 \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
+      hoophq/hoopsidecar:<version>
+    ```
+
+    `--validate` prints `config OK: 1 listener(s)` and the rule counts. Versions are on the [releases page](https://github.com/hoophq/hoop/releases).
+  </Step>
+
+  <Step title="Point your clients at the Sidecar">
+    Change the host and port. The user, password and database stay the same.
+
+    ```
+    before: postgresql://postgres.<project-ref>@aws-0-<region>.pooler.supabase.com:5432/postgres
+    after:  postgresql://postgres.<project-ref>@127.0.0.1:15432/postgres?sslmode=disable
+    ```
+
+    `sslmode=disable` applies only to the hop from the client to the Sidecar on the same host. When clients reach the Sidecar over a network, turn on [`downstream_tls`](/setup/configuration/hoop-sidecar/protocols/postgres#tls-on-each-leg) and connect with `sslmode=require`.
+  </Step>
+</Steps>
+
+---
+
+## Verify
+
+Create a test table through the Sidecar:
+
+```bash
+psql "postgresql://postgres.<project-ref>@127.0.0.1:15432/postgres?sslmode=disable"
+```
+
+```sql
+create table customers (id serial primary key, name text, email text);
+insert into customers (name, email) values ('Ana Souza', 'ana.souza@example.com');
+```
+
+A select returns the email masked:
+
+```
+postgres=> select * from customers;
+ id |   name    |          email
+----+-----------+--------------------------
+  1 | Ana Souza | [REDACTED:EMAIL_ADDRESS]
+```
+
+A destructive statement is refused with your message:
+
+```
+postgres=> drop table customers;
+FATAL:  destructive statements are blocked by Hoop
+```
+
+The audit lists each session with its principal and counts (fields trimmed):
+
+```bash
+curl -s 127.0.0.1:19000/api/sessions
+```
+
+```json
+{"sessions":[{"principal":"postgres.<project-ref>","protocol":"postgres","connection":"supabase","denied_count":1,"masked_count":1,"verdict":"denied"}],"total":1}
+```
+
+---
+
+## Allow only the Sidecar with Network Restrictions
+
+Supabase Network Restrictions limit which IP addresses can connect to Postgres and the pooler.
+
+Allow only the Sidecar's egress IP, and no client can connect to Supabase directly and skip your rules. This needs a Sidecar host with a static egress IP.
+
+1. Open **Database**, then **Settings**, and find **Network Restrictions**.
+2. Click **Add restriction**, then add the Sidecar's IP as `<ip>/32`.
+
+<Frame>
+  <img src="/images/integrations/supabase-network-restrictions.png" alt="Supabase Network restrictions with one IPv4 address allowed" />
+</Frame>
+
+Or with the Supabase CLI:
+
+```bash
+supabase network-restrictions update --project-ref <project-ref> --db-allow-cidr <ip>/32 --experimental
+```
+
+A connection from any other IP fails before it reaches the database:
+
+```
+FATAL:  (EADDRNOTALLOWED) address not in tenant allow_list
+```
+
+<Note>
+Network Restrictions cover Postgres only, so Supabase's HTTPS APIs keep working. Edge Functions lose direct database access and must use `supabase-js`.
+</Note>
+
+---
+
+## Name who ran each statement
+
+By default every client connects as `postgres.<project-ref>`, so the audit shows one shared user. Two ways give each statement a name.
+
+**A role per person.** Create a Postgres role for each person and connect as `<role>.<project-ref>`. The audit records that role as the principal.
+
+```bash
+psql "postgresql://alice.<project-ref>@127.0.0.1:15432/postgres?sslmode=disable"
+```
+
+**A tag on the connection.** Send a custom setting in the startup options. The Sidecar records it on every event of the session, and Supabase accepts it.
+
+```bash
+PGOPTIONS='-c hoop.user=alice' psql "postgresql://postgres.<project-ref>@127.0.0.1:15432/postgres?sslmode=disable"
+```
+
+```json
+{"principal":"postgres.<project-ref>","metadata":{"postgres.option.hoop.user":"alice"}}
+```
+
+See [trace ids from the startup packet](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) to choose which options the Sidecar records.
+
+<Warning>
+The audit records the full statement text. Run `CREATE ROLE ... PASSWORD` from the Supabase SQL editor, so the password does not go through the Sidecar.
+</Warning>
+
+---
+
+## Behavior to know
+
+- **A denied statement closes the connection.** The client reads the message as `FATAL` `42501`, and Postgres rolls back the open transaction. Connection pools open a new connection. See [denials the user can read](/core-concepts/sidecar#denials-the-user-can-read).
+- **Supabase errors reach the client unchanged.** A login or Network Restrictions failure reads the same with or without the Sidecar.
+- **The Sidecar removes channel binding.** It offers `SCRAM-SHA-256` instead of `SCRAM-SHA-256-PLUS`, with the same password. See [TLS on each leg](/setup/configuration/hoop-sidecar/protocols/postgres#tls-on-each-leg).
+
+---
+
+## Free and Enterprise
+
+<EnterpriseLimit />
+
+- **More rules:** an Enterprise license lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **Reviews and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds reviews, shared rule sets and one view of many Sidecars.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-halved" href="/features/guardrails">
+    Write rules that block statements by operation, table or content.
+  </Card>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Choose entity types, columns and masking strategies.
+  </Card>
+  <Card title="PostgreSQL" icon="database" href="/setup/configuration/hoop-sidecar/protocols/postgres">
+    What the Postgres lane decodes, terminates and masks.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every section and field of `config.yaml`.
+  </Card>
+</CardGroup>
