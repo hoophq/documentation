@@ -231,7 +231,7 @@ If the Sidecar's own IP leaves the list, clients see only `connection closed`. T
 ## Behavior to know
 
 - **A denied command closes the connection.** The client reads the rule's message as error code `13`, `Unauthorized`, and an open transaction rolls back. Drivers retry reads and retryable writes on a new connection. Other commands, such as `createIndex`, can fail once with `connection closed`.
-- **The audit records sessions as `anonymous`.** The Sidecar relays the login without reading the user name.
+- **Sessions show `principal: anonymous`.** The Sidecar relays the login to Atlas and does not read the user name from it. Use one Atlas database user per application or team to tell sessions apart.
 - **Database users need a password.** X.509 users cannot log in through the Sidecar, because the Sidecar opens its own TLS connection to Atlas.
 
 ---
