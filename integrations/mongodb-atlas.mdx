@@ -65,8 +65,6 @@ The Sidecar sees driver connections only. The Atlas UI, including Data Explorer,
     | A secondary member | No. Writes fail with `NotWritablePrimary`. |
     | The `mongodb+srv://` host | No. It is a DNS record, not a server. |
     | A private endpoint host | Not covered on this page yet. |
-
-    The primary changes during failovers and maintenance. See [Behavior to know](#behavior-to-know).
   </Step>
 
   <Step title="Write the config">
@@ -232,7 +230,6 @@ If the Sidecar's own IP leaves the list, clients see only `connection closed`. T
 
 ## Behavior to know
 
-- **A failover leaves the Sidecar on the old member.** Atlas elects a new primary during failovers, maintenance and upgrades. Writes then fail with `NotWritablePrimary`, and reads come from a secondary, until you set `upstream` to the new primary and restart the Sidecar. Rule edits reload live; an `upstream` change needs a restart.
 - **A denied command closes the connection.** The client reads the rule's message as error code `13`, `Unauthorized`, and an open transaction rolls back. Drivers retry reads and retryable writes on a new connection. Other commands, such as `createIndex`, can fail once with `connection closed`.
 - **The audit records sessions as `anonymous`.** The Sidecar relays the login without reading the user name.
 - **Database users need a password.** X.509 users cannot log in through the Sidecar, because the Sidecar opens its own TLS connection to Atlas.
