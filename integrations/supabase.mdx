@@ -188,7 +188,7 @@ curl -s 127.0.0.1:19000/api/sessions
 
 Supabase Network Restrictions limit which IP addresses can connect to Postgres and the pooler.
 
-Allow only the Sidecar's egress IP, and no client can connect to Supabase directly and skip your rules. This needs a Sidecar host with a static egress IP.
+Allow only the Sidecar's egress IP, and no client with another IP can connect to Supabase directly and skip your rules. Workloads that share the Sidecar's host or NAT gateway keep that access, so give the Sidecar a static egress IP of its own.
 
 1. Open **Database**, then **Settings**, and find **Network Restrictions**.
 2. Click **Add restriction**, then add the Sidecar's IP as `<ip>/32`.
@@ -255,7 +255,7 @@ The audit records the full statement text. Run `CREATE ROLE ... PASSWORD` from t
 
 <EnterpriseLimit />
 
-- **More rules:** an Enterprise license lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **More rules:** an Enterprise license with the guardrails and data-masking features lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
 - **Reviews and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds reviews, shared rule sets and one view of many Sidecars.
 
 ---
