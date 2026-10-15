@@ -83,7 +83,7 @@ A denied command returns a correlated `OP_MSG` command error with code 13, `Unau
 MongoServerError[Unauthorized]: destructive commands are not permitted on appdb
 ```
 
-The session stays usable afterwards.
+The Sidecar then closes the connection. Drivers retry reads and retryable writes on a new connection; other commands can fail once with `connection closed`.
 
 ---
 

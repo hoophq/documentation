@@ -92,12 +92,6 @@
               },
               "control-plane/connect-sidecar",
               {
-                "group": "Integrations",
-                "pages": [
-                  "integrations/supabase"
-                ]
-              },
-              {
                 "group": "Reference",
                 "pages": [
                   "setup/configuration/hoop-sidecar/config-file",
@@ -135,6 +129,13 @@
                           "setup/configuration/hoop-sidecar/protocols/ssh/known-limitations"
                         ]
                       }
+                    ]
+                  },
+                  {
+                    "group": "Integrations",
+                    "pages": [
+                      "integrations/mongodb-atlas",
+                      "integrations/supabase"
                     ]
                   },
                   {
