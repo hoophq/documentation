@@ -77,21 +77,21 @@ Most MCP clients (Claude Code, Cursor, Devin) detect this metadata and handle th
 
 ## The Approval Flow
 
-When a resource role requires review, `exec` returns `status=pending_approval` with a `review_id` and `review_url`. The agent should:
+When a resource role requires approval, `exec` returns `status=pending_approval` with a `review_id` and `review_url` (the fields keep their earlier names). The agent should:
 
 <Steps>
   <Step title="Notify the user">
-    Surface the `review_url` so a reviewer can approve in Slack, Teams, or the Web App.
+    Surface the `review_url` so an approver can approve in Slack, Teams, or the Web App.
   </Step>
-  <Step title="Long-poll the review">
-    Call `reviews_wait` with the `review_id`. It blocks for up to 5 minutes (default 60 seconds) and returns when the review reaches a terminal status (`APPROVED`, `REJECTED`, `REVOKED`, `EXECUTED`). If it times out without a decision, the response carries `timed_out=true` — call again to keep waiting.
+  <Step title="Long-poll the approval request">
+    Call `approvals_wait` with the `review_id`. It blocks for up to 5 minutes (default 60 seconds) and returns when the approval request reaches a terminal status (`APPROVED`, `REJECTED`, `REVOKED`, `EXECUTED`). If it times out without a decision, the response carries `timed_out=true` — call again to keep waiting.
   </Step>
   <Step title="Execute the approved query">
-    Once `status=APPROVED`, call `reviews_execute` with the same `review_id`. This runs the originally submitted query — the reviewer's decision is final, and the agent cannot drift from what was approved.
+    Once `status=APPROVED`, call `approvals_execute` with the same `review_id`. This runs the originally submitted query — the approver's decision is final, and the agent cannot drift from what was approved.
   </Step>
 </Steps>
 
-This pattern lets autonomous agents safely operate against sensitive resources: the human reviewer is always in the loop for anything that matches a review rule, and the agent simply waits for the answer.
+This pattern lets autonomous agents safely operate against sensitive resources: the human approver is always in the loop for anything that matches an approval rule, and the agent simply waits for the answer.
 
 ---
 
@@ -117,21 +117,23 @@ The MCP server exposes ~50 tools organized by area. The most commonly used ones:
 | `connection_tables` | List tables in a database |
 | `connection_columns` | List columns of a table with their types |
 
-### Reviews (Approvals)
+### Approvals
 
 | Tool | Purpose |
 |---|---|
-| `reviews_list` | List all reviews for the organization |
-| `reviews_get` | Get a single review by ID or session ID |
-| `reviews_wait` | Long-poll a review until it reaches a terminal status. Returns `timed_out=true` after the timeout — call again to keep waiting. |
-| `reviews_execute` | Run a query that was blocked on an approved one-time review |
-| `reviews_update` | Approve, reject, or revoke a review (requires reviewer group membership) |
+| `approvals_list` | List the approval requests you made or your groups can decide. Admins and auditors get all of them |
+| `approvals_get` | Get a single approval request by ID or session ID |
+| `approvals_wait` | Long-poll an approval request until it reaches a terminal status. Returns `timed_out=true` after the timeout — call again to keep waiting. |
+| `approvals_execute` | Run a query that was blocked on an approved one-time request |
+| `approvals_update` | Approve, reject, or revoke an approval request (requires approver group membership) |
+
+Each tool is also served under its earlier name: `reviews_list`, `reviews_get`, `reviews_wait`, `reviews_execute` and `reviews_update` take the same input and return the same output, so an agent configured against them keeps working.
 
 ### Sessions and Audit
 
 | Tool | Purpose |
 |---|---|
-| `sessions_list` | List sessions with filters (user, connection, date range, review status). Max 100 per page. |
+| `sessions_list` | List sessions with filters (user, connection, date range, approval status). Max 100 per page. |
 | `sessions_get` | Session metadata by ID |
 | `sessions_get_content` | Input script and stdout/stderr output. Owner or admin/auditor only. |
 | `sessions_get_analysis` | Hoop's AI analysis: risk level, title, explanation, action |
@@ -160,8 +162,8 @@ The MCP server exposes ~50 tools organized by area. The most commonly used ones:
 
 MCP clients tear down idle streams after roughly 60–120 seconds. Hoop accommodates this with two complementary patterns:
 
-- **Bounded long-poll**. `reviews_wait` and `sessions_wait_analysis` accept a `timeout_seconds` argument (default 60, max 300). When the timeout elapses without a terminal state, the response carries `timed_out=true` and the agent re-calls to continue waiting. The server sends MCP-level pings every 30 seconds to keep the connection warm.
-- **Async handoff**. `exec` and `reviews_execute` return `status=running` with a `session_id` after a 50-second internal timeout. The execution continues in the background; the agent polls `sessions_get` to retrieve the final result.
+- **Bounded long-poll**. `approvals_wait` and `sessions_wait_analysis` accept a `timeout_seconds` argument (default 60, max 300). When the timeout elapses without a terminal state, the response carries `timed_out=true` and the agent re-calls to continue waiting. The server sends MCP-level pings every 30 seconds to keep the connection warm.
+- **Async handoff**. `exec` and `approvals_execute` return `status=running` with a `session_id` after a 50-second internal timeout. The execution continues in the background; the agent polls `sessions_get` to retrieve the final result.
 
 Agents should always handle `timed_out=true` and `status=running` explicitly rather than treating them as errors.
 

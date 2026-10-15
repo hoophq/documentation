@@ -22,7 +22,7 @@ The MCP server is mounted at:
 https://<your-gateway>/api/mcp
 ```
 
-Two authentication methods are supported — a **Bearer token** (always available) and **OAuth 2.0** (must be enabled by an administrator). Both result in the agent acting as the authenticated user with the same RBAC, masking, guardrails, and review controls. See the [authentication overview](/learn/features/mcp-server#endpoint-and-authentication) for how each method works.
+Two authentication methods are supported — a **Bearer token** (always available) and **OAuth 2.0** (must be enabled by an administrator). Both result in the agent acting as the authenticated user with the same RBAC, masking, guardrails, and approval controls. See the [authentication overview](/learn/features/mcp-server#endpoint-and-authentication) for how each method works.
 
 ## Add the MCP Server to Your Client
 
@@ -170,7 +170,7 @@ The `exec` response is one of three envelopes the agent should handle explicitly
 |---|---|---|
 | `completed` | Output is in the response. May include AI analysis. | Use the output. Done. |
 | `failed` | Command ran but exited non-zero. | Inspect `output` and `exit_code`. |
-| `pending_approval` | A review is required before the command can run. | Call `reviews_wait`, then `reviews_execute` once `status=APPROVED`. |
+| `pending_approval` | An approval is required before the command can run. | Call `approvals_wait`, then `approvals_execute` once `status=APPROVED`. |
 | `running` | Command is still running after a 50-second timeout. | Poll `sessions_get` with the returned `session_id`. |
 
 For how the approval and long-running flows work, see [The Approval Flow](/learn/features/mcp-server#the-approval-flow) and [Long-Running Operations](/learn/features/mcp-server#long-running-operations) in the overview.
@@ -216,9 +216,9 @@ The tool is gated to admin users. Ask an administrator to perform the action, or
 ### `pending_approval` never resolves
 
 **Check:**
-1. A reviewer group exists and has at least one member who can approve
-2. The reviewer was notified (Slack/Teams integration is configured, or they're checking the Web App)
-3. The agent is calling `reviews_wait` repeatedly after each `timed_out=true`
+1. An approver group exists and has at least one member who can approve
+2. The approver was notified (Slack/Teams integration is configured, or they're checking the Web App)
+3. The agent is calling `approvals_wait` (or its alias `reviews_wait`) repeatedly after each `timed_out=true`
 
 ### Agent disconnects on long queries
 

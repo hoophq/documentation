@@ -1,11 +1,11 @@
 ---
 title: "Slack"
-description: "Send held statements to Slack. Reviewers approve there without signing in."
+description: "Send held statements to Slack. Approvers approve there without signing in."
 ---
 
-When a listener holds a statement for a person ([`require_review`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person)), the Control Plane posts a review to Slack. A reviewer clicks **Approve** or **Reject** in the message. hoop finds the hoop user behind the Slack user by email and checks that user's groups.
+When a listener holds a statement for a person ([`require_approval`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person)), the Control Plane posts an approval request to Slack. An approver clicks **Approve** or **Reject** in the message. hoop finds the hoop user behind the Slack user by email and checks that user's groups.
 
-<Frame caption="A held statement in Slack. The reviewer sees who ran it, on which connection, and the exact statement.">
+<Frame caption="A held statement in Slack. The approver sees who ran it, on which connection, and the exact statement.">
   <img
     className="block"
     src="/images/integrations/control-plane-slack.webp"
@@ -23,7 +23,7 @@ This page is for the Control Plane. For the Gateway, see [Slack](/integrations/s
 
 ```mermaid
 sequenceDiagram
-    actor R as Reviewer
+    actor R as Approver
     participant IdP as Identity provider
     participant S as Sidecar
     participant CP as Control Plane
@@ -32,7 +32,7 @@ sequenceDiagram
     R->>IdP: log in to the Control Plane
     IdP->>CP: the user's groups (each login)
     S->>CP: hold a statement (approval_rule)
-    CP->>SL: post the review to the listener's channels, else the fallback channel
+    CP->>SL: post the approval request to the listener's channels, else the fallback channel
     R->>SL: click Approve or Reject
     SL->>CP: the click (Socket Mode)
     CP->>SL: read the Slack user (users.info)
@@ -42,11 +42,11 @@ sequenceDiagram
     else refused
         CP-->>SL: tell only the clicker why
     end
-    S->>CP: poll the review, every 5 seconds
+    S->>CP: poll the approval request, every 5 seconds
     CP-->>S: approved: run the statement
 ```
 
-- **Reviewers are hoop users.** Their groups come from your identity provider at each login.
+- **Approvers are hoop users.** Their groups come from your identity provider at each login.
 - **Channels are per listener.** A listener without channels uses the fallback channel.
 - **Socket Mode.** The Control Plane dials out to Slack. No inbound URL is exposed.
 
@@ -73,7 +73,7 @@ sequenceDiagram
         {
           "display_information": {
             "name": "hoop",
-            "description": "Review statements held by hoop sidecars",
+            "description": "Approve statements held by hoop sidecars",
             "background_color": "#7a7879"
           },
           "features": {
@@ -107,7 +107,7 @@ sequenceDiagram
 
     | Scope | Why |
     |-------|-----|
-    | `chat:write` | Post and update reviews, and answer a reviewer privately |
+    | `chat:write` | Post and update approval requests, and answer an approver privately |
     | `chat:write.public` | Post to public channels without inviting the bot |
     | `users:read` | Read the Slack user who clicked |
     | `users:read.email` | Match a Slack user to a hoop user by email |
@@ -135,51 +135,51 @@ Already have a Slack app for hoop? Add the `users:read` and `users:read.email` s
 
 <Steps>
   <Step title="Save the tokens">
-    Go to **Settings** → **Slack** → **Configurations**. Paste the **Slack bot token** and the **Slack app token**. Optionally set the **Fallback channel**: it receives the reviews of listeners with no channel. Click **Save**.
+    Go to **Settings** → **Slack** → **Configurations**. Paste the **Slack bot token** and the **Slack app token**. Optionally set the **Fallback channel**: it receives the approval requests of listeners with no channel. Click **Save**.
 
     The Control Plane log shows `connected to Slack with Socket Mode`.
   </Step>
   <Step title="Choose a channel per listener">
     Open the **Listeners** tab. It lists every listener of every Sidecar. Type the channel IDs in a listener's row and click **Save** on that row.
 
-    A listener with no channel posts to the fallback channel. With neither, the review is filed but nobody is notified in Slack, and the Control Plane logs a warning.
+    A listener with no channel posts to the fallback channel. With neither, the approval request is filed but nobody is notified in Slack, and the Control Plane logs a warning.
   </Step>
 </Steps>
 
 ---
 
-## 3. Give reviewers their groups
+## 3. Give approvers their groups
 
-A reviewer is a hoop user in a group the rule names. The groups come from the login:
+An approver is a hoop user in a group the rule names. The groups come from the login:
 
 - **With an identity provider (OIDC or SAML):** each login replaces the user's groups with the ones the provider sends. OIDC keeps the admin group; SAML does not. For OIDC, set `IDP_GROUPS_CLAIM` to the claim that holds them. See [Identity provider](/control-plane/environment-variables#identity-provider).
 - **With local auth**, or a login that sends no groups: set the groups on **Settings** → **Users**.
 
-A reviewer needs a hoop user: they log in once, or an admin adds them on **Settings** → **Users**. With an identity provider, no invitation is needed: the first login creates the user. With local auth, only an admin creates users. A group change in the identity provider reaches hoop at the reviewer's next login. After login, an admin lands on **Sidecars** and every other user on **Reviews**.
+An approver needs a hoop user: they log in once, or an admin adds them on **Settings** → **Users**. With an identity provider, no invitation is needed: the first login creates the user. With local auth, only an admin creates users. A group change in the identity provider reaches hoop at the approver's next login. After login, an admin lands on **Sidecars** and every other user on **Approvals**.
 
 <Warning>
 Microsoft Entra ID sends group IDs (GUIDs) by default, not names. Name those IDs on the rule, or configure Entra to send group names.
 </Warning>
 
-If a reviewer's Slack email differs from their hoop email, set their **Slack ID** on **Settings** → **Users**. To copy it in Slack: open the person's profile → **⋮** → **Copy member ID** (`U…`).
+If an approver's Slack email differs from their hoop email, set their **Slack ID** on **Settings** → **Users**. To copy it in Slack: open the person's profile → **⋮** → **Copy member ID** (`U…`).
 
 ---
 
-## 4. Name the reviewers on the rule
+## 4. Name the approvers on the rule
 
-Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**, then pick the groups in **Reviewers**. The list shows every group of the organization. One approval from any of them releases the statement.
+Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**, then pick the groups in **Approvers**. The list shows every group of the organization. One approval from any of them releases the statement.
 
 **While held for approval** picks how the client waits: for the decision, or denied at once to run the statement again after approval. See [Return mode for agents](/setup/configuration/hoop-sidecar/risk-analysis#return-mode-for-agents).
 
-**Time to decide** and **Time to use an approval** limit how long the review stays open. Both are optional. See [Time limits](/setup/configuration/hoop-sidecar/risk-analysis#time-limits).
+**Time to decide** and **Time to use an approval** limit how long the approval request stays open. Both are optional. See [Time limits](/setup/configuration/hoop-sidecar/risk-analysis#time-limits).
 
-With no group, the admin group reviews. The Control Plane sets the listener's `approval_rule` to this rule for you. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
+With no group, the admin group approves. The Control Plane sets the listener's `approval_rule` to this rule for you. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 
 ---
 
 ## 5. Approve in Slack
 
-The review shows the Sidecar, the listener, the statement and one button per group that may approve. **Reject** asks for an optional reason. **More details** opens the review on the Control Plane **Reviews** page, which every signed-in user can open.
+The **Hoop Approval** message shows the Sidecar, the listener, the statement and one button per group that may approve. **Reject** asks for an optional reason. **More details** opens the approval request on the Control Plane **Approvals** page, which every signed-in user can open.
 
 On a click, hoop finds the approver:
 
@@ -194,26 +194,26 @@ The Sidecar sees the approval on its next poll, within 5 seconds.
 
 ## Messages in Slack
 
-### On the review message
+### On the approval message
 
-Everyone in the channel sees these. They replace the buttons as the review changes, whether a reviewer acts in Slack, on the Reviews page or through the API.
+Everyone in the channel sees these. They replace the buttons as the approval request changes, whether an approver acts in Slack, on the Approvals page or through the API.
 
 | Message | Meaning |
 |---------|---------|
 | `<email> approved this session at <time>` | That group approved |
 | `<email> rejected this session at <time>` | That group rejected |
 | `Approved by N of M required group(s)` | More approvals are needed; the other buttons stay |
-| `Session ready to be executed!` | The review is approved; the Sidecar runs the statement on its next poll |
-| `Rejection reason:` followed by the quoted text | The reason the reviewer typed when rejecting |
+| `Session ready to be executed!` | The approval request is approved; the Sidecar runs the statement on its next poll |
+| `Rejection reason:` followed by the quoted text | The reason the approver typed when rejecting |
 | `<email> revoked this session at <time>` | That group revoked the approval before the Sidecar used it |
-| `Approval revoked. Running the statement again files a new review.` | The approval was revoked. Nothing ran |
-| `Decide before <time>; after it the review expires.` | The rule sets a time to decide. Shown when the review is posted |
+| `Approval revoked. Running the statement again files a new approval request.` | The approval was revoked. Nothing ran |
+| `Decide before <time>; after it the approval request expires.` | The rule sets a time to decide. Shown when the approval request is posted |
 | `The approval expires at <time> if the statement does not run again.` | The rule sets a time to use an approval. Shown under the approval |
-| `Review expired. Nothing was released. Running the statement again files a new review.` | The review passed its limit. The buttons are removed when the expiry is recorded: on a click, on the next poll of a hold that still waits, or when the statement runs again |
+| `Approval request expired. Nothing was released. Running the statement again files a new approval request.` | The approval request passed its limit. The buttons are removed when the expiry is recorded: on a click, on the next poll of a hold that still waits, or when the statement runs again |
 
 ### Only to the person who clicked
 
-hoop checks a click in this order and answers with the first check that fails. **Reject** asks for the reason before these checks run, so a refused reviewer sees the answer after sending the reason.
+hoop checks a click in this order and answers with the first check that fails. **Reject** asks for the reason before these checks run, so a refused approver sees the answer after sending the reason.
 
 **The Slack user**
 
@@ -223,10 +223,10 @@ hoop checks a click in this order and answers with the first check that fails. *
 | `Hoop could not verify your Slack user. Ask an admin to add the users:read scope to the Slack app and reinstall it.` | The Slack ID is set on the hoop user, and the app lacks `users:read` | Add the scope and reinstall the app |
 | `Hoop could not read the email of your Slack user. Ask an admin to add the users:read.email scope to the Slack app, or to set your Slack ID on the Users page.` | The app lacks `users:read.email`, or Slack returns no email | Add the scope and reinstall, or set the Slack ID on the Users page |
 | `Your Slack user is deactivated.` | The Slack account is deactivated | Use an active Slack account |
-| `A bot cannot approve a review.` | A bot or an app clicked | A person approves |
-| `Slack guests cannot approve a review.` | The user is a guest in Slack | Use a full member |
-| `Users from another Slack workspace cannot approve a review.` | A Slack Connect user, or a workspace outside your Enterprise Grid | Use a member of your workspace |
-| `Confirm the email of your Slack user before approving a review.` | The email is not confirmed in Slack. Checked only when hoop matches by email | The user confirms the email in Slack |
+| `A bot cannot approve a request.` | A bot or an app clicked | A person approves |
+| `Slack guests cannot approve a request.` | The user is a guest in Slack | Use a full member |
+| `Users from another Slack workspace cannot approve a request.` | A Slack Connect user, or a workspace outside your Enterprise Grid | Use a member of your workspace |
+| `Confirm the email of your Slack user before you approve a request.` | The email is not confirmed in Slack. Checked only when hoop matches by email | The user confirms the email in Slack |
 
 **The hoop user**
 
@@ -244,14 +244,14 @@ hoop checks a click in this order and answers with the first check that fails. *
 | `You do not belong to group "<group>". If you joined it recently, log in to Hoop to refresh your groups.` | The hoop user is not in the group of the button | Add the user to the group in the identity provider, then they open the login link under the message |
 | `failed obtaining approver's groups` | The Control Plane could not read the user's groups | Click again. If it persists, check the Control Plane log |
 
-**The review**
+**The approval request**
 
 | Message | Cause | Fix |
 |---------|-------|-----|
-| `The review is already approved or rejected` | The review was rejected, revoked, or already run | Nothing to do. The Sidecar holds the next statement in a new review |
-| `review not found` | The review no longer exists | Nothing to do |
-| `This review expired. Nothing was released; running the statement again files a new review.` | The review passed its [time limit](/setup/configuration/hoop-sidecar/risk-analysis#time-limits) | Nothing to approve. Running the statement again files a new review |
-| `You're not eligible to approve/reject this review` | None of the user's groups is on the review | Add the user to one of the review's groups |
+| `The approval request is already approved or rejected` | The approval request was rejected, revoked, or already run | Nothing to do. The Sidecar holds the next statement in a new approval request |
+| `approval request not found` | The approval request no longer exists | Nothing to do |
+| `This approval request expired. Nothing was released; running the statement again files a new approval request.` | The approval request passed its [time limit](/setup/configuration/hoop-sidecar/risk-analysis#time-limits) | Nothing to approve. Running the statement again files a new approval request |
+| `You cannot approve or reject this approval request` | None of the user's groups is on the approval request | Add the user to one of the approval request's groups |
 | Any other text | An internal error, shown as it came | Check the Control Plane log |
 
 ---
@@ -260,8 +260,8 @@ hoop checks a click in this order and answers with the first check that fails. *
 
 - **No message in Slack.** The listener has no channel and there is no fallback, a channel ID is wrong, the bot is not in the private channel, or the log lacks `connected to Slack with Socket Mode`.
 - **A click does nothing, or answers "You are not registered".** Another server uses the same app token, usually a Gateway. Give the Control Plane its own app.
-- **Each review arrives twice.** Two Control Plane replicas run with Slack configured. Run one.
-- **A reviewer is refused after joining a group.** hoop reads groups at login. The reviewer logs in again.
+- **Each approval request arrives twice.** Two Control Plane replicas run with Slack configured. Run one.
+- **An approver is refused after joining a group.** hoop reads groups at login. The approver logs in again.
 
 ---
 

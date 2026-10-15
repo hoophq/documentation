@@ -15,7 +15,7 @@ flowchart LR
       direction TB
       BLK["block"]
       ALW["allow"]
-      RVW["require_review"]
+      RVW["require_approval"]
       GR["Guardrails"]
       DM["Data Masking"]
     end
@@ -42,20 +42,20 @@ The listener's `analyzer` block maps each risk level the model can report to a t
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
-| `require_review` | Hold the statement on its connection for up to 30 minutes while a person reviews it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. |
+| `require_approval` | Hold the statement on its connection for up to 30 minutes until a person approves or rejects it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
 <Note>
-`require_review` needs a [Control Plane](/core-concepts/control-plane), which stores the reviews, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on every protocol, http included; an ssh listener holds `exec` only and must drop `shell`. See [What a hold files](/setup/configuration/hoop-sidecar/risk-analysis#what-a-hold-files) for what the reviewer reads on each protocol.
+`require_approval` needs a [Control Plane](/core-concepts/control-plane), which stores the approval requests, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on every protocol, http included; an ssh listener holds `exec` only and must drop `shell`. See [What a hold files](/setup/configuration/hoop-sidecar/risk-analysis#what-a-hold-files) for what the approver reads on each protocol. `require_review`, the earlier name, is still accepted.
 
 The wait ends before 30 minutes when the client hangs up, when `idle_timeout_sec` is shorter, or when the caller's own deadline expires. In practice the caller's deadline is the limit: an http client behind Envoy gives up after the 15 s default route timeout. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry.
 </Note>
 
 <Note>
-An agent should not wait on a held statement. With `review_mode: return` the Sidecar files the review and denies at once with the review id; the agent resends the identical statement after approval. `return` applies to every client on the listener, so give agents their own listener, or keep `hold` and let each agent opt in with `x-hoop-review-mode: return` (http, grpc), `hoop-review=return` in `application_name` (postgres) or the `hoop_review_mode` connection attribute (mysql).
+An agent should not wait on a held statement. With `approval_mode: return` the Sidecar files the approval request and denies at once with the approval id; the agent resends the identical statement after approval. `return` applies to every client on the listener, so give agents their own listener, or keep `hold` and let each agent opt in with `x-hoop-approval-mode: return` (http, grpc), `hoop-approval=return` in `application_name` (postgres) or the `hoop_approval_mode` connection attribute (mysql). The earlier `review` spellings of these settings still work.
 
-Resend the exact bytes, once, after approval. Never resend a rejected review, and run holdable statements in autocommit: a denial on a database connection closes it and rolls back an open transaction. See [The retry contract](/setup/configuration/hoop-sidecar/risk-analysis#the-retry-contract).
+Resend the exact bytes, once, after approval. Never resend a rejected approval request, and run holdable statements in autocommit: a denial on a database connection closes it and rolls back an open transaction. See [The retry contract](/setup/configuration/hoop-sidecar/risk-analysis#the-retry-contract).
 </Note>
 
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
@@ -119,7 +119,7 @@ The credential is always a path (`credentials_file`), never inline, and the file
 
 ### What an HTTP listener shows the analyzer
 
-The HTTP codec captures no body and no header by default. Without `capture_body`, the analyzer judges a request from its request line. A listener that holds for review captures request bodies without it.
+The HTTP codec captures no body and no header by default. Without `capture_body`, the analyzer judges a request from its request line. A listener that holds for approval captures request bodies without it.
 
 ```yaml
   - name: api
@@ -174,7 +174,7 @@ The analyzer defaults to `fail_open: true`. It depends on a third-party API, and
 
 Decide which you want per environment, and know that `fail_open: false` makes your model provider a hard dependency of your database.
 
-A listener that uses `require_review` always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
+A listener that uses `require_approval` always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
 
 ---
 

@@ -53,6 +53,10 @@
     {
       "source": "/setup/configuration/hoop-sidecar/deployment/kubernetes",
       "destination": "/install/kubernetes"
+    },
+    {
+      "source": "/setup/configuration/hoop-sidecar/agent-reviews",
+      "destination": "/setup/configuration/hoop-sidecar/agent-approvals"
     }
   ],
   "errors": {
@@ -95,7 +99,7 @@
                   "setup/configuration/hoop-sidecar/identity-mapping",
                   "setup/configuration/hoop-sidecar/policy-rules",
                   "setup/configuration/hoop-sidecar/risk-analysis",
-                  "setup/configuration/hoop-sidecar/agent-reviews",
+                  "setup/configuration/hoop-sidecar/agent-approvals",
                   "setup/configuration/hoop-sidecar/components",
                   "setup/configuration/hoop-sidecar/kerberos",
                   {

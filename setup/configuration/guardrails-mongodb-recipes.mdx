@@ -224,7 +224,7 @@ The second alternative requires `multi` to follow `filter` immediately, which is
 This matches an *empty* filter, not a filter that happens to match everything. `db.users.deleteMany({_id:{$exists:true}})` empties the collection just as thoroughly and is **not** blocked. No pattern can close that gap — deciding whether a predicate selects every document means evaluating it against the data.
 </Warning>
 
-Where that gap matters, put the resource role behind [Action Access Requests](/setup/configuration/access-requests/action-configuration) and add a second rule on `\{"delete":` with the **Require Approval** action. Every delete then waits for an approver from the groups you set with `--reviewers`, and the approver sees the command — including the filter this pattern cannot judge — before it runs.
+Where that gap matters, put the resource role behind [Action Access Requests](/setup/configuration/access-requests/action-configuration) and add a second rule on `\{"delete":` with the **Require Approval** action. Every delete then waits for an approver from the groups you set with `--approvers`, and the approver sees the command — including the filter this pattern cannot judge — before it runs.
 
 ```regex
 \{"delete":
