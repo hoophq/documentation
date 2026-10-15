@@ -31,7 +31,7 @@ Event Routing is an experimental feature. It's **enabled by default since versio
 
 <Steps>
   <Step title="Event fires inside the gateway">
-    A typed event is emitted at an audit-relevant moment: a session opens or closes, a review is approved or denied, the DLP analyzer flags entities, a guardrail trips, the AI analyzer rates a session, or a PCI-tagged connection is opened.
+    A typed event is emitted at an audit-relevant moment: a session opens or closes, an approval request is approved or denied, the DLP analyzer flags entities, a guardrail trips, the AI analyzer rates a session, or a PCI-tagged connection is opened.
   </Step>
   <Step title="Active subscriptions are matched">
     The gateway looks up subscriptions for that event type in the org. Only subscriptions with status `active` produce dispatches.

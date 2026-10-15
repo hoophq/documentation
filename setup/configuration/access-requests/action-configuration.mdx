@@ -33,18 +33,18 @@ Enable Action Access Requests when creating a resource role:
 ```bash
 hoop admin create connection prod-db \
   --agent default \
-  --reviewers 'dba-team,security' \
+  --approvers 'dba-team,security' \
   -- psql -h localhost -U postgres mydb
 ```
 
-The `--reviewers` flag specifies which groups can approve commands.
+The `--approvers` flag specifies which groups can approve commands. `--reviewers`, its earlier name, still works.
 
-**Add reviewers to an existing resource role:**
+**Add approvers to an existing resource role:**
 
 ```bash
 hoop admin create connection prod-db \
   --overwrite \
-  --reviewers 'dba-team,security'
+  --approvers 'dba-team,security'
 ```
 
 ---
@@ -56,7 +56,7 @@ hoop admin create connection prod-db \
 When one group is configured, any member of that group can approve:
 
 ```bash
---reviewers 'dba-team'
+--approvers 'dba-team'
 ```
 
 **Behavior:** Any member of `dba-team` can approve or reject.
@@ -66,7 +66,7 @@ When one group is configured, any member of that group can approve:
 When multiple groups are configured, **all groups must approve**:
 
 ```bash
---reviewers 'dba-team,security-team'
+--approvers 'dba-team,security-team'
 ```
 
 **Behavior:**
@@ -121,7 +121,7 @@ To receive and approve requests in Slack:
 ```bash
 hoop admin create connection prod-db \
   --agent default \
-  --reviewers 'dba-team' \
+  --approvers 'dba-team' \
   --plugin slack \
   -- psql -h localhost -U postgres
 ```
@@ -147,13 +147,17 @@ For custom integrations:
 
 ```bash
 # Approve
-curl -X PUT https://use.hoop.dev/api/reviews/{id}/approve \
-  -H "Authorization: Bearer $HOOP_API_KEY"
+curl -X PUT https://use.hoop.dev/api/approvals/{id} \
+  -H "Authorization: Bearer $HOOP_API_KEY" \
+  -d '{"status": "APPROVED"}'
 
 # Reject
-curl -X PUT https://use.hoop.dev/api/reviews/{id}/reject \
-  -H "Authorization: Bearer $HOOP_API_KEY"
+curl -X PUT https://use.hoop.dev/api/approvals/{id} \
+  -H "Authorization: Bearer $HOOP_API_KEY" \
+  -d '{"status": "REJECTED", "rejection_reason": "Not during the freeze"}'
 ```
+
+`{id}` is the approval request ID or the session ID. The earlier routes, `/api/reviews` and `/api/reviews/{id}`, answer the same.
 
 ---
 
@@ -166,7 +170,7 @@ Only DBAs can approve production database commands:
 ```bash
 hoop admin create connection prod-db \
   --agent default \
-  --reviewers 'dba-team' \
+  --approvers 'dba-team' \
   --plugin slack \
   -- psql -h prod-db.internal -U app_user proddb
 ```
@@ -178,7 +182,7 @@ Require both DBA and Security approval:
 ```bash
 hoop admin create connection sensitive-system \
   --agent default \
-  --reviewers 'dba-team,security-team' \
+  --approvers 'dba-team,security-team' \
   --plugin slack \
   -- psql -h sensitive.internal -U admin
 ```
@@ -190,7 +194,7 @@ Approval for read access to sensitive data:
 ```bash
 hoop admin create connection pii-database \
   --agent default \
-  --reviewers 'privacy-team' \
+  --approvers 'privacy-team' \
   --plugin slack \
   -- psql -h pii-db.internal -U readonly_user piidb
 ```
@@ -208,7 +212,7 @@ hoop admin create connection pii-database \
 
 **CLI:**
 ```bash
-hoop admin get reviews --status pending
+hoop admin get approvals --status pending
 ```
 
 ### Access Request Analytics

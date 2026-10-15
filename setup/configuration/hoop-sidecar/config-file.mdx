@@ -119,7 +119,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `mask` | Default response rewriting for every lane. |
 | `analyzer` | The AI risk classifier: the provider, the model, the credential, and the defaults every listener inherits. Each listener carries its own `analyzer` block beside `guardrails`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
 | `trust` | Extra CA certificates added to the host trust store for outbound TLS. See [Adding a CA to the trust store](#adding-a-ca-to-the-trust-store). |
-| `mcp` | An MCP server that tells agents the status of this Sidecar's reviews. Needs a Control Plane. See [Review Status for Agents](/setup/configuration/hoop-sidecar/agent-reviews#the-mcp-server). |
+| `mcp` | An MCP server that tells agents the status of this Sidecar's approval requests. Needs a Control Plane. See [Approval Status for Agents](/setup/configuration/hoop-sidecar/agent-approvals#the-mcp-server). |
 | `plugins` | Codec plug-ins: WebAssembly modules that decode a protocol this build does not ship. A listener names a plug-in's protocol the way it names `postgres`. See [Codec plug-ins](#codec-plug-ins). |
 | `listeners` | One entry per upstream. |
 
@@ -499,7 +499,7 @@ The Sidecar does not own policy; it owns the input document:
 
 `operation` is the worst effect and `tables` the flattened relation names, both unchanged. `effects` and `relations` say what those two could not: a data-modifying CTE both deletes and selects, and a flat name list cannot separate the table a statement writes from the one it reads. `findings` carries what each deferring rule established, keyed by producer source. A lane with no producers sends a byte-identical document to the one it sent before findings existed.
 
-`review` rides the decide phase only, and only when a risk level asked for `require_review`. The review is filed after decide allows, so the key carries no id or status:
+`review` rides the decide phase only, and only when a risk level asked for `require_approval` (or its earlier spelling, `require_review`). The key keeps its name after the rename to approval, so Rego written against it keeps working. The approval request is filed after decide allows, so the key carries no id or status:
 
 ```json
 "review": {"required": true, "mode": "hold", "mode_source": "listener"}

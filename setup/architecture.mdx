@@ -71,7 +71,7 @@ When a user connects to a resource, the following happens:
 2. **Authorization** — the gateway checks whether the user has access to the requested resource role, based on access control rules and the resource role's configured access mode
 
 3. **Policy evaluation** — before the session begins, the gateway runs the request through an ordered plugin chain:
-   - **Reviews** — if JIT approval is required, the session is held until approved
+   - **Approvals** — if JIT approval is required, the session is held until approved
    - **Audit** — the request is logged
    - **Data masking** — DLP rules are applied to inputs and outputs
    - **RBAC** — role-based rules are enforced

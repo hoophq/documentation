@@ -27,11 +27,11 @@ You can also configure access requests when creating a resource role:
 ```bash
 hoop admin create conn prod-postgres \
   --agent default \
-  --reviewers 'dba-team,security' \
+  --approvers 'dba-team,security' \
   -- psql -h localhost -U postgres
 ```
 
-The `--reviewers` flag specifies which groups can approve access requests.
+The `--approvers` flag specifies which groups can approve access requests. `--reviewers`, its earlier name, still works.
 
 ---
 
@@ -94,7 +94,7 @@ To receive and approve requests in Slack:
 ```bash
 hoop admin create conn prod-postgres \
   --agent default \
-  --reviewers 'dba-team' \
+  --approvers 'dba-team' \
   --plugin slack \
   -- psql -h localhost -U postgres
 ```

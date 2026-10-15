@@ -8,7 +8,7 @@ The analyzer is a per-listener component: an `analyzer:` block declared beside `
 It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-four-cost-controls) before you enable it anywhere real.
 
 <Note>
-Classification runs entirely in the Sidecar: it holds the provider credential and reads one YAML file, same as every other feature here. The one exception is [`require_review`](#holding-a-statement-for-a-person), which files a held statement with the Control Plane, or, on a Sidecar with no Control Plane, with the person running it in a terminal.
+Classification runs entirely in the Sidecar: it holds the provider credential and reads one YAML file, same as every other feature here. The one exception is [`require_approval`](#holding-a-statement-for-a-person), which files a held statement with the Control Plane, or, on a Sidecar with no Control Plane, with the person running it in a terminal.
 </Note>
 
 ---
@@ -111,12 +111,12 @@ An ORM issues the same statement shape thousands of times in one session. Withou
   <Step title="rate_limit caps the speed">
     A token bucket per listener: `calls` per `per_sec` seconds, with at most `burst` sent back to back after a quiet period (`burst` defaults to `calls`). `calls` and `per_sec` are required together, after inheritance. An empty bucket reports `rate_limited`, and the listener classifies again as the bucket refills: `30` per `60` sends 30 at once, then one every two seconds.
 
-    A throttled statement falls through like one past `max_calls`, and a listener that [holds statements for review](#holding-a-statement-for-a-person) denies it until a token is back. A throttled call does not spend `max_calls`, and a cache hit spends neither. The bucket keys on the listener name, so a hot reload continues it rather than refilling it; a lower `burst` takes effect at once, a higher one only as the bucket refills.
+    A throttled statement falls through like one past `max_calls`, and a listener that [holds statements for approval](#holding-a-statement-for-a-person) denies it until a token is back. A throttled call does not spend `max_calls`, and a cache hit spends neither. The bucket keys on the listener name, so a hot reload continues it rather than refilling it; a lower `burst` takes effect at once, a higher one only as the bucket refills.
 
     `--validate` prints what each listener can spend in any 24 hours, and how long `max_calls` lasts at the full rate. The process log gets one warning when a bucket runs empty and one line, with the refused count, when it grants again.
   </Step>
   <Step title="max_calls is a backstop">
-    A process-lifetime budget for the listener. Past it, statements fall through to the guardrails and OPA, the same outcome as a listener with no analyzer. A listener that [holds statements for review](#holding-a-statement-for-a-person) denies instead: a statement with no risk level cannot be forwarded past a human gate. The budget keys on the listener name, so a hot reload that edits the block continues the running count rather than re-arming it. Unlike `rate_limit` it never refills: once spent, it stays spent until a restart. With both spent, the status is `budget_exhausted`.
+    A process-lifetime budget for the listener. Past it, statements fall through to the guardrails and OPA, the same outcome as a listener with no analyzer. A listener that [holds statements for approval](#holding-a-statement-for-a-person) denies instead: a statement with no risk level cannot be forwarded past a human gate. The budget keys on the listener name, so a hot reload that edits the block continues the running count rather than re-arming it. Unlike `rate_limit` it never refills: once spent, it stays spent until a restart. With both spent, the status is `budget_exhausted`.
   </Step>
 </Steps>
 
@@ -144,9 +144,9 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
-| `require_review` | File the statement with the Control Plane, or [the person at the terminal](#approving-in-the-terminal), and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `review_mode: return` it denies at once instead of waiting. A rule can [limit the time](#time-limits) to decide and to use the approval. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
+| `require_approval` | File the statement with the Control Plane, or [the person at the terminal](#approving-in-the-terminal), and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `approval_mode: return` it denies at once instead of waiting. A rule can [limit the time](#time-limits) to decide and to use the approval. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
 
-A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
+A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down. `require_review`, the earlier name of `require_approval`, is still accepted.
 
 A blocked statement reaches the user the same way every other denial does:
 
@@ -204,7 +204,7 @@ Guard on `status` before reading `values`. An absent `risk_level` means "found n
 
 ### Holding a statement for a person
 
-`require_review` refuses a statement until a person approves it. `approval_rule` names the access request rule in the [Control Plane](/core-concepts/control-plane) that decides who may approve: the reviewer groups, the approval count and the force-approval list. The listener holds only the rule's name, and the Control Plane authorizes each review against the configuration it stored for that Sidecar.
+`require_approval` refuses a statement until a person approves it. `approval_rule` names the access request rule in the [Control Plane](/core-concepts/control-plane) that decides who may approve: the approver groups, the approval count and the force-approval list. The listener holds only the rule's name, and the Control Plane authorizes each approval request against the configuration it stored for that Sidecar.
 
 ```yaml
 listeners:
@@ -213,9 +213,13 @@ listeners:
     # ...
     analyzer:
       trigger: {operations: [update, delete]}
-      high: require_review
+      high: require_approval
       approval_rule: payments-approvers
 ```
+
+<Note>
+`require_review` is the earlier spelling of `require_approval`, and the Sidecar still accepts it: it folds one onto the other when it loads the config. The Control Plane stores and serves `require_review`, so a Sidecar older than 1.244.0 still reads a rule saved with the new spelling.
+</Note>
 
 `approval_rule` is per listener, so the people who may release a statement against the payments database are not, by accident, the people who may release one against a reporting replica. Editing the block hot-reloads with the listener's rules.
 
@@ -230,29 +234,29 @@ listeners:
     # ...
     analyzer:
       trigger: {operations: [update, delete]}
-      high: require_review   # no approval_rule: the person at the terminal decides
+      high: require_approval   # no approval_rule: the person at the terminal decides
 ```
 
 The rules are the Control Plane's:
 - An approval releases one statement.
-- A resend of the same bytes answers from the same review.
-- A rejection is final for that review.
-- A review nobody decided, and an approval nobody used, expire after the 30-minute wait.
+- A resend of the same bytes answers from the same approval request.
+- A rejection is final for that approval request.
+- An approval request nobody decided, and an approval nobody used, expire after the 30-minute wait.
 
 Approve stays off until the whole statement has been on screen. Each decision is written to the Sidecar's log with the approver's name. The TUI also saves the captured audit trail and log under `~/.hoop/sidecar/`.
 
 <Note>
-A configured Control Plane always wins. Its `approval_rule` decides who approves, and the terminal never releases a statement the Control Plane governs. Off a terminal (a pipe, a container, CI), there is nobody to ask, and the Sidecar refuses `require_review` at startup as before.
+A configured Control Plane always wins. Its `approval_rule` decides who approves, and the terminal never releases a statement the Control Plane governs. Off a terminal (a pipe, a container, CI), there is nobody to ask, and the Sidecar refuses `require_approval` at startup as before.
 </Note>
 
-Every protocol can hold. What the reviewer reads differs per protocol; see [What a hold files](#what-a-hold-files).
+Every protocol can hold. What the approver reads differs per protocol; see [What a hold files](#what-a-hold-files).
 
-**The review runs last.** The Sidecar files a review only after every other check allowed the statement, the decide-phase OPA call included. A decide denial files nothing, pages nobody and spends no approval. The decide call sees the pending review as `input.review` (see [the OPA input document](/setup/configuration/hoop-sidecar/config-file#opa)), and it can deny the statement but cannot skip the review.
+**The approval runs last.** The Sidecar files an approval request only after every other check allowed the statement, the decide-phase OPA call included. A decide denial files nothing, pages nobody and spends no approval. The decide call sees the pending approval as `input.review` (the key keeps its earlier name, so existing Rego keeps working; see [the OPA input document](/setup/configuration/hoop-sidecar/config-file#opa)), and it can deny the statement but cannot skip the approval.
 
-**A hold waits on the connection for up to 30 minutes.** Every 5 seconds the Sidecar asks the Control Plane about that one review, and the poll never files a new review. An approval that arrives in time runs the statement on the same connection, late. A rejection, a revocation, or an approval that another connection already used ends the wait and denies. Every denial carries the review id:
+**A hold waits on the connection for up to 30 minutes.** Every 5 seconds the Sidecar asks the Control Plane about that one approval request, and the poll never files a new one. An approval that arrives in time runs the statement on the same connection, late. A rejection, a revocation, or an approval that another connection already used ends the wait and denies. Every denial carries the approval id:
 
 ```
-ERROR:  statement held for human approval: still waiting for approval after 30m0s; run the statement again once it is approved (review 9f97…)
+ERROR:  statement held for human approval: still waiting for approval after 30m0s; run the statement again once it is approved (approval 9f97…)
 ```
 
 The wait and the poll interval are constants, with no config field. A Control Plane older than the Sidecar has no poll route, so the Sidecar denies after the first poll.
@@ -269,29 +273,29 @@ The wait and the poll interval are constants, with no config field. A Control Pl
 
 <Steps>
   <Step title="The retry collects the approval">
-    The Sidecar files nothing new. The Control Plane recognizes the statement, consumes the approved review and lets it through, unless the approval [expired](#time-limits).
+    The Sidecar files nothing new. The Control Plane recognizes the statement, consumes the approval and lets it through, unless the approval [expired](#time-limits).
   </Step>
   <Step title="An approval is spent once">
-    A third run of the same statement files a new review. A rejection or a revocation ends that one review, so running the statement again files a new one and pages the approvers. With [`spend_approval_on: accepted`](#spend-an-approval-only-on-an-accepted-answer), a retry that the upstream refuses does not spend the approval.
+    A third run of the same statement files a new approval request. A rejection or a revocation ends that one approval request, so running the statement again files a new one and pages the approvers. With [`spend_approval_on: accepted`](#spend-an-approval-only-on-an-accepted-answer), a retry that the upstream refuses does not spend the approval.
   </Step>
 </Steps>
 
-**An approval can be revoked until the Sidecar uses it.** Revoke it from the review page, or with `PUT /api/reviews/<id>` and status `REVOKED`. A hold that is still waiting denies on its next poll, and the Slack message says the approval was revoked. Once the Sidecar uses the approval, the review is `EXECUTED` and a revoke answers `400`: the statement already ran. Any decision that loses that race to the Sidecar answers `400` the same way. A reserved approval (`PROCESSING`) cannot be revoked either. If the upstream refuses the statement, the approval is `APPROVED` again and can be revoked.
+**An approval can be revoked until the Sidecar uses it.** Revoke it from the **Approvals** page, or with `PUT /api/approvals/<id>` (or the earlier `PUT /api/reviews/<id>`) and status `REVOKED`. A hold that is still waiting denies on its next poll, and the Slack message says the approval was revoked. Once the Sidecar uses the approval, the approval request is `EXECUTED` and a revoke answers `400`: the statement already ran. Any decision that loses that race to the Sidecar answers `400` the same way. A reserved approval (`PROCESSING`) cannot be revoked either. If the upstream refuses the statement, the approval is `APPROVED` again and can be revoked.
 
-The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. On an http listener, the match does not bind a body value that [`match_ignore`](#ignoring-a-volatile-body-value) names. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than reviewed.
+The Control Plane matches on the exact bytes, so the retry must be the same statement, not an equivalent one. On an http listener, the match does not bind a body value that [`match_ignore`](#ignoring-a-volatile-body-value) names. A client using prepared statements sends the query with its parameters unbound, so an approval releases that query shape rather than one set of values. A statement larger than 100 KB is refused by the Control Plane rather than filed for approval.
 
 #### Time limits
 
-A review stays open until a person decides it and the Sidecar uses the approval, unless its rule sets a limit. On the Control Plane **AI Analyzer** rule, two optional fields show under **Reviewers**:
+An approval request stays open until a person decides it and the Sidecar uses the approval, unless its rule sets a limit. On the Control Plane **AI Analyzer** rule, two optional fields show under **Approvers**:
 
 | Field | Counts from | When it passes |
 |---|---|---|
-| **Time to decide** | the filing | The review is **Expired**. A decision on it answers `review expired` |
-| **Time to use an approval** | the approval | The approval is **Expired**. The statement does not run, and a revoke answers `review expired` |
+| **Time to decide** | the filing | The approval request is **Expired**. A decision on it answers `approval request expired` |
+| **Time to use an approval** | the approval | The approval is **Expired**. The statement does not run, and a revoke answers `approval request expired` |
 
-Each field takes minutes, from 1 minute to 7 days. An empty field means no limit, and a rule with no limit works as before. Through the API the fields are `pending_ttl_sec` and `approval_ttl_sec`, in seconds, from 60 to 604800, and `0` clears one. A review keeps the limits that its rule had when the review was filed.
+Each field takes minutes, from 1 minute to 7 days. An empty field means no limit, and a rule with no limit works as before. Through the API the fields are `pending_ttl_sec` and `approval_ttl_sec`, in seconds, from 60 to 604800, and `0` clears one. An approval request keeps the limits that its rule had when it was filed.
 
-An expired review releases nothing. The Sidecar denies with `the review expired; running the statement again files a new review`, and an older Sidecar with `the statement was not released`. Running the statement again files a new review and pages the approvers. The Reviews page shows the deadline, and `GET /api/sidecars/reviews/<id>` and the MCP tool `review_status` carry it as `expires_at`. All three show **Expired** when it passes.
+An expired approval request releases nothing. The Sidecar denies with `the approval request expired; running the statement again files a new approval request`, and an older Sidecar with `the statement was not released`. Running the statement again files a new approval request and pages the approvers. The **Approvals** page shows the deadline, and `GET /api/sidecars/reviews/<id>` and the MCP tool `approval_status` carry it as `expires_at`. All three show **Expired** when it passes.
 
 A time to decide shorter than 30 minutes ends a hold sooner: the next poll reads **Expired** and denies. A limit longer than 30 minutes does not make a hold wait longer.
 
@@ -301,7 +305,7 @@ By default the Sidecar spends an approval when it releases the statement. An htt
 
 ```yaml
     analyzer:
-      high: require_review
+      high: require_approval
       approval_rule: payments-approvers
       spend_approval_on: accepted   # forward (the default) or accepted
 ```
@@ -315,38 +319,40 @@ By default the Sidecar spends an approval when it releases the statement. An htt
 
 A refused request ran nothing, so a resend of the identical statement with a fresh credential takes the approval again. A `5xx` spends it, because the upstream can do the work before it fails.
 
-A resend while the approval is `PROCESSING` is not released a second time. A hold waits for the answer. `review_mode: return` denies with `another request is using this approval; check the review before resending`.
+A resend while the approval is `PROCESSING` is not released a second time. A hold waits for the answer. `approval_mode: return` denies with `another request is using this approval; check the approval request before resending`.
 
 If the Sidecar never reports the answer (it stopped, or the Control Plane was unreachable), the approval is spent 10 minutes after the release. A late answer can spend it, but cannot give it back.
 
 On one HTTP/1 connection, a reserved request pipelined ahead of another held request is forwarded only when that hold ends. If that takes more than 10 minutes, the approval is spent, as with `forward`.
 
-`spend_approval_on: accepted` is valid on http, grpc and spanner listeners where a risk level asks for `require_review`, on a Sidecar with a Control Plane. The Control Plane serves it only to a Sidecar that supports it, and refuses the config for an older one. A Control Plane older than the setting ignores it and spends the approval at release, and the Sidecar logs a warning.
+`spend_approval_on: accepted` is valid on http, grpc and spanner listeners where a risk level asks for `require_approval`, on a Sidecar with a Control Plane. The Control Plane serves it only to a Sidecar that supports it, and refuses the config for an older one. A Control Plane older than the setting ignores it and spends the approval at release, and the Sidecar logs a warning.
 
 #### Return mode for agents
 
-An agent's tool call ends long before a person answers, so a 30-minute hold is a hang to it. `review_mode: return` files the review and denies at once with the review id. The agent resends the identical statement after approval.
+An agent's tool call ends long before a person answers, so a 30-minute hold is a hang to it. `approval_mode: return` files the approval request and denies at once with the approval id. The agent resends the identical statement after approval.
 
 ```yaml
     analyzer:
       trigger: {operations: [delete, update]}
-      high: require_review
+      high: require_approval
       approval_rule: payments-approvers
-      review_mode: return   # hold (the default) or return
+      approval_mode: return   # hold (the default) or return
 ```
 
 ```
-ERROR:  statement held for human approval: waiting for approval; resend the identical statement once it is approved (review 9f97…)
+ERROR:  statement held for human approval: waiting for approval; resend the identical statement once it is approved (approval 9f97…)
 ```
+
+`review_mode` is the earlier spelling of `approval_mode`, and still accepted. Setting both to the same value loads; setting them to different values is refused at startup, and the Control Plane refuses to save such a rule. The Control Plane serves `review_mode`.
 
 On the Control Plane, set **While held for approval** on the **AI Analyzer** rule: **Wait for the decision (hold)** or **Deny at once, run again after approval (return)**. The field shows when a risk level is **Hold for approval**.
 
-When the Sidecar config has an `mcp:` block, the denial leads with the review id and names the MCP tool `review_wait`, which waits for the decision. See [Review Status for Agents](/setup/configuration/hoop-sidecar/agent-reviews) for the MCP server, the status path on an http listener and the review fields on a denial.
+When the Sidecar config has an `mcp:` block, the denial leads with the approval id and names the MCP tool `approval_wait`, which waits for the decision. See [Approval Status for Agents](/setup/configuration/hoop-sidecar/agent-approvals) for the MCP server, the status path on an http listener and the approval fields on a denial.
 
-`review_mode` is valid only on a listener where a risk level asks for `require_review`. The Control Plane serves `return` only to a Sidecar at 1.196.0 or later, and refuses the config for an older one.
+`approval_mode` is valid only on a listener where a risk level asks for `require_approval`. The Control Plane serves `return` only to a Sidecar at 1.196.0 or later, and refuses the config for an older one.
 
 <Warning>
-`review_mode: return` applies to every client on the listener, people included. A developer in `psql` gets the denial too, and has to run the statement again after approval. Give agents their own listener with `return`, or keep `hold` on a shared listener and let each agent opt in.
+`approval_mode: return` applies to every client on the listener, people included. A developer in `psql` gets the denial too, and has to run the statement again after approval. Give agents their own listener with `return`, or keep `hold` on a shared listener and let each agent opt in.
 </Warning>
 
 #### A client picks its own mode
@@ -355,22 +361,24 @@ A client asks for `hold` or `return`, and that overrides the listener for its st
 
 | Protocol | How the client asks | Scope |
 |---|---|---|
-| http | header `x-hoop-review-mode: return` | one request |
-| grpc, spanner | metadata `x-hoop-review-mode: return` | one call |
-| postgres | `application_name` ends in `hoop-review=return` | the connection |
-| mysql | connection attribute `hoop_review_mode=return` | the connection |
+| http | header `x-hoop-approval-mode: return` | one request |
+| grpc, spanner | metadata `x-hoop-approval-mode: return` | one call |
+| postgres | `application_name` ends in `hoop-approval=return` | the connection |
+| mysql | connection attribute `hoop_approval_mode=return` | the connection |
 
 ```bash
-PGAPPNAME='billing-agent hoop-review=return' psql -h relay -p 15432 appdb
+PGAPPNAME='billing-agent hoop-approval=return' psql -h relay -p 15432 appdb
 ```
 
 ```
-user:pass@tcp(relay:13306)/appdb?connectionAttributes=hoop_review_mode:return
+user:pass@tcp(relay:13306)/appdb?connectionAttributes=hoop_approval_mode:return
 ```
+
+The earlier spellings, `x-hoop-review-mode`, `hoop-review=` and `hoop_review_mode`, are still accepted. A client that sends both spellings must send the same value in each: two different values are ignored, and the listener mode applies. A postgres `application_name` that carries both tokens is ignored the same way, since only one of them can end the name.
 
 The postgres token is the whole `application_name`, or follows a space or a `;`, so the client keeps its own name in front. A value other than `hold` or `return` is ignored and the listener mode applies, so a typo does not make an agent wait for a person.
 
-The choice is safe to leave to the client: both modes need the approval, and only the wait changes. The audit record carries `review_mode` and `review_mode_source` (`listener` or `client`). The header reaches policy and audit, and never the analyzer prompt or the verdict cache, so both modes share one classification.
+The choice is safe to leave to the client: both modes need the approval, and only the wait changes. The audit record carries `review_mode` and `review_mode_source` (`listener` or `client`), names kept for compatibility. The header reaches policy and audit, and never the analyzer prompt or the verdict cache, so both modes share one classification.
 
 #### The retry contract
 
@@ -378,13 +386,13 @@ An agent in return mode follows four rules:
 
 <Steps>
   <Step title="Resend the identical bytes">
-    The Control Plane matches an approval on the exact statement. A reformatted statement (other whitespace, other quoting, a new comment, a new trace id) files a new review and pages the approvers again. A body value that [`match_ignore`](#ignoring-a-volatile-body-value) names can differ.
+    The Control Plane matches an approval on the exact statement. A reformatted statement (other whitespace, other quoting, a new comment, a new trace id) files a new approval request and pages the approvers again. A body value that [`match_ignore`](#ignoring-a-volatile-body-value) names can differ.
   </Step>
   <Step title="Resend once, after approval">
-    Wait with the MCP tool `review_wait`, poll `review_status`, or on an http listener read [the status path](/setup/configuration/hoop-sidecar/agent-reviews#read-the-status-on-an-http-listener). An approval releases one run. When `review_status` shows `expires_at`, resend before it: an expired approval releases nothing.
+    Wait with the MCP tool `approval_wait`, poll `approval_status`, or on an http listener read [the status path](/setup/configuration/hoop-sidecar/agent-approvals#read-the-status-on-an-http-listener). An approval releases one run. When `approval_status` shows `expires_at`, resend before it: an expired approval releases nothing.
   </Step>
-  <Step title="Do not resend a rejected, revoked or expired review">
-    The decision is final for that review. A resend files a new review and pages the approvers again, so only a person asks again.
+  <Step title="Do not resend a rejected, revoked or expired approval request">
+    The decision is final for that approval request. A resend files a new approval request and pages the approvers again, so only a person asks again.
   </Step>
   <Step title="Run a holdable statement in autocommit">
     On postgres, mysql, mssql and mongodb a denial closes the connection, and the database rolls back any open transaction with it. The earlier statements of that transaction are lost, and the retry runs on a new connection. This holds for every denial: return mode, a hold that times out, a rejection.
@@ -399,11 +407,11 @@ An agent in return mode follows four rules:
 
 - A body larger than `http.max_body_bytes` is truncated by the codec, so the hold denies it without filing. The approval would bind to bytes nobody read.
 - A query value the codec redacts, such as a token or a password, is filed redacted. Requests that differ only in that value match one approval.
-- A request carrying a trace id, a nonce or a timestamp never matches twice. Every attempt files its own review and pages the approvers again, unless [`match_ignore`](#ignoring-a-volatile-body-value) names that value in the body.
+- A request carrying a trace id, a nonce or a timestamp never matches twice. Every attempt files its own approval request and pages the approvers again, unless [`match_ignore`](#ignoring-a-volatile-body-value) names that value in the body.
 - A client that retries on its own timeout leaves two attempts in flight. The approval releases whichever claims it first.
-- A request that arrives in more than one read reaches the upstream in part before the analyzer decides: the request line, the headers and the start of the body. A denial does not recall them, so a route that acts on headers alone runs whatever the reviewer decides.
+- A request that arrives in more than one read reaches the upstream in part before the analyzer decides: the request line, the headers and the start of the body. A denial does not recall them, so a route that acts on headers alone runs whatever the approver decides.
 
-**A statement that is not text**, such as the protobuf body kubectl sends for `create`, reaches the reviewer as a notice line, then the bytes. A byte that is not printable shows as `\xNN`, and a backslash as `\\`:
+**A statement that is not text**, such as the protobuf body kubectl sends for `create`, reaches the approver as a notice line, then the bytes. A byte that is not printable shows as `\xNN`, and a backslash as `\\`:
 
 ```
 [binary statement, 16 bytes: a byte that is not printable shows as \xNN, a backslash as \\]
@@ -411,9 +419,9 @@ k8s\x00
 \x04configmap\xff
 ```
 
-Text a reviewer cannot see, such as a zero-width space or a bidi control, takes the same form, so the text shown is the bytes that run, apart from a body value that `match_ignore` names. The match stays on the filed bytes, not on the escaped form.
+Text an approver cannot see, such as a zero-width space or a bidi control, takes the same form, so the text shown is the bytes that run, apart from a body value that `match_ignore` names. The match stays on the filed bytes, not on the escaped form.
 
-**grpc** files the method path, a newline, then the message as protojson. **spanner** files the SQL alone when it reads SQL from the message, and the grpc form otherwise. The spanner reviewer reads the SQL, not its parameters or the database it runs against, so an approval releases the query with any bound values. Both need `grpc.capture_payload: true`, and the http consequences apply:
+**grpc** files the method path, a newline, then the message as protojson. **spanner** files the SQL alone when it reads SQL from the message, and the grpc form otherwise. The spanner approver reads the SQL, not its parameters or the database it runs against, so an approval releases the query with any bound values. Both need `grpc.capture_payload: true`, and the http consequences apply:
 
 - A message larger than `grpc.max_payload_bytes` denies without filing.
 - A message carrying a request id, a nonce or a transaction id never matches twice. Metadata is not filed, so a trace header does not break a match.
@@ -430,24 +438,24 @@ listeners:
       capabilities_allowed: [exec]
     analyzer:
       trigger: {operations: [exec_line]}
-      high: require_review
+      high: require_approval
       approval_rule: prod-approvers
 ```
 
-**The approval is exact, apart from a body value that `match_ignore` names; the classification is not.** The [cache](#the-four-cost-controls) keys on the statement shape with literals stripped, so `WHERE tenant = 'test'` and `WHERE tenant = 'prod'` share one verdict. A shape rated high holds every statement of that shape, each filing its own review. A shape rated low forwards without a hold, even when a later literal makes it the dangerous one. Set `cache: {size: 0}` on a listener where every statement must be judged on its own, and pay one model call per statement.
+**The approval is exact, apart from a body value that `match_ignore` names; the classification is not.** The [cache](#the-four-cost-controls) keys on the statement shape with literals stripped, so `WHERE tenant = 'test'` and `WHERE tenant = 'prod'` share one verdict. A shape rated high holds every statement of that shape, each filing its own approval request. A shape rated low forwards without a hold, even when a later literal makes it the dangerous one. Set `cache: {size: 0}` on a listener where every statement must be judged on its own, and pay one model call per statement.
 
-**A holding listener fails closed.** `fail_open` answers for a model vendor's outage, not for a human gate, so it is not consulted on a listener where any risk level asks for `require_review`. Each of these denies there:
+**A holding listener fails closed.** `fail_open` answers for a model vendor's outage, not for a human gate, so it is not consulted on a listener where any risk level asks for `require_approval`. Each of these denies there:
 
 | Failure | What the developer reads |
 |---|---|
 | The provider fails or times out | `risk analysis unavailable and this lane holds statements for approval; denying` |
 | `max_calls` is spent | `the risk analysis budget is spent and this lane holds statements for approval; denying` |
 | `rate_limit` is empty | `the risk analysis rate limit is reached and this lane holds statements for approval; denying`. Classification resumes as the bucket refills |
-| The Control Plane times out, refuses the review or answers something unreadable | `statement held for human approval: the review could not be filed` |
+| The Control Plane times out, refuses the approval request or answers something unreadable | `statement held for human approval: the approval request could not be filed` |
 
 A statement the trigger does not match still forwards, as on any listener.
 
-Human review works only through the analyzer. A guardrail rule and a deprecated `ai_analysis` rule both refuse `require_review` at startup, along with the other misconfigurations listed in [What startup refuses](#what-startup-refuses).
+Human approval works only through the analyzer. A guardrail rule and a deprecated `ai_analysis` rule both refuse `require_approval` (or `require_review`) at startup, along with the other misconfigurations listed in [What startup refuses](#what-startup-refuses).
 
 #### Ignoring a volatile body value
 
@@ -455,9 +463,9 @@ Human review works only through the analyzer. A guardrail rule and a deprecated 
 
 ```yaml
     analyzer:
-      high: require_review
+      high: require_approval
       approval_rule: k8s-approvers
-      review_mode: return
+      approval_mode: return
       match_ignore:
         - methods: [PATCH]          # empty means every method
           resources: [/apis/apps/v1/namespaces/*/deployments/*]
@@ -465,7 +473,7 @@ Human review works only through the analyzer. A guardrail rule and a deprecated 
             - [spec, template, metadata, annotations, "kubectl.kubernetes.io/restartedAt"]
 ```
 
-The reviewer reads:
+The approver reads:
 
 ```
 PATCH /apis/apps/v1/namespaces/default/deployments/web?fieldManager=kubectl-rollout
@@ -474,15 +482,15 @@ PATCH /apis/apps/v1/namespaces/default/deployments/web?fieldManager=kubectl-roll
 ```
 
 <Warning>
-The approval does not bind an ignored value. The request that runs carries a value the reviewer did not read. Name only a value that cannot change the reviewer's decision.
+The approval does not bind an ignored value. The request that runs carries a value the approver did not read. Name only a value that cannot change the approver's decision.
 </Warning>
 
 - `resources` is required. It takes the same globs as an `http_resource` rule, and matches the [normalized resource](/setup/configuration/hoop-sidecar/protocols/http#the-normalized-resource).
 - A field is a list of object keys from the body root, so a key with dots stays one key.
 - The Sidecar replaces only a string, number, boolean or null. It files these unchanged: an object or array at the path, a path through an array, and a body that is not JSON.
-- The Sidecar replaces the value in the client's bytes. Every other byte, a duplicate key included, reaches the reviewer as sent.
-- The audit record carries `review_match_ignored`, the count of ignored values.
-- `match_ignore` is valid only on an http listener where a risk level asks for `require_review`.
+- The Sidecar replaces the value in the client's bytes. Every other byte, a duplicate key included, reaches the approver as sent.
+- The audit record carries `review_match_ignored`, the count of ignored values (the name is kept for compatibility).
+- `match_ignore` is valid only on an http listener where a risk level asks for `require_approval`.
 
 On the Control Plane, the **AI Analyzer** rule has no `match_ignore` field. Put it in the Sidecar's config file before the [first import](/control-plane/connect-sidecar), or send it in `sidecar_spec` with `PUT /api/ai/session-analyzer/rules/<name>`. That call replaces the whole Sidecar block of the rule. A save in the UI keeps `match_ignore` while a risk level is **Hold for approval**.
 
@@ -553,7 +561,7 @@ The verdict still carries the error, so it reaches the audit trail, and [`/metri
 Set `fail_open: false` where the classification is a compliance requirement, and accept that a provider outage then stops traffic.
 </Note>
 
-A listener that holds statements for review is the exception. There `fail_open` is not consulted, and a failed classification, a spent `max_calls`, an empty `rate_limit` bucket or an unreachable Control Plane denies. See [Holding a statement for a person](#holding-a-statement-for-a-person).
+A listener that holds statements for approval is the exception. There `fail_open` is not consulted, and a failed classification, a spent `max_calls`, an empty `rate_limit` bucket or an unreachable Control Plane denies. See [Holding a statement for a person](#holding-a-statement-for-a-person).
 
 ---
 
@@ -614,7 +622,7 @@ A prompt replaces the **guidance**. Two instructions are appended after whatever
 
 <AccordionGroup>
   <Accordion title="Report the verdict by calling exactly one risk tool">
-    The risk level *is* which tool the model chose, which makes it a three-value enum instead of a parsing problem. Without this instruction the model answers in prose, nothing maps to a level, and every statement fails classification. Under `fail_open: true` that allows everything, and on a listener that holds statements for review it denies everything.
+    The risk level *is* which tool the model chose, which makes it a three-value enum instead of a parsing problem. Without this instruction the model answers in prose, nothing maps to a level, and every statement fails classification. Under `fail_open: true` that allows everything, and on a listener that holds statements for approval it denies everything.
   </Accordion>
   <Accordion title="Never quote a literal value from the statement">
     The verdict is written to an audit record, and audit redaction covers statement text but not verdict metadata. A title repeating the identifier it objected to has published that identifier, through a channel that bypasses your `redact_statements` setting.
@@ -629,7 +637,7 @@ Changing a prompt invalidates cached verdicts for the lanes it applies to, so a 
 
 ## What the HTTP lane shows the model
 
-The HTTP codec exposes nothing by default: no bodies, no headers. The `http` block decides what the analyzer sees, except that a lane that holds for review captures request bodies.
+The HTTP codec exposes nothing by default: no bodies, no headers. The `http` block decides what the analyzer sees, except that a lane that holds for approval captures request bodies.
 
 ```yaml
   - name: api
@@ -640,7 +648,7 @@ The HTTP codec exposes nothing by default: no bodies, no headers. The `http` blo
       headers: [Content-Type, Accept]
 ```
 
-A request with no body is classified from its request line and the headers in `http.headers`. On a REST API the path is the operation: `GET /api/v1/namespaces/prod/secrets/db-root` says what a kubectl user is about to read, and the `Accept` header says whether they want the names or the contents. `capture_body: true` adds a POST's payload. Without it, a write reaches the model as its request line alone, unless the lane holds for review. A bodiless response (a 204, a 101) is never classified.
+A request with no body is classified from its request line and the headers in `http.headers`. On a REST API the path is the operation: `GET /api/v1/namespaces/prod/secrets/db-root` says what a kubectl user is about to read, and the `Accept` header says whether they want the names or the contents. `capture_body: true` adds a POST's payload. Without it, a write reaches the model as its request line alone, unless the lane holds for approval. A bodiless response (a 204, a 101) is never classified.
 
 Headers you allowlist reach the model under the same terms as policy and the audit trail. `authorization`, `cookie`, `proxy-authorization` and `set-cookie` cannot be listed. The cache keys on the headers the model sees, so a per-request header such as kubectl's `Kubectl-Session` UUID turns every request into a model call; leave it out.
 
@@ -1186,21 +1194,22 @@ Each of these would otherwise load, evaluate and do nothing:
 | An analyzer block with no top-level `analyzer` section | Refused: the provider, the model and the credential live there |
 | An analyzer block with no `trigger` | **Not refused.** On a plain lane it classifies every statement (a model call per statement shape; `--validate` prints a note naming the cost). Under `opa.gate: true` the policy decides what gets classified. |
 | An analyzer block naming no action for any risk level | Refused: every verdict would allow while looking like enforcement |
-| `require_review` on a level with no `approval_rule`, on a Sidecar with a Control Plane | Refused: the Control Plane refuses a review that names no rule. A [Sidecar in a terminal](#approving-in-the-terminal) needs none |
-| `approval_rule` with no level asking for `require_review` | Refused: it names reviewers nobody consults |
+| `require_approval` on a level with no `approval_rule`, on a Sidecar with a Control Plane | Refused: the Control Plane refuses an approval request that names no rule. A [Sidecar in a terminal](#approving-in-the-terminal) needs none |
+| `approval_rule` with no level asking for `require_approval` | Refused: it names approvers nobody consults |
 | A blank `approval_rule` | Refused: spaces match no rule in the Control Plane |
-| `require_review` on an ssh listener that admits `shell` | Refused: a shell sends no statements, so what is typed in it goes around the hold. Drop `shell` from `capabilities_allowed` |
-| `require_review` on a Sidecar with no Control Plane, off a terminal | Refused: there is nowhere to file the review. In a terminal, the person running the Sidecar approves |
-| `review_mode` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
-| `review_mode` other than `hold` or `return` | Refused |
-| `spend_approval_on` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
+| `require_approval` on an ssh listener that admits `shell` | Refused: a shell sends no statements, so what is typed in it goes around the hold. Drop `shell` from `capabilities_allowed` |
+| `require_approval` on a Sidecar with no Control Plane, off a terminal | Refused: there is nowhere to file the approval request. In a terminal, the person running the Sidecar approves |
+| `approval_mode` with no level asking for `require_approval` | Refused: nothing on the listener would hold a statement |
+| `approval_mode` other than `hold` or `return` | Refused |
+| `approval_mode` and its earlier spelling `review_mode` set to different values | Refused: set one of the two |
+| `spend_approval_on` with no level asking for `require_approval` | Refused: nothing on the listener would hold a statement |
 | `spend_approval_on` other than `forward` or `accepted` | Refused |
 | `spend_approval_on: accepted` on a listener other than http, grpc or spanner | Refused: the Sidecar does not read the upstream's answer there |
 | `spend_approval_on: accepted` on a Sidecar with no Control Plane | Refused: only the Control Plane keeps a reservation |
-| `match_ignore` with no level asking for `require_review` | Refused: nothing on the listener would hold a statement |
+| `match_ignore` with no level asking for `require_approval` | Refused: nothing on the listener would hold a statement |
 | `match_ignore` on a listener that is not http | Refused: it replaces values only in an http body |
 | A `match_ignore` item with no `resources` or no `fields`, or with an empty method, resource, field or key | Refused: the item is unscoped or names nothing |
-| `require_review` on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
+| `require_approval` (or `require_review`) on a deprecated `ai_analysis` rule | Refused: the rule carries no `approval_rule`. Move it to the listener's `analyzer` block |
 | `action` set on a deprecated `ai_analysis` rule | Refused: risk maps to actions through `high`, `medium` and `low`. The block has no `action` field at all. |
 | `opa.gate: true` on a lane with no analyzer block | Refused: a round trip per statement that gates nothing |
 | A `provider` the binary does not link | Refused, listing what it does link |
@@ -1295,7 +1304,7 @@ Three things change with the move, all visible rather than behavioral traps:
 - **A verdict is a model's opinion, sampled once.** The same statement can classify differently on two runs, and the cache freezes whichever answer came first for its TTL. `temperature: 0` and a `seed` narrow the spread on models that honor them; Gemini 3 and later ignore `temperature`. Keep the risks you *can* describe in an `operation` or `table` rule, which costs nothing and survives a vendor outage.
 - **Requests only.** A response verdict cannot prevent a write that already ran.
 - **A slow classification can outlive the upstream's idle budget.** The Sidecar dials the upstream when it accepts, then holds the request while it classifies. An upstream with a short keep-alive (gunicorn defaults to 2s) hangs up before a 3s model call returns, and the client reads an empty reply. Raise the upstream's idle timeout above your analyzer's p99. The cache hides this after the first call for a given shape, so it shows up as a rare first-request failure.
-- **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. A listener that holds statements for review denies it instead. The Sidecar records `model refused to classify this statement`. Watch for these in the audit trail while the listener is still on staging: a model that refuses is the wrong model for this job.
+- **A model can refuse to classify.** The reply carries `stop_reason: refusal` and no verdict, and under `fail_open: true` the statement is allowed. A listener that holds statements for approval denies it instead. The Sidecar records `model refused to classify this statement`. Watch for these in the audit trail while the listener is still on staging: a model that refuses is the wrong model for this job.
 
 ---
 
