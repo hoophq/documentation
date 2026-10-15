@@ -7,18 +7,18 @@ import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
 
 The Sidecar runs in your infrastructure, between your MongoDB clients and your Atlas cluster.
 
-Clients point their connection string at the Sidecar. Every command from an AI agent, a backend, `mongosh` or Compass then passes through your guardrails, masking rules and audit trail.
+Clients point their connection string at the Sidecar. Every command from an AI agent, from a developer in `mongosh` or Compass, or from an application then passes through your guardrails, masking rules and audit trail.
 
 <Frame>
   <img
     className="block dark:hidden"
     src="/images/integrations/mongodb-atlas-sidecar-light.svg"
-    alt="AI agents, backends, mongosh and Compass connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the primary of the Atlas replica set. The IP access list allows only the Sidecar's IP. The Atlas UI reaches the cluster inside Atlas and does not pass through the Sidecar."
+    alt="AI agents, developers in mongosh and Compass, and applications connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the primary of the Atlas replica set. The IP access list allows only the Sidecar's IP. The Atlas UI reaches the cluster inside Atlas and does not pass through the Sidecar."
   />
   <img
     className="hidden dark:block"
     src="/images/integrations/mongodb-atlas-sidecar-dark.svg"
-    alt="AI agents, backends, mongosh and Compass connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the primary of the Atlas replica set. The IP access list allows only the Sidecar's IP. The Atlas UI reaches the cluster inside Atlas and does not pass through the Sidecar."
+    alt="AI agents, developers in mongosh and Compass, and applications connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the primary of the Atlas replica set. The IP access list allows only the Sidecar's IP. The Atlas UI reaches the cluster inside Atlas and does not pass through the Sidecar."
   />
 </Frame>
 
@@ -122,7 +122,7 @@ The Sidecar sees driver connections only. The Atlas UI, including Data Explorer,
   </Step>
 
   <Step title="Point your clients at the Sidecar">
-    Replace the `mongodb+srv://` string with a `mongodb://` string to the Sidecar. The user and password stay the same.
+    Replace the `mongodb+srv://` string with a `mongodb://` string to the Sidecar. The user and password stay the same. Every client takes the same string: the [MongoDB MCP server](https://github.com/mongodb-js/mongodb-mcp-server) an AI agent uses (`MDB_MCP_CONNECTION_STRING`), `mongosh`, Compass and application drivers.
 
     ```
     before: mongodb+srv://<user>:<password>@cluster0.<id>.mongodb.net/<db>
@@ -233,7 +233,7 @@ If the Sidecar's own IP leaves the list, clients see only `connection closed`. T
 ## Behavior to know
 
 - **A denied command closes the connection.** The client reads the rule's message as error code `13`, `Unauthorized`, and an open transaction rolls back. Drivers retry reads and retryable writes on a new connection. Other commands, such as `createIndex`, can fail once with `connection closed`.
-- **Sessions show `principal: anonymous`.** The Sidecar relays the login to Atlas and does not read the user name from it. Use one Atlas database user per application or team to tell sessions apart.
+- **Sessions show `principal: anonymous`.** The Sidecar relays the login to Atlas and does not read the user name from it. Use one Atlas database user per person or agent to tell sessions apart.
 - **This page covers password users.** A client's X.509 certificate does not reach Atlas, because the Sidecar opens its own TLS connection.
 
 ---

@@ -7,18 +7,18 @@ import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
 
 The Sidecar runs in your infrastructure, between your Postgres clients and the Supabase connection pooler.
 
-Clients change only the host and port of their connection string. Every statement from an AI agent, an ORM, a backend or `psql` then passes through your guardrails, masking rules and audit trail.
+Clients change only the host and port of their connection string. Every statement from an AI agent, from a developer in `psql`, or from an application then passes through your guardrails, masking rules and audit trail.
 
 <Frame>
   <img
     className="block dark:hidden"
     src="/images/integrations/supabase-sidecar-light.svg"
-    alt="AI agents, backends and psql connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Supabase session pooler and Postgres. Network Restrictions allow only the Sidecar's IP. supabase-js reaches the Supabase HTTPS APIs and does not pass through the Sidecar."
+    alt="AI agents, developers in psql, and applications connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Supabase session pooler and Postgres. Network Restrictions allow only the Sidecar's IP. supabase-js reaches the Supabase HTTPS APIs and does not pass through the Sidecar."
   />
   <img
     className="hidden dark:block"
     src="/images/integrations/supabase-sidecar-dark.svg"
-    alt="AI agents, backends and psql connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Supabase session pooler and Postgres. Network Restrictions allow only the Sidecar's IP. supabase-js reaches the Supabase HTTPS APIs and does not pass through the Sidecar."
+    alt="AI agents, developers in psql, and applications connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Supabase session pooler and Postgres. Network Restrictions allow only the Sidecar's IP. supabase-js reaches the Supabase HTTPS APIs and does not pass through the Sidecar."
   />
 </Frame>
 
@@ -130,7 +130,7 @@ The Sidecar sees Postgres connections only. Supabase's HTTPS APIs (PostgREST and
   </Step>
 
   <Step title="Point your clients at the Sidecar">
-    Change the host and port. The user, password and database stay the same.
+    Change the host and port. The user, password and database stay the same. Every client takes the same change: the MCP server or `psql` an AI agent uses, a developer's `psql`, and application drivers.
 
     ```
     before: postgresql://postgres.<project-ref>@aws-0-<region>.pooler.supabase.com:5432/postgres
