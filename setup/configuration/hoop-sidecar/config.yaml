@@ -66,11 +66,9 @@ listeners:
         action: allow
         ai_policy:
           guardrails:
-            enabled: true
             rules: [block-destructive-ddl]
             one_time_rules: true
           mask:
-            enabled: true
             rules: [emails]
             one_time_rules: true
 
@@ -78,16 +76,13 @@ listeners:
         action: require_approval
         ai_policy:
           guardrails:
-            enabled: true
             rules: [block-destructive-ddl]
             one_time_rules: true
-          mask:
-            enabled: false
         approval:
           approver: human
-          routing: ai
-          groups: []
-          rules: []
+          strategy: ai  # How approval is done: ai | groups | rules
+          candidate-groups: []
+          candidate-rules: []
           notify:
             slack:
               enabled: true
@@ -116,7 +111,7 @@ listeners:
           message: destructive statements are not permitted on mssqldb
 
     analyzer:
-      trigger: {operations: [update, delete]}
+      trigger: {operations: [update]}
 
       low: warn
 
@@ -156,7 +151,7 @@ listeners:
           message: upstream failure suppressed by a guardrail
 
     analyzer:
-      trigger: {resources: ["/orders/**", "/admin/**"]}
+      trigger: {resources: ["/orders/**"]}
 
       low: allow
 
@@ -164,7 +159,7 @@ listeners:
         action: require_approval
         approval:
           approver: human
-          routing: groups
+          strategy: groups
           groups: [payments-manager]
           notify:
             slack:
@@ -178,7 +173,7 @@ listeners:
         action: require_approval
         approval:
           approver: human
-          routing: rules
+          strategy: rules
           rules: [payments-approvers]
           notify:
             slack:
