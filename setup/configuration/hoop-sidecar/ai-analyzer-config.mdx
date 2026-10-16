@@ -1,0 +1,199 @@
+---
+title: "AI Analyzer Config"
+description: "Sidecar config with the AI Analyzer settings"
+---
+
+```yaml config.yaml
+log_level: info
+
+license: /etc/hoop-inspect/license.json
+
+control_plane_url: https://hoop.your-company.com
+
+admin:
+  listen: 127.0.0.1:19000
+
+audit:
+  file: "-"
+  async_queue_size: 1024
+  memory_buffer: 256
+  query_sessions: 500
+  fail_closed: false
+
+pii:
+  entities: [EMAIL_ADDRESS, US_SSN, CREDIT_CARD, BR_CPF, IBAN_CODE]
+
+guardrails:
+  rules:
+    - name: no-cpf-in-query
+      type: pii
+      entities: [BR_CPF]
+      message: do not put a taxpayer id in a query; it lands in the database's own logs
+
+mask:
+  rules:
+    - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    - {name: ssn, entities: [US_SSN], strategy: partial, keep_last: 4}
+
+analyzer:
+  provider: vertex
+  model: claude-sonnet-4-5@20250929
+  extra: {project: my-gcp-project, region: global}
+  timeout_sec: 10
+  fail_open: true
+  send: redacted
+  cache: {size: 4096, ttl_sec: 900}
+  max_calls: 500
+  rate_limit: {calls: 30, per_sec: 60}
+
+listeners:
+  - name: appdb
+    protocol: postgres
+    listen: 0.0.0.0:15432
+    upstream: appdb:5432
+
+    guardrails:
+      rules:
+        - name: block-destructive-ddl
+          type: operation
+          operations: [drop, truncate, alter]
+          message: destructive statements are not permitted on appdb
+
+    mask:
+      rules:
+        - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+        - {name: credit-card, entities: [CREDIT_CARD], strategy: partial, keep_last: 4}
+
+    analyzer:
+      trigger: {operations: [update, delete]}
+
+      low:
+        action: allow
+        ai_policy:
+          guardrails:
+            enabled: true
+            rules: [block-destructive-ddl]
+            one_time_rules: true
+          mask:
+            enabled: true
+            rules: [emails]
+            one_time_rules: true
+
+      medium:
+        action: require_approval
+        ai_policy:
+          guardrails:
+            enabled: true
+            rules: [block-destructive-ddl]
+            one_time_rules: true
+          mask:
+            enabled: false
+        approval:
+          approver: human
+          routing: ai
+          groups: []
+          rules: []
+          notify:
+            slack:
+              enabled: true
+              delivery: channel
+              channels: ["#payments-approvers", "#deal-citadel", "#pic-pay"]
+            teams:
+              enabled: false
+
+      high: block
+
+      approval_mode: hold
+      message: refused by risk analysis
+      prompt: |
+        Treat any statement on the payments schema as high risk.
+
+  - name: mssqldb
+    protocol: mssql
+    listen: 0.0.0.0:11433
+    upstream: mssql:1433
+
+    guardrails:
+      rules:
+        - name: no-destructive-tsql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are not permitted on mssqldb
+
+    analyzer:
+      trigger: {operations: [update, delete]}
+
+      low: warn
+
+      medium:
+        action: require_approval
+        approval:
+          approver: ai_agent
+          prompt: Approve only if the statement has a WHERE clause.
+
+      high: hand_off
+
+      message: refused by risk analysis
+
+  - name: httpbin
+    protocol: http
+    listen: 0.0.0.0:18080
+    upstream: httpbin:8080
+
+    http:
+      capture_body: true
+      max_body_bytes: 8192
+      headers: [Content-Type]
+
+    opa:
+      url: http://opa:8181/v1/data/hoop/inspect
+      fail_open: false
+
+    guardrails:
+      rules:
+        - name: no-admin-api
+          type: http_resource
+          resources: ["/admin/**"]
+          message: the admin API is not reachable through this proxy
+        - name: no-upstream-5xx
+          type: http_status
+          statuses: ["5xx"]
+          message: upstream failure suppressed by a guardrail
+
+    analyzer:
+      trigger: {resources: ["/orders/**", "/admin/**"]}
+
+      low: allow
+
+      medium:
+        action: require_approval
+        approval:
+          approver: human
+          routing: groups
+          groups: [payments-manager]
+          notify:
+            slack:
+              enabled: true
+              delivery: both
+              channels: ["#payments-approvers"]
+            teams:
+              enabled: false
+
+      high:
+        action: require_approval
+        approval:
+          approver: human
+          routing: rules
+          rules: [payments-approvers]
+          notify:
+            slack:
+              enabled: true
+              delivery: channel
+              channels: ["#payments-approvers"]
+            teams:
+              enabled: false
+
+      approval_mode: return
+      message: refused by risk analysis
+```
