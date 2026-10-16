@@ -1,4 +1,3 @@
-```yaml config.yaml
 log_level: info
 
 license: /etc/hoop-inspect/license.json
@@ -191,4 +190,3 @@ listeners:
 
       approval_mode: return
       message: refused by risk analysis
-```
