@@ -145,6 +145,7 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to a decide-phase OPA call that reads the risk level. |
 | `require_approval` | File the statement with the Control Plane, or [the person at the terminal](#approving-in-the-terminal), and wait up to 30 minutes for a person to approve it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. With `approval_mode: return` it denies at once instead of waiting. A rule can [limit the time](#time-limits) to decide and to use the approval. See [Holding a statement for a person](#holding-a-statement-for-a-person). |
+| `hand_off` | Let an AI agent select the action for each statement. `allowed_actions` sets the actions it can select; the short form (`high: hand_off`) allows all of them. An `approval` block applies only when `allowed_actions` includes `require_approval`. See [Config File Reference](/setup/configuration/hoop-sidecar/config-file#shape-of-the-file). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down. `require_review`, the earlier name of `require_approval`, is still accepted.
 
