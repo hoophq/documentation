@@ -84,8 +84,15 @@ listeners:
     analyzer:
       trigger: {operations: [update, delete]}
 
+      # Each risk level (low, medium, high) accepts one of these actions:
+      #   allow             run with no check
+      #   warn              run and show a warning
+      #   block             stop the statement
+      #   defer             let a Rego policy decide
+      #   require_approval  wait for an AI agent or a human to approve
+      #   hand_off          let an AI agent select an action
       low:
-        action: allow
+        action: hand_off
         ai_policy:
           guardrails:
             rules: [block-destructive-ddl]
@@ -93,6 +100,24 @@ listeners:
           mask:
             rules: [emails]
             one_time_rules: true
+        hand_off:
+          allowed_actions: [allow, warn, block, defer]  # no require_approval, so no approval block
+      # Other options for low:
+      # low: allow                   # short form; warn works the same way
+      # low:                         # long form, to add AI policies
+      #   action: allow              # or warn
+      #   ai_policy:
+      #     guardrails: {rules: [block-destructive-ddl], one_time_rules: true}
+      #     mask: {rules: [emails], one_time_rules: true}
+      # low: block                   # short form only
+      # low: defer                   # short form only
+      # low:
+      #   action: require_approval
+      #   ai_policy:
+      #     mask: {rules: [emails], one_time_rules: true}
+      #   approval:
+      #     approver: ai_agent
+      #     prompt: Approve only if the statement has a WHERE clause.
 
       medium:
         action: require_approval
@@ -110,10 +135,45 @@ listeners:
               enabled: true
               delivery: channel
               channels: ["#payments-approvers", "#deal-citadel", "#pic-pay"]
-            teams:
-              enabled: false
+      # Other options for medium:
+      # medium: allow                # short form; warn works the same way
+      # medium:                      # long form, to add AI policies
+      #   action: warn               # or allow
+      #   ai_policy:
+      #     guardrails: {rules: [block-destructive-ddl], one_time_rules: true}
+      # medium: block                # short form only
+      # medium: defer                # short form only
+      # medium:
+      #   action: hand_off
+      #   ai_policy:
+      #     guardrails: {rules: [block-destructive-ddl], one_time_rules: true}
+      #   hand_off:
+      #     allowed_actions: [allow, warn, require_approval]
+      #   approval:                  # used only when require_approval is allowed
+      #     approver: human
+      #     strategy: rules
+      #     rules: [payments-approvers]
 
-      high: block
+      high: block  # stops the statement; takes no other settings
+      # Other options for high:
+      # high: allow                  # short form; warn works the same way
+      # high:                        # long form, to add AI policies
+      #   action: warn               # or allow
+      #   ai_policy:
+      #     mask: {rules: [emails], one_time_rules: true}
+      # high: defer                  # short form only
+      # high:
+      #   action: require_approval
+      #   approval:
+      #     approver: human
+      #     strategy: groups
+      #     groups: [payments-manager]
+      # high:
+      #   action: hand_off
+      #   hand_off:
+      #     allowed_actions: [block, require_approval]
+      #   approval:
+      #     approver: ai_agent
 
       approval_mode: hold
       message: refused by risk analysis
@@ -141,7 +201,13 @@ listeners:
           approver: ai_agent
           prompt: Approve only if the statement has a WHERE clause.
 
-      high: hand_off
+      high:
+        action: hand_off
+        hand_off:
+          allowed_actions: [allow, warn, block, defer, require_approval]
+        approval:  # used only when require_approval is allowed
+          approver: ai_agent
+          prompt: Approve only if the statement has a WHERE clause.
 
       message: refused by risk analysis
 
@@ -182,8 +248,6 @@ listeners:
               enabled: true
               delivery: both
               channels: ["#payments-approvers"]
-            teams:
-              enabled: false
 
       high:
         action: require_approval
@@ -196,14 +260,16 @@ listeners:
               enabled: true
               delivery: channel
               channels: ["#payments-approvers"]
-            teams:
-              enabled: false
 
       approval_mode: return
       message: refused by risk analysis
 ```
 
 Every lane enforces, and a `mask` block carrying rules masks. Neither is a second switch you can forget to set.
+
+`hand_off` lets the AI agent select the action for each statement. `allowed_actions` sets the actions the agent can select. The short form (`high: hand_off`) allows all actions. The `approval` block applies only when `allowed_actions` includes `require_approval`. You can use `hand_off` on every risk level.
+
+`block` stops the statement. It takes no other settings.
 
 ---
 
