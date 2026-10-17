@@ -746,7 +746,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | `access: readwrite` on a table rule | `unknown access "readwrite" (read, write, or empty for either)` |
 | `action` set to anything but `defer` | `unknown action "warn" (empty denies, "defer" reports a finding)` |
 | a `pii` rule naming an entity absent from an explicit `pii.entities` | `names entity "US_SSN", which the detector is not configured to find` |
-| an analyzer block with no top-level `analyzer` section | `has an analyzer block but the config has no top-level "analyzer" section (the provider, the model and the credential live there)` |
+| an analyzer block with no `provider`, on an Enterprise license | `analyzer: an Enterprise license is installed, so the analyzer needs a provider. Set provider and model to use your own LLM, or set use_hoop_llm_provider: true to use the model Hoop hosts (statement text, which can contain PII, is then sent to Hoop)`. Without a license it is not refused: it uses [the model Hoop hosts](/setup/configuration/hoop-sidecar/risk-analysis#the-model-hoop-hosts) |
 | an analyzer with no `trigger`, no gate | not refused — the lane classifies every statement, and `--validate` prints a note: `the analyzer block has no trigger, so every statement on this lane is classified: a model call per statement shape, bounded only by the cache, max_calls and rate_limit. Add a trigger to narrow it` |
 | an analyzer block naming no action for any level | `analyzer block names no action for any risk level, so every verdict would allow` |
 | `gate: true` with no analyzer block | `opa.gate is on but the lane has no analyzer block, so the extra decision would gate nothing` |
