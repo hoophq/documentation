@@ -23,10 +23,12 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `descriptors` | One serialized `FileDescriptorSet` or a list (`protoc --include_imports --descriptor_set_out`, or `buf build -o`). Each entry is a file path or a `gs://BUCKET/OBJECT` URL; see [Descriptor sources](#descriptor-sources). Required for any payload work: schema-less protobuf walking loses values, so no capture, masking or PII scanning happens without it. |
-| `capture_payload` | Renders decoded request and response messages into per-message statements, so payload rules (`pii`, `pattern_match`) and OPA read field values as well as the method path. Requires `descriptors`. |
+| `descriptors` | One serialized `FileDescriptorSet` or a list (`protoc --include_imports --descriptor_set_out`, or `buf build -o`). Each entry is a file path or a `gs://BUCKET/OBJECT` URL; see [Descriptor sources](#descriptor-sources). Payload work needs a schema source: `descriptors`, `discover`, or `raw` for best-effort reading without a schema. |
+| `discover` | Fetches the schema from the upstream over gRPC server reflection each time the lane starts, in place of `descriptors`. See [Discover the schema at startup](#discover-the-schema-at-startup). |
+| `raw` | Reads messages with no schema at all, by field number. Best effort. See [No schema at all: raw mode](#no-schema-at-all-raw-mode). |
+| `capture_payload` | Renders decoded request and response messages into per-message statements, so payload rules (`pii`, `pattern_match`) and OPA read field values as well as the method path. Requires `descriptors`, `discover` or `raw`. |
 | `max_payload_bytes` | Truncates a captured rendering. Masking ignores it: a redactor rewrites decoded fields whatever their size. |
-| `strict` | Refuses what the descriptor set cannot explain; see below. |
+| `strict` | Refuses what the schema cannot explain; see below. |
 | `metadata` | Request metadata headers exposed to policy, matched case-insensitively. No capture-all, and `authorization`, `cookie` and `proxy-authorization` can never be listed. The `grpc.*` keys under [Rules on a gRPC lane](#rules-on-a-grpc-lane) are present regardless. |
 
 Multiple descriptor sets fit the multi-team shape: each service's CI ships its own artifact and the lane lists them all. Sets merge at startup, byte-identical shared imports dedupe, and two diverged copies of one file refuse to load naming both artifacts.
@@ -72,9 +74,9 @@ Then run discovery against that config:
 hoop-inspect -grpc-discover billing -grpc-discover-out billing.pb -config config.yaml
 ```
 
-It picks the lane by name, dials the lane's `upstream` with the lane's `upstream_tls` (h2c when the block is absent), fetches the schema over reflection (v1, with a v1alpha fallback), prints every method with its maskable field paths, and writes the serialized set. Review the report, commit the artifact, add `grpc.descriptors` pointing at it, restart.
+It picks the lane by name, dials the lane's `upstream` with the lane's `upstream_tls` (h2c when the block is absent), fetches the schema over reflection (v1, with a v1alpha fallback), prints every method with its maskable field paths and the set's `sha256`, and writes the serialized set. Review the report, commit the artifact, add `grpc.descriptors` pointing at it, restart.
 
-Discovery is a bootstrap command, and the lane still loads only the artifact it was configured with, a file or a published object, read once when the endpoint is built. A schema fetched live from the policed service at runtime would let it rename fields out from under your mask rules, so no `descriptors: auto` exists; a `gs://` entry is not that: it reads an artifact your CI published and reviewed, not the upstream's own reflection.
+A pinned artifact is a schema you reviewed: the policed service cannot rename a field out from under your mask rules. To skip the artifact and let the lane fetch the schema itself, use [`discover`](#discover-the-schema-at-startup), and pin it with the `sha256` this command prints.
 
 Sequencing facts worth knowing:
 
@@ -82,6 +84,97 @@ Sequencing facts worth knowing:
 - The artifact is byte-stable against an unchanged server. Re-run discovery and diff the file to see what the service changed.
 - Discovery sends no credentials and gives one run 30 seconds. An upstream that requires authenticated reflection, or one that serves none (Google's production APIs, the Spanner emulator), answers with an error naming the offline route: `protoc --include_imports --descriptor_set_out`, or `buf build -o`.
 - `spanner` lanes bootstrap the same way.
+
+### Discover the schema at startup
+
+`discover` makes the lane run the same reflection fetch each time it starts, so you do not build or publish an artifact. It replaces `descriptors`; a lane that sets both is refused.
+
+```yaml config.yaml
+listeners:
+  - name: billing
+    protocol: grpc
+    listen: 0.0.0.0:18443
+    upstream: billing:50051
+    grpc:
+      discover:
+        from: reflection          # the only source; an empty block means the same
+        sha256: e0bb9d1b…fc83     # optional pin, printed by -grpc-discover
+        fail_open: false          # the default
+      capture_payload: true
+```
+
+| Field | Meaning |
+|---|---|
+| `from` | Where the schema comes from. `reflection` is the only source, and what an empty value means. |
+| `sha256` | Pins the schema. A schema with another digest is a discovery failure, and the error names both digests. Empty accepts any schema the upstream reports. |
+| `fail_open` | What the lane does while it has no schema. `false`, the default, refuses every RPC. `true` forwards them with method-level inspection only. |
+
+**Pin it in production.** The schema now comes from the service the lane polices. A deploy can rename a field out from under a mask rule, or leave a field out of what reflection reports; that field then decodes as unknown and does not reach the audit trail. `sha256` stops both: when the service's schema changes, the lane refuses it until you review the change with `-grpc-discover` and update the pin.
+
+**When discovery fails.** The upstream is unreachable, has reflection off, sends a set that does not load, or sends one that does not match the pin. The lane binds its address before the first attempt, and retries every second, doubling to 30 seconds:
+
+| | `fail_open: false` (default) | `fail_open: true` |
+|---|---|---|
+| RPCs | refused with `UNAVAILABLE` and the failure | forwarded to the upstream |
+| Audit trail | an `rpc_refused` activity per RPC, with the method and the reason | method, metadata and status, with `grpc.schema: unavailable` |
+| `pii`, `pattern_match`, AI analysis, masking | nothing reaches the upstream | do not run: there is no message to read |
+
+`/readyz` waits for the first attempt to end, then counts the lane ready in both modes. One upstream's lasting failure must not take the Sidecar's other listeners out of rotation; watch the log and the `rpc_refused` records instead.
+
+When a schema loads, the lane rebinds the same address with it. RPCs in flight on the old endpoint end with the swap, and clients retry. A service with reflection off never loads a schema: use `descriptors` for it.
+
+**What startup refuses.** `fail_open: true` with `strict: true`, since one forwards what the other refuses. `fail_open: true` on a lane with mask rules, since a lane that cannot decode a message cannot mask it. A `sha256` that is not a 64-character hex digest.
+
+**What else to know.**
+
+- `-validate` reports the discovery settings and dials nothing; the first fetch happens when the lane starts.
+- Discovery uses the lane's `upstream_tls`, client certificate included, and sends no other credentials. An upstream that requires a token on reflection answers with an error, and the lane behaves as above.
+- A changed `discover` block applies on restart, the same as a changed `descriptors` list.
+
+### No schema at all: raw mode
+
+`raw` is for a service with no descriptor set, no reflection and no `.proto` at hand. The lane reads each message by field number, the way `protoc --decode_raw` does. It excludes `descriptors`, `discover` and `strict`, and is refused on a `spanner` lane, which reads SQL from named fields.
+
+```yaml config.yaml
+listeners:
+  - name: ledger
+    protocol: grpc
+    listen: 0.0.0.0:18443
+    upstream: ledger:9000
+    grpc:
+      raw:
+        string_fields:                          # only needed to mask
+          - method: /demo.v1.Ledger/GetInvoice
+            response: ["2", "4.1"]              # field 2; field 1 inside field 4
+          - method: /demo.v1.Ledger/ExportAll   # declared, nothing to mask
+      capture_payload: true
+    mask:
+      rules:
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+```
+
+**What it reads.** Each message renders as JSON keyed by field number, and every statement carries `grpc.schema: raw`:
+
+```json
+{"1":"INV-1001","2":"[REDACTED:EMAIL_ADDRESS]","3":"078-05-1120","4":"hello"}
+```
+
+The audit trail, `pii` and `pattern_match` rules and the AI analyzer read that rendering, and method rules work as on any lane. It is best effort: the wire does not say whether a value is a string, raw bytes or a nested message, so the lane guesses. Text that starts with a visible character is a string, a value that parses whole is a message, and the rest renders as `base64:`. A wrong guess can hide a value from a detector. A message larger than `max_payload_bytes` renders its first fields and is marked truncated.
+
+**What it masks.** Only the response fields `string_fields` declares, by field-number path: `"2"` is field 2, `"4.1"` is field 1 of the message in field 4. The declaration supplies the type the wire does not carry, so the lane never guesses what to rewrite. Mask rules match a declared path by detector, or by number with `columns: ["2"]`. Nothing undeclared is ever rewritten. Requests are not masked on any gRPC lane.
+
+| On a lane with mask rules | Result |
+|---|---|
+| Method listed with `response` paths | the declared fields are masked |
+| Method listed with no `response` | forwarded: nothing to mask |
+| Method not listed | refused before the upstream is dialed: `FAILED_PRECONDITION` |
+| Declared path whose bytes are not a UTF-8 string | the response is refused: `INTERNAL` |
+
+**Finding the field numbers.** Run the lane with `capture_payload: true` and no mask rules, call the method, and read the audit trail: each value appears under its field number. Declare the ones to mask.
+
+**What startup refuses.** `raw` with `descriptors`, `discover` or `strict`. `raw` on a `spanner` lane. Mask rules on a `raw` lane with no `string_fields`. A method listed twice, a path segment that is not a field number, and a path declared both as a string and as a message that contains another declared path.
+
+The listener form turns `raw` on; `string_fields` is set in the config file. When the service can give you a schema, prefer `descriptors` or `discover`: field names, exact types, and masking by name or detector anywhere in the message.
 
 ### Lenient, strict, and the masking carve-out
 
@@ -92,7 +185,7 @@ Sequencing facts worth knowing:
 | Message that does not decode as its declared type | forwarded uninspected, logged | ends the RPC with `INTERNAL` |
 | Lane with mask rules, either case | refused regardless: a redactor must not forward what it cannot decode | same |
 
-`strict` without `descriptors` is a startup error: strictness about payloads nothing can decode would refuse every RPC.
+`strict` without `descriptors` or `discover` is a startup error: strictness about payloads nothing can decode would refuse every RPC. `raw` refuses `strict` for the same reason.
 
 ---
 
@@ -116,6 +209,7 @@ Every gRPC statement also carries the RPC's identity as metadata, which Rego rea
 | `grpc.timeout`, `grpc.encoding`, `grpc.message_type`, `grpc.user_agent` | the matching request header, verbatim | when the client sent it |
 | `grpc.status_code`, `grpc.status` | the numeric `grpc-status` and its lower-case name, `permission_denied` | the trailer statement |
 | `grpc.message_index` | the 1-based ordinal of a captured message within its RPC | per-message statements, with `capture_payload` |
+| `grpc.schema` | `unavailable` or `raw` | `unavailable`: every statement of an RPC a `discover` lane with `fail_open: true` forwarded before its schema loaded. `raw`: every statement on a `raw` lane |
 
 A rule keyed on the method, `input.metadata["grpc.method"] == "ReadRows"`, needs no `metadata` allowlist entry. Headers you list in the `grpc` block arrive lower-cased under `input.http.headers` instead.
 
