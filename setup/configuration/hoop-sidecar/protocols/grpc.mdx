@@ -110,14 +110,15 @@ listeners:
 
 **Pin it in production.** The schema now comes from the service the lane polices. A deploy can rename a field out from under a mask rule, or leave a field out of what reflection reports; that field then decodes as unknown and does not reach the audit trail. `sha256` stops both: when the service's schema changes, the lane refuses it until you review the change with `-grpc-discover` and update the pin.
 
-**When discovery fails.** The upstream is unreachable, has reflection off, sends a set that does not load, or sends one that does not match the pin. The lane still binds its address, and retries every second, doubling to 30 seconds:
+**When discovery fails.** The upstream is unreachable, has reflection off, sends a set that does not load, or sends one that does not match the pin. The lane binds its address before the first attempt, and retries every second, doubling to 30 seconds:
 
 | | `fail_open: false` (default) | `fail_open: true` |
 |---|---|---|
 | RPCs | refused with `UNAVAILABLE` and the failure | forwarded to the upstream |
 | Audit trail | an `rpc_refused` activity per RPC, with the method and the reason | method, metadata and status, with `grpc.schema: unavailable` |
 | `pii`, `pattern_match`, AI analysis, masking | nothing reaches the upstream | do not run: there is no message to read |
-| `/readyz` | not ready | ready |
+
+`/readyz` waits for the first attempt to end, then counts the lane ready in both modes. One upstream's lasting failure must not take the Sidecar's other listeners out of rotation; watch the log and the `rpc_refused` records instead.
 
 When a schema loads, the lane rebinds the same address with it. RPCs in flight on the old endpoint end with the swap, and clients retry. A service with reflection off never loads a schema: use `descriptors` for it.
 
