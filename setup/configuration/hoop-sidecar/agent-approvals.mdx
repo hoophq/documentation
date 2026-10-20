@@ -5,7 +5,7 @@ description: "Let an agent learn when a person decides a held statement: the app
 
 A listener in [return mode](/setup/configuration/hoop-sidecar/risk-analysis#return-mode-for-agents) files an approval request and denies at once with its id. The agent resends the identical statement after a person approves it, so it needs a way to learn the decision.
 
-`GET /api/sidecars/reviews/<id>` on the Control Plane answers, but it takes the Sidecar token, which an agent must not hold. The Sidecar gives the agent three ways that need no credential:
+`GET /api/sidecars/reviews/<id>` on the Control Plane answers, but it takes the Sidecar token, which an agent must not hold. The Sidecar gives the agent three ways that need no Sidecar token:
 
 | Way | Protocols | Since |
 |---|---|---|
@@ -51,6 +51,12 @@ An http listener answers `GET /.well-known/hoop/approvals/<id>` itself, for an a
 curl -s http://relay:18080/.well-known/hoop/approvals/9f97…
 ```
 
+On a listener with a caller token (`caller_token`), the agent sends the token header with this request, as with every other one:
+
+```bash
+curl -s -H "X-Hoop-Token: $HOOP_CALLER_TOKEN" https://relay.example.com/.well-known/hoop/approvals/9f97…
+```
+
 ```json
 {
   "id": "9f97…",
@@ -71,6 +77,7 @@ The earlier path, `/.well-known/hoop/reviews/<id>`, answers the same.
 | Status code | When |
 |---|---|
 | `200` | The approval request, as above |
+| `403` | The listener has a caller token and the request carried none, or a wrong one |
 | `404` | The id is unknown, or the approval request belongs to another listener or another Sidecar. Stop: it reads the same as a wrong id |
 | `405` | A method other than `GET` or `HEAD` |
 | `502` | The Control Plane could not report the approval, or is older than the Sidecar. A person checks the approval request in the Control Plane |
@@ -83,7 +90,7 @@ An error body is `{"message": "..."}`. Every answer sends `Cache-Control: no-sto
 **The Sidecar answers it only as the first request on a connection.** Behind another request, the listener closes the connection unanswered, because HTTP/1.1 pairs responses with requests by order. curl and Go clients resend on a new connection.
 
 <Warning>
-The path needs no credential, the same as the listener port. A caller who reaches the listener and holds an approval id reads that approval request's status, listener name and approval rule. It never reads the statement.
+The path needs the same credential as the listener port: none, or the caller token on a listener that has one. A caller who reaches the listener, holds that credential and holds an approval id reads that approval request's status, listener name and approval rule. It never reads the statement.
 </Warning>
 
 Other protocols have no path to reserve, so they read the status over [MCP](#the-mcp-server).
