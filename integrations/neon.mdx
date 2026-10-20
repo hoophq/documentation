@@ -40,7 +40,13 @@ The Sidecar sees Postgres connections only. The Neon serverless driver over HTTP
 
 <Steps>
   <Step title="Copy the host of each branch">
-    In the Neon console, open the branch and click **Connect**. Or use the Neon CLI:
+    In the Neon console, open the branch and click **Connect**. The **Connection pooling** switch picks the pooled host.
+
+    <Frame>
+      <img src="/images/integrations/neon-connect.png" alt="Neon Connect dialog for the production branch, with Connection pooling on and the connection string" />
+    </Frame>
+
+    Or use the Neon CLI:
 
     ```bash
     neon connection-string production
@@ -59,8 +65,6 @@ The Sidecar sees Postgres connections only. The Neon serverless driver over HTTP
     |---|---|
     | Direct, `ep-<id>.<region>.aws.neon.tech` | **Yes.** One server connection per client. Startup options such as `PGOPTIONS` reach the database. |
     | Pooled, `ep-<id>-pooler.<region>.aws.neon.tech` | **Yes.** PgBouncer in transaction mode. Prepared statements from drivers and ORMs work. SQL `PREPARE`, `SET` and `LISTEN` do not, and Neon refuses startup options on this host. |
-
-    {/* screenshot: images/integrations/neon-connect.png, the Connect dialog of a branch with the connection string */}
   </Step>
 
   <Step title="Write the config">
@@ -195,8 +199,6 @@ Neon can apply the list to every branch, or to protected branches only. The seco
 ```bash
 neon ip-allow add <ip> --protected-only --project-id <project-id>
 ```
-
-{/* screenshot: images/integrations/neon-ip-allow.png, the IP Allow settings with one address and "Protected branches only" */}
 
 <Note>
 IP Allow also gates the serverless driver and the Neon MCP server, which connect from other IPs. The Data API is not available on projects with IP Allow. Neon's Private Networking over AWS PrivateLink is the alternative for a VPC, also on the Scale plan.
