@@ -127,7 +127,7 @@ The Sidecar sees Postgres connections only. The Neon serverless driver over HTTP
   </Step>
 
   <Step title="Point your clients at the Sidecar">
-    Change the host and port, and drop `channel_binding=require`. The user, password and database stay the same. Every client takes the same change: the MCP server or `psql` an AI agent uses, a developer's `psql`, and application drivers.
+    Change the host and port, and drop `channel_binding=require`. The user, password and database stay the same. Every client with a Postgres connection string takes the same change: a Postgres MCP server or `psql` an AI agent uses, a developer's `psql`, and application drivers. The Neon MCP server uses Neon's API instead of a connection string, so it stays outside the Sidecar.
 
     ```
     before: postgresql://neondb_owner:[PASSWORD]@ep-<production-id>.<region>.aws.neon.tech/neondb?sslmode=require&channel_binding=require
@@ -187,11 +187,11 @@ Repeat on port `15433` to reach the `dev` branch. Its sessions show `"connection
 
 ## Allow only the Sidecar with IP Allow
 
-Neon's IP Allow limits which IP addresses can connect to a project's branches. It is a Scale plan feature.
+Neon's IP Allow limits which IP addresses can connect to a project's branches. It is a Scale plan feature. Neon applies the list to every branch, or to protected branches only.
 
-Allow only the Sidecar's egress IP, and no client with another IP can connect to Neon directly and skip your rules. Workloads that share the Sidecar's host or NAT gateway keep that access, so give the Sidecar a static egress IP of its own.
+Allow only the Sidecar's egress IP on the branches you lock down, and no client with another IP can reach those branches directly and skip your rules. Branches outside the list stay open to direct connections. Workloads that share the Sidecar's host or NAT gateway keep that access, so give the Sidecar a static egress IP of its own.
 
-Neon can apply the list to every branch, or to protected branches only. The second shape keeps development branches open while the Sidecar fronts the branches that matter:
+The protected-branches shape keeps development branches open while the Sidecar fronts the branches that matter:
 
 1. Mark `production` as a protected branch in the Neon console.
 2. Add the Sidecar's IP to IP Allow, scoped to protected branches:
