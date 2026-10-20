@@ -1,0 +1,273 @@
+---
+title: "Neon"
+description: "Guardrails, data masking and audit in front of Neon Postgres branches, with no app code change."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+The Sidecar runs in your infrastructure, between your Postgres clients and the Neon proxy. One listener fronts each branch.
+
+Clients change the host and port of their connection string and drop `channel_binding=require`. Every statement from an AI agent, from a developer in `psql`, or from an application then passes through your guardrails, masking rules and audit trail.
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/integrations/neon-sidecar-light.svg"
+    alt="AI agents, developers in psql, and applications connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Neon proxy, which routes each login to the production or the dev compute by SNI. IP Allow lets only the Sidecar's IP reach protected branches. The serverless driver, the Data API, the MCP server and the console use Neon's HTTPS and WebSocket APIs and do not pass through the Sidecar."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/integrations/neon-sidecar-dark.svg"
+    alt="AI agents, developers in psql, and applications connect to the Hoop Sidecar in your infrastructure. The Sidecar applies guardrails, data masking and audit, then connects over verified TLS to the Neon proxy, which routes each login to the production or the dev compute by SNI. IP Allow lets only the Sidecar's IP reach protected branches. The serverless driver, the Data API, the MCP server and the console use Neon's HTTPS and WebSocket APIs and do not pass through the Sidecar."
+  />
+</Frame>
+
+<Warning>
+The Sidecar sees Postgres connections only. The Neon serverless driver over HTTP and WebSocket, the Data API, the Neon MCP server, Neon Functions, Realtime and the console's SQL editor and Tables view reach the database inside Neon, so their traffic does not pass through the Sidecar.
+</Warning>
+
+---
+
+## Requirements
+
+- A Neon project. The Free plan works. IP Allow, in [Allow only the Sidecar](#allow-only-the-sidecar-with-ip-allow), needs the Scale plan.
+- Docker on a host with outbound access to Neon on port `5432`.
+- A Postgres client, such as `psql`.
+
+---
+
+## Setup
+
+<Steps>
+  <Step title="Copy the host of each branch">
+    In the Neon console, open the branch and click **Connect**. Or use the Neon CLI:
+
+    ```bash
+    neon connection-string production
+    neon connection-string production --pooled
+    ```
+
+    Both give a string in this form. The host and the database name are the two values you need.
+
+    ```
+    postgresql://neondb_owner:[PASSWORD]@ep-<id>.<region>.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    ```
+
+    Each branch has its own host, so each branch gets its own listener. Copy the host exactly as shown. The pooled host adds `-pooler` after the endpoint id. New projects name the default branch `production`, older ones `main`.
+
+    | Host | Use with the Sidecar |
+    |---|---|
+    | Direct, `ep-<id>.<region>.aws.neon.tech` | **Yes.** One server connection per client. Startup options such as `PGOPTIONS` reach the database. |
+    | Pooled, `ep-<id>-pooler.<region>.aws.neon.tech` | **Yes.** PgBouncer in transaction mode. Prepared statements from drivers and ORMs work. SQL `PREPARE`, `SET` and `LISTEN` do not, and Neon refuses startup options on this host. |
+
+    {/* screenshot: images/integrations/neon-connect.png, the Connect dialog of a branch with the connection string */}
+  </Step>
+
+  <Step title="Write the config">
+    Save this as `config.yaml`. Replace the two `upstream` hosts with yours. Add a listener for every branch the Sidecar should front.
+
+    ```yaml config.yaml
+    admin:
+      listen: 0.0.0.0:19000
+
+    audit:
+      file: "-"
+      query_sessions: 500
+
+    guardrails:
+      rules:
+        - name: no-destructive-sql
+          type: operation
+          operations: [drop, delete, truncate]
+          message: destructive statements are blocked by Hoop
+
+    mask:
+      rules:
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+
+    listeners:
+      - name: neon-production
+        protocol: postgres
+        listen: 0.0.0.0:15432
+        upstream: ep-<production-id>.<region>.aws.neon.tech:5432
+        upstream_tls: {}
+      - name: neon-dev
+        protocol: postgres
+        listen: 0.0.0.0:15433
+        upstream: ep-<dev-id>.<region>.aws.neon.tech:5432
+        upstream_tls: {}
+    ```
+
+    - `guardrails` blocks `DROP`, `DELETE` and `TRUNCATE` on every listener.
+    - `mask` replaces email addresses in results on every listener.
+    - `audit` writes every statement to stdout as JSON lines, and `query_sessions` turns on the `/api/sessions` endpoint.
+    - `upstream_tls: {}` encrypts the hop to Neon and verifies Neon's certificate against the host trust store. Neon's certificates chain to a public root, so there is no file to download.
+    - `admin` serves health checks and the audit API. It has no authentication, so the next step publishes it on loopback only.
+
+    The Sidecar fills the TLS server name from the `upstream` host, and the Neon proxy routes the login to that branch. The config holds no database password. The Sidecar relays the login from the client to Neon.
+  </Step>
+
+  <Step title="Validate and start the Sidecar">
+    ```bash
+    docker run --rm \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      hoophq/hoopsidecar:<version> hoop start sidecar --validate
+
+    docker run -d --name hoop-neon \
+      -p 127.0.0.1:15432:15432 -p 127.0.0.1:15433:15433 -p 127.0.0.1:19000:19000 \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      hoophq/hoopsidecar:<version>
+    ```
+
+    `--validate` prints `config OK: 2 listener(s)` and one line per listener with its rule count. Versions are on the [releases page](https://github.com/hoophq/hoop/releases).
+  </Step>
+
+  <Step title="Point your clients at the Sidecar">
+    Change the host and port, and drop `channel_binding=require`. The user, password and database stay the same. Every client takes the same change: the MCP server or `psql` an AI agent uses, a developer's `psql`, and application drivers.
+
+    ```
+    before: postgresql://neondb_owner:[PASSWORD]@ep-<production-id>.<region>.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    after:  postgresql://neondb_owner:[PASSWORD]@127.0.0.1:15432/neondb?sslmode=disable
+    ```
+
+    Neon's default string refuses the hop to the Sidecar on the same host. With `sslmode=require` the client stops with `server does not support SSL, but SSL was required`. With `channel_binding=require` alone it stops with `channel binding required, but SSL not in use`.
+
+    `sslmode=disable` applies only to the hop from the client to the Sidecar on the same host. When clients reach the Sidecar over a network, turn on [`downstream_tls`](/setup/configuration/hoop-sidecar/protocols/postgres#tls-on-each-leg) and connect with `sslmode=require`. Leave `channel_binding` at its default, because the Sidecar offers `SCRAM-SHA-256` without channel binding.
+  </Step>
+</Steps>
+
+---
+
+## Verify
+
+Create a test table through the Sidecar:
+
+```bash
+psql "postgresql://neondb_owner:[PASSWORD]@127.0.0.1:15432/neondb?sslmode=disable"
+```
+
+```sql
+create table customers (id serial primary key, name text, email text);
+insert into customers (name, email) values ('Ana Souza', 'ana.souza@example.com');
+```
+
+A select returns the email masked:
+
+```
+neondb=> select * from customers;
+ id |   name    |          email
+----+-----------+--------------------------
+  1 | Ana Souza | [REDACTED:EMAIL_ADDRESS]
+```
+
+A destructive statement is refused with your message:
+
+```
+neondb=> drop table customers;
+FATAL:  destructive statements are blocked by Hoop
+```
+
+The audit lists each session with its listener, its principal and counts (fields trimmed):
+
+```bash
+curl -s 127.0.0.1:19000/api/sessions
+```
+
+```json
+{"sessions":[{"principal":"neondb_owner","protocol":"postgres","connection":"neon-production","denied_count":1,"masked_count":1,"verdict":"denied"}],"total":1}
+```
+
+Repeat on port `15433` to reach the `dev` branch. Its sessions show `"connection":"neon-dev"`.
+
+---
+
+## Allow only the Sidecar with IP Allow
+
+Neon's IP Allow limits which IP addresses can connect to a project's branches. It is a Scale plan feature.
+
+Allow only the Sidecar's egress IP, and no client with another IP can connect to Neon directly and skip your rules. Workloads that share the Sidecar's host or NAT gateway keep that access, so give the Sidecar a static egress IP of its own.
+
+Neon can apply the list to every branch, or to protected branches only. The second shape keeps development branches open while the Sidecar fronts the branches that matter:
+
+1. Mark `production` as a protected branch in the Neon console.
+2. Add the Sidecar's IP to IP Allow, scoped to protected branches:
+
+```bash
+neon ip-allow add <ip> --protected-only --project-id <project-id>
+```
+
+{/* screenshot: images/integrations/neon-ip-allow.png, the IP Allow settings with one address and "Protected branches only" */}
+
+<Note>
+IP Allow also gates the serverless driver and the Neon MCP server, which connect from other IPs. The Data API is not available on projects with IP Allow. Neon's Private Networking over AWS PrivateLink is the alternative for a VPC, also on the Scale plan.
+</Note>
+
+A new branch is a new host. Add a listener for it and restart the Sidecar, because a reload does not add listeners. With IP Allow on protected branches only, the new branch stays reachable until then, like any other development branch.
+
+---
+
+## Name who ran each statement
+
+By default every client connects as `neondb_owner`, so the audit shows one shared user. Two ways give each statement a name.
+
+**A role per person.** Create a Postgres role for each person in the Neon console or with the CLI, grant it what it needs, and connect as that role. The audit records it as the principal. Roles belong to a branch, and child branches copy them.
+
+```bash
+neon roles create --project-id <project-id> --branch production --name alice
+psql "postgresql://alice:[PASSWORD]@127.0.0.1:15432/neondb?sslmode=disable"
+```
+
+**A tag on the connection.** On the direct host, send a custom setting in the startup options. The Sidecar records it on every event of the session, and Neon passes it to the database, where `current_setting('hoop.user')` returns it.
+
+```bash
+PGOPTIONS='-c hoop.user=alice' psql "postgresql://neondb_owner:[PASSWORD]@127.0.0.1:15432/neondb?sslmode=disable"
+```
+
+```json
+{"principal":"neondb_owner","metadata":{"postgres.option.hoop.user":"alice"}}
+```
+
+The pooled host refuses the tag at login with `unsupported startup parameter in options: hoop.user`. On that host, use a role per person. See [trace ids from the startup packet](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) to choose which options the Sidecar records.
+
+<Warning>
+The audit records the full statement text. Create roles in the Neon console or with the Neon CLI, so no `CREATE ROLE ... PASSWORD` statement goes through the Sidecar.
+</Warning>
+
+---
+
+## Behavior to know
+
+- **A denied statement closes the connection.** The client reads the message as `FATAL` `42501`, and Postgres rolls back the open transaction. Connection pools open a new connection. See [denials the user can read](/core-concepts/sidecar#denials-the-user-can-read).
+- **Neon errors reach the client unchanged.** A login failure, an IP Allow refusal or a pooler message reads the same with or without the Sidecar.
+- **The Sidecar removes channel binding.** It offers `SCRAM-SHA-256` instead of `SCRAM-SHA-256-PLUS`, with the same password. See [TLS on each leg](/setup/configuration/hoop-sidecar/protocols/postgres#tls-on-each-leg).
+- **Scale to zero works through the Sidecar.** Neon suspends an idle compute and wakes it at the next login. Through the Sidecar, a connection to a suspended compute took 1.8 s against 1.0 s for a warm one. The Sidecar's dial timeout covers only the hop to the Neon proxy, so the client's connect timeout governs the wake.
+- **One listener per branch.** The Sidecar derives the TLS server name from `upstream`, and Neon refuses a login whose server name and `options=endpoint` disagree, so a listener cannot be pointed at another branch at runtime.
+
+---
+
+## Free and Enterprise
+
+<EnterpriseLimit />
+
+- **Listeners are not capped.** The limits count rules per Sidecar process. One Sidecar in front of every branch uses one guardrail rule and one masking rule, however many listeners it has. Rules that differ per branch need a license.
+- **More rules:** an Enterprise license with the guardrails and data-masking features lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **Reviews and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds reviews, shared rule sets and one view of many Sidecars.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Guardrails" icon="shield-halved" href="/features/guardrails">
+    Write rules that block statements by operation, table or content.
+  </Card>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Choose entity types, columns and masking strategies.
+  </Card>
+  <Card title="PostgreSQL" icon="database" href="/setup/configuration/hoop-sidecar/protocols/postgres">
+    What the Postgres lane decodes, terminates and masks.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every section and field of `config.yaml`.
+  </Card>
+</CardGroup>

@@ -135,6 +135,7 @@
                     "group": "Integrations",
                     "pages": [
                       "integrations/mongodb-atlas",
+                      "integrations/neon",
                       "integrations/supabase"
                     ]
                   },
