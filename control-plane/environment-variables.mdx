@@ -21,7 +21,8 @@ API_URL='https://cp.yourdomain.tld'
 | `API_URL` | **yes** | — |
 | `IDP_ISSUER` | no | unset, meaning local authentication |
 | `IDP_CLIENT_ID` | with an issuer | — |
-| `IDP_CLIENT_SECRET` | with an issuer | — |
+| `IDP_CLIENT_SECRET` | with an issuer, unless `IDP_CLIENT_ASSERTION_FILE` is set | — |
+| `IDP_CLIENT_ASSERTION_FILE` | no | unset, meaning the client secret authenticates the client |
 | `IDP_CUSTOM_SCOPES` | no | `openid`, `profile`, `email` only |
 | `IDP_GROUPS_CLAIM` | no | `https://app.hoop.dev/groups` |
 | `IDP_AUDIENCE` | no | empty, no `audience` parameter sent |
@@ -64,7 +65,7 @@ API_URL='https://cp.yourdomain.tld'
 
 Authentication is **local by default**: the Control Plane manages users and
 passwords itself. Setting `IDP_ISSUER` switches it to OIDC, and a client id and
-secret are required with it.
+a secret, or a client assertion file, are required with it.
 
 ```bash
 IDP_ISSUER='https://login.microsoftonline.com/<tenant>/v2.0'
@@ -77,6 +78,7 @@ IDP_CLIENT_SECRET='<client-secret>'
 | `IDP_ISSUER` | The provider's issuer URL. Discovery runs against `<issuer>/.well-known/openid-configuration` |
 | `IDP_CLIENT_ID` | The application's client id |
 | `IDP_CLIENT_SECRET` | The application's client secret |
+| `IDP_CLIENT_ASSERTION_FILE` | A JWT file that replaces the client secret (RFC 7523), such as a Kubernetes service account token. Read on each token request |
 | `IDP_CUSTOM_SCOPES` | Extra scopes, comma-separated, added to `openid`, `profile` and `email` |
 | `IDP_GROUPS_CLAIM` | The claim to read group membership from |
 | `IDP_AUDIENCE` | Sent as the `audience` parameter on the authorization request |
@@ -98,6 +100,11 @@ already present is skipped.
 
 `IDP_AUDIENCE` is only added to the authorization request when it is non-empty.
 Auth0 is the common case.
+
+`IDP_CLIENT_ASSERTION_FILE` replaces `IDP_CLIENT_SECRET`: set one, not both, or
+the Control Plane does not start. With Entra ID, the chart's `idpFederatedToken`
+block mounts a service account token and sets it. See
+[Sign in without a client secret](/setup/configuration/idp/azure#sign-in-without-a-client-secret).
 
 <Note>
 There is no `AUTH_METHOD`. The method is inferred: any `IDP_*` variable selects OIDC, none leaves local.

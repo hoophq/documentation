@@ -555,6 +555,10 @@ This new approach requires the Gateway to terminate TLS connections, ensuring se
       IDP_GROUPS_CLAIM: ''
     ```
 
+    <Tip>
+      With Entra ID, `idpFederatedToken.enabled: true` replaces `IDP_CLIENT_SECRET` with a Kubernetes service account token. See [Sign in without a client secret](/setup/configuration/idp/azure#sign-in-without-a-client-secret).
+    </Tip>
+
     <Warning>
       The authentication configuration is now handled via Webapp or defined via API directly,
       the environment variable with the prefix `IDP_` are deprecated and will be removed in upcoming releases.
