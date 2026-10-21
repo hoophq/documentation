@@ -92,6 +92,46 @@ listeners:
 
 The result names who holds the token, not what it may do. The upstream still checks the same token against its own IAM and RBAC. The tokeninfo call trusts the [`trust.ca_file`](/setup/configuration/hoop-sidecar/config-file#adding-a-ca-to-the-trust-store) bundle, so it works through a proxy that re-signs egress TLS.
 
+### Caller token
+
+`caller_token` admits a caller by a shared token, for a lane on a public URL with nothing in front to authenticate the caller. An agent on [Claude Managed Agents](/integrations/claude-managed-agents) calls a lane this way.
+
+```yaml
+listeners:
+  - name: payments-api
+    protocol: http
+    listen: 0.0.0.0:8443
+    upstream: https://payments.internal
+    downstream_tls: {cert_file: /etc/tls/tls.crt, key_file: /etc/tls/tls.key}
+    caller_token:
+      header: X-Hoop-Token                       # the default
+      file: /etc/hoop-inspect/caller-tokens      # one token per line; required
+      name: claude-managed-agents                # the principal in the audit trail; required
+```
+
+- **What is refused.** No header, an empty or whitespace-only value, a value not in the file, or the header sent twice. Each gets a 403 and reaches no upstream. The refusal is audited under principal `anonymous` with rule `identity`.
+- **Checked first.** Policy judges a request after its body arrives, and the lane holds the request until then. The token is checked on the request headers, before the body. A caller without the token costs no held body, and a request whose body never arrives is refused too. This holds over HTTP/1.1 and HTTP/2.
+- **What is admitted.** Every row of an admitted request names `name` as the principal. A token names no person, so per-user rows need a per-user token.
+- **The token stays in the Sidecar.** The Sidecar removes the header before the upstream. The token never reaches an audit row, policy input or an analyzer prompt.
+- **Refused at startup.** `--validate` and startup refuse an `http.headers` entry that names the token header. They also refuse a `header` that the upstream, HTTP framing or the Sidecar already uses, such as `authorization`, `cookie`, `host` or `via`.
+- **Only the header is removed.** An admitted caller that copies the token into another header, a chunked trailer or the body sends it on.
+- **The reserved route is guarded too.** [`/.well-known/hoop/`](/setup/configuration/hoop-sidecar/agent-approvals#read-the-status-on-an-http-listener) answers only a caller the token admits.
+- **Closed connections.** The lane closes the connection when it cannot read a request head, when the client sends bytes before the server answers an `Upgrade` or `CONNECT`, or when the codec cannot decode client bytes. After the server grants a switch, the tunnel is not checked again.
+- **No TLS of its own.** The token travels as written. Set `downstream_tls`, or put TLS in front of the listener.
+- `http` lanes only, and exclusive with `identity_header` and `google_identity`.
+
+**The file.** It holds one token per line. Blank lines and surrounding whitespace are ignored. A token holds no whitespace, comma or control character, because a repeated header arrives joined as `a, b`. The Sidecar keeps only SHA-256 digests in memory and compares every candidate with every token in constant time.
+
+**Rotation.** The Sidecar checks the file every ten seconds and re-reads it when its size or modification time changes. `SIGHUP` re-reads it at once. A file that is missing, empty or malformed on a re-read keeps the tokens in force and logs one warning. To rotate without a refused request:
+
+1. Add the new token as a second line.
+2. Update every caller to the new token.
+3. Remove the old line.
+
+**Revocation.** Write the file without the token. An empty file keeps the old tokens in force, so to revoke the only token, write a new token in its place or stop the listener. A missing or unusable file at startup, or under `--validate`, stops the process with an error that names the file. The Control Plane never reads the file. A change to the `caller_token` block needs a restart.
+
+**From a Managed Agents vault.** A vault credential can fill the token at egress, so the sandbox holds only a placeholder. See [Claude Managed Agents](/integrations/claude-managed-agents#setup). A request that reaches the Sidecar with the placeholder is refused like any wrong token. A vault rotation reaches running sessions on its own schedule, so rotate with the two-line overlap above.
+
 ---
 
 ## h2 and h2c
