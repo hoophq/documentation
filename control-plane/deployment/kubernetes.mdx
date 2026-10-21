@@ -192,12 +192,14 @@ config:
   IDP_ISSUER: 'https://idp-issuer-url'
   IDP_CLIENT_ID: 'client-id'
   IDP_CLIENT_SECRET: 'client-secret'
+  # or, in place of the secret, a token file: idpFederatedToken.enabled sets it
+  IDP_CLIENT_ASSERTION_FILE: ''
   IDP_CUSTOM_SCOPES: ''
   IDP_GROUPS_CLAIM: ''
   IDP_AUDIENCE: ''
 ```
 
-`IDP_CLIENT_ID` and `IDP_CLIENT_SECRET` become required once `IDP_ISSUER` is set; the chart refuses to render without them. With `idpFederatedToken.enabled: true`, a Kubernetes service account token replaces the secret: leave `IDP_CLIENT_SECRET` empty, because the chart refuses both. See [Sign in without a client secret](/setup/configuration/idp/azure#sign-in-without-a-client-secret). The provider's callback is `<API_URL>/api/callback` — register that URL with your identity provider. See [Identity Providers](/setup/configuration/idp/get-started) for the per-provider settings.
+`IDP_CLIENT_ID` becomes required once `IDP_ISSUER` is set, and so does a client credential: `IDP_CLIENT_SECRET`, or `idpFederatedToken.enabled: true`, which mounts a Kubernetes service account token and sets `IDP_CLIENT_ASSERTION_FILE`. The chart refuses to render without one, or with both. See [Sign in without a client secret](/setup/configuration/idp/azure#sign-in-without-a-client-secret). The provider's callback is `<API_URL>/api/callback` — register that URL with your identity provider. See [Identity Providers](/setup/configuration/idp/get-started) for the per-provider settings.
 
 ### API URL
 

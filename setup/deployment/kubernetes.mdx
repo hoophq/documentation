@@ -550,6 +550,8 @@ This new approach requires the Gateway to terminate TLS connections, ensuring se
       IDP_ISSUER: 'https://idp-issuer-url'
       IDP_CLIENT_ID: 'client-id'
       IDP_CLIENT_SECRET: 'client-secret'
+      # or, in place of the secret, a token file: idpFederatedToken.enabled sets it
+      IDP_CLIENT_ASSERTION_FILE: ''
       IDP_AUDIENCE: ''
       IDP_CUSTOM_SCOPES: ''
       IDP_GROUPS_CLAIM: ''

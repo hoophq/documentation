@@ -99,7 +99,7 @@ A gateway that runs on Kubernetes can authenticate to Entra ID with a federated 
   The chart mounts the token at `/var/run/secrets/hoop/idp/token`. Kubernetes renews it, and the gateway reads it again on each request to Entra ID, so no restart is needed.
   </Step>
   <Step title="Configure the provider">
-  In the Web App, go to **Integrations > Authentication**. In the OIDC form, select **Federated token** under **Client Authentication** and keep the path `/var/run/secrets/hoop/idp/token`. Fill the Client ID, the Issuer URL and the Custom Scopes as in the steps above.
+  In the Web App, go to **Integrations > Authentication**. In the OIDC form, select **Federated token** under **Client Authentication** and keep the path `/var/run/secrets/hoop/idp/token`. The gateway accepts only the path in `IDP_CLIENT_ASSERTION_FILE`, which `idpFederatedToken.enabled` sets. Fill the Client ID, the Issuer URL and the Custom Scopes as in the steps above.
 
   With the deprecated `IDP_*` variables, set them without `IDP_CLIENT_SECRET`. `idpFederatedToken.enabled` sets `IDP_CLIENT_ASSERTION_FILE` for you.
 
