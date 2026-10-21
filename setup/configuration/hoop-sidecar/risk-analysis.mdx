@@ -409,7 +409,7 @@ An agent in return mode follows four rules:
 - A query value the codec redacts, such as a token or a password, is filed redacted. Requests that differ only in that value match one approval.
 - A request carrying a trace id, a nonce or a timestamp never matches twice. Every attempt files its own approval request and pages the approvers again, unless [`match_ignore`](#ignoring-a-volatile-body-value) names that value in the body.
 - A client that retries on its own timeout leaves two attempts in flight. The approval releases whichever claims it first.
-- A request that arrives in more than one read reaches the upstream in part before the analyzer decides: the request line, the headers and the start of the body. A denial does not recall them, so a route that acts on headers alone runs whatever the approver decides.
+- From 1.258.0, a request that arrives in more than one read reaches the upstream only once it is whole and the approver has decided. Nothing of a denied one reaches it. An older Sidecar forwards the request line and the headers first, so a route that acts on headers alone runs whatever the approver decides. See [A request leaves whole](/setup/configuration/hoop-sidecar/protocols/http#a-request-leaves-whole).
 
 **A statement that is not text**, such as the protobuf body kubectl sends for `create`, reaches the approver as a notice line, then the bytes. A byte that is not printable shows as `\xNN`, and a backslash as `\\`:
 

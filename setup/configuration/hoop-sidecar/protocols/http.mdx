@@ -125,6 +125,22 @@ See [Kubernetes API](/setup/configuration/hoop-sidecar/protocols/kubernetes) for
 
 ---
 
+## A request leaves whole
+
+From 1.258.0, the lane forwards an HTTP/1.1 or h2 request only once its body has arrived and policy has judged it. A denied request reaches no upstream, however the client split its bytes.
+
+An older Sidecar forwards the request line and the headers before the verdict. A route that acts on the headers alone then runs even when policy denies the request.
+
+What it costs:
+
+- A request larger than 8 MiB, headers and body together, is refused. Nothing of it reaches the upstream.
+- A chunked body the lane cannot frame is refused at once with a 403. The lane would otherwise wait for it forever.
+- A streaming upload reaches the upstream only once it ends.
+- A client that sends `Expect: 100-continue` sends the body only after its own timeout, 1 second by default in curl and in Go's `http.DefaultTransport`. The upstream has not seen the headers, so no `100 Continue` comes back. curl sends the header for a body over 1 MiB, and `-H 'Expect:'` removes it. Go sends it only when the caller sets it.
+- A WebSocket message sent in fragments does not wait for its last fragment. Its earlier fragments reach the upstream before the message is judged.
+
+---
+
 ## Denials
 
 A denied request returns `403 Forbidden` with the rule's message and `Connection: close`:
