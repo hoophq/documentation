@@ -1,0 +1,328 @@
+---
+title: "Claude Managed Agents"
+description: "Guardrails, data masking and audit on the REST calls of a Claude cloud agent, on a path the agent cannot skip."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+An agent on [Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview) runs in a cloud sandbox that Anthropic hosts. The Sidecar runs in your network, on a public HTTPS host, in front of one REST API. The sandbox can reach that host and no other, so every request the agent sends to the API passes through your guardrails, masking rules and audit trail.
+
+The Sidecar is free to run. The files in [Setup](#setup) come from the [`deploy/managed-agents/http`](https://github.com/hoophq/hoop/tree/main/deploy/managed-agents/http) template of the hoop repository.
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/integrations/claude-managed-agents-sidecar-light.svg"
+    alt="The agent in a Claude Managed Agents cloud sandbox sends HTTPS requests through Anthropic's egress proxy, which allows only the Sidecar's host and fills the vault's real tokens into request headers toward that host. The Sidecar in your network checks the caller token, refuses writes, masks emails and phone numbers in responses and records each request, then forwards to the REST API. Any other host, the API's own included, fails at DNS in the sandbox."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/integrations/claude-managed-agents-sidecar-dark.svg"
+    alt="The agent in a Claude Managed Agents cloud sandbox sends HTTPS requests through Anthropic's egress proxy, which allows only the Sidecar's host and fills the vault's real tokens into request headers toward that host. The Sidecar in your network checks the caller token, refuses writes, masks emails and phone numbers in responses and records each request, then forwards to the REST API. Any other host, the API's own included, fails at DNS in the sandbox."
+  />
+</Frame>
+
+<Warning>
+The Sidecar sees the HTTPS requests that code in the sandbox sends to the Sidecar's host. These do not pass through it:
+
+- `web_search` and `web_fetch` run on Anthropic's servers. With `limited` networking they reach only the hosts in `allowed_hosts`, but their calls are not sandbox requests. The template turns both off.
+- Anthropic's servers call the MCP servers declared on the agent, not the sandbox. With `allow_mcp_servers: false`, a session starts only if each MCP server's host is in `allowed_hosts`, which here holds only the Sidecar's host.
+- Files, memory stores and GitHub repositories attached to a session stay available to the agent whatever the network allows.
+</Warning>
+
+---
+
+## Why the agent cannot skip the Sidecar
+
+Two controls are Anthropic's, and one is the Sidecar's:
+
+- **One reachable host.** The environment uses `limited` networking and lists only the Sidecar's host in `allowed_hosts`. In the sandbox, any other host fails at DNS with `curl: (6) Could not resolve host`. That includes the API's own host.
+- **Placeholders in the sandbox.** Both tokens the agent sends are [vault credentials](https://platform.claude.com/docs/en/managed-agents/vaults), bound to the Sidecar's host and to request headers. Code in the sandbox sees a placeholder. Anthropic's egress proxy writes the real token into requests to that host only, so the agent cannot send a token to another host.
+- **A caller token on every request.** The Sidecar refuses a request without the caller token before any byte of it reaches the API. The Sidecar's URL is public, and a caller from anywhere else is refused the same way.
+
+The vault credentials hold in every session: a token goes only to the Sidecar's host. The one-host limit holds only in sessions that use this environment. Anyone who can start sessions in the Anthropic workspace can choose another environment, so limit who has that access.
+
+---
+
+## Requirements
+
+- A Kubernetes cluster that can publish a `LoadBalancer` Service, and a DNS name for it. All `kubectl` and `helm` commands below use your current namespace.
+- A TLS certificate for that name from a public CA, as `tls.crt` (full chain) and `tls.key`. The vault fills tokens into HTTPS requests only, and the sandbox reaches the Sidecar through an egress proxy that inspects TLS. A private CA is untested.
+- `helm`, `kubectl`, `jq`, `curl`, and the `ant` CLI 1.42.0 or later (`brew install anthropics/tap/ant`, or see the [CLI quickstart](https://platform.claude.com/docs/en/cli-sdks-libraries/cli/quickstart)).
+- `ANTHROPIC_API_KEY` in your environment: a key with Managed Agents access. Managed Agents is in beta.
+- `hoophq/hoopsidecar` 1.258.0 or later. On older releases, a denied request whose body arrives in more than one read reaches the API in part.
+
+The certificate needs the DNS name, and the DNS name needs the load balancer's address. Reserve a static address first and set `laneServices.public.loadBalancerIP` in `values.yaml`, or issue the certificate with a DNS-01 challenge, which needs no running server.
+
+---
+
+## Setup
+
+<Steps>
+  <Step title="Copy the template">
+    Copy the template into a directory of your own, and keep the secrets you create there out of git:
+
+    ```bash
+    export SIDECAR_HOST=hoop.yourcompany.com    # your DNS name
+    src=$(mktemp -d)
+    git clone -q --depth 1 --filter=blob:none --sparse https://github.com/hoophq/hoop.git "$src"
+    git -C "$src" sparse-checkout set deploy/managed-agents/http
+    cp -R "$src/deploy/managed-agents/http" hoop-sidecar && cd hoop-sidecar
+    printf '%s\n' caller-token api-token tls.crt tls.key > .gitignore
+    ```
+
+    | Path | Holds |
+    |---|---|
+    | `values.yaml` | Sidecar chart values: one http lane, the caller token, a read-only guardrail, a mask rule |
+    | `ant/` | An `ant apply` project: the environment, the vault and an example agent |
+    | `credentials/` | The two vault credentials, without their tokens |
+
+    Put `tls.crt` and `tls.key` in this directory.
+  </Step>
+
+  <Step title="Run the Sidecar">
+    Create the caller token and save your API's own token to a file for the vault. Then store the caller token and the certificate in the cluster:
+
+    ```bash
+    openssl rand -hex 24 > caller-token
+    printf 'API token: ' && read -rs API_TOKEN && printf %s "$API_TOKEN" > api-token && unset API_TOKEN; echo
+    chmod 600 caller-token api-token
+    kubectl create secret tls hoop-sidecar-tls --cert=tls.crt --key=tls.key
+    kubectl create secret generic hoop-caller-token --from-file=tokens=caller-token
+    ```
+
+    Set `upstream` in `values.yaml` to your API. These are the parts of the file that decide what the agent can do:
+
+    ```yaml values.yaml
+    config:
+      listeners:
+        - name: customer-api
+          protocol: http
+          listen: 'https://0.0.0.0:8443'
+          upstream: 'https://api.example.com'    # EDIT: your API
+          downstream_tls:
+            cert_file: /run/secrets/hoop-tls/tls.crt
+            key_file: /run/secrets/hoop-tls/tls.key
+          caller_token:
+            file: /run/secrets/hoop-caller-token/tokens
+            name: claude-managed-agents
+          http:
+            headers: [X-Claude-Session-Id]
+      guardrails:
+        rules:
+          - name: read-only
+            type: operation
+            operations: [post, put, patch, delete, connect, trace, other]
+            message: this agent may only read from the API
+      mask:
+        rules:
+          - name: pii
+            entities: [EMAIL_ADDRESS, PHONE_NUMBER]
+            strategy: redact
+    ```
+
+    - `caller_token` admits a request only when its `X-Hoop-Token` header holds a token from the file. Audit rows name the principal `claude-managed-agents`. See [Caller token](/setup/configuration/hoop-sidecar/protocols/http#caller-token).
+    - `upstream` is a URL, so the hop to the API uses TLS and verifies the API's certificate. The lane forwards the `Authorization` header unchanged, so the API gets the token that the vault filled.
+    - `guardrails` refuses every method but `GET`, `HEAD` and `OPTIONS`. `other` is any method that HTTP does not define, such as `MOVE`.
+    - `mask` redacts emails and phone numbers in responses, and no other value.
+    - `http.headers` records the agent's `X-Claude-Session-Id` on each audit row.
+    - `analytics.installSource`, at the top of the file, names this template in the Sidecar's usage analytics. Set `analytics.enabled: false` to send no analytics.
+
+    ```bash
+    helm install hoop-api oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart -f values.yaml
+    kubectl rollout status deploy/hoop-api-hoopsidecar
+    kubectl get svc hoop-api-hoopsidecar-public
+    ```
+
+    Wait until `EXTERNAL-IP` is not `<pending>`, then point `SIDECAR_HOST` at it: an A record for an IP address, a CNAME for a host name. That Service publishes port 443 only. The admin port stays on the chart's `ClusterIP` Service. See [Kubernetes](/install/kubernetes) for the other chart settings.
+
+    Check the Sidecar before you go on:
+
+    ```bash
+    curl -sS "https://$SIDECAR_HOST/"
+    curl -sS -i -X POST -d '' -H "X-Hoop-Token: $(cat caller-token)" "https://$SIDECAR_HOST/" | grep -i -E '^http|x-hoop-denied'
+    ```
+
+    The first returns `request refused: the request carried no credential`. The second returns `403` with `x-hoop-denied: policy`. A `GET` with the token reaches your API.
+  </Step>
+
+  <Step title="Create the environment, vault and agent">
+    Write your host into the four files that name `sidecar.example.com`:
+
+    ```bash
+    : "${SIDECAR_HOST:?set SIDECAR_HOST}"
+    perl -pi -e "s/sidecar\.example\.com/$SIDECAR_HOST/g" \
+      ant/environments/hoop-sidecar.yaml ant/agents/customer-api.md credentials/*.yaml
+    ```
+
+    The environment is what keeps the sandbox on the Sidecar:
+
+    ```yaml ant/environments/hoop-sidecar.yaml
+    config:
+      type: cloud
+      networking:
+        type: limited
+        allowed_hosts: [sidecar.example.com]
+        allow_package_managers: false
+        allow_mcp_servers: false
+    ```
+
+    - Set `networking` on every create request. A request that omits it gets `unrestricted`.
+    - `allow_package_managers: true` would open `github.com`, the package registries and other code hosts.
+    - With `allow_mcp_servers: false`, a session fails to start if the agent declares an MCP server whose host is not in `allowed_hosts`.
+
+    The agent, `ant/agents/customer-api.md`, turns off `web_fetch` and `web_search`. Its prompt tells the model which headers to send. Edit the prompt for your API: it names `/v1/customers` as an example, and keeps an `EDIT:` note next to the host.
+
+    `ant apply` shows a plan and asks you to confirm it. Without a terminal, add `--yes`.
+
+    ```bash
+    cd ant && ant apply .    # writes claude-lock.json; commit it with your files
+    lockid() { jq -r --arg f "$1" '.resources[$f].id' claude-lock.json; }
+    AGENT_ID=$(lockid ./agents/customer-api.md)
+    ENV_ID=$(lockid ./environments/hoop-sidecar.yaml)
+    VAULT_ID=$(lockid ./vaults/hoop-sidecar.yaml)
+    cd ..
+    ```
+  </Step>
+
+  <Step title="Add the two credentials">
+    Each vault credential is bound to the Sidecar's host and to request headers:
+
+    ```yaml credentials/caller-token.yaml
+    display_name: hoop sidecar caller token
+    auth:
+      type: environment_variable
+      secret_name: HOOP_CALLER_TOKEN
+      injection_location: {header: true, body: false}
+      networking: {type: limited, allowed_hosts: [sidecar.example.com]}
+    ```
+
+    `credentials/customer-api-token.yaml` is the same for `CUSTOMER_API_TOKEN`, your API's token. It is bound to the Sidecar's host, not the API's, because the sandbox never reaches the API. A placeholder in a request body goes out as written.
+
+    `ant apply` cannot hold a token, so each vault credential is created from its file and its token. Run this in bash or zsh:
+
+    ```bash
+    ant beta:vaults:credentials create --vault-id "$VAULT_ID" \
+      --auth.secret-value @<(tr -d '\n' < caller-token) < credentials/caller-token.yaml
+    ant beta:vaults:credentials create --vault-id "$VAULT_ID" \
+      --auth.secret-value @<(tr -d '\n' < api-token) < credentials/customer-api-token.yaml
+    ```
+
+    `tr` removes the trailing newline, which the API refuses. `@<(...)` keeps the token out of the process list.
+  </Step>
+
+  <Step title="Start a session">
+    No documented variable in the sandbox holds the session id, so the first message gives it to the agent:
+
+    ```bash
+    SESSION_ID=$(ant beta:sessions create --agent "$AGENT_ID" \
+      --environment-id "$ENV_ID" --vault-id "$VAULT_ID" \
+      --transform id --raw-output)
+    ant beta:sessions:events send --session-id "$SESSION_ID" --event \
+      "{type: user.message, content: [{type: text, text: 'Your session id is $SESSION_ID. Which plan is customer 2 on?'}]}"
+    ant beta:sessions connect --session-id "$SESSION_ID"
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Verify
+
+| The agent | Result |
+|---|---|
+| GETs a customer | `200`, with emails and phone numbers as `[REDACTED:EMAIL_ADDRESS]` and `[REDACTED:PHONE_NUMBER]` |
+| Sends any method but `GET`, `HEAD` or `OPTIONS` | `403` with `X-Hoop-Denied: policy`. The API receives nothing. |
+| Omits `X-Hoop-Token` | `403`, `request refused: the request carried no credential` |
+| Calls the API's host, or any other host | `curl: (6) Could not resolve host` |
+
+The Sidecar writes the audit trail to stdout and keeps no copy, so ship the pod's logs to your log system. To read it:
+
+```bash
+kubectl logs deploy/hoop-api-hoopsidecar | jq -cR 'fromjson? | select(.kind == "statement" or .kind == "violation")
+  | {kind, statement, rule, principal, session: .http.headers["x-claude-session-id"]}'
+```
+
+A request row carries the session id that the agent sent. A refused caller is recorded under principal `anonymous` with rule `identity`.
+
+To check that the sandbox holds placeholders, start a new session and ask the agent for the length and SHA-256 of `$HOOP_CALLER_TOKEN` and `$CUSTOMER_API_TOKEN`, without printing either value. Compare them with your files:
+
+```bash
+for f in caller-token api-token; do printf '%s %s\n' "$f" "$(tr -d '\n' < $f | shasum -a 256 | cut -d' ' -f1)"; done
+```
+
+The values must differ. A request that the Sidecar admits shows that the egress proxy swapped in the real token. The model reports these values itself, so treat the check as evidence, not proof. Some models refuse a request about credentials and keep refusing for the rest of that session, so ask it in a session of its own.
+
+---
+
+## Postgres through an MCP server
+
+A cloud sandbox cannot open a TCP connection to a database. The [`postgres-mcp`](https://github.com/hoophq/hoop/tree/main/deploy/managed-agents/postgres-mcp) template gives the agent Postgres as an MCP tool instead. [dbhub](https://github.com/bytebase/dbhub), the MCP server, reaches the database only through a Sidecar postgres lane, which refuses writes, masks emails and records each statement.
+
+Its guarantee is different from the REST setup above:
+
+- **Anthropic's servers make the MCP call, not the sandbox.** The template's environment allows no host for the sandbox, and `allow_mcp_servers: true` lets the agent's MCP server through.
+- **Caddy checks the address, and dbhub checks the token.** Caddy, the HTTPS front end, accepts only Anthropic's outbound range, [`160.79.104.0/21`](https://platform.claude.com/docs/en/api/ip-addresses), and serves only `/mcp`. Every Anthropic customer calls from that range, so the bearer token in the vault, which dbhub checks, is what admits your agent.
+- **dbhub has one route to the database.** It shares a network with Caddy and the Sidecar only, so the Sidecar is its only path to Postgres.
+
+The template runs on one Linux host with Docker Compose. Its README lists the steps and the limits, such as a refused write closing the connection and error messages passing unmasked.
+
+---
+
+## Behavior to know
+
+- **The session id is a label.** The agent writes the header, so it can write any value. It correlates rows. It does not prove who asked.
+- **One token for every agent.** Each row names `claude-managed-agents`, not a person. Per-user rows need a per-user token.
+- **An API that echoes request headers can return a token.** The vault fills a placeholder into any request header to the Sidecar's host, and the Sidecar forwards every header but the caller token. An endpoint that sends request headers back gives the real tokens to the sandbox. Keep such an endpoint out of the agent's reach.
+- **Only the caller token guards the public URL.** The sandbox's egress addresses are not fixed, so an address allowlist on the load balancer cannot narrow who reaches it. Rotate the token as [Caller token](/setup/configuration/hoop-sidecar/protocols/http#caller-token) describes.
+- **The rule reads the request method only.** An API that accepts `X-HTTP-Method-Override`, `X-HTTP-Method` or `X-Method-Override` runs the method that the header names, even on a `GET`. Turn overrides off at the API. With a license, you can also add one `http_header` rule per override header and list each header in `http.headers`.
+- **A request is held until it is whole.** The Sidecar judges a request after its body arrives, and forwards none of it before. A request over 8 MiB is refused. A client that sends `Expect: 100-continue` (curl does this above 1 MiB) waits about 1 second before it sends the body.
+- **Masking applies to responses.** A JSON or text response under `br` or `zstd` is refused, not forwarded unmasked. A response over 16 MiB passes unmasked. Audit rows hold the request line as sent, so a value in a URL is recorded as written. See [Masking](/setup/configuration/hoop-sidecar/protocols/http#masking).
+- **Scope.** The template covers JSON REST APIs over HTTP/1.1 and HTTP/2. Server-sent events and the Kubernetes API are out of its scope.
+- **No MCP server behind this lane yet.** The lane answers a denial with an HTTP `403`, not an MCP tool error.
+- **No database or SSH lane from the sandbox yet.** The sandbox cannot open a TCP connection. For Postgres, see [Postgres through an MCP server](#postgres-through-an-mcp-server).
+- **A tightened environment applies to new sessions.** A session that was already running can keep the old limits until it ends.
+
+---
+
+## Clean up
+
+```bash
+ant beta:vaults delete --vault-id "$VAULT_ID"
+ant beta:sessions archive --session-id "$SESSION_ID"    # each session you started
+ant beta:agents archive --agent-id "$AGENT_ID"
+ant beta:environments delete --environment-id "$ENV_ID"
+helm uninstall hoop-api
+kubectl delete secret hoop-sidecar-tls hoop-caller-token
+```
+
+The vault holds the tokens, so it goes first. An environment that a session still uses cannot be deleted, so archive the sessions before it. Then remove the DNS record for `SIDECAR_HOST`.
+
+---
+
+## Free and Enterprise
+
+<EnterpriseLimit />
+
+- **The template fits the free tier.** It uses one guardrail rule and one masking rule, however many agents and sessions call it.
+- **More rules:** an Enterprise license with the guardrails and data-masking features lifts the one-rule caps, with or without a Control Plane. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing) and the chart's [License](/install/kubernetes#license) setting.
+- **Approvals and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds approvals, shared rule sets and one view of many Sidecars.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="HTTP" icon="globe" href="/setup/configuration/hoop-sidecar/protocols/http">
+    What the http lane inspects, masks and refuses.
+  </Card>
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    `operation`, `http_resource`, `http_status` and `http_header` rules.
+  </Card>
+  <Card title="Approval Status for Agents" icon="robot" href="/setup/configuration/hoop-sidecar/agent-approvals">
+    Hold a request for a person, and let the agent read the decision.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/install/kubernetes">
+    Install and configure the Sidecar chart.
+  </Card>
+</CardGroup>

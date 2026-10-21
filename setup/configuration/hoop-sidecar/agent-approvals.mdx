@@ -51,7 +51,7 @@ An http listener answers `GET /.well-known/hoop/approvals/<id>` itself, for an a
 curl -s http://relay:18080/.well-known/hoop/approvals/9f97…
 ```
 
-On a listener with a caller token (`caller_token`), the agent sends the token header with this request, as with every other one:
+On a listener with a [caller token](/setup/configuration/hoop-sidecar/protocols/http#caller-token) (`caller_token`), the agent sends the token header with this request, as with every other one:
 
 ```bash
 curl -s -H "X-Hoop-Token: $HOOP_CALLER_TOKEN" https://relay.example.com/.well-known/hoop/approvals/9f97…

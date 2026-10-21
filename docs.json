@@ -134,6 +134,7 @@
                   {
                     "group": "Integrations",
                     "pages": [
+                      "integrations/claude-managed-agents",
                       "integrations/mongodb-atlas",
                       "integrations/neon",
                       "integrations/supabase"
