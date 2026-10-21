@@ -47,7 +47,9 @@ The Sidecar sees requests to the account host only. A result above the inline si
     SELECT CURRENT_ORGANIZATION_NAME() || '-' || CURRENT_ACCOUNT_NAME() AS account_identifier;
     ```
 
-    {/* Screenshot: Snowsight, profile menu at the bottom left, Account, View account details: the panel with the account identifier and the account URL. */}
+    <Frame>
+      <img src="/images/integrations/snowflake-account-details.png" alt="Snowsight Account Details panel with the account identifier, the account URL, the cloud platform and the edition" />
+    </Frame>
 
     The account host is `<account-identifier>.snowflakecomputing.com`, in lower case. Clients identify the account by this host, so the Sidecar answers to this name and sends it to Snowflake unchanged.
   </Step>
