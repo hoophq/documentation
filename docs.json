@@ -136,6 +136,7 @@
                     "pages": [
                       "integrations/mongodb-atlas",
                       "integrations/neon",
+                      "integrations/snowflake",
                       "integrations/supabase"
                     ]
                   },

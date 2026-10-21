@@ -1,0 +1,325 @@
+---
+title: "Snowflake"
+description: "Data masking, policy and audit in front of a Snowflake account, with no app code change."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+The Sidecar runs in your infrastructure, between your Snowflake clients and the account host. Snowflake drivers, the Snowflake CLI, the SQL API and the managed MCP server all speak HTTPS to `<org>-<account>.snowflakecomputing.com`, so one `http` lane fronts all of them.
+
+Clients keep their connection settings. They resolve the account host to the Sidecar and trust its certificate. Every request from an AI agent on the SQL API, from an application on a Snowflake driver, or from a developer on the Snowflake CLI then passes through your masking rules, your policy and your audit trail.
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/integrations/snowflake-sidecar-light.svg"
+    alt="AI agents on the SQL API, applications on the Snowflake drivers and developers on the Snowflake CLI resolve the account host to the Hoop Sidecar in your infrastructure. The Sidecar masks results, records every request and applies a policy, then connects over TLS to the Snowflake account host. A network policy allows only the Sidecar's IP. Result chunks above the inline size are fetched from cloud storage, and Snowsight and Snowpark run inside Snowflake; neither passes through the Sidecar."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/integrations/snowflake-sidecar-dark.svg"
+    alt="AI agents on the SQL API, applications on the Snowflake drivers and developers on the Snowflake CLI resolve the account host to the Hoop Sidecar in your infrastructure. The Sidecar masks results, records every request and applies a policy, then connects over TLS to the Snowflake account host. A network policy allows only the Sidecar's IP. Result chunks above the inline size are fetched from cloud storage, and Snowsight and Snowpark run inside Snowflake; neither passes through the Sidecar."
+  />
+</Frame>
+
+<Warning>
+The Sidecar sees requests to the account host only. A result above the inline size, about 100 KB, travels as chunks that the client fetches from cloud storage, so those rows are not masked. Snowsight, Snowpark, tasks, stages (`PUT` and `GET`) and the Spark connector run inside Snowflake or move data through storage. See [Behavior to know](#behavior-to-know).
+</Warning>
+
+---
+
+## Requirements
+
+- A Snowflake account and the `ACCOUNTADMIN` role. A 30-day trial works.
+- Docker on a host with outbound HTTPS to the account host.
+- A certificate authority your clients trust, and `openssl` to issue a certificate from it.
+- A Snowflake client: the Snowflake CLI, a driver, or `curl` for the SQL API.
+
+---
+
+## Setup
+
+<Steps>
+  <Step title="Find the account host">
+    Run this in a Snowsight worksheet:
+
+    ```sql
+    SELECT CURRENT_ORGANIZATION_NAME() || '-' || CURRENT_ACCOUNT_NAME() AS account_identifier;
+    ```
+
+    <Frame>
+      <img src="/images/integrations/snowflake-account-details.png" alt="Snowsight Account Details panel with the account identifier, the account URL, the cloud platform and the edition" />
+    </Frame>
+
+    The account host is `<account-identifier>.snowflakecomputing.com`, in lower case. Clients identify the account by this host, so the Sidecar answers to this name and sends it to Snowflake unchanged.
+  </Step>
+
+  <Step title="Issue a certificate for the account host">
+    The Sidecar ends the client's TLS, so it presents a certificate for the account host, issued by a CA your clients trust. With a private CA:
+
+    ```bash
+    mkdir certs && cd certs
+    openssl req -x509 -newkey rsa:2048 -nodes -days 365 -subj "/CN=Hoop Sidecar CA" \
+      -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" \
+      -keyout ca.key -out ca.crt
+    openssl req -newkey rsa:2048 -nodes -subj "/CN=<account-host>" -keyout account.key -out account.csr
+    printf "subjectAltName=DNS:<account-host>\nextendedKeyUsage=serverAuth\n" > ext.cnf
+    openssl x509 -req -in account.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 365 -extfile ext.cnf -out account.crt
+    ```
+
+    Snowflake drivers check certificate revocation with OCSP. With a certificate from a private CA, the Python connector, the Go driver and the JDBC driver find no OCSP issuer and continue, which is their default fail-open mode.
+  </Step>
+
+  <Step title="Write the config">
+    Save this as `config.yaml` next to the `certs` folder. Replace `<account-host>` with yours.
+
+    ```yaml config.yaml
+    admin:
+      listen: 0.0.0.0:19000
+
+    audit:
+      file: "-"
+      query_sessions: 500
+
+    mask:
+      rules:
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+
+    listeners:
+      - name: snowflake
+        protocol: http
+        listen: 0.0.0.0:443
+        upstream: <account-host>:443
+        upstream_tls:
+          server_name: <account-host>
+        downstream_tls:
+          cert_file: /etc/hoop-inspect/certs/account.crt
+          key_file: /etc/hoop-inspect/certs/account.key
+        http:
+          capture_body: true
+          max_body_bytes: 16777216
+    ```
+
+    - `mask` replaces email addresses in JSON results.
+    - `audit` writes every request to stdout as JSON lines, and `query_sessions` turns on the `/api/sessions` endpoint.
+    - `upstream_tls` verifies Snowflake's certificate against the host trust store and sends the account host as the TLS server name.
+    - `downstream_tls` ends the client's TLS with the certificate from the previous step.
+    - `http.capture_body` lets masking and the audit read bodies. `max_body_bytes` raises the cap to 16 MiB, so a whole inline result fits.
+    - `admin` serves health checks and the audit API. It has no authentication, so the next step publishes it on loopback only.
+
+    The config holds no Snowflake credential. The Sidecar relays the login; key pair and programmatic access token logins were tested.
+  </Step>
+
+  <Step title="Validate and start the Sidecar">
+    ```bash
+    docker run --rm \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
+      hoophq/hoopsidecar:<version> hoop start sidecar --validate
+
+    docker run -d --name hoop-snowflake \
+      -p 443:443 -p 127.0.0.1:19000:19000 \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
+      hoophq/hoopsidecar:<version>
+    ```
+
+    `--validate` prints `config OK: 1 listener(s)` and the rule counts. Versions are on the [releases page](https://github.com/hoophq/hoop/releases).
+
+    <Note>
+    Docker mounts `config.yaml` by inode. After you edit the file, restart the container.
+    </Note>
+  </Step>
+
+  <Step title="Point your clients at the Sidecar">
+    Resolve the account host to the Sidecar's IP: a record in your DNS, a line in `/etc/hosts` on a client, or `--add-host` on a container. Then add `ca.crt` to the trust store each client reads:
+
+    | Client | Trust store |
+    |---|---|
+    | Python connector, Snowflake CLI | the host trust store, for example `update-ca-certificates` on Debian |
+    | Go driver | the host trust store |
+    | JDBC driver | the JVM store: `keytool -importcert -noprompt -alias hoop -file ca.crt -cacerts -storepass changeit` |
+
+    Nothing else changes: the same account, user, role, warehouse and authentication method.
+  </Step>
+
+  <Step title="Pin the JSON result format">
+    Most drivers ask for results in the Arrow format, which the Sidecar does not read. One statement switches every driver to JSON for the whole account:
+
+    ```sql
+    ALTER ACCOUNT SET
+      PYTHON_CONNECTOR_QUERY_RESULT_FORMAT = 'JSON',
+      GO_QUERY_RESULT_FORMAT = 'JSON',
+      JDBC_QUERY_RESULT_FORMAT = 'JSON',
+      ODBC_QUERY_RESULT_FORMAT = 'JSON';
+    ```
+
+    The SQL API, the Node.js driver and the .NET driver use JSON already.
+  </Step>
+</Steps>
+
+---
+
+## Verify
+
+Query a table with email addresses through the Sidecar. With the Snowflake CLI:
+
+```bash
+snow sql -q "SELECT CURRENT_CLIENT() AS client, email FROM hoop_poc.public.customers ORDER BY id LIMIT 2" \
+  --temporary-connection --account <account-identifier> --user <user> \
+  --authenticator SNOWFLAKE_JWT --private-key-file rsa_key.p8 --warehouse <warehouse>
+```
+
+```
++---------------------------------------------------+
+| CLIENT                 | EMAIL                    |
+|------------------------+--------------------------|
+| PythonConnector 3.18.0 | [REDACTED:EMAIL_ADDRESS] |
+| PythonConnector 3.18.0 | [REDACTED:EMAIL_ADDRESS] |
++---------------------------------------------------+
+```
+
+An AI agent on the SQL API gets the same result. With a programmatic access token:
+
+```bash
+curl -s https://<account-host>/api/v2/statements \
+  -H "Authorization: Bearer $PAT" \
+  -H "X-Snowflake-Authorization-Token-Type: PROGRAMMATIC_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"statement":"select id, name, email from hoop_poc.public.customers order by id limit 2","warehouse":"<warehouse>"}'
+```
+
+```json
+{"data":[["0","user0","[REDACTED:EMAIL_ADDRESS]"],["1","user1","[REDACTED:EMAIL_ADDRESS]"]]}
+```
+
+The audit lists each session with its counts (fields trimmed):
+
+```bash
+curl -s 127.0.0.1:19000/api/sessions
+```
+
+```json
+{"sessions":[{"principal":"anonymous","protocol":"http","connection":"snowflake","statement_count":1,"denied_count":1,"masked_count":0,"verdict":"denied"}],"total":1}
+```
+
+---
+
+## Block statements with a policy
+
+Guardrail rules on an `http` lane match the request line, `POST /queries/v1/query-request`, not the body. `operation`, `pattern_match` and `deny_words_list` rules therefore do not see the SQL. A Rego policy does, because the lane sends each request to OPA with the body in `http.body`.
+
+```rego policy.rego
+package hoop.inspect
+
+import rego.v1
+
+phase := object.get(input, "phase", "decide")
+
+body := lower(object.get(input, ["http", "body"], ""))
+
+decision := {"denied": true, "rule": "no-drop", "message": "destructive statements are blocked by Hoop"} if {
+	phase == "decide"
+	contains(body, "drop table")
+} else := {"allow": true}
+```
+
+Run OPA next to the Sidecar and name it on the listener:
+
+```bash
+docker run -d --name hoop-opa -v "$PWD/policy.rego:/policy.rego:ro" \
+  openpolicyagent/opa:latest run --server --addr :8181 /policy.rego
+```
+
+```yaml config.yaml
+listeners:
+  - name: snowflake
+    # ...
+    opa:
+      url: http://hoop-opa:8181/v1/data/hoop/inspect/decision
+      timeout_sec: 2
+      fail_open: false
+```
+
+A `DROP TABLE` on the SQL API is refused with your message:
+
+```
+destructive statements are blocked by Hoop
+ HTTP 403
+```
+
+The Go driver reports the same refusal as an HTTP error:
+
+```
+261000 (08006): failed to POST. HTTP: 403, URL: https://<account-host>:443/queries/v1/query-request?...
+```
+
+<Note>
+The Python connector, the Snowflake CLI and the JDBC driver compress request bodies with gzip, and the Sidecar does not inflate them. The policy reads the SQL from the SQL API, from `curl` and from the Go driver.
+</Note>
+
+---
+
+## Allow only the Sidecar with a network policy
+
+A Snowflake network policy limits the IP addresses that can reach the account. Create one with the Sidecar's egress IP and assign it to the users that must go through the Sidecar:
+
+```sql
+CREATE NETWORK POLICY hoop_sidecar_only ALLOWED_IP_LIST = ('<sidecar-ip>/32');
+ALTER USER <user> SET NETWORK_POLICY = hoop_sidecar_only;
+```
+
+{/* Screenshot: Snowsight, Admin, Security, Network Policies: the list with hoop_sidecar_only and its one allowed IP. */}
+
+A login from any other IP fails before it reaches the warehouse:
+
+```
+250001 (08001): Failed to connect to DB: <account-host>:443. Incoming request with IP/Token <ip> is not allowed to access Snowflake. Contact your account administrator.
+```
+
+`ALTER ACCOUNT SET NETWORK_POLICY` applies the same list to every user, Snowsight included. Add the IPs of the people who use the web UI, and know that those IPs can reach the account directly.
+
+<Note>
+A programmatic access token needs a network policy on its user. Snowflake refuses to create the token otherwise.
+</Note>
+
+---
+
+## Behavior to know
+
+- **Large results skip the Sidecar.** Snowflake keeps about 100 KB of rows inline and sends the rest as chunks the client fetches from cloud storage. In the test, 500 rows arrived inline and masked; of 2,000 rows, 1,579 were masked and 421 arrived clear. The SQL API has no chunks: its partitions all come from the account host, and 20,000 rows were masked end to end.
+- **Arrow results are not read.** Without the JSON pin from the last setup step, the Python, Go, JDBC and ODBC drivers receive Arrow and nothing is masked.
+- **Compressed requests are not read.** The Python connector, the Snowflake CLI and the JDBC driver gzip request bodies. Their SQL is not visible to the policy, and the audit stores the compressed body.
+- **A denial is an HTTP 403.** Drivers surface it as an HTTP error, not as a SQL error, and do not retry it.
+- **The audit stores bodies, the login response included.** That response carries the session token. Keep the admin port on loopback and treat the audit output as a secret.
+- **The principal reads `anonymous`.** The `http` lane does not read the Snowflake login name yet.
+- **The managed MCP server passes through.** `initialize` and `tools/list` work through the Sidecar. Tool calls were not tested, because trial accounts cannot run them.
+- **No measurable latency.** `SELECT 1` took 84 ms at p50 direct and 80 ms through the Sidecar, from the same host.
+
+---
+
+## Free and Enterprise
+
+<EnterpriseLimit />
+
+- **More rules:** an Enterprise license with the guardrails and data-masking features lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **Reviews and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds reviews, shared rule sets and one view of many Sidecars.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Choose entity types, columns and masking strategies.
+  </Card>
+  <Card title="Policy rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    Guardrail rule types, and OPA for everything they cannot express.
+  </Card>
+  <Card title="HTTP" icon="globe" href="/setup/configuration/hoop-sidecar/protocols/http">
+    What the http lane captures, masks and terminates.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every section and field of `config.yaml`.
+  </Card>
+</CardGroup>
