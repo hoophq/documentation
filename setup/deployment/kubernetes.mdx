@@ -568,6 +568,37 @@ This new approach requires the Gateway to terminate TLS connections, ensuring se
   </Tab>
 </Tabs>
 
+### Credentials from an existing Secret
+
+<Warning>Available on version 1.261.0+</Warning>
+
+To keep credentials out of the values file (GitOps, sealed-secrets, external-secrets), create a Secret in the release namespace and name it in `existingSecret`. The chart references it and never creates or updates it.
+
+```sh
+kubectl create secret generic hoop-gateway-credentials \
+  --from-literal=POSTGRES_DB_URI='postgres://<user>:<pwd>@<db-host>:<port>/<dbname>' \
+  --from-literal=IDP_CLIENT_SECRET='client-secret' \
+  --from-literal=API_KEY='<api-key>'
+```
+
+```yaml
+existingSecret: hoop-gateway-credentials
+config:
+  API_URL: 'https://hoopdev.yourdomain.tld'
+  IDP_ISSUER: 'https://idp-issuer-url'
+  IDP_CLIENT_ID: 'client-id'
+```
+
+The gateway and the default agent load every key of the Secret after the chart's own Secret, so a key in the Secret wins over the same key in `config`. Any environment variable the gateway reads can go in it, e.g. `API_KEY`, `WEBHOOK_APPKEY` or `TLS_KEY` (see the [environment variables section](/setup/configuration/env-vars)).
+
+With `existingSecret` set, the chart no longer requires `POSTGRES_DB_URI`, `API_URL` or `IDP_CLIENT_SECRET` in `config`. It cannot read the Secret, so it does not check that they are there: without `POSTGRES_DB_URI` or `API_URL`, the gateway uses its local defaults.
+
+<Note>
+  - A change to the Secret does not restart the pods. Run `kubectl rollout restart deployment/hoopgateway` after you change it.
+  - With `idpFederatedToken.enabled`, leave `IDP_CLIENT_SECRET`, and an `IDP_URI` that holds a secret, out of the Secret: the gateway refuses to start with both.
+  - The [default database](#default-database) has a fixed password in the manifest. Use an external database with `existingSecret`.
+</Note>
+
 ### Default Database
 
 The chart allows deploying a Postgres database as part of the installation.
