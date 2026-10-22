@@ -13,23 +13,15 @@ For rule creation, actions, and pattern syntax basics, see [Guardrails Configura
 
 ---
 
-## Two pitfalls that break most SQL rules
+## How Presidio reads a pattern
 
-Real queries span multiple lines. Real scripts contain more than one statement. These two regex details cause most false positives and false negatives:
+Presidio compiles every pattern with three flags on: `i` (matching ignores case), `s` (`.` crosses line breaks) and `m` (`^` and `$` match at every line). Python's `re` has them off, so test patterns with the same flags. Real queries span multiple lines and real scripts hold more than one statement, so two details matter:
 
-**1. `.` does not cross line breaks.** Without the `s` flag, a lookahead like `(?!.*\bWHERE\b)` only inspects the first line. This rule blocks a multi-line UPDATE **even though it has a WHERE clause**:
+**1. `^` matches the start of every line, not only the start of the query.** `^UPDATE` matches an UPDATE that starts any line, and still misses the UPDATE in `SELECT 1; UPDATE t SET a = 1;`. Prefer `\b` word boundaries plus per-statement scoping over anchors. When you mean the start of the query, use `\A`.
 
-```sql
-UPDATE users
-SET active = false
-WHERE id = 123;  -- blocked anyway: the lookahead never sees line 3
-```
+**2. Anchor lookahead rules with `\A`, not `^`.** In a rule shaped like `^(?![\s\S]*\bpg_catalog\b)(?![\s\S]*\bLIMIT\b)[\s\S]*$`, every line start runs the lookaheads again, and a lookahead for a word the query does not contain scans to the end each time. The cost grows with the square of the line count: in our tests 1.9 s for a 2,000-line query and 14 s for 4,000 lines, while the check gives up after 5 seconds on PostgreSQL connections and blocks the query. With `\A` the lookaheads run once: 0.3 s and 0.7 s.
 
-Fix: scope the lookahead by statement with `[^;]*` instead of `.*`. It crosses line breaks and stops at the statement boundary.
-
-**2. `^` only matches the start of the payload.** Without the `m` flag, a rule anchored on `^UPDATE` misses the UPDATE in `SELECT 1; UPDATE t SET a = 1;`. Prefer `\b` word boundaries plus per-statement scoping over anchors.
-
-The recipes below apply both fixes. They share a common shape: `(?is)` at the start (case-insensitive, dot crosses lines) and `[^;]*` to stay inside one statement.
+The recipes below share one shape: `(?is)` at the start and `[^;]*` to stay inside one statement. `[^;]*` crosses line breaks and stops at the statement boundary.
 
 ---
 
