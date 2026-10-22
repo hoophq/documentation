@@ -34,8 +34,9 @@
   --hoop-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --hoop-mono: 'JetBrains Mono', 'SF Mono', monospace;
 
-  /* Animation tokens — required by the hero and feature animations in /snippets.
-     Light values so they read on the navy hero card; accent mapped to brand indigo. */
+  /* Animation tokens — required by the hero and feature demos in /snippets.
+     The demos use these as small text on pale surfaces, so the neutral greys are
+     kept for WCAG AA contrast; only the hero highlight (--warm-gold) is brand indigo. */
   --sand-100: #F7F7F7;
   --sand-100-rgb: 247, 247, 247;
   --sand-200: #EBEBEB;
@@ -45,14 +46,14 @@
   --sand-500-rgb: 142, 142, 142;
   --warm-gold: #8DA2EF;
   --warm-gold-rgb: 141, 162, 239;
-  --bronze: #3E63DD;
-  --bronze-rgb: 62, 99, 221;
-  --bronze-dark: #3A5BC7;
-  --bronze-dark-rgb: 58, 91, 199;
+  --bronze: #5A5A5A;
+  --bronze-rgb: 90, 90, 90;
+  --bronze-dark: #333333;
+  --bronze-dark-rgb: 51, 51, 51;
   --espresso: #0F1631;
   --espresso-rgb: 15, 22, 49;
-  --error: #E5484D;
-  --error-rgb: 229, 72, 77;
+  --error: #6E6E6E;
+  --error-rgb: 110, 110, 110;
   --success: #30A46C;
   --success-rgb: 48, 164, 108;
   --prompt: #8DA2EF;
