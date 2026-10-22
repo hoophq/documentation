@@ -3,15 +3,12 @@
   "theme": "mint",
   "name": "Hoop.dev - Automated Access and Data Protection",
   "colors": {
-    "primary": "#333333",
-    "light": "#B0B0B0",
-    "dark": "#333333"
+    "primary": "#3E63DD",
+    "light": "#8DA2EF",
+    "dark": "#3E63DD"
   },
   "appearance": {
     "default": "light"
-  },
-  "background": {
-    "decoration": "gradient"
   },
   "styling": {
     "codeblocks": "dark"
