@@ -107,6 +107,10 @@ While that header is present, the Sidecar's own license sources — the `--licen
 
 A `license` key authored on a Sidecar's configuration in the Control Plane is refused. One organization, one license.
 
+A license change in the Control Plane reaches each Sidecar on its next heartbeat, with no restart.
+
+Connecting a licensed standalone Sidecar takes a restart, and after it the Control Plane's license is the only one. Set the organization's license first: rules past the free tier do not start without a current license that covers them. A running Sidecar whose config file starts naming a Control Plane warns about this before the restart.
+
 ---
 
 ## Staying in sync
