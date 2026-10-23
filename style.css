@@ -317,16 +317,23 @@ input[type="password"] {
   border-radius: 9999px !important;
 }
 
-/* Buttons — navbar actions, theme toggle, and Mintlify toolbar buttons.
-   The navbar CTA ("Get started") paints its fill on an inner <span> with a
-   rounded class, so round the navbar's rounded descendants too, not just the
-   button/link itself. */
+/* Buttons — navbar actions, theme toggle, Mintlify toolbar and feedback
+   buttons. The navbar CTA ("Get started") paints its fill on an inner <span>
+   with a rounded class, so round the navbar's rounded descendants too.
+   The square rule above is [class*="rounded-"]:not([class*="rounded-full"]),
+   specificity (0,2,0); a plain button[class*="rounded-"] is (0,1,1) and loses,
+   so the global button selector repeats [class] to reach (0,2,1). */
 #navbar button,
 #navbar a[class*="rounded-"],
 #navbar a [class*="rounded-"],
 #navbar button [class*="rounded-"],
-#body-content button[class*="rounded-"],
-button[class*="rounded-"] {
+button[class][class*="rounded-"] {
+  border-radius: 9999px !important;
+}
+
+/* Feedback footer links ("Suggest edits" / "Raise issue") are bordered <a>,
+   scoped to the toolbar so content cards are untouched. */
+.feedback-toolbar a[class*="rounded-"] {
   border-radius: 9999px !important;
 }
 
