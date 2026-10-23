@@ -6,8 +6,10 @@ description: "A protocol-aware reverse proxy between AI and everything it can to
 
 import { HeroAnimation } from '/snippets/annimations/HeroAnimation.jsx';
 
-<div style={{background: 'linear-gradient(135deg, #111111 0%, #1A1A1A 35%, #2A2A2A 70%, #3A3A3A 100%)', borderRadius: 14, overflow: 'hidden', padding: 24, height: 350}}>
-  <HeroAnimation />
+<div style={{background: '#3E63DD', padding: 20}}>
+  <div style={{background: '#0F1631', overflow: 'hidden', padding: 24, height: 350}}>
+    <HeroAnimation />
+  </div>
 </div>
 
 Hoop is a reverse proxy that reads the protocol it carries. Every query, every result set, every API call passes through it, and Hoop decides what gets through. **It adds less than 10ms to the round trip.**
@@ -81,21 +83,21 @@ Two ways a request can travel through the Sidecar, and two controls that apply o
 
     **Learn more** <Icon icon="arrow-right" />
   </Card>
-  <Card title="Agentic Access" icon="robot" href="/features/agentic-access">
+  <Card title="Agentic Access" icon="/images/icons/bot.svg" href="/features/agentic-access">
     The AI Analyzer classifies the statement and the risk level picks a tool: block, allow, review, apply a guardrail, or mask the response.
 
     <br />
 
     **Learn more** <Icon icon="arrow-right" />
   </Card>
-  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+  <Card title="Data Masking" icon="/images/icons/venetian-mask.svg" href="/features/data-masking">
     Rewrite sensitive values in the response, in memory, before they reach the client. Requests are never touched.
 
     <br />
 
     **Learn more** <Icon icon="arrow-right" />
   </Card>
-  <Card title="Guardrails" icon="shield-halved" href="/features/guardrails">
+  <Card title="Guardrails" icon="/images/icons/shield-check.svg" href="/features/guardrails">
     An ordered deny list evaluated against every statement, refusing what should never run with a message you wrote.
 
     <br />

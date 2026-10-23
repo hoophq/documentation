@@ -1,60 +1,73 @@
 /* ==========================================================================
-   Hoop.dev Grayscale Theme
+   Hoop.dev Docs Theme
+   Aligns the docs with the website (hoop.dev) and the webapp: indigo accent,
+   near-black navy headings, Inter + JetBrains Mono, flat light surfaces.
    Minimal overrides on top of Mintlify's built-in system.
-   Only uses documented safe selectors: #navbar, #sidebar, #footer, #body-content
+   Targets Mintlify chrome (#navbar, #sidebar, #footer, #body-content, #header,
+   #page-title) and Tailwind radius utilities to square every boxed surface.
+   See DESIGN.md for the full token set and rationale.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. Design Tokens
+   1. Design Tokens  (mirror the live site + webapp — see DESIGN.md §2)
    -------------------------------------------------------------------------- */
 
 :root {
-  --hoop-near-black: #0A0A0A;
-  --hoop-strong: #1A1A1A;
-  --hoop-body: #1A1A1A;
-  --hoop-secondary: #333333;
-  --hoop-muted: #6E6E6E;
-  --hoop-slate: #444444;
-  --hoop-slate-dark: #1A1A1A;
-  --hoop-charcoal: #1A1A1A;
-  --hoop-silver: #B0B0B0;
+  /* Text — near-black navy headings, dark body (hoop.dev h1 = #0F1631) */
+  --hoop-heading:   #0F1631;
+  --hoop-body:      #1A1A1A;
+  --hoop-muted:     #6E6E6E;
+
+  /* Accent — Radix indigo, identical to the website and webapp */
+  --hoop-indigo:      #3E63DD; /* indigo-9  — primary, active, buttons */
+  --hoop-indigo-text: #3A5BC7; /* indigo-11 — link text on light */
+  --hoop-indigo-soft: #E6EDFE; /* indigo-3  — inline code / soft fill */
+  --hoop-indigo-dark: #9EB1FF; /* indigo-11 on dark — links in dark mode */
+
+  /* Neutrals — flat gray surfaces and borders */
   --hoop-gray-100: #F7F7F7;
   --hoop-gray-200: #EBEBEB;
   --hoop-gray-300: #DEDEDE;
   --hoop-gray-400: #C4C4C4;
 
-  /* Animation design tokens (grayscale variant) */
-  --warm-gold: #B0B0B0;
-  --warm-gold-rgb: 176,176,176;
-  --bronze: #5A5A5A;
-  --bronze-rgb: 90,90,90;
-  --bronze-dark: #333333;
-  --bronze-dark-rgb: 51,51,51;
-  --espresso: #1A1A1A;
-  --espresso-rgb: 26,26,26;
+  /* Type */
+  --hoop-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --hoop-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* Animation tokens — required by the hero and feature demos in /snippets.
+     The demos use these as small text on pale surfaces, so the neutral greys are
+     kept for WCAG AA contrast; only the hero highlight (--warm-gold) is brand indigo. */
   --sand-100: #F7F7F7;
-  --sand-100-rgb: 247,247,247;
+  --sand-100-rgb: 247, 247, 247;
   --sand-200: #EBEBEB;
   --sand-300: #DEDEDE;
   --sand-400: #C4C4C4;
   --sand-500: #8E8E8E;
-  --sand-500-rgb: 142,142,142;
+  --sand-500-rgb: 142, 142, 142;
+  --warm-gold: #8DA2EF;
+  --warm-gold-rgb: 141, 162, 239;
+  --bronze: #5A5A5A;
+  --bronze-rgb: 90, 90, 90;
+  --bronze-dark: #333333;
+  --bronze-dark-rgb: 51, 51, 51;
+  --espresso: #0F1631;
+  --espresso-rgb: 15, 22, 49;
   --error: #6E6E6E;
-  --error-rgb: 110,110,110;
-  --success: #8E8E8E;
-  --success-rgb: 142,142,142;
-  --prompt: #B0B0B0;
-  --gradient-dark-start: #111111;
-  --gradient-dark-start-rgb: 17,17,17;
-  --gradient-dark-mid: #1A1A1A;
-  --gradient-dark-end: #2A2A2A;
+  --error-rgb: 110, 110, 110;
+  --success: #30A46C;
+  --success-rgb: 48, 164, 108;
+  --prompt: #8DA2EF;
+  --gradient-dark-start: #0F1631;
+  --gradient-dark-start-rgb: 15, 22, 49;
+  --gradient-dark-mid: #141B38;
+  --gradient-dark-end: #1A2142;
   --mono: 'JetBrains Mono', 'SF Mono', monospace;
   --sans: 'Inter', system-ui, -apple-system, sans-serif;
   --display: 'Inter', system-ui, sans-serif;
 }
 
 /* --------------------------------------------------------------------------
-   2. Light Mode Typography (high contrast)
+   2. Light Mode Typography (high contrast, navy headings)
    -------------------------------------------------------------------------- */
 
 :root:not(.dark) #body-content,
@@ -64,7 +77,7 @@
 :root:not(.dark) #body-content blockquote,
 :root:not(.dark) #body-content span,
 :root:not(.dark) #body-content td {
-  color: #1A1A1A !important;
+  color: var(--hoop-body) !important;
 }
 
 :root:not(.dark) #body-content h1,
@@ -74,40 +87,119 @@
 :root:not(.dark) #body-content h5,
 :root:not(.dark) #body-content h6,
 :root:not(.dark) #body-content strong {
-  color: #0A0A0A !important;
-  letter-spacing: -0.02em;
+  color: var(--hoop-heading) !important;
+  letter-spacing: -0.03em;
 }
 
 .prose strong {
   font-weight: 600;
 }
 
+/* Page title + subtitle — the hoop.dev heading treatment:
+   navy, heavy, tight tracking. The title lives in #header, not #body-content. */
+:root:not(.dark) #header #page-title,
+:root:not(.dark) #header h1 {
+  color: var(--hoop-heading) !important;
+  font-weight: 700 !important;
+  font-size: 2.75rem !important;
+  line-height: 1.04 !important;
+  letter-spacing: -0.04em !important;
+}
+
+:root.dark #header #page-title,
+:root.dark #header h1 {
+  font-weight: 700 !important;
+  font-size: 2.75rem !important;
+  line-height: 1.04 !important;
+  letter-spacing: -0.04em !important;
+}
+
+/* Subtitle under the title — larger, muted gray-blue, like hoop.dev's section intro */
+#header #page-title ~ p,
+#header p:first-of-type {
+  font-size: 1.2rem !important;
+  line-height: 1.5 !important;
+  color: #5A6178 !important;
+}
+
+/* Dark mode: lighter muted tone so the subtitle keeps AA contrast on dark */
+:root.dark #header #page-title ~ p,
+:root.dark #header p:first-of-type {
+  color: #9BA1B8 !important;
+}
+
+/* --------------------------------------------------------------------------
+   2b. Spacing & rhythm — more air, closer to hoop.dev's open layout
+   -------------------------------------------------------------------------- */
+
+#page-title {
+  margin-bottom: 0.75rem !important;
+}
+
+#header {
+  padding-bottom: 0.5rem;
+}
+
+:root:not(.dark) #body-content h2,
+:root.dark #body-content h2 {
+  margin-top: 2.75rem !important;
+  margin-bottom: 1rem !important;
+}
+
+:root:not(.dark) #body-content h3,
+:root.dark #body-content h3 {
+  margin-top: 2rem !important;
+}
+
+/* --------------------------------------------------------------------------
+   2c. Home hero — the one page that reads like the site's opening.
+   Scoped to the overview page via Mintlify's data-current-path.
+   -------------------------------------------------------------------------- */
+
+html[data-current-path="/introduction/getting-started"] #header #page-title {
+  font-size: 3.25rem !important;
+  line-height: 1.0 !important;
+  letter-spacing: -0.045em !important;
+}
+
+html[data-current-path="/introduction/getting-started"] #header #page-title ~ p,
+html[data-current-path="/introduction/getting-started"] #header p:first-of-type {
+  font-size: 1.35rem !important;
+  max-width: 40ch;
+}
+
+html[data-current-path="/introduction/getting-started"] #header {
+  padding-bottom: 1rem;
+}
+
+/* Links — indigo, the one accent (matches hoop.dev and the webapp) */
 :root:not(.dark) #body-content a {
-  color: #1A1A1A !important;
-  text-decoration-color: #C4C4C4;
+  color: var(--hoop-indigo-text) !important;
+  text-decoration-color: transparent;
   text-underline-offset: 2px;
   transition: text-decoration-color 0.15s ease;
 }
 
 :root:not(.dark) #body-content a:hover {
-  text-decoration-color: #1A1A1A;
+  text-decoration-color: var(--hoop-indigo-text);
 }
 
+/* Inline code — soft indigo tint, like the webapp's <Code> */
 :root:not(.dark) #body-content :not(pre) > code {
-  background: #EBEBEB;
-  color: #1A1A1A !important;
+  background: var(--hoop-indigo-soft);
+  color: var(--hoop-indigo-text) !important;
   border-radius: 4px;
   padding: 2px 6px;
   font-size: 0.875em;
 }
 
 :root:not(.dark) #body-content table thead th {
-  color: #0A0A0A !important;
+  color: var(--hoop-heading) !important;
   font-weight: 600;
 }
 
 /* --------------------------------------------------------------------------
-   3. Light Mode Sidebar
+   3. Light Mode Sidebar — active item in indigo
    -------------------------------------------------------------------------- */
 
 :root:not(.dark) #sidebar a {
@@ -115,12 +207,17 @@
   transition: color 0.15s ease;
 }
 
+/* Square the sidebar nav items (active + hover background) — no rounded corners */
+#sidebar a {
+  border-radius: 0 !important;
+}
+
 :root:not(.dark) #sidebar a:hover {
-  color: #0A0A0A;
+  color: var(--hoop-heading);
 }
 
 :root:not(.dark) #sidebar a[data-active="true"] {
-  color: #0A0A0A;
+  color: var(--hoop-indigo-text);
   font-weight: 500;
 }
 
@@ -129,21 +226,20 @@
    -------------------------------------------------------------------------- */
 
 :root:not(.dark) #navbar {
-  border-bottom: 1px solid #EBEBEB;
+  border-bottom: 1px solid var(--hoop-gray-200);
 }
 
 /* --------------------------------------------------------------------------
-   5. Light Mode Cards
+   5. Light Mode Cards — flat, quiet borders
    -------------------------------------------------------------------------- */
 
 :root:not(.dark) .card {
-  border: 1px solid #EBEBEB;
-  border-radius: 10px;
+  border: 1px solid var(--hoop-gray-200);
   transition: border-color 0.15s ease;
 }
 
 :root:not(.dark) .card:hover {
-  border-color: #C4C4C4;
+  border-color: var(--hoop-indigo);
 }
 
 /* --------------------------------------------------------------------------
@@ -152,7 +248,7 @@
 
 :root:not(.dark) .code-block {
   border-radius: 8px;
-  border: 1px solid #EBEBEB;
+  border: 1px solid var(--hoop-gray-200);
 }
 
 /* --------------------------------------------------------------------------
@@ -160,20 +256,50 @@
    -------------------------------------------------------------------------- */
 
 :root:not(.dark) #footer {
-  border-top: 1px solid #EBEBEB;
+  border-top: 1px solid var(--hoop-gray-200);
 }
 
 /* --------------------------------------------------------------------------
-   8. Light Mode Tabs
+   8. Light Mode Tabs — indigo active indicator
    -------------------------------------------------------------------------- */
 
 :root:not(.dark) .tabs [data-active="true"] {
-  color: #0A0A0A;
-  border-color: #1A1A1A;
+  color: var(--hoop-indigo-text);
+  border-color: var(--hoop-indigo);
 }
 
 /* --------------------------------------------------------------------------
-   9. Badges (both modes)
+   9. Dark Mode — indigo links/active stay visible on dark
+   -------------------------------------------------------------------------- */
+
+:root.dark #body-content a {
+  color: var(--hoop-indigo-dark) !important;
+}
+
+:root.dark #sidebar a[data-active="true"] {
+  color: var(--hoop-indigo-dark);
+  font-weight: 500;
+}
+
+:root.dark .card:hover {
+  border-color: var(--hoop-indigo);
+}
+
+/* Square cards, both modes — the website has no rounded corners */
+.card {
+  border-radius: 0 !important;
+}
+
+/* Square every boxed surface that uses a Tailwind radius utility — buttons,
+   sidebar group toggles, icon tiles, search, toolbar buttons. The website has
+   no rounded corners. rounded-full (avatars, status dots, logo, pills) is left
+   circular on purpose. */
+[class*="rounded-"]:not([class*="rounded-full"]) {
+  border-radius: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   10. Badges (both modes)
    -------------------------------------------------------------------------- */
 
 [data-badge] {
@@ -184,15 +310,15 @@
 }
 
 /* --------------------------------------------------------------------------
-   10. Selection (both modes)
+   11. Selection (both modes) — indigo tint
    -------------------------------------------------------------------------- */
 
 ::selection {
-  background: rgba(90, 90, 90, 0.15);
+  background: rgba(62, 99, 221, 0.15);
 }
 
 /* --------------------------------------------------------------------------
-   11. Scrollbar (both modes)
+   12. Scrollbar (both modes)
    -------------------------------------------------------------------------- */
 
 ::-webkit-scrollbar {
