@@ -104,13 +104,14 @@ Guardrail patterns are compiled by **Microsoft Presidio**, which uses Python's `
 | `\s+` | One or more whitespace | `DROP\s+TABLE` matches `DROP TABLE` |
 | `\s*` | Zero or more whitespace | `DROP\s*TABLE` matches `DROPTABLE` too |
 | `\b` | Word boundary | `\bDROP\b` won't match `BACKDROP` |
-| `^` | Start of string | `^SELECT` only matches SELECT at start |
-| `$` | End of string | `;\s*$` matches trailing semicolon |
-| `.*` | Any characters | `SELECT.*FROM` matches anything between |
+| `^` | Start of a line | `^SELECT` matches SELECT at the start of any line |
+| `\A` | Start of the query | `\ASELECT` only matches SELECT at the very start |
+| `$` | End of a line | `;\s*$` matches a semicolon at the end of any line |
+| `.*` | Any characters, line breaks included | `SELECT.*FROM` matches anything between |
 | `(?!...)` | Negative lookahead | `(?!.*WHERE)` means "not followed by WHERE" |
 
 <Warning>
-Two defaults break most SQL rules: `.` does not cross line breaks (a lookahead like `(?!.*WHERE)` only inspects the first line of a multi-line query), and `^` only matches the start of the payload (it misses the UPDATE in `SELECT 1; UPDATE ...`). Start patterns with `(?is)` and scope them by statement with `[^;]*` instead of `.*`. See [SQL Guardrail Recipes](/setup/configuration/guardrails-sql-recipes) for the full explanation.
+Presidio compiles every pattern with the flags `i`, `m` and `s` on: matching ignores case, `.` crosses line breaks, and `^` and `$` match at every line, not only at the start and end of the query. Use `\A` for the start of the query. A rule that starts with `^` and looks ahead for a word the query does not contain, such as `^(?![\s\S]*\bpg_catalog\b)`, scans the rest of the query again from every line: on a query of a few thousand lines the check runs past its timeout and the query is blocked. Start such a rule with `\A`, and scope rules by statement with `[^;]*`. See [SQL Guardrail Recipes](/setup/configuration/guardrails-sql-recipes) for the full explanation.
 </Warning>
 
 ### Common Patterns
@@ -173,7 +174,7 @@ Apply read-only patterns only to resource roles used by read-only groups, not to
 
 Before deploying a pattern, test it at [regex101.com](https://regex101.com):
 
-1. Select **Flavor: Python**
+1. Select **Flavor: Python** and turn on the flags `i`, `m` and `s`, as Presidio does
 2. Paste your pattern in the **Regular Expression** field
 3. Enter test queries in the **Test String** field
 4. Verify matches highlight correctly
