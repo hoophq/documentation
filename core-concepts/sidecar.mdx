@@ -165,7 +165,7 @@ A denial writes `violation` **instead of** `statement`, not in addition to it, s
 
 ### The admin API
 
-The Sidecar serves a small read-only HTTP interface on its own listener, separate from every data lane — `admin.listen`, `127.0.0.1:19000` by convention. It answers three different questions: is the process healthy, what config did it actually resolve, and what has it recorded.
+The Sidecar serves a small HTTP interface on its own listener, separate from every data lane — `admin.listen`, `127.0.0.1:19000` by convention. It answers three different questions: is the process healthy, what config did it actually resolve, and what has it recorded. Every route reads, except `PUT /license`, which is off unless you turn it on.
 
 | Endpoint | Returns |
 |---|---|
@@ -176,6 +176,7 @@ The Sidecar serves a small read-only HTTP interface on its own listener, separat
 | `GET /api/sessions` | One row per session: principal, connection, statement / denial / mask counts, and a verdict. |
 | `GET /api/events` | Individual events, filterable. |
 | `GET /api/stats` | Aggregates: totals, plus breakdowns by connection and by rule. |
+| `PUT /license` | Installs a license without a restart. Off unless `HOOP_SIDECAR_ADMIN_SECRET` is set; see [Changing the license of a running process](/setup/configuration/hoop-sidecar/config-file#changing-the-license-of-a-running-process). |
 
 `GET /config` is the one to reach for when a rule you wrote never fires. Inheritance is merged at startup, so the file tells you what you asked for and `/config` tells you what the process resolved:
 
@@ -188,7 +189,7 @@ The query endpoints filter on `principal`, `connection`, `protocol`, `since`, `u
 Both in-memory views are off by default, and each has its own budget: `audit.memory_buffer` sets how many events `/events` keeps, `audit.query_sessions` how many sessions back `/api/*`. Zero on either disables that surface without touching the JSON lines stream, which stays the record of truth.
 
 <Warning>
-The admin listener has no authentication and no CORS of its own, and it serves a read interface to every statement every user ran. Bind it to loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port.
+The admin listener's read routes have no authentication and no CORS of its own, and they serve every statement every user ran. Bind it to loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port. `PUT /license` asks for `HOOP_SIDECAR_ADMIN_SECRET` as a bearer token, and the listener is plain HTTP: send it from the host or through an encrypted tunnel.
 </Warning>
 
 Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-sidecar/components#audit-six-kinds-one-write-path-three-sinks). To watch the Sidecar from Grafana, Honeycomb or Datadog — statements per lane, denials, and where each statement's time goes — see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry).

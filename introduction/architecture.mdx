@@ -177,7 +177,7 @@ Listeners are configured independently of one another:
 - **Rules are per listener.** Top-level guardrails and masking are defaults that every listener inherits, and any listener can override them. A strict production database and a permissive staging one can run in the same process.
 
 <Warning>
-The admin listener has no authentication of its own and serves a read interface to every statement every user ran. Bind it to loopback, or place it behind whatever already gates your audit trail. Do not expose it on a data port.
+The admin listener's read routes have no authentication of their own and serve every statement every user ran. Bind it to loopback, or place it behind whatever already gates your audit trail. Do not expose it on a data port. Its one write route, `PUT /license`, is off unless `HOOP_SIDECAR_ADMIN_SECRET` is set, and then asks for that secret.
 </Warning>
 
 See [Listeners](/setup/configuration/hoop-sidecar/config-file#listeners) and [Transport](/setup/configuration/hoop-sidecar/config-file#transport) for every field.
