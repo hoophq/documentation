@@ -13,7 +13,8 @@ taste skill (`design-taste-frontend`). The theme is applied in `docs.json`
 
 Indigo accent on white. Near-black navy headings for impact. Inter for all
 text, JetBrains Mono for code. Flat surfaces separated by a tone step or a
-quiet 1px line, never a shadow. Square corners throughout, like the website.
+quiet 1px line, never a shadow. Square corners on boxes, panels and cards;
+inputs, buttons and bordered icons are the exception — they are full pills.
 Colour appears on one thing: the action, the link, the active item. Everything
 else is ink and grey.
 
@@ -80,7 +81,7 @@ Rules:
 - Icon-topped feature cards, rows of identical cards, or decorative shapes.
 - Monospace labels, index numbering (01 / 02), or hairline divider boxes used as ornament.
 - Pure `#FFFFFF` text on dark or `#000000` anywhere.
-- Rounded corners on boxes — the website is square (circular avatars and status dots stay round).
+- Rounded corners on boxes, panels or cards — those stay square (circular avatars and status dots stay round; inputs, buttons and bordered icons are full pills).
 
 > On the accent: the taste skill's generic house style bans indigo and
 > gradients as "assistant palette" tells. Indigo here is not that — it is

@@ -290,12 +290,54 @@ html[data-current-path="/introduction/getting-started"] #header {
   border-radius: 0 !important;
 }
 
-/* Square every boxed surface that uses a Tailwind radius utility — buttons,
-   sidebar group toggles, icon tiles, search, toolbar buttons. The website has
-   no rounded corners. rounded-full (avatars, status dots, logo, pills) is left
-   circular on purpose. */
+/* Square every boxed surface that uses a Tailwind radius utility — sidebar
+   group toggles, panels, toolbar surfaces. The website has no rounded corners.
+   rounded-full (avatars, status dots, logo) is left circular on purpose.
+   Inputs, buttons and bordered icon tiles are the exception: §13 makes them
+   full pills. */
 [class*="rounded-"]:not([class*="rounded-full"]) {
   border-radius: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   13. Pills — inputs, buttons and bordered icons are fully rounded
+   Overrides the square rule above for these three element kinds only.
+   border-radius shows only where there is a fill, border or ring, so the
+   radius is invisible on plain text links and harmless there.
+   -------------------------------------------------------------------------- */
+
+/* Inputs — the search field and any single-line text input */
+#navbar [class~="group/search"],
+#body-content input:not([type="checkbox"]):not([type="radio"]),
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input[type="url"],
+input[type="password"] {
+  border-radius: 9999px !important;
+}
+
+/* Buttons — navbar actions, theme toggle, and Mintlify toolbar buttons.
+   The navbar CTA ("Get started") paints its fill on an inner <span> with a
+   rounded class, so round the navbar's rounded descendants too, not just the
+   button/link itself. */
+#navbar button,
+#navbar a[class*="rounded-"],
+#navbar a [class*="rounded-"],
+#navbar button [class*="rounded-"],
+#body-content button[class*="rounded-"],
+button[class*="rounded-"] {
+  border-radius: 9999px !important;
+}
+
+/* Bordered icons — the sidebar icon tiles (rounded-md + ring) */
+#sidebar a div[class~="rounded-md"] {
+  border-radius: 9999px !important;
+}
+
+/* Ask-AI assistant — the "Ask a question" bar is an input, so pill its box */
+[class*="chat-assistant"] div[class*="rounded-"] {
+  border-radius: 9999px !important;
 }
 
 /* --------------------------------------------------------------------------
