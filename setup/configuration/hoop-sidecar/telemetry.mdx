@@ -120,7 +120,7 @@ Through a collector's Prometheus exporter the names read `hoop_sidecar_statement
 |---|---|---|
 | `policy` | a local rule set (`hoop.engine=rules`) or one OPA round trip (`hoop.engine=opa`). The cost the Sidecar adds to decide. | yes, every protocol |
 | `analyzer` | the model-backed evaluator, cache hits included. The provider call alone is `hoop.sidecar.analyzer.request.duration`. | yes |
-| `review` | the hold while a human decides. `hoop.outcome` is `approved`, `rejected`, `expired`, `revoked` or `disconnected` (the client left mid-hold). | yes |
+| `review` | the hold while a human decides. `hoop.outcome` is `approved`, `rejected`, `expired`, `revoked`, `disconnected` (the client left mid-hold) or `denied` (any other refusal). | yes |
 | `upstream` | from the request leaving the Sidecar to its answer arriving | see `hoop.pairing` |
 
 `review` is its own stage so a ten-minute approval does not read as a slow policy. A listener in return mode (`review_mode: return`) shows no wait here: the client is denied at once and resends after approval, and only the Control Plane knows the time between filing and approval.
@@ -176,6 +176,7 @@ Statement text is never on a span.
 | `hoop.lane`, `hoop.protocol`, `hoop.session_id`, `hoop.principal` | every record |
 | `hoop.operation`, `hoop.direction`, `hoop.verdict`, `hoop.rule`, `hoop.message`, `hoop.statement`, `hoop.tables` | `statement`, `violation` |
 | `hoop.http.method`, `hoop.http.path`, `hoop.http.status_code`, `hoop.http.host`, `hoop.http.resource` | `http` lanes |
+| `hoop.http.query`, `hoop.http.target`, `hoop.http.body` | `http` lanes; content, under the same redaction as `hoop.statement` |
 | `hoop.masked.entities`, `hoop.masked.count` | `masked` |
 | `hoop.error` | `error` |
 | `hoop.duration_ms`, `hoop.statement_count`, `hoop.denied_count` | `session_end` |
