@@ -170,7 +170,7 @@ The Sidecar serves a small read-only HTTP interface on its own listener, separat
 | Endpoint | Returns |
 |---|---|
 | `GET /healthz` | `ok`. What a container healthcheck polls. |
-| `GET /stats` | Live counters, plus one line per listener with the address it really bound — a path means unix, a `host:port` means TCP. |
+| `GET /stats` | Live counters, plus one line per listener with the address it really bound — a path means unix, a `host:port` means TCP. With a `telemetry` block, how many audit events the exporter sent and dropped. |
 | `GET /config` | The **resolved** config: each listener's guardrails after inheritance, its OPA endpoint, and the analyzer settings with the credential omitted. |
 | `GET /events` | The last N events from an in-memory ring buffer. |
 | `GET /api/sessions` | One row per session: principal, connection, statement / denial / mask counts, and a verdict. |
@@ -191,7 +191,7 @@ Both in-memory views are off by default, and each has its own budget: `audit.mem
 The admin listener has no authentication and no CORS of its own, and it serves a read interface to every statement every user ran. Bind it to loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port.
 </Warning>
 
-Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-sidecar/components#audit-six-kinds-one-write-path-three-sinks).
+Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-sidecar/components#audit-six-kinds-one-write-path-three-sinks). To watch the Sidecar from Grafana, Honeycomb or Datadog — statements per lane, denials, and where each statement's time goes — see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry).
 
 ---
 

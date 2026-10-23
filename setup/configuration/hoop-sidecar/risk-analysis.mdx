@@ -1075,6 +1075,10 @@ Roll out with every tier on `warn`, watch `by_risk` in `/api/stats` and the cach
 
 The admin listener serves `GET /metrics` in the Prometheus text format. Prometheus, an OpenTelemetry Collector with the `prometheus` receiver, or any agent that reads that format can scrape it. A Sidecar with no analyzer answers an empty document, so one scrape job can cover every Sidecar.
 
+<Note>
+These three families also travel over OTLP as `hoop.sidecar.analyzer.*`, beside per-lane statement counts and the latency split into policy, analyzer, review and upstream, when the config carries a `telemetry` block. See [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry).
+</Note>
+
 ```bash
 curl -s localhost:19000/metrics
 ```
