@@ -98,6 +98,7 @@
                   "setup/configuration/hoop-sidecar/risk-analysis",
                   "setup/configuration/hoop-sidecar/agent-approvals",
                   "setup/configuration/hoop-sidecar/components",
+                  "setup/configuration/hoop-sidecar/telemetry",
                   "setup/configuration/hoop-sidecar/kerberos",
                   {
                     "group": "Protocols",

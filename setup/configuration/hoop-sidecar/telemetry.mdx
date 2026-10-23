@@ -1,0 +1,263 @@
+---
+title: "OpenTelemetry"
+description: "Metrics, traces and audit events over OTLP: what each lane judged, what it denied, and where a statement's time went"
+---
+
+A `telemetry` block makes the Sidecar push OpenTelemetry signals to a collector you run. One Grafana, Honeycomb or Datadog then shows every Sidecar: statements per lane and verdict, denials by source, and a statement's latency split into the Sidecar's own policy cost, the AI analyzer, a human approval hold, and the upstream itself.
+
+Nothing is built when the block is absent. The data path has no telemetry code in it until you add one.
+
+```yaml config.yaml
+telemetry:
+  otlp:
+    endpoint: otel-collector:4317   # host:port for grpc, a URL for http
+  metrics:
+    interval_sec: 60                # on with the block
+  traces:
+    sample_ratio: 0.1               # opt in
+  events:
+    enabled: true                   # opt in
+```
+
+Three signals, three switches. **Metrics** are on as soon as the block exists. **Traces** turn on with a positive `sample_ratio`. **Events** — the audit trail as log records — turn on with `events.enabled`.
+
+---
+
+## Configuration
+
+| Field | Default | Meaning |
+|---|---|---|
+| `otlp.endpoint` | required | `host:port` for `grpc`, a URL with scheme for `http`. Collector defaults are `4317` and `4318`. |
+| `otlp.protocol` | `grpc` | `grpc` or `http`, the two OTLP transports. `grpc` is protobuf over HTTP/2 on one long-lived connection. `http` is protobuf over HTTP/1.1 POSTs to `/v1/metrics`, `/v1/traces` and `/v1/logs`, for a path that blocks HTTP/2. Same data either way. |
+| `otlp.headers` | none | Sent on every export: an `authorization` header for a vendor endpoint. |
+| `otlp.insecure` | `false` | Send in the clear. A collector in the same pod. |
+| `otlp.ca_file` | host trust store | Pins the collector's CA. |
+| `otlp.timeout_sec` | `10` | Bounds one export. |
+| `resource` | none | Extra resource attributes on every signal: `deployment.environment`, a team label. `service.name` here overrides the default `hoop-sidecar`. |
+| `metrics.enabled` | `true` | `false` turns the metrics signal off. |
+| `metrics.interval_sec` | `60` | How often the SDK collects and exports. |
+| `traces.sample_ratio` | `0` | Share of exchanges traced, `0` to `1`. Zero is off. |
+| `events.enabled` | `false` | Send every audit event as a log record. |
+| `events.statement_text` | `false` | Send statement text and HTTP bodies in the clear. Off, the record carries a fingerprint. |
+| `events.queue_size` | `4096` | Records held for export; the oldest go first when it is full. |
+
+The block is validated with the rest of the file, so `--validate` and the Control Plane both refuse a bad endpoint before anything starts. The SDK's `OTEL_EXPORTER_OTLP_*` environment variables are not read: the block is the configuration.
+
+```yaml
+telemetry:
+  otlp:
+    endpoint: https://api.honeycomb.io:443
+    headers: {x-honeycomb-team: "${HONEYCOMB_KEY}"}
+  resource:
+    deployment.environment: prod
+    team: payments
+```
+
+<Note>
+A Sidecar managed by a Control Plane reports the `telemetry` capability in its handshake. The Control Plane serves the block only to a Sidecar whose build decodes it, so an older Sidecar never receives a key it would refuse.
+</Note>
+
+---
+
+## What every signal carries
+
+The resource identifies the process:
+
+| Attribute | Value |
+|---|---|
+| `service.name` | `hoop-sidecar`, unless `resource` overrides it |
+| `service.version` | the release |
+| `service.instance.id` | the install id usage analytics derives: stable across restarts, hashed, never a token |
+| `host.name` | the hostname |
+| `hoop.sidecar.runtime` | `linux`, `docker`, `kubernetes`, `macos`, `windows` |
+| `hoop.sidecar.entrypoint` | `hoop`, `hoop-inspect` or `embedded` |
+| `hoop.schema.version` | `1.0` |
+
+The schema URL is `https://hoop.dev/schemas/sidecar-telemetry/1.0`. An attribute or series **added** bumps the minor version. One **renamed or removed** bumps the major, because a dashboard written against the old name goes dark.
+
+Attributes shared by the signals:
+
+| Attribute | Values |
+|---|---|
+| `hoop.lane` | the listener's `name` |
+| `hoop.protocol` | `postgres`, `mysql`, `http`, `grpc`, … |
+| `hoop.direction` | `client` or `server` |
+| `hoop.operation` | the statement's operation: `select`, `delete`, `post`, `call`, … |
+| `hoop.verdict` | `allow` or `deny` |
+| `hoop.deny.source` | who denied: a guardrail rule type (`operation`, `deny_words_list`, `pii`, …), `opa`, `analyzer`, `review`, or the gate's own `audit`, `stream`, `identity` |
+| `hoop.rule` | the rule that denied |
+| `hoop.risk_level` | the analyzer's classification |
+
+Principal, session id, tables and statement text are **never** on a metric: they are unbounded, and they belong on the span and the log record.
+
+---
+
+## Metrics
+
+| Series | Instrument | Attributes |
+|---|---|---|
+| `hoop.sidecar.connections` | counter | `hoop.lane`, `hoop.protocol` |
+| `hoop.sidecar.connections.active` | gauge | `hoop.lane`, `hoop.protocol` |
+| `hoop.sidecar.statements` | counter | `hoop.lane`, `hoop.protocol`, `hoop.direction`, `hoop.operation`, `hoop.verdict`, `hoop.deny.source` (denials only) |
+| `hoop.sidecar.statement.duration` | histogram, seconds | `hoop.lane`, `hoop.protocol`, `hoop.stage`, `hoop.engine`, `hoop.pairing`, `hoop.outcome` |
+| `hoop.sidecar.masked_values` | counter | `hoop.lane`, `hoop.protocol` |
+| `hoop.sidecar.audit.errors` | counter | `hoop.lane` |
+| `hoop.sidecar.analyzer.request.duration` | histogram, seconds | `hoop.analyzer`, `hoop.provider`, `hoop.model`, `hoop.outcome` |
+| `hoop.sidecar.analyzer.retries` | counter | `hoop.analyzer`, `hoop.provider`, `hoop.model` |
+| `hoop.sidecar.analyzer.statements` | counter | `hoop.analyzer`, `hoop.status`, `hoop.risk_level`, `hoop.action` |
+| `hoop.sidecar.session_events.sent`, `.dropped` | counter | the Control Plane copy's counters; zero without one |
+| `hoop.sidecar.config.generation` | gauge | reloads applied since start |
+
+Counters survive a hot reload. The three analyzer families are the ones `GET /metrics` serves in the Prometheus text format, which stays as it is; see [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#metrics).
+
+Through a collector's Prometheus exporter the names read `hoop_sidecar_statements_total`, `hoop_sidecar_statement_duration_seconds_bucket`, and the attributes `hoop_lane`, `hoop_stage`, and so on.
+
+### Where a statement's time goes
+
+`hoop.sidecar.statement.duration` has one series per **stage** of a statement's life, so you can read what the Sidecar costs apart from what the database or API costs:
+
+| `hoop.stage` | Measures | Exact? |
+|---|---|---|
+| `policy` | a local rule set (`hoop.engine=rules`) or one OPA round trip (`hoop.engine=opa`). The cost the Sidecar adds to decide. | yes, every protocol |
+| `analyzer` | the model-backed evaluator, cache hits included. The provider call alone is `hoop.sidecar.analyzer.request.duration`. | yes |
+| `review` | the hold while a human decides. `hoop.outcome` is `approved`, `rejected`, `expired`, `revoked`, `disconnected` (the client left mid-hold) or `denied` (any other refusal). | yes |
+| `upstream` | from the request leaving the Sidecar to its answer arriving | see `hoop.pairing` |
+
+`review` is its own stage so a ten-minute approval does not read as a slow policy. A listener in return mode (`review_mode: return`) shows no wait here: the client is denied at once and resends after approval, and only the Control Plane knows the time between filing and approval.
+
+`hoop.pairing` on the `upstream` stage says how exact the measurement is:
+
+- **`exact`** — the protocol pairs request and response itself: one gRPC call, or HTTP/1, where responses answer requests in order.
+- **`unpipelined`** — `postgres`, `mysql`, `mssql`, `mongodb`, `oracle`, `clickhouse`. Their codecs do not expose which response answers which request, so the sample is taken only when **one** request is outstanding and dropped when the client pipelines. The series describes unpipelined exchanges and never guesses. An extended-protocol client that sends two statements per query is therefore not sampled.
+
+Every other stage carries `hoop.outcome` as `allow` or `deny`.
+
+```promql
+# p99 per lane and stage
+histogram_quantile(0.99, sum by (le, hoop_lane, hoop_stage) (rate(hoop_sidecar_statement_duration_seconds_bucket[5m])))
+
+# share of a lane's time the Sidecar itself costs
+sum by (hoop_lane) (rate(hoop_sidecar_statement_duration_seconds_sum{hoop_stage="policy"}[5m]))
+  / sum by (hoop_lane) (rate(hoop_sidecar_statement_duration_seconds_sum[5m]))
+
+# how long approvals take, median, by how they ended
+histogram_quantile(0.5, sum by (le, hoop_outcome) (rate(hoop_sidecar_statement_duration_seconds_bucket{hoop_stage="review"}[1h])))
+```
+
+---
+
+## Traces
+
+`traces.sample_ratio` above zero opens one span per exchange, with the statements and their stages under it:
+
+```
+hoop.session  (one byte-path connection)      hoop.rpc  (one gRPC call)
+└── hoop.statement                             └── hoop.statement
+    ├── policy  {hoop.engine=rules}                ├── policy  {hoop.engine=opa}
+    ├── policy  {hoop.engine=opa}                  └── analyzer
+    └── analyzer
+        (event: upstream, hoop.duration_ms, hoop.pairing)
+```
+
+The sampling decision is taken **once, at the exchange**, so every statement of a sampled connection is in, and a 1% ratio costs 1%. The statement span carries `hoop.direction`, `hoop.operation`, the HTTP method, path and status, the database and tables, then at the end `hoop.verdict`, `hoop.deny.source`, `hoop.rule`, `hoop.risk_level`. A denied statement's span has an error status naming the rule. The exchange span carries `hoop.principal` and `hoop.session_id`. The upstream measurement is an event on the enclosing span.
+
+The OPA decision and the analyzer's provider call carry the stage's span as a W3C `traceparent` header, so a Rego service or a model gateway that is itself traced joins the same trace.
+
+Statement text is never on a span.
+
+---
+
+## Events
+
+`events.enabled` adds a sink to the audit chain that sends every event as a log record. The body is the kind: `session_start`, `statement`, `violation`, `masked`, `error`, `session_end`. Severity is `WARN` for `violation` and `masked`, `ERROR` for `error`, `INFO` otherwise.
+
+| Attribute | On |
+|---|---|
+| `hoop.lane`, `hoop.protocol`, `hoop.session_id`, `hoop.principal` | every record |
+| `hoop.operation`, `hoop.direction`, `hoop.verdict`, `hoop.rule`, `hoop.message`, `hoop.statement`, `hoop.tables` | `statement`, `violation` |
+| `hoop.http.method`, `hoop.http.path`, `hoop.http.status_code`, `hoop.http.host`, `hoop.http.resource` | `http` lanes |
+| `hoop.http.query`, `hoop.http.target`, `hoop.http.body` | `http` lanes; content, under the same redaction as `hoop.statement` |
+| `hoop.masked.entities`, `hoop.masked.count` | `masked` |
+| `hoop.error` | `error` |
+| `hoop.duration_ms`, `hoop.statement_count`, `hoop.denied_count` | `session_end` |
+| `hoop.meta.<key>` | each metadata key the event carries |
+| `hoop.review.id` | a statement a review was filed for |
+
+A record written under a sampled span carries its trace and span id, so a backend that stores both joins the `violation` to the trace that produced it.
+
+The record goes through the **same redaction** as the audit file and the Control Plane copy. `hoop.statement` is a `sha256:` fingerprint unless `events.statement_text: true`, because the collector is a new place audit data leaves the process; the file keeps the text under the audit block's own `redact_statements`. The sink never fails a write and never blocks a statement: a bounded queue drops the oldest record when the collector falls behind, and `GET /stats` reports the count:
+
+```json
+{"telemetry": {"events_sent": 18204, "events_dropped": 0}}
+```
+
+<Warning>
+The audit file stays the record of truth. The log records are a copy for alerting and correlation, with a bounded queue that drops under pressure. Do not point a compliance process at them.
+</Warning>
+
+---
+
+## Alerts
+
+Alerts live in your backend. Three worth having, in PromQL:
+
+```promql
+# denials on a lane, per minute
+sum by (hoop_lane) (rate(hoop_sidecar_statements_total{hoop_verdict="deny"}[5m])) * 60 > 10
+
+# the analyzer is failing: statements left unscored (allowed under fail_open)
+sum by (hoop_analyzer) (rate(hoop_sidecar_analyzer_request_duration_seconds_count{hoop_outcome!="ok"}[5m])) > 0
+
+# the audit trail is dropping records
+rate(hoop_sidecar_audit_errors_total[5m]) > 0
+```
+
+And on the log records, a `violation` burst for one `hoop.principal`, which no metric can express because the principal is only on the record.
+
+---
+
+## When the collector is down
+
+Nothing changes for the client. Exports fail, one warning per 30 seconds per message reaches the Sidecar's log, and traffic is unaffected. With a `telemetry` block the data path costs one instrument record per hook, with attribute sets built once per lane; without one it costs nothing. Shutdown flushes once, bounded by three seconds, after every listener has closed.
+
+---
+
+## A local collector
+
+The Envoy compose stack in the `hoop` repository, `deploy/docker-compose/envoy-stack`, ships an OpenTelemetry Collector, Prometheus and a Grafana with a provisioned **hoop sidecar** dashboard. Its `sidecar/config.yaml` carries the block above with every signal on, and `docker compose logs otel-collector` shows the spans and the audit records arrive. For your own collector, this is the receiving side:
+
+```yaml otel-collector.yaml
+receivers:
+  otlp:
+    protocols:
+      grpc: {endpoint: 0.0.0.0:4317}
+      http: {endpoint: 0.0.0.0:4318}
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion: {enabled: true}   # resource attrs as labels
+service:
+  pipelines:
+    metrics: {receivers: [otlp], exporters: [prometheus]}
+    traces:  {receivers: [otlp], exporters: [...]}       # Tempo, Jaeger, a vendor
+    logs:    {receivers: [otlp], exporters: [...]}       # Loki, a vendor
+```
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Risk Analysis" icon="brain" href="/setup/configuration/hoop-sidecar/risk-analysis#metrics">
+    The analyzer families in Prometheus text format, and the queries that tune `timeout_sec`.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every section, inheritance between listeners, and what startup refuses.
+  </Card>
+  <Card title="Agent Approvals" icon="user-check" href="/setup/configuration/hoop-sidecar/agent-approvals">
+    Hold and return modes, which decide whether the `review` stage shows a wait.
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/setup/configuration/hoop-sidecar/components">
+    The trace of one connection through the gate, which is what the stages measure.
+  </Card>
+</CardGroup>
