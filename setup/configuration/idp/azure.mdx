@@ -32,6 +32,10 @@ Contact the administrator of the hoop gateway instance to retrieve the API_URL a
 	- In the overview page, copy the **Application (client) ID** value. This is the Client ID.
 	- Go to  Certificate & Secrets > Client Secrets > New Client Secret
 	- Copy the Secret Value. This is the Client Secret
+
+	<Tip>
+	A gateway on Kubernetes does not need a client secret. See [Sign in without a client secret](#sign-in-without-a-client-secret).
+	</Tip>
   </Step>
   <Step title="Collect Issuer and Custom Scopes Information">
   The Issuer URL
@@ -45,6 +49,76 @@ Contact the administrator of the hoop gateway instance to retrieve the API_URL a
 
   </Step>
 </Steps>
+
+## Sign in without a client secret
+
+<Warning>Available on version 1.260.0+</Warning>
+
+A gateway that runs on Kubernetes can authenticate to Entra ID with a federated credential in place of a client secret. Kubernetes gives the gateway a short-lived service account token, and Entra ID trusts it. There is no secret to expire or rotate.
+
+<Steps titleSize="h3">
+  <Step title="Get the OIDC issuer of the cluster">
+  On AKS, turn on the OIDC issuer and copy its URL:
+
+  ```sh
+  az aks update -g <resource-group> -n <cluster> --enable-oidc-issuer
+  az aks show -g <resource-group> -n <cluster> --query oidcIssuerProfile.issuerUrl -o tsv
+  ```
+
+  Other clusters need a public OIDC issuer. See [Azure Workload Identity: self-managed clusters](https://azure.github.io/azure-workload-identity/docs/installation/self-managed-clusters.html).
+  </Step>
+  <Step title="Add a federated credential to the application">
+  Go to App Registration > `{AppName}` > Certificates & secrets > Federated credentials > Add credential, select **Kubernetes accessing Azure resources**, and set:
+
+  - **Cluster issuer URL**: the URL from the previous step, exactly as printed, with the final `/`.
+  - **Namespace**: the namespace of the gateway.
+  - **Service account**: `hoopgateway` for the gateway chart. For the control plane chart, its service account: `<release>-hoopcontrolplane` by default.
+  - **Audience**: `api://AzureADTokenExchange`.
+
+  Or with the Azure CLI:
+
+  ```sh
+  az ad app federated-credential create --id <client-id> --parameters '{
+    "name": "hoop-gateway",
+    "issuer": "<cluster issuer URL>",
+    "subject": "system:serviceaccount:<namespace>:hoopgateway",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+  ```
+  </Step>
+  <Step title="Mount the token in the gateway">
+  Set these helm values:
+
+  ```yaml
+  idpFederatedToken:
+    enabled: true
+  serviceAccount:
+    create: true
+  ```
+
+  The chart mounts the token at `/var/run/secrets/hoop/idp/token`. Kubernetes renews it, and the gateway reads it again on each request to Entra ID, so no restart is needed.
+  </Step>
+  <Step title="Configure the provider">
+  In the Web App, go to **Integrations > Authentication**. In the OIDC form, select **Federated token** under **Client Authentication** and keep the path `/var/run/secrets/hoop/idp/token`. The gateway accepts only the path in `IDP_CLIENT_ASSERTION_FILE`, which `idpFederatedToken.enabled` sets. Fill the Client ID, the Issuer URL and the Custom Scopes as in the steps above.
+
+  With the deprecated `IDP_*` variables, set them without `IDP_CLIENT_SECRET`. `idpFederatedToken.enabled` sets `IDP_CLIENT_ASSERTION_FILE` for you.
+
+  ```yaml
+  config:
+    IDP_ISSUER: 'https://login.microsoftonline.com/<tenant-id>/v2.0'
+    IDP_CLIENT_ID: '<client-id>'
+    IDP_CUSTOM_SCOPES: '<client-id>/.default'
+  ```
+
+  The gateway refuses a client secret and a token file together.
+  </Step>
+</Steps>
+
+| Error in the gateway logs | What to check |
+| --- | --- |
+| `AADSTS700213` or `AADSTS700211`: No matching federated identity record | The issuer, subject or audience of the token does not match the federated credential. The issuer must match exactly. |
+| `AADSTS7000218`: the request body must contain `client_assertion` or `client_secret` | The gateway has no token. Check `idpFederatedToken.enabled` and the token file path. |
+| `client assertion file ... is empty` or `failed reading client assertion file` | The path does not point to the mounted token. |
 
 ## Configuring Groups Claims
 
