@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 40 1000 470" role="img" aria-label="OpenAI Agents API with the Hoop Sidecar: the agent in a hosted sandbox sends HTTPS requests through OpenAI's egress proxy, which allows only the Sidecar's host. The vault fills the real tokens into requests toward that host. The Sidecar in your network checks the caller token, refuses writes, masks emails, phone numbers and card numbers in responses and records each request, then forwards to the REST API. The proxy refuses any other host, the API's own included, with a 403.">
+        <defs>
+          <marker id="oaa-ink" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#e4e9ef"/>
+          </marker>
+          <marker id="oaa-data" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#8fbf5c"/>
+          </marker>
+          <marker id="oaa-api" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#6ea7d8"/>
+          </marker>
+          <marker id="oaa-muted" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#75808d"/>
+          </marker>
+        </defs>
+
+        <!-- zones -->
+        <rect x="20" y="60" width="380" height="440" fill="#1c232b" stroke="#3b4754" stroke-dasharray="3 4"/>
+        <text x="36" y="84" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#98a4b2" letter-spacing="1.2">OPENAI · AGENTS API</text>
+        <rect x="440" y="60" width="540" height="440" fill="#1c232b" stroke="#3b4754" stroke-dasharray="3 4"/>
+        <text x="456" y="84" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#98a4b2" letter-spacing="1.2">YOUR NETWORK</text>
+
+        <!-- sandbox -->
+        <rect x="36" y="120" width="160" height="64" fill="#151a21" stroke="#3b4754"/>
+        <text x="116" y="143" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">Hosted sandbox</text>
+        <text x="116" y="160" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">agent · bash · curl</text>
+        <text x="116" y="175" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">vault placeholders</text>
+        <line x1="196" y1="152" x2="216" y2="152" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#oaa-ink)"/>
+
+        <!-- egress proxy -->
+        <rect x="220" y="120" width="164" height="64" fill="#151a21" stroke="#3b4754"/>
+        <text x="302" y="143" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">Egress proxy</text>
+        <text x="302" y="160" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">allowed_domains:</text>
+        <text x="302" y="175" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">the Sidecar's host only</text>
+
+        <!-- vault -->
+        <rect x="220" y="224" width="164" height="56" fill="#151a21" stroke="#3b4754"/>
+        <text x="302" y="247" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">Vault</text>
+        <text x="302" y="265" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">tokens for that host</text>
+        <line x1="302" y1="224" x2="302" y2="188" stroke="#e4e9ef" stroke-width="1.4" marker-end="url(#oaa-ink)"/>
+        <text x="294" y="210" text-anchor="end" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">fills header · URL · body</text>
+
+        <!-- inspected path -->
+        <line x1="384" y1="152" x2="486" y2="152" stroke="#8fbf5c" stroke-width="2.2" marker-end="url(#oaa-data)"/>
+        <text x="446" y="142" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#8fbf5c">HTTPS</text>
+
+        <!-- sidecar -->
+        <rect x="490" y="104" width="240" height="272" fill="#151a21" stroke="#a9b8c8" stroke-width="1.6"/>
+        <text x="504" y="128" font-family="Archivo, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e4e9ef">Hoop Sidecar</text>
+        <text x="504" y="144" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">one http listener · :443</text>
+        <rect x="502" y="156" width="216" height="46" fill="#1c232b" stroke="#3b4754"/>
+        <text x="512" y="175" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Caller token</text>
+        <text x="512" y="192" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">X-Hoop-Token · checked first</text>
+        <rect x="502" y="208" width="216" height="46" fill="#1c232b" stroke="#3b4754"/>
+        <text x="512" y="227" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Guardrails</text>
+        <text x="512" y="244" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">read-only: GET · HEAD · OPTIONS</text>
+        <rect x="502" y="260" width="216" height="46" fill="#1c232b" stroke="#3b4754"/>
+        <text x="512" y="279" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Data Masking</text>
+        <text x="512" y="296" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">emails · phones · cards</text>
+        <rect x="502" y="312" width="216" height="46" fill="#1c232b" stroke="#3b4754"/>
+        <text x="512" y="331" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Audit</text>
+        <text x="512" y="348" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">each request · session id</text>
+
+        <!-- api -->
+        <line x1="730" y1="230" x2="776" y2="230" stroke="#6ea7d8" stroke-width="2" marker-end="url(#oaa-api)"/>
+        <rect x="780" y="200" width="184" height="60" fill="#151a21" stroke="#6ea7d8" stroke-width="1.6"/>
+        <text x="872" y="225" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#e4e9ef">REST API</text>
+        <text x="872" y="243" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#98a4b2">gets Authorization as sent</text>
+
+        <!-- refused path -->
+        <line x1="116" y1="184" x2="116" y2="366" stroke="#75808d" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#oaa-muted)"/>
+        <text x="124" y="300" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11.5" fill="#98a4b2">proxy answers 403</text>
+        <rect x="36" y="370" width="160" height="52" fill="none" stroke="#75808d" stroke-dasharray="3 3"/>
+        <text x="116" y="393" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#98a4b2">Any other host</text>
+        <text x="116" y="410" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#75808d">the API's own host too</text>
+
+        <!-- notes -->
+        <text x="36" y="462" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">Only the Sidecar's host passes the proxy.</text>
+        <text x="36" y="480" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#98a4b2">The sandbox holds vault placeholders, not tokens.</text>
+        <text x="456" y="462" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#e4e9ef">A request without the caller token reaches no API.</text>
+        <text x="456" y="480" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#98a4b2">Writes get 403. Responses come back masked.</text>
+      </svg>
