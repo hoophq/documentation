@@ -94,7 +94,7 @@ The result names who holds the token, not what it may do. The upstream still che
 
 ### Caller token
 
-`caller_token` admits a caller by a shared token, for a lane on a public URL with nothing in front to authenticate the caller. An agent on [Claude Managed Agents](/integrations/claude-managed-agents) calls a lane this way.
+`caller_token` admits a caller by a shared token, for a lane on a public URL with nothing in front to authenticate the caller. An agent on [Claude Managed Agents](/integrations/claude-managed-agents) or the [OpenAI Agents API](/integrations/openai-agents) calls a lane this way.
 
 ```yaml
 listeners:
@@ -131,6 +131,8 @@ listeners:
 **Revocation.** Write the file without the token. An empty file keeps the old tokens in force, so to revoke the only token, write a new token in its place or stop the listener. A missing or unusable file at startup, or under `--validate`, stops the process with an error that names the file. The Control Plane never reads the file. A change to the `caller_token` block needs a restart.
 
 **From a Managed Agents vault.** A vault credential can fill the token at egress, so the sandbox holds only a placeholder. See [Claude Managed Agents](/integrations/claude-managed-agents#setup). A request that reaches the Sidecar with the placeholder is refused like any wrong token. A vault rotation reaches running sessions on its own schedule, so rotate with the two-line overlap above.
+
+**From an OpenAI vault.** The vault fills the placeholder anywhere in a request to the Sidecar's host, the URL and the body included, and has no setting that limits where. Keep the token in its header. See [Tokens go in headers only](/integrations/openai-agents#tokens-go-in-headers-only).
 
 ---
 

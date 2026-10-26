@@ -1,0 +1,423 @@
+---
+title: "OpenAI Agents API"
+description: "Guardrails, data masking and audit on the REST calls of an OpenAI hosted agent, on a path the agent cannot skip."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+An agent on the [OpenAI Agents API](https://developers.openai.com/api/docs/guides/agents-api/overview) runs in a sandbox that OpenAI hosts. The Sidecar runs in your network, on a public HTTPS host, in front of one REST API. The sandbox can reach that host and no other, so every request the agent sends to the API passes through your guardrails, masking rules and audit trail.
+
+The Sidecar is free to run. The files below come from the [`deploy/openai-agents/http`](https://github.com/hoophq/hoop/tree/main/deploy/openai-agents/http) template of the hoop repository. Start with the [quick start](#quick-start) on your laptop, then [run it against your API](#run-it-against-your-api).
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/integrations/openai-agents-sidecar-light.svg"
+    alt="The agent in an OpenAI hosted sandbox sends HTTPS requests through OpenAI's egress proxy, which allows only the Sidecar's host. The vault fills the real tokens into requests toward that host. The Sidecar in your network checks the caller token, refuses writes, masks emails, phone numbers and card numbers in responses and records each request, then forwards to the REST API. The proxy refuses any other host, the API's own included, with a 403."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/integrations/openai-agents-sidecar-dark.svg"
+    alt="The agent in an OpenAI hosted sandbox sends HTTPS requests through OpenAI's egress proxy, which allows only the Sidecar's host. The vault fills the real tokens into requests toward that host. The Sidecar in your network checks the caller token, refuses writes, masks emails, phone numbers and card numbers in responses and records each request, then forwards to the REST API. The proxy refuses any other host, the API's own included, with a 403."
+  />
+</Frame>
+
+<Warning>
+The Sidecar sees the HTTPS requests that code in the sandbox sends to the Sidecar's host. These do not pass through it:
+
+- OpenAI's servers call an MCP server that the agent declares with `connection_origin: service`, and `allowed_domains` does not apply to those calls. The template's agent declares no MCP server.
+- Whether `allowed_domains` limits a hosted tool, such as web search, is untested. The template's agent has no tools, so add none.
+</Warning>
+
+---
+
+## Why the agent cannot skip the Sidecar
+
+Two controls are OpenAI's, and one is the Sidecar's:
+
+- **One reachable host.** The environment template sets `network.access: restricted` and lists only the Sidecar's host in `allowed_domains`. The sandbox reaches the network through OpenAI's egress proxy, which refuses every other host, the API's own included. curl prints `curl: (56) CONNECT tunnel failed, response 403`.
+- **Placeholders in the sandbox.** Both tokens the agent sends are [vault credentials](https://developers.openai.com/api/docs/guides/agents-api/tools/vaults) bound to the Sidecar's host. Code in the sandbox sees a placeholder, such as `__OPENAI_SECRET__[HOOP_CALLER_TOKEN:<32 hex digits>]__`, new in each session. The egress proxy writes the real token into requests to that host only.
+- **A caller token on every request.** The Sidecar refuses a request without the caller token before any byte of it reaches the API. The Sidecar's URL is public, and a caller from anywhere else is refused the same way.
+
+The vault credential decides where a token goes: the proxy fills it only toward the credential's `allowed_hosts`, and another host gets the placeholder. The one-host limit holds in sessions that name the environment template. A session cannot broaden its network: the API refuses that request with `400`. A session that names no environment template gets `enabled` networking, OpenAI's default, so limit who holds API keys for your OpenAI project.
+
+---
+
+## Tokens go in headers only
+
+<Warning>
+Toward the Sidecar's host, the vault fills a placeholder anywhere in the request: any header, the URL path and query, and the body. A vault credential has no setting that limits where it fills. On `hoophq/hoopsidecar` 1.263.0:
+
+- A token in a URL reaches the Sidecar's audit row in clear.
+- The API receives the real token wherever the agent wrote it. An API that echoes that value, such as an error message that quotes the path, returns the token to the sandbox.
+
+The template's agent instructions keep both tokens in headers. A prompt is not a control, so keep endpoints that echo input out of the agent's reach.
+</Warning>
+
+---
+
+## Get the template
+
+Both setups below use `$T`, so run them in the shell that sets it:
+
+```bash
+git clone -q --depth 1 --filter=blob:none --sparse https://github.com/hoophq/hoop.git hoop
+git -C hoop sparse-checkout set deploy/openai-agents/http
+T=$PWD/hoop/deploy/openai-agents/http
+```
+
+| Path | Holds |
+|---|---|
+| `quickstart/` | The quick start: a Compose stack, its Sidecar config, `run.sh`, `agent.sh` and the demo agent |
+| `values.yaml` | Sidecar chart values: one HTTPS listener on 443, the caller token, a read-only guardrail, a mask rule |
+| `setup.sh` | Creates and deletes the OpenAI side, and starts a session. It needs only `curl` and `jq` |
+| `openai/` | The request bodies: the environment template, the vault, the two credentials without their tokens, the agent and its instructions |
+
+---
+
+## Quick start
+
+The Sidecar fronts hoop's demo API, a set of invented users with emails, phones and cards. A Cloudflare quick tunnel gives it a public HTTPS host. The tunnel is for a trial: it has no uptime promise and gets a new host on each start.
+
+You need Docker, `curl` 7.76 or later, `openssl`, `jq` 1.6 or later, and an OpenAI API key with Agents API access. No cluster and no certificate.
+
+<Steps>
+  <Step title="Start the Sidecar">
+    ```bash
+    cd "$T/quickstart" && ./run.sh
+    ```
+
+    It starts the Sidecar, the demo API and the tunnel, then checks the listener through the tunnel host:
+
+    ```text
+      ok  GET /users/1 is masked:
+            {
+              "id": 1,
+              "name": "Grace Hopper",
+              "email": "[REDACTED:EMAIL_ADDRESS]",
+              "phone": "[REDACTED:PHONE_NUMBER]",
+              "card": "[REDACTED:CREDIT_CARD]",
+              "plan": "enterprise"
+            }
+      ok  DELETE /users/1 is refused: this agent may only read from the API
+      ok  a request without X-Hoop-Token is refused: request refused: the request carried no credential
+    ```
+  </Step>
+
+  <Step title="Ask the agent">
+    Read your OpenAI API key without echoing it, then run the agent:
+
+    ```bash
+    read -rs OPENAI_API_KEY && export OPENAI_API_KEY
+    ```
+
+    ```bash
+    ./agent.sh
+    ```
+
+    It creates an environment template that can reach only the tunnel host, a vault with the caller token, and the demo agent. Then it starts a session, asks the agent to list the users and to try `DELETE /users/1`, and prints each command the agent ran, its output and the answer.
+
+    The answer lists the users with `[REDACTED:EMAIL_ADDRESS]`, `[REDACTED:PHONE_NUMBER]` and `[REDACTED:CREDIT_CARD]`, and reports `403` and `this agent may only read from the API` for the DELETE. The last line is `turn: completed`.
+  </Step>
+
+  <Step title="Read the audit trail">
+    ```bash
+    docker compose logs --no-log-prefix sidecar | jq -cR 'fromjson? | select((.kind == "statement" or .kind == "violation") and .direction == "client")
+      | {kind, principal, statement, rule, session: .http.headers["x-openai-session-id"]}'
+    ```
+
+    An admitted request's row names `openai-agents` and the session id the caller sent: the OpenAI session, or `run.sh` for the checks in step 1. The DELETE rows name rule `read-only`. The request without a token is the `anonymous` row with rule `identity`, and carries no session id.
+  </Step>
+
+  <Step title="Clean up">
+    ```bash
+    ./agent.sh --delete && ./run.sh down
+    ```
+  </Step>
+</Steps>
+
+From a cold start, `run.sh` took under 2 minutes and `agent.sh` about a minute in our runs.
+
+---
+
+## Run it against your API
+
+### Requirements
+
+- A Kubernetes cluster that can publish a `LoadBalancer` Service, and a DNS name for it. All `kubectl` and `helm` commands below use your current namespace.
+- A TLS certificate for that name from a public CA, as `tls.crt` (full chain) and `tls.key`. The vault fills tokens only into HTTPS requests on port 443 or 8443, and the egress proxy inspects TLS. A private CA is untested.
+- `helm`, `kubectl`, `openssl`, `curl` 7.76 or later and `jq` 1.6 or later.
+- An OpenAI API key with Agents API access.
+- `hoophq/hoopsidecar` 1.263.0 or later. `values.yaml` pins 1.263.0. Older releases report the template's install source as `other`.
+
+The certificate needs the DNS name, and the DNS name needs the load balancer's address. Reserve a static address first and add `--set laneServices.public.loadBalancerIP=<address>` to the `helm install` below, or issue the certificate with a DNS-01 challenge, which needs no running server.
+
+<Steps>
+  <Step title="Create the tokens and the certificate">
+    Keep them outside the clone. Set `SIDECAR_HOST` to your DNS name:
+
+    ```bash
+    mkdir -m 700 -p ~/hoop-openai && cd ~/hoop-openai
+    export SIDECAR_HOST=sidecar.example.com
+    openssl rand -hex 24 > caller-token
+    ```
+
+    Save your API's own token for the vault, without echoing it:
+
+    ```bash
+    read -rs API_TOKEN && printf %s "$API_TOKEN" > api-token && unset API_TOKEN
+    ```
+
+    Put `tls.crt` and `tls.key` in this directory. With certbot and DNS-01, for example:
+
+    ```bash
+    sudo certbot certonly --manual --preferred-challenges dns -d "$SIDECAR_HOST"
+    sudo cat "/etc/letsencrypt/live/$SIDECAR_HOST/fullchain.pem" > tls.crt
+    sudo cat "/etc/letsencrypt/live/$SIDECAR_HOST/privkey.pem" > tls.key
+    ```
+  </Step>
+
+  <Step title="Run the Sidecar">
+    In the `helm install` line, replace `https://api.example.com` with your API:
+
+    ```bash
+    kubectl create secret tls hoop-sidecar-tls --cert=tls.crt --key=tls.key
+    kubectl create secret generic hoop-caller-token --from-file=tokens=caller-token
+    helm install hoop-api oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version 1.263.0 \
+      -f "$T/values.yaml" --set 'config.listeners[0].upstream=https://api.example.com'
+    kubectl rollout status deploy/hoop-api-hoopsidecar
+    kubectl get svc hoop-api-hoopsidecar-public
+    ```
+
+    Wait until `EXTERNAL-IP` is not `<pending>`, then point `SIDECAR_HOST` at it: an A record for an IP address, a CNAME for a host name. These are the parts of `values.yaml` that decide what the agent can do:
+
+    ```yaml values.yaml
+    config:
+      listeners:
+        - name: customer-api
+          protocol: http
+          listen: 'https://0.0.0.0:8443'
+          upstream: 'https://api.example.com'
+          downstream_tls:
+            cert_file: /run/secrets/hoop-tls/tls.crt
+            key_file: /run/secrets/hoop-tls/tls.key
+          caller_token:
+            file: /run/secrets/hoop-caller-token/tokens
+            name: openai-agents
+          http:
+            headers: [X-OpenAI-Session-Id]
+      guardrails:
+        rules:
+          - name: read-only
+            type: operation
+            operations: [post, put, patch, delete, connect, trace, other]
+            message: this agent may only read from the API
+      mask:
+        rules:
+          - name: pii
+            entities: [EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD]
+            strategy: redact
+    ```
+
+    - `caller_token` admits a request only when its `X-Hoop-Token` header holds a token from the file. Audit rows name the principal `openai-agents`. See [Caller token](/setup/configuration/hoop-sidecar/protocols/http#caller-token).
+    - `upstream` is a URL, so the hop to the API uses TLS and verifies the API's certificate. The listener forwards the `Authorization` header unchanged, so the API gets the token that the vault filled.
+    - `guardrails` refuses every method but `GET`, `HEAD` and `OPTIONS`. `other` is any method that HTTP does not define, such as `MOVE`.
+    - `mask` redacts emails, phone numbers and card numbers in responses, and no other value.
+    - `http.headers` records the agent's `X-OpenAI-Session-Id` on each audit row.
+    - The public Service maps port 443 to the listener's 8443. The admin port stays on the chart's `ClusterIP` Service.
+    - `analytics.installSource`, at the top of the file, names this template in the Sidecar's usage analytics. Set `analytics.enabled: false` to send no analytics.
+  </Step>
+
+  <Step title="Check the Sidecar">
+    ```bash
+    curl -sS "https://$SIDECAR_HOST/"
+    curl -sS -o /dev/null -D - -X POST "https://$SIDECAR_HOST/" \
+      -H @<(printf 'X-Hoop-Token: %s\n' "$(cat caller-token)") | grep -i '^x-hoop-denied'
+    ```
+
+    The first prints `request refused: the request carried no credential`. The second prints `x-hoop-denied: policy`.
+  </Step>
+
+  <Step title="Create the OpenAI side">
+    Read your OpenAI API key without echoing it:
+
+    ```bash
+    read -rs OPENAI_API_KEY && export OPENAI_API_KEY
+    ```
+
+    The dry run prints the request bodies with your host, and sends nothing:
+
+    ```bash
+    export CALLER_TOKEN_FILE=$PWD/caller-token API_TOKEN_FILE=$PWD/api-token
+    "$T/setup.sh" create --dry-run
+    ```
+
+    Then create them:
+
+    ```bash
+    "$T/setup.sh" create
+    ```
+
+    `create` makes the environment template, a vault with two credentials, and the agent. It writes their ids to `./.openai-ids`, and refuses a second run until `delete`. The environment template is what keeps the sandbox on the Sidecar:
+
+    ```json openai/environment-template.json
+    {
+      "name": "hoop sidecar",
+      "network": {
+        "access": "restricted",
+        "allowed_domains": ["sidecar.example.com"]
+      }
+    }
+    ```
+
+    Each credential is bound to the Sidecar's host, not the API's, because the sandbox never reaches the API:
+
+    ```json openai/credentials/caller-token.json
+    {
+      "name": "hoop sidecar caller token",
+      "auth": {
+        "type": "environment_variable",
+        "secret_name": "HOOP_CALLER_TOKEN",
+        "networking": {"type": "limited", "allowed_hosts": ["sidecar.example.com"]}
+      }
+    }
+    ```
+
+    - `setup.sh` writes `SIDECAR_HOST` in place of `sidecar.example.com`, and sends each token from its file, without the trailing newline that the API refuses.
+    - `CUSTOMER_API_TOKEN`, your API's token, is the second credential, in the same shape.
+    - An environment template cannot hold a vault, so each session names the environment template, the vault and the agent.
+    - The agent's instructions, `openai/agent.md`, name the three headers to send. They use `/v1/customers` as an example, so edit them for your API.
+  </Step>
+
+  <Step title="Start a session">
+    ```bash
+    "$T/setup.sh" session 'Which plan is customer 2 on?'
+    ```
+
+    No variable in the sandbox holds the session id, so the first message gives it to the agent. The script waits for the turn and prints the agent's commands and answer.
+  </Step>
+</Steps>
+
+---
+
+## Verify
+
+| The agent | Result |
+|---|---|
+| GETs a customer | `200`, with emails, phone numbers and cards as `[REDACTED:EMAIL_ADDRESS]`, `[REDACTED:PHONE_NUMBER]` and `[REDACTED:CREDIT_CARD]` |
+| Sends any method but `GET`, `HEAD` or `OPTIONS` | `403` with `X-Hoop-Denied: policy`. The API receives nothing. |
+| Omits `X-Hoop-Token` | `403`, `request refused: the request carried no credential` |
+| Calls the API's host, or any other host | `curl: (56) CONNECT tunnel failed, response 403`. A client that skips the proxy gets `Temporary failure in name resolution`. |
+
+The Sidecar writes the audit trail to stdout and keeps no copy, so ship the pod's logs to your log system. To read it:
+
+```bash
+kubectl logs deploy/hoop-api-hoopsidecar | jq -cR 'fromjson? | select((.kind == "statement" or .kind == "violation") and .direction == "client")
+  | {kind, principal, statement, rule, session: .http.headers["x-openai-session-id"]}'
+```
+
+A request row carries the session id that the agent sent. A refused caller is recorded under principal `anonymous` with rule `identity`.
+
+---
+
+## Kubernetes through the Sidecar
+
+The [`kubernetes`](https://github.com/hoophq/hoop/tree/main/deploy/openai-agents/kubernetes) template gives the agent `kubectl` against one cluster, through a Sidecar http listener in front of the cluster's API server. The Sidecar refuses `DELETE`, masks Secret values in JSON responses and records each request with the session id.
+
+It differs from the REST setup above:
+
+- **No caller token.** kubectl cannot send `X-Hoop-Token`, so the listener admits any caller, and only the API server checks the token. Rows name the principal `anonymous`.
+- **kubectl arrives as an environment file.** The sandbox has no route to a download host, so `setup.sh` uploads the kubectl client to the template, and a script in the sandbox unpacks it. It is the linux/amd64 build.
+- **The session id travels as an impersonation extra.** kubectl sends it in `Impersonate-Extra-Hoop-Session`, which needs one ClusterRole for `userextras/hoop-session`.
+
+Its README lists the steps and the limits, such as YAML and Protobuf responses that carry Secret values unmasked, and client-side `kubectl apply` failing on the masked annotation.
+
+---
+
+## Postgres through an MCP server
+
+A hosted sandbox cannot reach a database over the Postgres protocol: `psql` fails with `restricted` and with `enabled` networking, and the egress proxy closes a tunnel to port 5432 on the first Postgres byte. The [`postgres-mcp`](https://github.com/hoophq/hoop/tree/main/deploy/openai-agents/postgres-mcp) template gives the agent Postgres as an MCP tool instead. [dbhub](https://github.com/bytebase/dbhub), the MCP server, reaches the database only through a Sidecar postgres listener, which refuses writes, masks emails and records each statement.
+
+Its guarantee is different from the REST setup above:
+
+- **OpenAI's servers make the MCP call, not the sandbox.** The agent's MCP tool sets `connection_origin: service`, and the sandbox's network is `disabled`. A `static_bearer` credential in the vault sends dbhub's token from OpenAI's servers, so the token never enters the sandbox.
+- **Caddy checks the address, and dbhub checks the token.** Caddy, the HTTPS front end, admits only the addresses in OpenAI's [`chatgpt-connectors.json`](https://openai.com/chatgpt-connectors.json) and serves only `/mcp`. OpenAI's [IP address page](https://developers.openai.com/api/docs/guides/ip-addresses) names no list for MCP calls from the Agents API, and the test sessions called from addresses in this one. It holds every OpenAI customer, so the token is what admits your agent.
+- **dbhub has one route to the database.** It shares a network with Caddy and the Sidecar only, so the Sidecar is its only path to Postgres.
+
+The template runs on one Linux host with Docker Compose. Its README lists the steps and the limits, such as a refused write closing the connection, and audit rows that name no OpenAI session.
+
+---
+
+## Behavior to know
+
+OpenAI's:
+
+- **US data residency only, no Zero Data Retention.** See the [Agents API overview](https://developers.openai.com/api/docs/guides/agents-api/overview). The prompts, and the masked responses the agent reads, go to OpenAI.
+- **Exact hosts only.** `allowed_domains` takes 1 to 100 exact host names, with no wildcard, scheme, port or path. A redirect target needs its own entry. See [hosted environments](https://developers.openai.com/api/docs/guides/agents-api/environments/openai-hosted).
+- **An idle sandbox can be deleted after an hour.** OpenAI's timeout is not configurable.
+- **No cost cap per session.** The API refuses the `spend_control` session field.
+- **Port 80 passes too.** The egress proxy lets plain HTTP through to the Sidecar's host, and the vault fills nothing there. Publish the listener on 443 only, as the template does.
+- **The listener's own certificate is untested from a hosted session.** The test sessions reached the Sidecar through a Cloudflare tunnel, so the egress proxy saw Cloudflare's certificate, not the one in `hoop-sidecar-tls`. Run one session against your host before agents rely on it.
+
+The Sidecar's:
+
+- **The session id is a label.** The agent writes the header, so it can write any value. It correlates rows. It does not prove who asked.
+- **Two kinds of row carry no session id**, although the request sent it: a refused caller, and a WebSocket frame.
+- **One token for every agent.** Each row names `openai-agents`, not a person. Per-user rows need a per-user token.
+- **Only the caller token guards the public URL.** The sandbox's egress addresses are shared by OpenAI customers, so an address allowlist on the load balancer cannot narrow who reaches it. Rotate the token as [Caller token](/setup/configuration/hoop-sidecar/protocols/http#caller-token) describes.
+- **The rule reads the request method only.** An API that accepts `X-HTTP-Method-Override`, `X-HTTP-Method` or `X-Method-Override` runs the method that the header names, even on a `GET`. Turn overrides off at the API. With a license, you can also add one `http_header` rule per override header and list each header in `http.headers`.
+- **A request is held until it is whole.** The Sidecar judges a request after its body arrives, and forwards none of it before. A request over 8 MiB is refused. A client that sends `Expect: 100-continue` (curl does this above 1 MiB) waits about 1 second before it sends the body.
+- **Masking applies to responses.** A JSON or text response under `br` or `zstd` is refused, not forwarded unmasked. A response over 16 MiB passes unmasked. Audit rows hold the request line as sent. See [Masking](/setup/configuration/hoop-sidecar/protocols/http#masking).
+- **Scope.** The template covers JSON REST APIs over HTTP/1.1 and HTTP/2. Server-sent events and MCP servers are out of its scope.
+- **No other database, and no SSH, from the sandbox yet.** No template covers them, and Postgres bytes do not pass the egress proxy. For Postgres, see [Postgres through an MCP server](#postgres-through-an-mcp-server).
+
+---
+
+## Clean up
+
+```bash
+"$T/setup.sh" delete
+helm uninstall hoop-api
+kubectl delete secret hoop-sidecar-tls hoop-caller-token
+```
+
+`delete` removes the vault first, because it holds the tokens, then the sessions, the agent and the template. If it fails halfway, run it again: it retries only what is left. Then remove `~/hoop-openai` and the DNS record for `SIDECAR_HOST`.
+
+A network error during `create` or `session` can leave a resource that `.openai-ids` does not list. Find it by its name, `hoop sidecar`, `customer-api` or `hoop-demo-api`, in `GET /v1/vaults`, `/v1/agents`, `/v1/agents/environments/templates` or `/v1/agents/sessions`, and delete it.
+
+---
+
+## Free and Enterprise
+
+<EnterpriseLimit />
+
+- **The template fits the free tier.** It uses one guardrail rule, `read-only`, and one masking rule, `pii`, however many agents and sessions call it. One rule can carry more than one check: `read-only` names seven methods, and `pii` three entities.
+- **A config over the cap does not start.** In the quick start, `./run.sh` stops and shows the Sidecar's log, which ends:
+
+  ```text
+  Error: invalid config:
+    - 2 guardrail rules are configured (guardrails: 2) and this process enforces at most 1; merge them into one rule. A license lifts this cap: add one with the license flag, the HOOP_LICENSE environment variable, or the "license" key in the config file. Contact our support at https://help.hoop.dev. ai_analysis rules are counted separately and are not limited
+  ```
+
+  To check a config before the next start, run `docker compose run --rm sidecar hoop start sidecar --validate` in `quickstart/` after the first `./run.sh`. A running Sidecar refuses an edit over the cap with a warning, and keeps the old rules.
+- **More rules:** an Enterprise license with the guardrails and data-masking features lifts the one-rule caps, with or without a Control Plane. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing) and the chart's [License](/install/kubernetes#license) setting. In the quick start, put the license document itself in `quickstart/.env`, in single quotes: `HOOP_LICENSE='{"payload": ...}'`.
+- **Approvals and central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds approvals, shared rule sets and one view of many Sidecars.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Claude Managed Agents" icon="cloud" href="/integrations/claude-managed-agents">
+    The same setup for an agent on Anthropic's cloud sandbox.
+  </Card>
+  <Card title="HTTP" icon="globe" href="/setup/configuration/hoop-sidecar/protocols/http">
+    What the http listener inspects, masks and refuses.
+  </Card>
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    `operation`, `http_resource`, `http_status` and `http_header` rules.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/install/kubernetes">
+    Install and configure the Sidecar chart.
+  </Card>
+</CardGroup>
