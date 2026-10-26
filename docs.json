@@ -94,6 +94,7 @@
                   "setup/configuration/hoop-sidecar/config-file",
                   "setup/configuration/hoop-sidecar/service-accounts",
                   "setup/configuration/hoop-sidecar/identity-mapping",
+                  "setup/configuration/hoop-sidecar/credentials",
                   "setup/configuration/hoop-sidecar/policy-rules",
                   "setup/configuration/hoop-sidecar/risk-analysis",
                   "setup/configuration/hoop-sidecar/agent-approvals",
@@ -157,7 +158,8 @@
               "features/direct-access",
               "features/agentic-access",
               "features/data-masking",
-              "features/guardrails"
+              "features/guardrails",
+              "features/credential-swap"
             ]
           },
           {
@@ -174,7 +176,8 @@
                   "control-plane/environment-variables"
                 ]
               },
-              "control-plane/slack"
+              "control-plane/slack",
+              "control-plane/lane-credentials"
             ]
           }
         ]
