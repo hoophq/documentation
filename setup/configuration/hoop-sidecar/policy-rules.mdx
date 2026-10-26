@@ -202,7 +202,7 @@ The denial message never quotes the value it found.
   message: the admin API is not reachable through this proxy
 ```
 
-Patterns match the NORMALIZED path, so `/users/12345/orders/98765` arrives as `/users/*/orders/*` and one rule replaces a regex per endpoint. A trailing `/**` matches the path itself and anything under it, and a `*` segment before it stays a wildcard: `/api/v1/namespaces/*/secrets/**` covers the collection in every namespace and every secret in it. `methods` narrows the rule; leave it out to cover every method.
+Patterns match the NORMALIZED path, so `/users/12345/orders/98765` arrives as `/users/*/orders/*` and one rule replaces a regex per endpoint. A trailing `/**` matches the path itself and anything under it, and a `*` segment before it stays a wildcard: `/api/v1/namespaces/*/secrets/**` covers the collection in every namespace and every secret in it. Dot and empty segments resolve first, so `/x/../admin/users` matches `/admin/**`: see [Dot and empty segments](/setup/configuration/hoop-sidecar/protocols/http#dot-and-empty-segments). `methods` narrows the rule; leave it out to cover every method.
 
 ### http_status
 
