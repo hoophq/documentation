@@ -69,6 +69,34 @@ listeners:
 | `capture_body` | Includes request and response bodies in the statement. A `pii` or `pattern_match` rule that reads payloads needs it. It is optional for the analyzer, which judges a request from its request line and headers without it. A lane that holds for review captures request bodies without it; response bodies still need it. |
 | `max_body_bytes` | Truncates a captured body. Default 64 KiB. |
 | `headers` | Headers exposed to policy, the audit trail and the analyzer, matched case-insensitively. An `http_header` rule may name only headers listed here. `authorization`, `cookie`, `proxy-authorization` and `set-cookie` can never be listed. |
+| `sql` | Reads the SQL a JSON API carries in its request body. See [SQL in request bodies](#sql-in-request-bodies). |
+
+## SQL in request bodies
+
+A JSON API that runs SQL carries it in the request body, so an `operation` or `table` rule on the request line matches nothing: `POST /api/2.0/sql/statements` is a `post`. An `http.sql` block reads the SQL out of the body. Each SQL string becomes a statement of its own, right after the request that carried it, and guardrail rules, masking and the audit trail see it as SQL.
+
+```yaml
+http:
+  sql:
+    dialect: spark                                       # how to read the SQL
+    fields:
+      /api/2.0/sql/statements: statement                 # route: JSON path of the SQL
+      /ai-gateway/mcp-services/**: params.arguments.query
+    tools: [execute_sql]                                 # MCP tools/call that carry SQL
+    refuse: [disposition=EXTERNAL_LINKS]                 # field=value refused before forwarding
+    refuse_message: ask for disposition INLINE
+```
+
+| Field | Meaning |
+|---|---|
+| `dialect` | Required. `spark`, `postgres`, `mysql`, `mssql`, `googlesql`, `clickhouse` or `oracle`. |
+| `fields` | A route pattern, written as an `http_resource` rule writes it, mapped to the dotted JSON path of the SQL. The longest matching pattern wins. |
+| `tools` | A body with a `jsonrpc` member carries SQL only as a `tools/call` naming one of these. A JSON-RPC batch yields one statement per call. |
+| `refuse` | `field=value` pairs, compared case-insensitively, that send a request's results around the Sidecar. Such a request is refused with `refuse_message`, whatever the rules say. |
+
+A body that should carry SQL and does not yield it (cut at `max_body_bytes`, not JSON, no string at the path) becomes an `unknown` statement, which a rule naming `unknown` refuses. With `refuse` set, a body cut at the limit or not JSON is refused outright, because its value cannot be checked either. The block captures request bodies, so they reach the audit trail. A lane with `http.sql` cannot set an analyzer that holds for approval yet.
+
+[Databricks](/integrations/databricks) walks through a full lane.
 
 ## Identity
 
@@ -167,7 +195,7 @@ Every http lane appends `Via: <request version> hoop-<16 hex>` as the last reque
 
 The codec rebuilds the response around the masked values. A JSON body is walked value by value, and each string or number reaches the masker under its dotted key path (`data.password`, `items.metadata.name`), so a `columns` rule names a JSON key the way it names a result-set column and masks it whatever it holds. A text body (`text/*`, XML, YAML, form data, or no `Content-Type`) is masked as text. Binary types pass through untouched.
 
-`Content-Length` is corrected. A chunked body is re-chunked and streams: each complete top-level JSON value, or each line of text, goes out as soon as it is whole, so a watch or a log follow is not held to its end and a value split across two chunks is still masked whole. A gzip or deflate body is undone around the masker and compressed again. A text or JSON body under an encoding the codec cannot undo (zstd, br, lz4) is refused with a 403 and an `error` audit row rather than forwarded unmasked; a binary body under such an encoding passes. A body the codec is holding that grows past 16 MiB goes out unmasked, and the next response is masked again.
+`Content-Length` is corrected. A chunked body is re-chunked and streams: each complete top-level JSON value, or each line of text, goes out as soon as it is whole, so a watch or a log follow is not held to its end and a value split across two chunks is still masked whole. A gzip or deflate body is undone around the masker and compressed again. A text or JSON body under an encoding the codec cannot undo (zstd, br, lz4) is refused with a 403 and an `error` audit row rather than forwarded unmasked; a binary body under such an encoding passes. A JSON or text body too large to mask is refused the same way: one held past 8 MiB as sent, or a gzip or deflate body that inflates past 16 MiB. The lane keeps serving after the refusal. Older Sidecars could forward such a body unmasked.
 
 See [Kubernetes API](/setup/configuration/hoop-sidecar/protocols/kubernetes) for `columns: [data]` against kube-apiserver's chunked responses, and the [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse) HTTP interface for TSV, `JSONEachRow` and `FORMAT JSON` results.
 

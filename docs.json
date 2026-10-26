@@ -136,6 +136,7 @@
                       "integrations/openai-agents",
                       "integrations/aws-agentcore",
                       "integrations/google-cloud",
+                      "integrations/databricks",
                       "integrations/mongodb-atlas",
                       "integrations/neon",
                       "integrations/snowflake",

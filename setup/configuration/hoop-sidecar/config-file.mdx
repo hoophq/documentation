@@ -387,7 +387,7 @@ The scanner discards comments and string literals before it classifies, so `SELE
   message: destructive statements are not permitted on appdb
 ```
 
-Add `unknown` to that list on a lane where a statement the scanner could not read must not run. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
+Add `unknown` to that list on a lane where a statement the scanner could not read must not run. `unknown` matches what the client sends only: a response carries no verb and never matches it. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
 
 SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
 
