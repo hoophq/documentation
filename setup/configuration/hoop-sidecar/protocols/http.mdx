@@ -100,7 +100,7 @@ The result names who holds the token, not what it may do. The upstream still che
 
 ### Caller token
 
-`caller_token` admits a caller by a shared token, for a lane on a public URL with nothing in front to authenticate the caller. An agent on [Claude Managed Agents](/integrations/claude-managed-agents) or the [OpenAI Agents API](/integrations/openai-agents) calls a lane this way.
+`caller_token` admits a caller by a shared token, for a listener on a public URL with nothing in front to authenticate the caller. An agent on [Claude Managed Agents](/integrations/claude-managed-agents) or the [OpenAI Agents API](/integrations/openai-agents) calls a listener this way. An [Amazon Bedrock AgentCore](/integrations/aws-agentcore) agent sends the same token to a plain HTTP listener inside a VPC, where the token names the caller in the audit trail.
 
 ```yaml
 listeners:
