@@ -134,6 +134,7 @@
                     "pages": [
                       "integrations/claude-managed-agents",
                       "integrations/openai-agents",
+                      "integrations/aws-agentcore",
                       "integrations/mongodb-atlas",
                       "integrations/neon",
                       "integrations/snowflake",

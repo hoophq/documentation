@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 40 1000 470" role="img" aria-label="Amazon Bedrock AgentCore with the Hoop Sidecar: an AgentCore agent, a harness or your own Runtime agent, runs in agent subnets with no route out. It sends plain HTTP requests on port 8080 to the Sidecar on ECS Fargate in the service subnet. The Sidecar checks the caller token, refuses writes, masks emails, phone numbers and card numbers in responses and records each request with the session id in CloudWatch, then forwards to the REST API over HTTPS. The agent's model calls and AWS API calls go to the VPC endpoints. A connection to any other address times out, and any other name gets NXDOMAIN.">
+        <defs>
+          <marker id="agc-ink" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#10151b"/>
+          </marker>
+          <marker id="agc-data" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#3c6a1e"/>
+          </marker>
+          <marker id="agc-api" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#1d4e79"/>
+          </marker>
+          <marker id="agc-muted" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
+            <polygon points="0,0 10,4 0,8" fill="#8b96a3"/>
+          </marker>
+        </defs>
+
+        <!-- zones -->
+        <rect x="20" y="60" width="380" height="440" fill="#e9edf1" stroke="#b3bfc9" stroke-dasharray="3 4"/>
+        <text x="36" y="84" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#5a6673" letter-spacing="1.2">AGENT SUBNETS · NO ROUTE OUT</text>
+        <rect x="440" y="60" width="308" height="440" fill="#e9edf1" stroke="#b3bfc9" stroke-dasharray="3 4"/>
+        <text x="456" y="84" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11.5" fill="#5a6673" letter-spacing="1.2">SERVICE SUBNET</text>
+
+        <!-- agent -->
+        <rect x="36" y="120" width="180" height="64" fill="#ffffff" stroke="#b3bfc9"/>
+        <text x="126" y="143" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#10151b">AgentCore agent</text>
+        <text x="126" y="160" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">harness or Runtime</text>
+        <text x="126" y="175" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">curl $SIDECAR_URL</text>
+
+        <!-- endpoints -->
+        <line x1="126" y1="184" x2="126" y2="232" stroke="#10151b" stroke-width="1.4" marker-end="url(#agc-ink)"/>
+        <text x="134" y="213" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">model · AWS APIs</text>
+        <rect x="36" y="236" width="180" height="72" fill="#ffffff" stroke="#b3bfc9"/>
+        <text x="126" y="259" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#10151b">VPC endpoints</text>
+        <text x="126" y="277" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">ECR · S3 layers</text>
+        <text x="126" y="292" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">Bedrock Runtime · Logs</text>
+
+        <!-- inspected path -->
+        <line x1="216" y1="152" x2="448" y2="152" stroke="#3c6a1e" stroke-width="2.2" marker-end="url(#agc-data)"/>
+        <text x="300" y="142" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#3c6a1e">HTTP :8080</text>
+
+        <!-- sidecar -->
+        <rect x="452" y="104" width="284" height="272" fill="#ffffff" stroke="#3b4756" stroke-width="1.6"/>
+        <text x="466" y="128" font-family="Archivo, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#10151b">Hoop Sidecar</text>
+        <text x="466" y="144" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">ECS Fargate · one http listener</text>
+        <rect x="464" y="156" width="260" height="46" fill="#e9edf1" stroke="#b3bfc9"/>
+        <text x="474" y="175" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#10151b">Caller token</text>
+        <text x="474" y="192" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">X-Hoop-Token · checked first</text>
+        <rect x="464" y="208" width="260" height="46" fill="#e9edf1" stroke="#b3bfc9"/>
+        <text x="474" y="227" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#10151b">Guardrails</text>
+        <text x="474" y="244" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">read-only: GET · HEAD · OPTIONS</text>
+        <rect x="464" y="260" width="260" height="46" fill="#e9edf1" stroke="#b3bfc9"/>
+        <text x="474" y="279" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#10151b">Data Masking</text>
+        <text x="474" y="296" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">emails · phones · cards</text>
+        <rect x="464" y="312" width="260" height="46" fill="#e9edf1" stroke="#b3bfc9"/>
+        <text x="474" y="331" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#10151b">Audit</text>
+        <text x="474" y="348" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">CloudWatch · session id</text>
+
+        <!-- api -->
+        <line x1="736" y1="230" x2="796" y2="230" stroke="#1d4e79" stroke-width="2" marker-end="url(#agc-api)"/>
+        <text x="754" y="220" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="11" fill="#1d4e79">HTTPS</text>
+        <rect x="800" y="200" width="180" height="60" fill="#ffffff" stroke="#1d4e79" stroke-width="1.6"/>
+        <text x="890" y="225" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#10151b">REST API</text>
+        <text x="890" y="243" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#5a6673">gets Authorization as sent</text>
+
+        <!-- refused path -->
+        <polyline points="216,172 310,172 310,366" fill="none" stroke="#8b96a3" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#agc-muted)"/>
+        <text x="318" y="290" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="11.5" fill="#5a6673">no route</text>
+        <rect x="236" y="370" width="148" height="56" fill="none" stroke="#8b96a3" stroke-dasharray="3 3"/>
+        <text x="310" y="391" text-anchor="middle" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#5a6673">Any other host</text>
+        <text x="310" y="406" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#8b96a3">API's host: timeout</text>
+        <text x="310" y="419" text-anchor="middle" font-family="IBM Plex Mono, Menlo, Consolas, monospace" font-size="10.5" fill="#8b96a3">other names: NXDOMAIN</text>
+
+        <!-- notes -->
+        <text x="36" y="462" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#10151b">The agent subnets have no route out.</text>
+        <text x="36" y="480" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#5a6673">DNS answers AWS names and the Sidecar only.</text>
+        <text x="456" y="462" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#10151b">No caller token, no API.</text>
+        <text x="456" y="480" font-family="IBM Plex Sans, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12" fill="#5a6673">Writes get 403. Responses are masked.</text>
+      </svg>
