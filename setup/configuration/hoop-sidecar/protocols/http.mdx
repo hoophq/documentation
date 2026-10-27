@@ -40,6 +40,12 @@ Policy keyed on raw paths needs a regex per endpoint. The codec collapses dynami
 
 The slug survives on purpose: nothing distinguishes `/users/alice` from `/users/settings`, and collapsing it would widen every rule written against either without warning. In doubt the codec keeps the segment, so a policy can end up too narrow but never too broad. File extensions survive too (`/reports/12345.pdf` → `/reports/*.pdf`), because a policy may allow `*.csv` and deny `*.sql`.
 
+### Dot and empty segments
+
+The codec resolves the path before it matches a rule: `\` becomes `/`, and `.`, `..` and empty segments resolve. `/x/../admin/users` and `//admin//users` both become `/admin/users`, so `/admin/**` matches them. A trailing slash stays. The audit trail keeps the path as sent.
+
+The sidecar cannot see how an upstream routes: Express 4 runs `/admin/../x` under `/admin`, and GKE Connect Gateway may route the raw membership and leave the rest to a cluster that resolves it. So when the path holds `.` or `..`, `http_resource` rules and the `resources` scope of `http_header` rules also match the path before resolution, raw and resolved on its own. OPA reads that form from `input.metadata["http.resource_unresolved"]`.
+
 ---
 
 ## The `http` block
