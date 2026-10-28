@@ -177,7 +177,7 @@
                 ]
               },
               "control-plane/slack",
-              "control-plane/lane-credentials"
+              "control-plane/sidecar-owners"
             ]
           }
         ]
