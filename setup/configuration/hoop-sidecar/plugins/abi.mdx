@@ -158,7 +158,9 @@ Field names are the JSON names of the Sidecar's `Statement`. The host refuses un
 {"credential": "Bearer eyJ...", "ok": true, "statement": {"...": "the statement with the handle removed"}}
 ```
 
-The module reads the handle under `metadata["<protocol>.credential"]`, returns the credential it stands for, removes the key from `statement` and forgets the entry, so a second call with the same handle answers `ok: false`. `ok: false` also means the request carried none. With `ok: true` the module returns `statement` with neither the handle nor the credential on it; the host replaces the statement with it before policy, audit or the analyzer see it.
+The module reads the handle under `metadata["<protocol>.credential"]`, returns the credential it stands for, removes the key from `statement` and forgets the entry, so a second call with the same handle answers `ok: false`. `ok: false` also means the request carried none: the frame stays with the running session. With `ok: true` the module returns `statement` with neither the handle nor the credential on it; the host replaces the statement with it before policy, audit or the analyzer see it. The module lifts; it never resolves. Who the credential names is the lane's resolver, so a module cannot make a lane more or less permissive about identity.
+
+A failed `take_credential` (a trap, malformed JSON, `ok: true` with no `statement`) has no error to return through. The host reduces the statement to operation `unknown` carrying only the failure text, so nothing the module left on it reaches policy, audit or the analyzer, and answers an empty credential, which the Sidecar refuses before policy. The instance closes, so the connection drops on its next byte. `ok: true` with an empty `credential` is refused the same way: a frame that names nobody answers `ok: false`.
 
 ### ContentResult, from `content`
 
