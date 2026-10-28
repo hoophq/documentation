@@ -691,6 +691,39 @@ An interactive shell never reaches the analyzer at all: it produces no statement
 
 ## Providers
 
+### The model Hoop hosts
+
+A Sidecar can classify without an LLM of your own: Hoop hosts a small model (Qwen3-4B) for it. **The statement text, which can contain PII, is then sent to Hoop.** No key is needed; each request is signed and expires after 30 seconds.
+
+```yaml
+analyzer:
+  use_hoop_llm_provider: true
+```
+
+When a listener has an `analyzer` block and the config names no `provider`, the license decides:
+
+| License | `use_hoop_llm_provider` unset | `true` | `false` |
+|---|---|---|---|
+| None | The hosted model, with a startup warning | The hosted model | Refused: set a provider |
+| Enterprise, valid or expired | Refused: set a provider or `true` | The hosted model | Refused: set a provider |
+
+Without a license, the Sidecar logs two warnings at startup and in `--validate`:
+
+```
+warn: analyzer uses the model Hoop hosts: statement text, which can contain PII, is sent to Hoop for classification
+warn: no analyzer provider is set and no Enterprise license is installed, so this is the default; set use_hoop_llm_provider: false, or a provider and model, to keep statements in your network
+```
+
+A config whose listeners have no `analyzer` block sends nothing to Hoop. `use_hoop_llm_provider: true` cannot be combined with `provider` or `credentials_file`.
+
+The Control Plane serves an analyzer only when it names a `provider` or sets `use_hoop_llm_provider: true`, and shows a notice on the Sidecar's page when it is `true`. The license default applies to a Sidecar's own config file only.
+
+<Warning>
+If statements must stay in your network, set your own `provider`, or `use_hoop_llm_provider: false`. `send: redacted` also applies to the hosted model, and replaces each detected value before the statement leaves the process.
+</Warning>
+
+### Your own provider
+
 <Tabs>
   <Tab title="Google Vertex">
     ```yaml
@@ -1195,7 +1228,9 @@ Each of these would otherwise load, evaluate and do nothing:
 
 | Config | Result |
 |---|---|
-| An analyzer block with no top-level `analyzer` section | Refused: the provider, the model and the credential live there |
+| An analyzer block with no `provider`, on an Enterprise license | Refused: set a `provider` and `model`, or `use_hoop_llm_provider: true`. Without a license this uses [the model Hoop hosts](#the-model-hoop-hosts) |
+| `use_hoop_llm_provider: false` with no `provider` | Refused: nothing would classify |
+| `use_hoop_llm_provider: true` with `provider` or `credentials_file` | Refused: the hosted model takes neither |
 | An analyzer block with no `trigger` | **Not refused.** On a plain lane it classifies every statement (a model call per statement shape; `--validate` prints a note naming the cost). Under `opa.gate: true` the policy decides what gets classified. |
 | An analyzer block naming no action for any risk level | Refused: every verdict would allow while looking like enforcement |
 | `require_approval` on a level with no `approval_rule`, on a Sidecar with a Control Plane | Refused: the Control Plane refuses an approval request that names no rule. A [Sidecar in a terminal](#approving-in-the-terminal) needs none |

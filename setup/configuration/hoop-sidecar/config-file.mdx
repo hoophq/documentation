@@ -988,15 +988,15 @@ That last check matters more than it looks. Without it the rule loads, evaluates
                                note: the analyzer block has no trigger, so every statement on this lane is classified: a model call per statement shape, bounded only by the cache, max_calls and rate_limit. Add a trigger to narrow it
 ```
 
-Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a block whose config has no top-level `analyzer` section, a block naming no action for any risk level, a provider the binary does not link, or `send: redacted` with no detector all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-startup-refuses); the two shortest:
+Every analyzer refusal follows the same argument, applied to a control that also costs money per statement: a block naming no action for any risk level, a provider the binary does not link, or `send: redacted` with no detector all produce a lane that looks classified and is not. The full list is in [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-startup-refuses); the shortest:
 
 ```
 Error: invalid config:
-  - appdb: has an analyzer block but the config has no top-level "analyzer"
-    section (the provider, the model and the credential live there)
   - appdb: analyzer block names no action for any risk level, so every
     verdict would allow
 ```
+
+A block whose config names no `provider` is not refused without a license: it uses [the model Hoop hosts](/setup/configuration/hoop-sidecar/risk-analysis#the-model-hoop-hosts) and warns at startup. On an Enterprise license it is refused until the config names a `provider` or sets `use_hoop_llm_provider: true`.
 
 **A rule or risk level that defers to nothing is NOT refused.** `action: defer` on a local rule, or `high: defer` on an analyzer block, with no `opa.url` on the lane used to be a startup error. The lane now loads, `--validate` prints a note, and a deferred match or risk level **denies** instead of reporting a finding: deferring to a decision that does not exist fails closed at runtime, so one file serves a deployment with OPA and a deployment without one.
 
