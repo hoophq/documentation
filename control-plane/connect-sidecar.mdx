@@ -39,7 +39,7 @@ Four properties fall out of this shape, and they are the reason it looks like th
 Both paths end the same way — a token, pointed at the Control Plane — and both use the steps below.
 
 - **Connect an existing Sidecar** — it already runs in your infrastructure. Issue a token, set the Control Plane URL and token, and restart it with the token.
-- **Create and deploy a new Sidecar** — you have not deployed one yet. Issue a token, then deploy with Kubernetes, Docker Compose or the CLI using the tabs in step 2 below; each tab links to its full install page.
+- **Create and deploy a new Sidecar** — you have not deployed one yet. Issue a token, then deploy with Kubernetes, Docker or the CLI using the tabs in step 2 below; each tab links to its full install page.
 
 ---
 
@@ -52,11 +52,18 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
     The token identifies this Sidecar and authenticates it — treat it as a credential.
   </Step>
   <Step title="Choose where it runs, and start it">
-    The Control Plane's URL goes in the config file or an environment variable. The token is never written to disk — it goes on the command line or in an environment variable. Pick where the Sidecar runs — for one already running, apply these where it runs now and restart it:
+    The Control Plane's URL goes in the config file or an environment variable. The token is never written to disk — it goes on the command line or in an environment variable. Pick where the Sidecar runs. A Sidecar that already runs keeps its image and config file: it only needs the URL, the token and a restart.
 
     <Tabs>
       <Tab title="Kubernetes">
-        Mount the token as a Secret and set the variables; the container takes no arguments. See [Kubernetes](/install/kubernetes) for the full manifest.
+        Put the token in a Secret:
+
+        ```bash
+        kubectl create secret generic hoop-sidecar-token \
+          --from-literal=token=<the token you copied>
+        ```
+
+        Set the variables on the container; it takes no arguments. See [Kubernetes](/install/kubernetes) for the full manifest. With the Helm chart, set [`controlPlane`](/install/kubernetes#control-plane) in your values instead.
 
         ```yaml
         env:
@@ -68,13 +75,29 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
                 name: hoop-sidecar-token
                 key: token
         ```
-      </Tab>
-      <Tab title="Docker Compose">
-        Set the variables on the service and mount the config file. See [Container Images](/install/container-images#running-it-with-docker-compose) for the full example.
 
-        ```yaml docker-compose.yml
+        A Sidecar that already runs picks up the variables on a restart:
+
+        ```bash
+        kubectl rollout restart deployment/<your-sidecar-deployment>
+        ```
+      </Tab>
+      <Tab title="Docker">
+        Set the variables and mount the config file. See [Container Images](/install/container-images) for the image flavours.
+
+        <CodeGroup>
+        ```bash docker run
+        docker run -d --name hoop-sidecar \
+          -e HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com \
+          -e HOOP_SIDECAR_TOKEN=<the token you copied> \
+          -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+          -p 19000:19000 \
+          hoophq/hoopsidecar:<version>
+        ```
+
+        ```yaml compose.yaml
         services:
-          hoop-inspect:
+          hoop-sidecar:
             image: hoophq/hoopsidecar:<version>
             environment:
               HOOP_CONTROL_PLANE_URL: https://hoop.your-company.com
@@ -82,12 +105,13 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
             volumes:
               - ./config.yaml:/etc/hoop-inspect/config.yaml:ro
         ```
+        </CodeGroup>
 
-        ```bash
-        docker compose up -d
-        ```
+        With Compose, start it with `docker compose up -d`.
+
+        A container keeps the variables it started with. To connect one that already runs, create it again: `docker rm -f <your-sidecar-container>`, then the same `docker run`. With Compose, add the two variables to the service and run `docker compose up -d`.
       </Tab>
-      <Tab title="CLI / Binary">
+      <Tab title="CLI / Bare metal">
         Put the URL in the config file and pass the token as a flag. Install the CLI from [Command Line](/install/cli).
 
         ```yaml config.yaml
@@ -97,6 +121,8 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
         ```bash
         hoop start sidecar --config config.yaml --token "<the token you copied>"
         ```
+
+        A Sidecar that already runs: stop it, then start it again with this command.
       </Tab>
     </Tabs>
 
