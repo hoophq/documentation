@@ -128,6 +128,7 @@ The Sidecar passes the client's database login through, so the client holds the 
     output "lane_service" { value = module.hoop_sidecar.lane_service }
     ```
 
+    - Keep both slashes in `source`: Terraform reads `//` as the end of the repository and the start of the module's folder in it.
     - `guardrail_preset = "read-only"` adds one rule that refuses writes. Without it, the Sidecar only records.
     - `goog_cm_deployment_name` names the install. The Sidecar's Deployment is `appdb-sidecar-hoopsidecar` and the Service clients use is `appdb-sidecar-hoopsidecar-lanes`, in the namespace `hoop-sidecar`.
     - The module's other variables are in its [README](https://github.com/hoophq/hoop/tree/main/deploy/gcp-marketplace/sidecar#parameters).
