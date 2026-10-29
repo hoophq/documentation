@@ -209,14 +209,19 @@ The Sidecar passes the client's database login through, so the client holds the 
 From a pod in the cluster, replace `USER`, `PASSWORD`, `DATABASE` and the table. In the demo: `app`, `change-me-app`, `appdb`. Use a login that can write, so a refused write shows the Sidecar at work, not the database:
 
 ```bash
-SIDECAR=appdb-sidecar-hoopsidecar-lanes.hoop-sidecar.svc.cluster.local
-psql_pod() { kubectl run "psql-$RANDOM" --rm -i --restart=Never --image=postgres:16-alpine \
-  --env PGPASSWORD=PASSWORD --env PGCONNECT_TIMEOUT=5 -- psql -U USER -d DATABASE "$@"; }
+# A client pod in the cluster, with psql. It stays up until you delete it.
+kubectl run psql --image=postgres:16-alpine --env PGPASSWORD=PASSWORD --env PGCONNECT_TIMEOUT=5 -- sleep infinity
+kubectl wait pod/psql --for=condition=Ready --timeout=180s
 
-psql_pod -h "$SIDECAR" -c 'SELECT count(*) FROM customers'
-psql_pod -h "$SIDECAR" -c 'DELETE FROM customers WHERE id = 3'
-psql_pod -h appdb.default.svc.cluster.local -c 'SELECT 1'
+SIDECAR=appdb-sidecar-hoopsidecar-lanes.hoop-sidecar.svc.cluster.local
+kubectl exec psql -- psql -h "$SIDECAR" -U USER -d DATABASE -c 'SELECT count(*) FROM customers'
+kubectl exec psql -- psql -h "$SIDECAR" -U USER -d DATABASE -c 'DELETE FROM customers WHERE id = 3'
+kubectl exec psql -- psql -h appdb.default.svc.cluster.local -U USER -d DATABASE -c 'SELECT 1'
+
+kubectl delete pod psql
 ```
+
+On Autopilot, `kubectl run` can print a warning that it set the pod's CPU: it is harmless.
 
 | The client | Result |
 |---|---|
