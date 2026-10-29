@@ -232,7 +232,7 @@ The preset is for Postgres. For another protocol, or another rule, set `config_s
 
 ## From Agent Runtime
 
-The [`gcp-agent-runtime/postgres`](https://github.com/hoophq/hoop/tree/main/deploy/gcp-agent-runtime/postgres) template is an ADK agent whose SQL tool reaches Postgres through the Sidecar. The Sidecar runs on GKE behind an internal load balancer, and the agent reaches it over PSC-I. Its README has each step in full.
+The [`gcp-agent-runtime/postgres`](https://github.com/hoophq/hoop/tree/main/deploy/gcp-agent-runtime/postgres) template is an ADK agent whose SQL tool reaches Postgres through the Sidecar. The Sidecar runs on GKE behind an internal load balancer, and the agent reaches it over PSC-I. The steps below are checked on Agent Runtime; the template's [README](https://github.com/hoophq/hoop/tree/main/deploy/gcp-agent-runtime/postgres) explains each file.
 
 You need `uv`, `agents-cli` 1.11 or later (`uv tool install google-agents-cli`), and the requirements of [On GKE](#requirements). Keep the agent, the network attachment and the GKE cluster in one region: `agents-cli deploy` uses `us-east1`, where the [demo cluster](#a-demo-cluster-and-database) runs.
 
@@ -352,7 +352,6 @@ For Agent Runtime, from the project directory. Delete the agent first: it holds 
 ```bash
 curl -X DELETE -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   "https://REGION-aiplatform.googleapis.com/v1/projects/PROJECT_NUMBER/locations/REGION/reasoningEngines/AGENT_ID?force=true"
-rm deployment_metadata.json
 
 # The six roles agents-cli granted the agent's identity stay after the agent is gone.
 AGENT=principal://agents.global.org-ORGANIZATION_ID.system.id.goog/resources/aiplatform/projects/PROJECT_NUMBER/locations/REGION/reasoningEngines/AGENT_ID
@@ -372,9 +371,13 @@ gcloud projects remove-iam-policy-binding PROJECT \
   --role projects/PROJECT/roles/agentRuntimePsci
 gcloud iam roles delete agentRuntimePsci --project PROJECT
 gcloud secrets delete appdb-password --quiet
+rm deployment_metadata.json
 ```
 
-Google can hold the attachment for a while after the agent is gone: the delete then fails with `Network Attachment with connected endpoints cannot be deleted`. Run the two attachment lines again later.
+- `AGENT_ID` is in `deployment_metadata.json`. In a new shell, set `ATTACHMENT` again: `gcloud compute network-attachments list --filter='name~^agent-psci-'` lists it.
+- A project with no organization uses `agents.global.proj-PROJECT_NUMBER.system.id.goog` in `AGENT`.
+
+Google can hold an attachment for an hour or more, most often one that an agent moved off by a redeploy: the delete then fails with `Network Attachment with connected endpoints cannot be deleted`. Run the two attachment lines again later.
 
 The demo cluster: `gcloud container clusters delete hoop-demo --location us-east1`.
 
