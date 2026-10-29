@@ -135,6 +135,7 @@
                       "integrations/claude-managed-agents",
                       "integrations/openai-agents",
                       "integrations/aws-agentcore",
+                      "integrations/google-cloud",
                       "integrations/mongodb-atlas",
                       "integrations/neon",
                       "integrations/snowflake",

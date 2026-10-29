@@ -1,0 +1,479 @@
+---
+title: "Google Cloud"
+description: "Guardrails and audit on the SQL that apps and ADK agents on Google Cloud send to Postgres, with the free Sidecar on GKE."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+The Sidecar runs on a GKE cluster, in front of one Postgres database. Your clients connect to the Sidecar instead of the database. It refuses writes, records each statement in its pod's log, which Cloud Logging collects, and passes the rest to the database. A NetworkPolicy makes the Sidecar the only way to the database.
+
+There are two ways to use it:
+
+- **[On GKE](#on-gke)**: an app, a job or an agent in the cluster connects to the Sidecar. One Terraform module from the hoop repository installs it.
+- **[From Agent Runtime](#from-agent-runtime)**: an ADK agent on Gemini Enterprise Agent Platform reaches the Sidecar over Private Service Connect and has no route to the database. A template for `agents-cli` creates the agent and its Sidecar.
+
+The quick starts use Postgres. The Sidecar also fronts MySQL, SQL Server, MongoDB, ClickHouse, Oracle and HTTP APIs: see [Other databases and APIs](#other-databases-and-apis).
+
+The Sidecar is free to run, with no license and no account: one guardrail rule and one masking rule. A license lifts the limits and adds the Control Plane. See [Free and Enterprise](#free-and-enterprise).
+
+<Note>
+hoop is not on Google Cloud Marketplace yet. Install from the command line, as below. The Marketplace form runs the same module.
+</Note>
+
+### The values on this page
+
+Words in capitals are values you replace. The second column is what they are in the [demo](#a-demo-cluster-and-database):
+
+| Value | What it is | Demo | Find yours with |
+|---|---|---|---|
+| `PROJECT` | Your Google Cloud project id | your project | `gcloud config get project` |
+| `CLUSTER`, `LOCATION` | The GKE cluster's name, and its region or zone | `hoop-demo`, `us-east1` | `gcloud container clusters list` |
+| `RELEASE` | A hoop release | `1.281.1` | [hoop releases](https://github.com/hoophq/hoop/releases) |
+| `USER`, `PASSWORD`, `DATABASE` | A database login that can write, its password, and the database | `app`, `change-me-app`, `appdb` | your database |
+| `REGION` | Agent Runtime: the agent's region | `us-east1` | `us-east1` unless you deploy elsewhere |
+| `NETWORK` | Agent Runtime: the cluster's VPC | `default` | `gcloud container clusters describe CLUSTER --location LOCATION --format='value(network)'` |
+| `PROJECT_NUMBER` | Agent Runtime: the project's number | | `gcloud projects describe PROJECT --format='value(projectNumber)'` |
+| `ORGANIZATION_ID` | Agent Runtime: the organization above the project | | `gcloud projects get-ancestors PROJECT` (the `organization` row) |
+| `SIDECAR_IP`, `AGENT_ID` | Agent Runtime: printed by the steps that create them | | the step that names them |
+
+---
+
+## Why a client cannot skip the Sidecar
+
+- **On GKE.** A NetworkPolicy in the database's namespace admits connections from the Sidecar's pods only. A connection from any other pod times out. Autopilot clusters enforce NetworkPolicies. A Standard cluster needs Dataplane V2 or network policy enforcement.
+- **From Agent Runtime.** The agent's network attachment reaches the Sidecar's internal load balancer. The same NetworkPolicy keeps the agent from the database.
+
+The Sidecar passes the client's database login through, so the client holds the password. The lock keeps the client on the Sidecar's path, not the password.
+
+---
+
+## On GKE
+
+### Requirements
+
+- A GKE cluster on x86 nodes, where you can create namespaces, and a Postgres database that its pods reach. For example, a Postgres Deployment in the same cluster. To try it with neither, see [A demo cluster and database](#a-demo-cluster-and-database).
+- `gcloud` with the `gke-gcloud-auth-plugin` component, `kubectl`, and Terraform 1.5 or later:
+
+  ```bash
+  gcloud components install gke-gcloud-auth-plugin
+  gcloud auth application-default login
+  gcloud container clusters get-credentials CLUSTER --location LOCATION
+  ```
+
+  `CLUSTER` and `LOCATION` are your cluster's name and region. With no cluster yet, skip this line: the demo below runs it for you.
+- hoop 1.281.0 or later. Every release is on [GitHub](https://github.com/hoophq/hoop/releases).
+
+<Accordion title="A demo cluster and database">
+  A new Autopilot cluster in `us-east1`, the region where `agents-cli` deploys agents, and a Postgres Deployment with invented customers. The database is `appdb` with a table `customers (id, name, email, plan)` and a login `agent` that can only read it, which is what the [Agent Runtime](#from-agent-runtime) template's agent expects.
+
+  ```bash
+  gcloud container clusters create-auto hoop-demo --location us-east1
+  gcloud container clusters get-credentials hoop-demo --location us-east1
+  kubectl apply -f appdb.yaml
+  kubectl rollout status deploy/appdb
+  ```
+
+  ```yaml appdb.yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata: {name: appdb-seed, namespace: default}
+  data:
+    seed.sql: |
+      CREATE TABLE customers (id int PRIMARY KEY, name text, email text, plan text);
+      INSERT INTO customers VALUES
+        (1, 'Ada Example', 'ada@example.com', 'enterprise'),
+        (2, 'Bo Example',  'bo@example.com',  'free'),
+        (3, 'Cy Example',  'cy@example.com',  'enterprise');
+      CREATE ROLE agent LOGIN PASSWORD 'change-me-agent';
+      GRANT SELECT ON customers TO agent;
+  ---
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {name: appdb, namespace: default}
+  spec:
+    replicas: 1
+    selector: {matchLabels: {app: appdb}}
+    template:
+      metadata: {labels: {app: appdb}}
+      spec:
+        containers:
+          - name: postgres
+            image: postgres:16-alpine
+            env:
+              - {name: POSTGRES_USER, value: app}
+              - {name: POSTGRES_PASSWORD, value: change-me-app}
+              - {name: POSTGRES_DB, value: appdb}
+            ports: [{containerPort: 5432}]
+            readinessProbe:
+              exec: {command: [pg_isready, -U, app, -d, appdb]}
+            volumeMounts: [{name: seed, mountPath: /docker-entrypoint-initdb.d}]
+            resources: {requests: {cpu: 250m, memory: 512Mi}}
+        volumes: [{name: seed, configMap: {name: appdb-seed}}]
+  ---
+  apiVersion: v1
+  kind: Service
+  metadata: {name: appdb, namespace: default}
+  spec:
+    selector: {app: appdb}
+    ports: [{port: 5432, targetPort: 5432}]
+  ```
+
+  The rest of this page uses its values: `upstream` `appdb.default.svc.cluster.local:5432`, the labels `app: appdb`, the login `app` for writes and `agent` for reads. Change the passwords before you use it for more than a test.
+</Accordion>
+
+<Steps>
+  <Step title="Write main.tf">
+    In an empty directory, replace the capitals: `RELEASE` with a hoop release, the project, the cluster and its location, and `upstream` with your database's `host:port`.
+
+    ```hcl main.tf
+    module "hoop_sidecar" {
+      source = "github.com/hoophq/hoop//deploy/gcp-marketplace/sidecar?ref=RELEASE"
+
+      project_id       = "PROJECT"
+      cluster_name     = "CLUSTER"
+      cluster_location = "LOCATION"
+
+      helm_chart_repo    = ""
+      helm_chart_name    = "https://releases.hoop.dev/release/RELEASE/hoopsidecar-chart-RELEASE.tgz"
+      helm_chart_version = "RELEASE"
+      image_repo         = "docker.io/hoophq/hoopsidecar"
+      image_tag          = "RELEASE-distroless"
+
+      goog_cm_deployment_name = "appdb-sidecar"
+      upstream                = "appdb.default.svc.cluster.local:5432"
+      guardrail_preset        = "read-only"
+    }
+
+    output "lane_service" { value = module.hoop_sidecar.lane_service }
+    ```
+
+    - Keep both slashes in `source`: Terraform reads `//` as the end of the repository and the start of the module's folder in it.
+    - `guardrail_preset = "read-only"` adds one rule that refuses writes. Without it, the Sidecar only records.
+    - `goog_cm_deployment_name` names the install. The Sidecar's Deployment is `appdb-sidecar-hoopsidecar` and the Service clients use is `appdb-sidecar-hoopsidecar-lanes`, in the namespace `hoop-sidecar`.
+    - The module's other variables are in its [README](https://github.com/hoophq/hoop/tree/main/deploy/gcp-marketplace/sidecar#parameters).
+  </Step>
+
+  <Step title="Install the Sidecar">
+    ```bash
+    terraform init
+    terraform apply
+    ```
+
+    The apply waits until the Sidecar is ready, about two minutes on an existing cluster. Its log says it runs free and enforces the rule:
+
+    ```bash
+    kubectl -n hoop-sidecar logs deploy/appdb-sidecar-hoopsidecar | grep -E 'free tier|lane ready'
+    ```
+
+    The `lane ready` line holds `"enforcing":true` and `"rules":1`.
+  </Step>
+
+  <Step title="Lock the database to the Sidecar">
+    Set the namespace and the labels of your database's pods, then apply:
+
+    ```yaml database-policy.yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: database-only-from-hoop-sidecar
+      namespace: default                 # your database's namespace
+    spec:
+      podSelector:
+        matchLabels: {app: appdb}        # your database pods' labels
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels: {kubernetes.io/metadata.name: hoop-sidecar}
+              podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: hoopsidecar
+                  app.kubernetes.io/instance: appdb-sidecar
+          ports: [{port: 5432, protocol: TCP}]
+    ```
+
+    ```bash
+    kubectl apply -f database-policy.yaml
+    ```
+
+    A selector that matches nothing locks nothing, and `kubectl` reports no error. NetworkPolicies add up: another policy that selects the database's pods and admits other clients keeps them in. List them with `kubectl -n default get networkpolicy`. [Verify](#verify) checks it.
+  </Step>
+
+  <Step title="Point your clients at the Sidecar">
+    Clients connect to `appdb-sidecar-hoopsidecar-lanes.hoop-sidecar.svc.cluster.local`, port `5432`, with the same login and database as before. The Sidecar passes the login through.
+  </Step>
+</Steps>
+
+### Verify
+
+From a pod in the cluster, replace `USER`, `PASSWORD`, `DATABASE` and the table. In the demo: `app`, `change-me-app`, `appdb`. Use a login that can write, so a refused write shows the Sidecar at work, not the database:
+
+```bash
+SIDECAR=appdb-sidecar-hoopsidecar-lanes.hoop-sidecar.svc.cluster.local
+psql_pod() { kubectl run "psql-$RANDOM" --rm -i --restart=Never --image=postgres:16-alpine \
+  --env PGPASSWORD=PASSWORD --env PGCONNECT_TIMEOUT=5 -- psql -U USER -d DATABASE "$@"; }
+
+psql_pod -h "$SIDECAR" -c 'SELECT count(*) FROM customers'
+psql_pod -h "$SIDECAR" -c 'DELETE FROM customers WHERE id = 3'
+psql_pod -h appdb.default.svc.cluster.local -c 'SELECT 1'
+```
+
+| The client | Result |
+|---|---|
+| Reads through the Sidecar | The rows |
+| Writes through the Sidecar | `FATAL: hoop: this connection may read the database, not change it`, and the connection closes. The database receives nothing |
+| Connects straight to the database | `timeout expired` |
+
+The audit trail is the Sidecar's log. Each statement is one JSON line, and a refused one has `"kind":"violation"` and the rule. Trimmed to its main fields:
+
+```bash
+kubectl -n hoop-sidecar logs deploy/appdb-sidecar-hoopsidecar | grep '"kind":"violation"'
+```
+
+```json
+{"kind":"violation","principal":"USER","protocol":"postgres","operation":"delete","statement":"DELETE FROM customers WHERE id = 3","allowed":false,"rule":"read-only","message":"hoop: this connection may read the database, not change it"}
+```
+
+Cloud Logging keeps the same lines:
+
+```bash
+gcloud logging read 'resource.type="k8s_container" AND resource.labels.namespace_name="hoop-sidecar"
+  AND jsonPayload.kind="violation"' --freshness 1h --format 'value(jsonPayload.statement,jsonPayload.rule)'
+```
+
+### What the rule refuses, and what it misses
+
+`read-only` refuses the statements that the Sidecar's classifier reads as `insert`, `update`, `delete`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call` (`DO`, `CALL`, `EXECUTE`) or `other`. Today the classifier:
+
+- **reads some writes as reads, so they pass:** `EXPLAIN ANALYSE` and `EXPLAIN ("analyze")` run the statement they explain, `SELECT ... INTO` creates a table, and `SELECT f()` runs whatever `f` writes. Give the client's login only the privileges it needs: `SELECT` on its tables, no `CREATE`.
+- **reads `SAVEPOINT`, `LISTEN` and `DISCARD ALL` as `other`, so they are refused.** A client that opens a nested transaction on a read path loses its connection.
+
+The preset is for Postgres. For another protocol, or another rule, set `config_source = "document"` and write the config. See the module's [README](https://github.com/hoophq/hoop/tree/main/deploy/gcp-marketplace/sidecar#installation) and [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
+
+---
+
+## From Agent Runtime
+
+The [`gcp-agent-runtime/postgres`](https://github.com/hoophq/hoop/tree/main/deploy/gcp-agent-runtime/postgres) template is an ADK agent whose SQL tool reaches Postgres through the Sidecar. The Sidecar runs on GKE behind an internal load balancer, and the agent reaches it over PSC-I. The steps below are checked on Agent Runtime; the template's [README](https://github.com/hoophq/hoop/tree/main/deploy/gcp-agent-runtime/postgres) explains each file.
+
+You need `uv`, `agents-cli` 1.11 or later (`uv tool install google-agents-cli`), and the requirements of [On GKE](#requirements). Keep the agent, the network attachment and the GKE cluster in one region: `agents-cli deploy` uses `us-east1`, where the [demo cluster](#a-demo-cluster-and-database) runs.
+
+Run the steps in one shell: they share the variable `ATTACHMENT`.
+
+The template installs its own Sidecar, named `appdb-sidecar` like the one in [On GKE](#on-gke). On a cluster where you followed On GKE, run its [Clean up](#clean-up) first, or use another cluster.
+
+<Steps>
+  <Step title="Create the project">
+    ```bash
+    agents-cli create my-agent -a hoophq/hoop/deploy/gcp-agent-runtime/postgres@RELEASE \
+      -d agent_runtime --root-agent-name support_agent
+    cd my-agent
+    ```
+
+    - `RELEASE` is a hoop release tag, 1.281.1 or later. Older tags install an older Sidecar.
+    - `--root-agent-name support_agent` is required: `app/agent.py` defines that agent.
+  </Step>
+
+  <Step title="Install the Sidecar and lock the database">
+    Set your database as `upstream` in `deploy/sidecar/sidecar.yaml`, then:
+
+    ```bash
+    terraform -chdir=deploy/sidecar init
+    terraform -chdir=deploy/sidecar apply \
+      -var project_id=PROJECT -var cluster_name=CLUSTER -var cluster_location=LOCATION
+    kubectl -n hoop-sidecar get svc appdb-sidecar-hoopsidecar-lanes \
+      -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+    ```
+
+    The last command prints the Sidecar's internal IP, the agent's `SIDECAR_IP`. Set the `podSelector` in `deploy/sidecar/database-policy.yaml` to your database pods' labels (`app: appdb` in the demo), then apply it in the database's namespace. The file names no namespace:
+
+    ```bash
+    kubectl -n default apply -f deploy/sidecar/database-policy.yaml
+    ```
+  </Step>
+
+  <Step title="Create the network attachment">
+    In the Sidecar's VPC and the agent's region, and let the Agent Platform service agent use it:
+
+    ```bash
+    ATTACHMENT=agent-psci-$(date +%Y%m%d%H%M%S)
+    gcloud compute networks subnets create $ATTACHMENT --network NETWORK \
+      --region REGION --range 192.168.10.0/28
+    gcloud compute network-attachments create $ATTACHMENT --region REGION \
+      --subnets $ATTACHMENT --connection-preference ACCEPT_AUTOMATIC
+    gcloud iam roles create agentRuntimePsci --project PROJECT \
+      --permissions compute.networkAttachments.get,compute.networkAttachments.update,compute.regionOperations.get
+    gcloud projects add-iam-policy-binding PROJECT \
+      --member serviceAccount:service-PROJECT_NUMBER@gcp-sa-aiplatform.iam.gserviceaccount.com \
+      --role projects/PROJECT/roles/agentRuntimePsci
+    ```
+
+    - Keep `192.168.10.0/28` if it is free in your VPC. The subnet must reach the Sidecar's IP on port `15432`.
+    - The name is new each run. On an attachment whose name was deleted and created again in the project, Agent Runtime failed to deploy the agent and logged no cause.
+    - If `roles create` says the role exists in a deleted state, run `gcloud iam roles undelete agentRuntimePsci --project PROJECT`. If it says the role already exists, go on.
+  </Step>
+
+  <Step title="Deploy the agent">
+    ```bash
+    printf %s "$APPDB_PASSWORD" | gcloud secrets create appdb-password --data-file=-
+    gcloud secrets add-iam-policy-binding appdb-password \
+      --role roles/secretmanager.secretAccessor \
+      --member principalSet://agents.global.org-ORGANIZATION_ID.system.id.goog/attribute.platformContainer/aiplatform/projects/PROJECT_NUMBER
+    agents-cli deploy --project PROJECT \
+      --network-attachment projects/PROJECT/regions/REGION/networkAttachments/$ATTACHMENT \
+      --env-vars APPDB_HOST=SIDECAR_IP,APPDB_USER=agent \
+      --secrets APPDB_PASSWORD=appdb-password
+    ```
+
+    - `APPDB_PASSWORD` is the `agent` login's password, `change-me-agent` in the demo.
+    - A project with no organization uses `agents.global.proj-PROJECT_NUMBER.system.id.goog`.
+  </Step>
+
+  <Step title="Ask the agent">
+    ```bash
+    agents-cli run "Which customers are on the enterprise plan? Then delete customer 3." \
+      --url https://REGION-aiplatform.googleapis.com/v1/projects/PROJECT_NUMBER/locations/REGION/reasoningEngines/AGENT_ID \
+      --mode adk
+    ```
+
+    The agent reads the customers. The `DELETE` comes back as `hoop: this agent may read appdb, not change it`, and the Sidecar's log holds the violation with the ADK session id in `postgres.option.adk.session.id`:
+
+    ```bash
+    kubectl -n hoop-sidecar logs deploy/appdb-sidecar-hoopsidecar | grep '"kind":"violation"'
+    ```
+
+    `deployment_metadata.json` in the project directory records the agent's id.
+  </Step>
+</Steps>
+
+PSC-I does not stop the agent from calling Google front ends, such as `*.run.app`. A VPC Service Controls perimeter does.
+
+---
+
+## Other databases and APIs
+
+The module fronts more than Postgres. With the simple fields, set `protocol` to `mysql`, `mssql`, `mongodb`, `oracle`, `clickhouse` or `http`: the Sidecar records every statement or request and refuses nothing. The `read-only` preset is for Postgres only. On the other protocols, the same rule refuses some reads and misses some writes.
+
+To refuse something on another protocol, write the Sidecar's config yourself. For example, a MySQL database where no client may drop or empty a table:
+
+```hcl main.tf
+module "hoop_sidecar" {
+  # The same arguments as in On GKE, without upstream and guardrail_preset:
+  config_source   = "document"
+  config_document = file("sidecar.yaml")
+}
+```
+
+```yaml sidecar.yaml
+admin:
+  listen: 0.0.0.0:19000
+audit:
+  file: "-"
+guardrails:
+  rules:
+    - name: no-drop
+      type: operation
+      operations: [drop, truncate]
+      message: "hoop: dropping or emptying a table is not allowed here"
+listeners:
+  - name: appdb
+    protocol: mysql
+    listen: 0.0.0.0:13306
+    upstream: appdb.default.svc.cluster.local:3306
+```
+
+- `admin.listen` must be `0.0.0.0:19000`.
+- The Sidecar's Service publishes each listener's port. Clients connect to `appdb-sidecar-hoopsidecar-lanes.hoop-sidecar.svc.cluster.local:13306`.
+- Lock the database the same way, with its port in the NetworkPolicy.
+- One guardrail rule and one masking rule are free. One rule can name several operations.
+
+What each protocol inspects and refuses: [MySQL](/setup/configuration/hoop-sidecar/protocols/mysql), [SQL Server](/setup/configuration/hoop-sidecar/protocols/mssql), [MongoDB](/setup/configuration/hoop-sidecar/protocols/mongodb), [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse), [HTTP](/setup/configuration/hoop-sidecar/protocols/http). Every rule type: [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules). Every config key: [Config File](/setup/configuration/hoop-sidecar/config-file).
+
+---
+
+## Limits
+
+- **One database per install.** The simple fields front one Postgres database. For more listeners, use a config document.
+- **Plain text inside the VPC.** The listener has no TLS in the simple fields, so the module offers an internal load balancer and never a public one.
+- **The lock covers a database in the cluster.** A database outside it, such as Cloud SQL or a VM, needs its own firewall rule. This page does not cover it.
+- **The audit trail is the pod's log.** Cloud Logging keeps it for its log bucket's retention, 30 days by default.
+
+---
+
+## Clean up
+
+In the directory of `main.tf`:
+
+```bash
+terraform destroy
+kubectl delete -f database-policy.yaml
+kubectl delete namespace hoop-sidecar
+```
+
+For Agent Runtime, from the project directory. Delete the agent first: it holds the network attachment.
+
+```bash
+curl -X DELETE -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://REGION-aiplatform.googleapis.com/v1/projects/PROJECT_NUMBER/locations/REGION/reasoningEngines/AGENT_ID?force=true"
+
+# The six roles agents-cli granted the agent's identity stay after the agent is gone.
+AGENT=principal://agents.global.org-ORGANIZATION_ID.system.id.goog/resources/aiplatform/projects/PROJECT_NUMBER/locations/REGION/reasoningEngines/AGENT_ID
+for role in aiplatform.user browser cloudapiregistry.viewer logging.logWriter \
+            monitoring.metricWriter serviceusage.serviceUsageConsumer; do
+  gcloud projects remove-iam-policy-binding PROJECT --member "$AGENT" --role "roles/$role" --quiet >/dev/null
+done
+
+terraform -chdir=deploy/sidecar destroy \
+  -var project_id=PROJECT -var cluster_name=CLUSTER -var cluster_location=LOCATION
+kubectl delete namespace hoop-sidecar
+kubectl -n default delete -f deploy/sidecar/database-policy.yaml
+gcloud compute network-attachments delete $ATTACHMENT --region REGION --quiet
+gcloud compute networks subnets delete $ATTACHMENT --region REGION --quiet
+gcloud projects remove-iam-policy-binding PROJECT \
+  --member serviceAccount:service-PROJECT_NUMBER@gcp-sa-aiplatform.iam.gserviceaccount.com \
+  --role projects/PROJECT/roles/agentRuntimePsci
+gcloud iam roles delete agentRuntimePsci --project PROJECT
+gcloud secrets delete appdb-password --quiet
+rm deployment_metadata.json
+```
+
+- `AGENT_ID` is in `deployment_metadata.json`. In a new shell, set `ATTACHMENT` again: `gcloud compute network-attachments list --filter='name~^agent-psci-'` lists it.
+- A project with no organization uses `agents.global.proj-PROJECT_NUMBER.system.id.goog` in `AGENT`.
+
+Google can hold an attachment for an hour or more, most often one that an agent moved off by a redeploy: the delete then fails with `Network Attachment with connected endpoints cannot be deleted`. Run the two attachment lines again later.
+
+The demo cluster: `gcloud container clusters delete hoop-demo --location us-east1`.
+
+---
+
+## Free and Enterprise
+
+<EnterpriseLimit />
+
+- **No license, no account.** The Sidecar enforces one guardrail rule and one masking rule. `read-only` is the guardrail rule. A config over the cap does not start.
+- **A license lifts the caps.** Pass it in the module's `license` variable. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **The Control Plane needs an Enterprise license.** It adds approvals, shared rule sets and one view of many Sidecars. The module's `control_plane` mode connects the Sidecar to it. See [Control Plane](/core-concepts/control-plane).
+- **The Sidecar logs its rule limits** when it starts:
+
+  ```bash
+  kubectl -n hoop-sidecar logs deploy/appdb-sidecar-hoopsidecar | grep '"rule limits"'
+  ```
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Postgres" icon="database" href="/setup/configuration/hoop-sidecar/protocols/postgres">
+    What the postgres listener inspects and refuses.
+  </Card>
+  <Card title="Guardrail Rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    `operation`, `table` and `pattern_match` rules.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/install/kubernetes">
+    The Sidecar's Helm chart on any cluster.
+  </Card>
+  <Card title="Amazon Bedrock AgentCore" icon="cloud" href="/integrations/aws-agentcore">
+    The same idea for an agent on AWS.
+  </Card>
+</CardGroup>
