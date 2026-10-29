@@ -52,7 +52,7 @@ Envoy sees less on each lane going down the table.
 On HTTP, `ext_authz` handles request-side authorization well. The gap sits on the response: `ext_authz` decides **before** Envoy calls the upstream, so no configuration of it reaches a response status or a response body. On Postgres the gap is wider. Envoy forwards bytes it cannot parse, so OPA never receives a statement to judge.
 
 <Note>
-The HTTP codec captures **nothing** by default: no bodies, no headers. A lane that holds for approval captures request bodies. Everything captured reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so a lane opts in per listener with an `http:` block. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-the-http-lane-shows-the-model).
+The HTTP codec captures **nothing** by default: no bodies, no headers. A lane that holds for approval, or reads SQL with `http.sql`, captures request bodies. Everything captured reaches the policy engine, the audit trail and, where an analyzer is configured, a third party, so a lane opts in per listener with an `http:` block. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#what-the-http-lane-shows-the-model).
 </Note>
 
 ### Where Envoy ends and the Sidecar begins

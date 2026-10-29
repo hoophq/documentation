@@ -119,7 +119,7 @@ The credential is always a path (`credentials_file`), never inline, and the file
 
 ### What an HTTP listener shows the analyzer
 
-The HTTP codec captures no body and no header by default. Without `capture_body`, the analyzer judges a request from its request line. A listener that holds for approval captures request bodies without it.
+The HTTP codec captures no body and no header by default. Without `capture_body`, the analyzer judges a request from its request line. A listener that holds for approval captures request bodies without it, and so does an `http.sql` block on the routes it reads.
 
 ```yaml
   - name: api
