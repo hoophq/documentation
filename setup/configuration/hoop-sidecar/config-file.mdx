@@ -30,7 +30,7 @@ license: /etc/hoop-inspect/license.json
 control_plane_url: https://hoop.your-company.com
 
 admin:
-  listen: 127.0.0.1:19000   # /healthz /stats /metrics /config /events /api/*
+  listen: 127.0.0.1:19000   # /healthz /stats /metrics /config /events /api/*, PUT /license
 
 audit:
   file: "-"                 # stdout as JSON lines; a path appends to that file
@@ -743,6 +743,29 @@ license: missing, running the free tier. Add one with the license flag, the HOOP
 
 Missing and expired are states, not failures: the process starts and the caps stay in force. A license that cannot be **read** stops startup instead — a path to nothing, malformed JSON, or a signature that does not verify — and the error names the source it came from. Dropping to the free tier over a typo in a path would be a silent downgrade.
 
+### Changing the license of a running process
+
+A renewal or a replacement needs no restart. Three ways, and a restart picks the same license the running process ends up with:
+
+- **Replace the file.** When the source in force — `--license`, `HOOP_LICENSE` or the `license` key — names a path, the Sidecar stats that file every ten seconds and re-reads it when it changes, or at once on `SIGHUP`. A new document is in force on that tick and logged as `license file replaced`. A file that does not load keeps the license in use and warns once. On Kubernetes, mount a Secret as a directory, not through `subPath`, and point the source at the file in it.
+- **Edit the `license` key** in the config file, when neither the flag nor `HOOP_LICENSE` outranks it. It applies with the next config reload.
+- **`PUT /license` on the admin listener**, with the document as the body. It is off unless `HOOP_SIDECAR_ADMIN_SECRET` is set; then the request needs `Authorization: Bearer <secret>`.
+
+```bash
+curl -X PUT --data-binary @license.json \
+  -H "Authorization: Bearer $HOOP_SIDECAR_ADMIN_SECRET" localhost:19000/license
+```
+
+The answer is `{"outcome": "installed" | "unchanged", "license": {...}}`, the same report `GET /config` serves. `401` is a missing or wrong secret, `403` means the endpoint is off, `409` means a Control Plane owns the license, and `422` is a license the Sidecar refuses, with the reason. The license lives in memory: the next change to the source in force replaces it, and so does a restart, so update the source as well.
+
+A replaced file or an edited key is the owner's change, so it takes effect even when it covers fewer rules, and the relay then stops as it does when a term ends. The admin API is stricter: it takes only a current license that covers the running rules, so whoever holds the secret cannot stop the relay. It takes only the document, never a path.
+
+<Warning>
+The admin listener is plain HTTP. Send `PUT /license` from the Sidecar's host or through an encrypted tunnel such as `kubectl port-forward`; never send the secret across a network others can read.
+</Warning>
+
+A license given inline (`--license '{...}'`, `HOOP_LICENSE='{...}'`) cannot change in a running process; use a path, the admin API, or a restart. Under a Control Plane that manages licensing, set the license there: the [heartbeat](/control-plane/connect-sidecar#the-license) applies it, no local file is watched, and the admin API answers `409`.
+
 ### When a term ends under a running process
 
 The verdict is a function of the clock rather than a flag set at startup, so a relay that has been up for months flips `/config` and its caps to the free tier the second its term lapses. Nothing reloads.
@@ -819,7 +842,7 @@ The Sidecar records what was masked, never the values:
 ```
 
 <Warning>
-The admin listener serves a read interface to every statement every user ran, with no authentication and no CORS of its own. Bind it to loopback or put it behind whatever already gates audit access, and never expose it on a data port.
+The admin listener's read routes serve every statement every user ran, with no authentication and no CORS of its own. Bind it to loopback or put it behind whatever already gates audit access, and never expose it on a data port. `PUT /license` is off unless `HOOP_SIDECAR_ADMIN_SECRET` is set, and the listener is plain HTTP, so send that secret only from the host or through an encrypted tunnel.
 </Warning>
 
 ---
