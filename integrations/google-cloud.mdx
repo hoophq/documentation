@@ -174,7 +174,7 @@ The Sidecar passes the client's database login through, so the client holds the 
     kubectl apply -f database-policy.yaml
     ```
 
-    A selector that matches nothing locks nothing, and `kubectl` reports no error. [Verify](#verify) checks it.
+    A selector that matches nothing locks nothing, and `kubectl` reports no error. NetworkPolicies add up: another policy that selects the database's pods and admits other clients keeps them in. List them with `kubectl -n default get networkpolicy`. [Verify](#verify) checks it.
   </Step>
 
   <Step title="Point your clients at the Sidecar">
@@ -274,7 +274,7 @@ The template installs its own Sidecar, named `appdb-sidecar` like the one in [On
     In the Sidecar's VPC and the agent's region, and let the Agent Platform service agent use it:
 
     ```bash
-    ATTACHMENT=agent-psci-$(date +%Y%m%d%H%M)
+    ATTACHMENT=agent-psci-$(date +%Y%m%d%H%M%S)
     gcloud compute networks subnets create $ATTACHMENT --network NETWORK \
       --region REGION --range 192.168.10.0/28
     gcloud compute network-attachments create $ATTACHMENT --region REGION \
