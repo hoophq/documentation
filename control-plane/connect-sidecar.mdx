@@ -34,6 +34,15 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
 ---
 
+## Two ways to connect
+
+Both paths end the same way — a token, pointed at the Control Plane — and both use the steps below.
+
+- **Connect an existing Sidecar** — it already runs in your infrastructure. Issue a token, set the Control Plane URL and token, and restart it with the token.
+- **Create and deploy a new Sidecar** — you have not deployed one yet. Issue a token, then deploy with Kubernetes, Docker Compose or the CLI using the tabs in [step 2](#steps); each tab links to its full install page.
+
+---
+
 ## Steps
 
 <Steps>
@@ -43,7 +52,7 @@ Four properties fall out of this shape, and they are the reason it looks like th
     The token identifies this Sidecar and authenticates it — treat it as a credential.
   </Step>
   <Step title="Choose where it runs, and start it">
-    The Control Plane's URL goes in the config file or an environment variable. The token is never written to disk — it goes on the command line or in an environment variable. Pick where the Sidecar runs:
+    The Control Plane's URL goes in the config file or an environment variable. The token is never written to disk — it goes on the command line or in an environment variable. Pick where the Sidecar runs — for one already running, apply these where it runs now and restart it:
 
     <Tabs>
       <Tab title="Kubernetes">
