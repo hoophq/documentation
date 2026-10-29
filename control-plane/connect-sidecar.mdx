@@ -42,28 +42,54 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
     The token identifies this Sidecar and authenticates it — treat it as a credential.
   </Step>
-  <Step title="Point the Sidecar at the Control Plane">
-    Add the Control Plane's URL to the Sidecar's config file. The token is never written to disk — it goes on the command line or in an environment variable:
+  <Step title="Choose where it runs, and start it">
+    The Control Plane's URL goes in the config file or an environment variable. The token is never written to disk — it goes on the command line or in an environment variable. Pick where the Sidecar runs:
 
-    ```yaml config.yaml
-    control_plane_url: https://hoop.your-company.com
-    ```
+    <Tabs>
+      <Tab title="Kubernetes">
+        Mount the token as a Secret and set the variables; the container takes no arguments. See [Kubernetes](/install/kubernetes) for the full manifest.
 
-    ```bash
-    hoop start sidecar --config config.yaml --token "<the token you copied>"
-    ```
+        ```yaml
+        env:
+          - name: HOOP_CONTROL_PLANE_URL
+            value: https://hoop.your-company.com
+          - name: HOOP_SIDECAR_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: hoop-sidecar-token
+                key: token
+        ```
+      </Tab>
+      <Tab title="Docker Compose">
+        Set the variables on the service and mount the config file. See [Container Images](/install/container-images#running-it-with-docker-compose) for the full example.
 
-    Or supply both through the environment, which is the shape a Kubernetes deployment wants — mount the secret, set the variables, pass no arguments:
+        ```yaml compose.yaml
+        services:
+          hoop-sidecar:
+            image: hoophq/hoopsidecar:<version>
+            environment:
+              HOOP_CONTROL_PLANE_URL: https://hoop.your-company.com
+              HOOP_SIDECAR_TOKEN: <the token you copied>
+            volumes:
+              - ./config.yaml:/etc/hoop-inspect/config.yaml:ro
+        ```
 
-    ```bash
-    export HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com
-    export HOOP_SIDECAR_TOKEN=<the token you copied>
-    ```
-  </Step>
-  <Step title="Start it">
-    ```bash
-    hoop start sidecar --config config.yaml --token "<the token you copied>"
-    ```
+        ```bash
+        docker compose up -d
+        ```
+      </Tab>
+      <Tab title="CLI / Binary">
+        Put the URL in the config file and pass the token as a flag. Install the CLI from [Command Line](/install/cli).
+
+        ```yaml config.yaml
+        control_plane_url: https://hoop.your-company.com
+        ```
+
+        ```bash
+        hoop start sidecar --config config.yaml --token "<the token you copied>"
+        ```
+      </Tab>
+    </Tabs>
 
     On the first start the Control Plane holds no configuration for this Sidecar. It answers `412`, the Sidecar imports the document from your local file, and then serves what the Control Plane sends back. That import happens once.
   </Step>
