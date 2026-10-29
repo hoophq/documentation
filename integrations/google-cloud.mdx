@@ -33,14 +33,72 @@ The Sidecar passes the client's database login through, so the client holds the 
 
 ### Requirements
 
-- A GKE cluster on x86 nodes, where you can create namespaces, and a Postgres database that its pods reach. For example, a Postgres Deployment in the same cluster.
-- `gcloud`, `kubectl` and Terraform 1.5 or later:
+- A GKE cluster on x86 nodes, where you can create namespaces, and a Postgres database that its pods reach. For example, a Postgres Deployment in the same cluster. To try it with neither, see [A demo cluster and database](#a-demo-cluster-and-database).
+- `gcloud` with the `gke-gcloud-auth-plugin` component, `kubectl`, and Terraform 1.5 or later:
 
   ```bash
+  gcloud components install gke-gcloud-auth-plugin
   gcloud auth application-default login
   gcloud container clusters get-credentials CLUSTER --location LOCATION
   ```
 - hoop 1.281.0 or later. Every release is on [GitHub](https://github.com/hoophq/hoop/releases).
+
+<Accordion title="A demo cluster and database">
+  A new Autopilot cluster in `us-east1`, the region where `agents-cli` deploys agents, and a Postgres Deployment with invented customers. The database is `appdb` with a table `customers (id, name, email, plan)` and a login `agent` that can only read it, which is what the [Agent Runtime](#from-agent-runtime) template's agent expects.
+
+  ```bash
+  gcloud container clusters create-auto hoop-demo --location us-east1
+  gcloud container clusters get-credentials hoop-demo --location us-east1
+  kubectl apply -f appdb.yaml
+  kubectl rollout status deploy/appdb
+  ```
+
+  ```yaml appdb.yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata: {name: appdb-seed, namespace: default}
+  data:
+    seed.sql: |
+      CREATE TABLE customers (id int PRIMARY KEY, name text, email text, plan text);
+      INSERT INTO customers VALUES
+        (1, 'Ada Example', 'ada@example.com', 'enterprise'),
+        (2, 'Bo Example',  'bo@example.com',  'free'),
+        (3, 'Cy Example',  'cy@example.com',  'enterprise');
+      CREATE ROLE agent LOGIN PASSWORD 'change-me-agent';
+      GRANT SELECT ON customers TO agent;
+  ---
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata: {name: appdb, namespace: default}
+  spec:
+    replicas: 1
+    selector: {matchLabels: {app: appdb}}
+    template:
+      metadata: {labels: {app: appdb}}
+      spec:
+        containers:
+          - name: postgres
+            image: postgres:16-alpine
+            env:
+              - {name: POSTGRES_USER, value: app}
+              - {name: POSTGRES_PASSWORD, value: change-me-app}
+              - {name: POSTGRES_DB, value: appdb}
+            ports: [{containerPort: 5432}]
+            readinessProbe:
+              exec: {command: [pg_isready, -U, app, -d, appdb]}
+            volumeMounts: [{name: seed, mountPath: /docker-entrypoint-initdb.d}]
+        volumes: [{name: seed, configMap: {name: appdb-seed}}]
+  ---
+  apiVersion: v1
+  kind: Service
+  metadata: {name: appdb, namespace: default}
+  spec:
+    selector: {app: appdb}
+    ports: [{port: 5432, targetPort: 5432}]
+  ```
+
+  The rest of this page uses its values: `upstream` `appdb.default.svc.cluster.local:5432`, the labels `app: appdb`, the login `app` for writes and `agent` for reads. Change the passwords before you use it for more than a test.
+</Accordion>
 
 <Steps>
   <Step title="Write main.tf">
@@ -85,7 +143,7 @@ The Sidecar passes the client's database login through, so the client holds the 
     kubectl -n hoop-sidecar logs deploy/appdb-sidecar-hoopsidecar | grep -E 'free tier|lane ready'
     ```
 
-    The `lane ready` line holds `"enforcing":true,"rules":1`.
+    The `lane ready` line holds `"enforcing":true` and `"rules":1`.
   </Step>
 
   <Step title="Lock the database to the Sidecar">
@@ -126,7 +184,7 @@ The Sidecar passes the client's database login through, so the client holds the 
 
 ### Verify
 
-From a pod in the cluster, replace `USER`, `PASSWORD`, `DATABASE` and the table:
+From a pod in the cluster, replace `USER`, `PASSWORD`, `DATABASE` and the table. In the demo: `app`, `change-me-app`, `appdb`. Use a login that can write, so a refused write shows the Sidecar at work, not the database:
 
 ```bash
 SIDECAR=appdb-sidecar-hoopsidecar-lanes.hoop-sidecar.svc.cluster.local
@@ -176,17 +234,20 @@ The preset is for Postgres. For another protocol, or another rule, set `config_s
 
 The [`gcp-agent-runtime/postgres`](https://github.com/hoophq/hoop/tree/main/deploy/gcp-agent-runtime/postgres) template is an ADK agent whose SQL tool reaches Postgres through the Sidecar. The Sidecar runs on GKE behind an internal load balancer, and the agent reaches it over PSC-I. Its README has each step in full.
 
-You need `uv`, `agents-cli` 1.11 or later (`uv tool install google-agents-cli`), a GKE cluster in the database's VPC, and the requirements of [On GKE](#requirements).
+You need `uv`, `agents-cli` 1.11 or later (`uv tool install google-agents-cli`), and the requirements of [On GKE](#requirements). Keep the agent, the network attachment and the GKE cluster in one region: `agents-cli deploy` uses `us-east1`, where the [demo cluster](#a-demo-cluster-and-database) runs.
+
+The template installs its own Sidecar, named `appdb-sidecar` like the one in [On GKE](#on-gke). On a cluster where you followed On GKE, run its [Clean up](#clean-up) first, or use another cluster.
 
 <Steps>
   <Step title="Create the project">
     ```bash
-    agents-cli create my-agent -a hoophq/hoop/deploy/gcp-agent-runtime/postgres@TEMPLATE_RELEASE \
+    agents-cli create my-agent -a hoophq/hoop/deploy/gcp-agent-runtime/postgres@RELEASE \
       -d agent_runtime --root-agent-name support_agent
     cd my-agent
     ```
 
-    `--root-agent-name support_agent` is required: `app/agent.py` defines that agent.
+    - `RELEASE` is a hoop release tag, TEMPLATE_MIN_RELEASE or later. Older tags install an older Sidecar.
+    - `--root-agent-name support_agent` is required: `app/agent.py` defines that agent.
   </Step>
 
   <Step title="Install the Sidecar and lock the database">
@@ -200,7 +261,11 @@ You need `uv`, `agents-cli` 1.11 or later (`uv tool install google-agents-cli`),
       -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
     ```
 
-    The last command prints the Sidecar's internal IP. Lock the database with `deploy/sidecar/database-policy.yaml`, as in [On GKE](#on-gke).
+    The last command prints the Sidecar's internal IP, the agent's `SIDECAR_IP`. Set the `podSelector` in `deploy/sidecar/database-policy.yaml` to your database pods' labels (`app: appdb` in the demo), then apply it in the database's namespace. The file names no namespace:
+
+    ```bash
+    kubectl -n default apply -f deploy/sidecar/database-policy.yaml
+    ```
   </Step>
 
   <Step title="Create the network attachment">
@@ -218,7 +283,8 @@ You need `uv`, `agents-cli` 1.11 or later (`uv tool install google-agents-cli`),
       --role projects/PROJECT/roles/agentRuntimePsci
     ```
 
-    Keep `192.168.10.0/28` if it is free in your VPC.
+    - Keep `192.168.10.0/28` if it is free in your VPC. The subnet must reach the Sidecar's IP on port `15432`.
+    - If `roles create` says the role exists in a deleted state, run `gcloud iam roles undelete agentRuntimePsci --project PROJECT`. If it says the role already exists, go on.
   </Step>
 
   <Step title="Deploy the agent">
@@ -233,7 +299,8 @@ You need `uv`, `agents-cli` 1.11 or later (`uv tool install google-agents-cli`),
       --secrets APPDB_PASSWORD=appdb-password
     ```
 
-    A project with no organization uses `agents.global.proj-PROJECT_NUMBER.system.id.goog`.
+    - `APPDB_PASSWORD` is the `agent` login's password, `change-me-agent` in the demo.
+    - A project with no organization uses `agents.global.proj-PROJECT_NUMBER.system.id.goog`.
   </Step>
 
   <Step title="Ask the agent">
@@ -270,7 +337,24 @@ kubectl delete -f database-policy.yaml
 kubectl delete namespace hoop-sidecar
 ```
 
-For Agent Runtime, also delete the agent, the network attachment, its subnet, the custom role binding and the secret. The template's README lists them.
+For Agent Runtime, from the project directory. Delete the agent first: it holds the network attachment.
+
+```bash
+curl -X DELETE -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://REGION-aiplatform.googleapis.com/v1/projects/PROJECT_NUMBER/locations/REGION/reasoningEngines/AGENT_ID?force=true"
+terraform -chdir=deploy/sidecar destroy \
+  -var project_id=PROJECT -var cluster_name=CLUSTER -var cluster_location=LOCATION
+kubectl -n default delete -f deploy/sidecar/database-policy.yaml
+gcloud compute network-attachments delete agent-psci --region REGION --quiet
+gcloud compute networks subnets delete agent-psci --region REGION --quiet
+gcloud projects remove-iam-policy-binding PROJECT \
+  --member serviceAccount:service-PROJECT_NUMBER@gcp-sa-aiplatform.iam.gserviceaccount.com \
+  --role projects/PROJECT/roles/agentRuntimePsci
+gcloud iam roles delete agentRuntimePsci --project PROJECT
+gcloud secrets delete appdb-password --quiet
+```
+
+The demo cluster: `gcloud container clusters delete hoop-demo --location us-east1`.
 
 ---
 
