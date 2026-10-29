@@ -32,7 +32,8 @@ The Sidecar reads the Statement Execution API and the workspace SQL MCP server o
 
 - A Databricks workspace with a SQL warehouse. A free trial works.
 - A personal access token. OAuth through the Sidecar's name is not tested yet.
-- Docker on a host with outbound HTTPS to the workspace host.
+- A Sidecar token. The Sidecar runs logged in: sign in to [use.hoop.dev](https://use.hoop.dev), open **Sidecars**, choose **Connect an existing Sidecar**, and copy the token. A free use.hoop.dev organization holds one Sidecar.
+- Docker on a host with outbound HTTPS to the workspace host and to `use.hoop.dev`.
 - A certificate authority your clients trust, and `openssl` to issue a certificate from it.
 - A client: `curl`, the Databricks SDK, or an MCP client that speaks Streamable HTTP.
 - A Sidecar release with the `http.sql` block. An older one refuses the config with `unknown field "sql"`.
@@ -119,14 +120,18 @@ The Sidecar reads the Statement Execution API and the workspace SQL MCP server o
       -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
       hoophq/hoopsidecar:<version> hoop start sidecar --validate
 
+    read -rs HOOP_SIDECAR_TOKEN && export HOOP_SIDECAR_TOKEN   # paste the Sidecar token
     docker run -d --name hoop-databricks \
       -p 8443:8443 -p 127.0.0.1:19000:19000 \
+      -e HOOP_SIDECAR_TOKEN \
       -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
       -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
       hoophq/hoopsidecar:<version>
     ```
 
-    `--validate` prints `config OK: 1 listener(s)` and `limits: 1 guardrail rule(s), 1 data masking rule(s)`. Versions are on the [releases page](https://github.com/hoophq/hoop/releases).
+    `--validate` prints `config OK: 1 listener(s)` and `limits: 1 guardrail rule(s), 1 data masking rule(s)`; it needs no token. Versions are on the [releases page](https://github.com/hoophq/hoop/releases).
+
+    The token logs the Sidecar in to your use.hoop.dev organization, and the lane runs this `config.yaml`. Without a token or a license the Sidecar waits for a person to approve a login code, which it prints in `docker logs hoop-databricks`.
   </Step>
 
   <Step title="Point your clients at the Sidecar">
@@ -235,8 +240,9 @@ Without a network rule, a client that calls the workspace host directly skips th
 
 <EnterpriseLimit />
 
-- **More rules:** an Enterprise license with the guardrails and data-masking features lifts the one-rule caps, with or without a Control Plane. In Docker, pass it with `-e HOOP_LICENSE="$(cat license.json)"`. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
-- **Central management:** connect the Sidecar to a [Control Plane](/core-concepts/control-plane), which also needs an Enterprise license. It adds shared rule sets and one view of many Sidecars.
+- **The config fits the free tier.** It uses one guardrail rule, `read-only`, and one masking rule, `emails`. One rule can carry more than one check: `read-only` names ten operations.
+- **The license comes from use.hoop.dev.** With `HOOP_SIDECAR_TOKEN`, the Sidecar takes your use.hoop.dev organization's license on each heartbeat. A free organization holds one Sidecar. An Enterprise license with the guardrails and data-masking features lifts the one-rule caps. Your organization can hold it, or you pass it with `-e HOOP_LICENSE="$(cat license.json)"` instead of the token. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **Approvals and central management:** the [Control Plane](/core-concepts/control-plane) adds approvals, shared rule sets and one view of many Sidecars. It also needs an Enterprise license.
 
 ---
 
