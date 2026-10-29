@@ -66,7 +66,7 @@ listeners:
 
 | Field | Meaning |
 |---|---|
-| `capture_body` | Includes request and response bodies in the statement. A `pii` or `pattern_match` rule that reads payloads needs it. It is optional for the analyzer, which judges a request from its request line and headers without it. A lane that holds for review captures request bodies without it; response bodies still need it. |
+| `capture_body` | Includes request and response bodies in the statement. A `pii` or `pattern_match` rule that reads payloads needs it. It is optional for the analyzer, which judges a request from its request line and headers without it. A lane that holds for review, and an `http.sql` block on its routes, capture request bodies without it; response bodies still need it. |
 | `max_body_bytes` | Truncates a captured body. Default 64 KiB. |
 | `headers` | Headers exposed to policy, the audit trail and the analyzer, matched case-insensitively. An `http_header` rule may name only headers listed here. `authorization`, `cookie`, `proxy-authorization` and `set-cookie` can never be listed. |
 | `sql` | Reads the SQL a JSON API carries in its request body. See [SQL in request bodies](#sql-in-request-bodies). |
@@ -90,9 +90,9 @@ http:
 | Field | Meaning |
 |---|---|
 | `dialect` | Required. `spark`, `postgres`, `mysql`, `mssql`, `googlesql`, `clickhouse` or `oracle`. |
-| `fields` | A route pattern, written as an `http_resource` rule writes it, mapped to the dotted JSON path of the SQL. The longest matching pattern wins. A pattern matches the cleaned path, so `/api/2.0/./sql/statements` and `/api/2.0\sql\statements` read like `/api/2.0/sql/statements`. |
-| `tools` | A body with a `jsonrpc` member carries SQL only as a `tools/call` naming one of these. A JSON-RPC batch yields one statement per call. |
-| `refuse` | `field=value` pairs, compared case-insensitively, that send a request's results around the Sidecar. Such a request is refused with `refuse_message`, whatever the rules say, and so is a value at that field that is not a string. |
+| `fields` | A route pattern, written as an `http_resource` rule writes it, mapped to the dotted JSON path of the SQL. The longest matching pattern wins; two of the same length that match and name different paths refuse the request. A pattern matches the cleaned path, so `/api/2.0/./sql/statements` and `/api/2.0\sql\statements` read like `/api/2.0/sql/statements`. |
+| `tools` | Where the path is under `params.arguments`, a body with a `jsonrpc` member carries SQL only as a `tools/call` naming one of these, so such a path requires `tools`. Anywhere else `jsonrpc` changes nothing. A JSON-RPC batch yields one statement per call. |
+| `refuse` | `field=value` pairs, compared case-insensitively, that send a request's results around the Sidecar. Such a request is refused with `refuse_message`, whatever the rules say and whether or not it carries SQL, and so is a value at that field that is not a string. |
 | `refuse_message` | What a refused client is told. Required with `refuse`. |
 
 A request with no body carries no SQL. A body that should carry SQL and does not yield it (cut at `max_body_bytes`, not JSON, no string at the path) becomes an `unknown` statement, which a rule naming `unknown` refuses. With `refuse` set, a body cut at the limit or not JSON is refused outright, because its value cannot be checked either.
