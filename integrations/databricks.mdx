@@ -228,7 +228,7 @@ Without a network rule, a client that calls the workspace host directly skips th
 - **Large results are refused, not leaked.** A JSON result the Sidecar cannot mask is refused with a 403: over 8 MiB as sent, or over 16 MiB once a gzip body is inflated. Databricks allows up to 25 MiB inline; use `row_limit` or `byte_limit` to stay under the Sidecar's limit.
 - **Long statements need a larger capture.** The Sidecar reads at most `max_body_bytes` of a request body, 64 KiB by default, and refuses a longer one. Raise `http.max_body_bytes` for long SQL.
 - **What `unknown` refuses besides writes.** A SQL script (`BEGIN ... END`), `EXECUTE IMMEDIATE`, and any statement that holds `${`. `VACUUM t DRY RUN` and `COPY INTO t ... VALIDATE` are refused as the write they preview. A read that names a column like a write verb after `THEN` reads as a write.
-- **Table rules have gaps.** `IDENTIFIER(:t)` hides the table from table rules; the operation is still read. Table rules miss the table of `SHOW TBLPROPERTIES`, `SHOW COLUMNS`, `SHOW PARTITIONS` and `table_changes()`.
+- **`IDENTIFIER(:t)` hides the table from table rules.** The operation is still read.
 - **A denial is an HTTP 403 with a text body.** `curl` and MCP clients show the message. The Databricks SDK for Python raises `PermissionDenied` with `unable to parse response`, because it expects a JSON error body.
 - **The audit stores the bodies of the SQL routes.** That is the SQL and the warehouse ID, never the token. Requests to other APIs keep no body. Keep the admin port on loopback all the same.
 - **The principal reads `anonymous`.** The lane does not resolve the token to a Databricks user yet.
