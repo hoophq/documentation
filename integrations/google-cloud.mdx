@@ -107,6 +107,7 @@ The Sidecar passes the client's database login through, so the client holds the 
             readinessProbe:
               exec: {command: [pg_isready, -U, app, -d, appdb]}
             volumeMounts: [{name: seed, mountPath: /docker-entrypoint-initdb.d}]
+            resources: {requests: {cpu: 250m, memory: 512Mi}}
         volumes: [{name: seed, configMap: {name: appdb-seed}}]
   ---
   apiVersion: v1
