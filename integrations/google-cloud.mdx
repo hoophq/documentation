@@ -12,7 +12,9 @@ There are two ways to use it:
 - **[On GKE](#on-gke)**: an app, a job or an agent in the cluster connects to the Sidecar. One Terraform module from the hoop repository installs it.
 - **[From Agent Runtime](#from-agent-runtime)**: an ADK agent on Gemini Enterprise Agent Platform reaches the Sidecar over Private Service Connect and has no route to the database. A template for `agents-cli` creates the agent and its Sidecar.
 
-The Sidecar is free to run, with no license and no account: one guardrail rule and one masking rule. See [Free and Enterprise](#free-and-enterprise).
+The quick starts use Postgres. The Sidecar also fronts MySQL, SQL Server, MongoDB, ClickHouse, Oracle and HTTP APIs: see [Other databases and APIs](#other-databases-and-apis).
+
+The Sidecar is free to run, with no license and no account: one guardrail rule and one masking rule. A license lifts the limits and adds the Control Plane. See [Free and Enterprise](#free-and-enterprise).
 
 <Note>
 hoop is not on Google Cloud Marketplace yet. Install from the command line, as below. The Marketplace form runs the same module.
@@ -325,6 +327,47 @@ The template installs its own Sidecar, named `appdb-sidecar` like the one in [On
 </Steps>
 
 PSC-I does not stop the agent from calling Google front ends, such as `*.run.app`. A VPC Service Controls perimeter does.
+
+---
+
+## Other databases and APIs
+
+The module fronts more than Postgres. With the simple fields, set `protocol` to `mysql`, `mssql`, `mongodb`, `oracle`, `clickhouse` or `http`: the Sidecar records every statement or request and refuses nothing. The `read-only` preset is for Postgres only. On the other protocols, the same rule refuses some reads and misses some writes.
+
+To refuse something on another protocol, write the Sidecar's config yourself. For example, a MySQL database where no client may drop or empty a table:
+
+```hcl main.tf
+module "hoop_sidecar" {
+  # The same arguments as in On GKE, without upstream and guardrail_preset:
+  config_source   = "document"
+  config_document = file("sidecar.yaml")
+}
+```
+
+```yaml sidecar.yaml
+admin:
+  listen: 0.0.0.0:19000
+audit:
+  file: "-"
+guardrails:
+  rules:
+    - name: no-drop
+      type: operation
+      operations: [drop, truncate]
+      message: "hoop: dropping or emptying a table is not allowed here"
+listeners:
+  - name: appdb
+    protocol: mysql
+    listen: 0.0.0.0:13306
+    upstream: appdb.default.svc.cluster.local:3306
+```
+
+- `admin.listen` must be `0.0.0.0:19000`.
+- The Sidecar's Service publishes each listener's port. Clients connect to `appdb-sidecar-hoopsidecar-lanes.hoop-sidecar.svc.cluster.local:13306`.
+- Lock the database the same way, with its port in the NetworkPolicy.
+- One guardrail rule and one masking rule are free. One rule can name several operations.
+
+What each protocol inspects and refuses: [MySQL](/setup/configuration/hoop-sidecar/protocols/mysql), [SQL Server](/setup/configuration/hoop-sidecar/protocols/mssql), [MongoDB](/setup/configuration/hoop-sidecar/protocols/mongodb), [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse), [HTTP](/setup/configuration/hoop-sidecar/protocols/http). Every rule type: [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules). Every config key: [Config File](/setup/configuration/hoop-sidecar/config-file).
 
 ---
 
