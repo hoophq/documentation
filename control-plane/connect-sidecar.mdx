@@ -39,7 +39,7 @@ Four properties fall out of this shape, and they are the reason it looks like th
 Both paths end the same way — a token, pointed at the Control Plane — and both use the steps below.
 
 - **Connect an existing Sidecar** — it already runs in your infrastructure. Issue a token, set the Control Plane URL and token, and restart it with the token.
-- **Create and deploy a new Sidecar** — you have not deployed one yet. Issue a token, then deploy with Kubernetes, Docker Compose or the CLI using the tabs in [step 2](#steps); each tab links to its full install page.
+- **Create and deploy a new Sidecar** — you have not deployed one yet. Issue a token, then deploy with Kubernetes, Docker Compose or the CLI using the tabs in step 2 below; each tab links to its full install page.
 
 ---
 
@@ -72,9 +72,9 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
       <Tab title="Docker Compose">
         Set the variables on the service and mount the config file. See [Container Images](/install/container-images#running-it-with-docker-compose) for the full example.
 
-        ```yaml compose.yaml
+        ```yaml docker-compose.yml
         services:
-          hoop-sidecar:
+          hoop-inspect:
             image: hoophq/hoopsidecar:<version>
             environment:
               HOOP_CONTROL_PLANE_URL: https://hoop.your-company.com
