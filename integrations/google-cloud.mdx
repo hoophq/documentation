@@ -20,6 +20,22 @@ The Sidecar is free to run, with no license and no account: one guardrail rule a
 hoop is not on Google Cloud Marketplace yet. Install from the command line, as below. The Marketplace form runs the same module.
 </Note>
 
+### The values on this page
+
+Words in capitals are values you replace. The second column is what they are in the [demo](#a-demo-cluster-and-database):
+
+| Value | What it is | Demo | Find yours with |
+|---|---|---|---|
+| `PROJECT` | Your Google Cloud project id | your project | `gcloud config get project` |
+| `CLUSTER`, `LOCATION` | The GKE cluster's name, and its region or zone | `hoop-demo`, `us-east1` | `gcloud container clusters list` |
+| `RELEASE` | A hoop release | `1.281.1` | [hoop releases](https://github.com/hoophq/hoop/releases) |
+| `USER`, `PASSWORD`, `DATABASE` | A database login that can write, its password, and the database | `app`, `change-me-app`, `appdb` | your database |
+| `REGION` | Agent Runtime: the agent's region | `us-east1` | `us-east1` unless you deploy elsewhere |
+| `NETWORK` | Agent Runtime: the cluster's VPC | `default` | `gcloud container clusters describe CLUSTER --location LOCATION --format='value(network)'` |
+| `PROJECT_NUMBER` | Agent Runtime: the project's number | | `gcloud projects describe PROJECT --format='value(projectNumber)'` |
+| `ORGANIZATION_ID` | Agent Runtime: the organization above the project | | `gcloud projects get-ancestors PROJECT` (the `organization` row) |
+| `SIDECAR_IP`, `AGENT_ID` | Agent Runtime: printed by the steps that create them | | the step that names them |
+
 ---
 
 ## Why a client cannot skip the Sidecar
@@ -43,6 +59,8 @@ The Sidecar passes the client's database login through, so the client holds the 
   gcloud auth application-default login
   gcloud container clusters get-credentials CLUSTER --location LOCATION
   ```
+
+  `CLUSTER` and `LOCATION` are your cluster's name and region. With no cluster yet, skip this line: the demo below runs it for you.
 - hoop 1.281.0 or later. Every release is on [GitHub](https://github.com/hoophq/hoop/releases).
 
 <Accordion title="A demo cluster and database">
