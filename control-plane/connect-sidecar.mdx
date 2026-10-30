@@ -34,6 +34,15 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
 ---
 
+## Two ways to connect
+
+Both paths end the same way — a token, pointed at the Control Plane — and both use the steps below.
+
+- **Connect an existing Sidecar** — it already runs in your infrastructure. Issue a token, set the Control Plane URL and token, and restart it with the token.
+- **Create and deploy a new Sidecar** — you have not deployed one yet. Issue a token, then deploy with Kubernetes, Docker or the CLI using the tabs in step 2 below; each tab links to its full install page.
+
+---
+
 ## Steps
 
 <Steps>
@@ -42,28 +51,133 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
     The token identifies this Sidecar and authenticates it — treat it as a credential.
   </Step>
-  <Step title="Point the Sidecar at the Control Plane">
-    Add the Control Plane's URL to the Sidecar's config file. The token is never written to disk — it goes on the command line or in an environment variable:
+  <Step title="Choose where it runs, and start it">
+    The Control Plane's URL goes in the config file or an environment variable. The token is never written to disk — it goes on the command line or in an environment variable. Pick where the Sidecar runs. A Sidecar that already runs keeps its image and config file: it only needs the URL, the token and a restart.
 
-    ```yaml config.yaml
-    control_plane_url: https://hoop.your-company.com
-    ```
+    <Tabs>
+      <Tab title="Kubernetes">
+        Two ways to deploy on Kubernetes. The Helm chart does most of the work for you. Your own YAML gives you full control, and you write each object yourself.
 
-    ```bash
-    hoop start sidecar --config config.yaml --token "<the token you copied>"
-    ```
+        New to Kubernetes? Use the Helm chart.
 
-    Or supply both through the environment, which is the shape a Kubernetes deployment wants — mount the secret, set the variables, pass no arguments:
+        <Tabs>
+          <Tab title="Helm chart">
+            Write a `values.yaml`:
 
-    ```bash
-    export HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com
-    export HOOP_SIDECAR_TOKEN=<the token you copied>
-    ```
-  </Step>
-  <Step title="Start it">
-    ```bash
-    hoop start sidecar --config config.yaml --token "<the token you copied>"
-    ```
+            ```yaml values.yaml
+            controlPlane:
+              url: https://hoop.your-company.com
+              token: <the token you copied>
+            config:
+              admin:
+                listen: 0.0.0.0:19000      # the admin API port; the chart needs 19000
+              listeners:
+                - name: appdb
+                  protocol: postgres
+                  listen: 0.0.0.0:15432
+                  upstream: <your-database-host>:5432
+            ```
+
+            - `config` is the Sidecar's config file. The Control Plane copies it once, on the first start. It needs at least one entry in `listeners`.
+            - This file holds the token. Keep it out of a repository.
+
+            Install the chart:
+
+            ```bash
+            VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+            helm upgrade --install hoop-sidecar \
+              oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+              --namespace hoop --create-namespace \
+              -f values.yaml
+            ```
+
+            A Sidecar that already runs from the chart: add the `controlPlane` block to its values and run the same `helm upgrade`. The chart restarts the pods. See [Kubernetes](/install/kubernetes#control-plane) for every value.
+          </Tab>
+          <Tab title="Your own YAML">
+            Put the token in a Secret:
+
+            ```bash
+            kubectl create secret generic hoop-sidecar-token \
+              --from-literal=token=<the token you copied>
+            ```
+
+            Set the variables on the Sidecar container; it takes no arguments:
+
+            ```yaml
+            env:
+              - name: HOOP_CONTROL_PLANE_URL
+                value: https://hoop.your-company.com
+              - name: HOOP_SIDECAR_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: hoop-sidecar-token
+                    key: token
+            ```
+
+            The container also needs the config file, from a ConfigMap mounted at `/etc/hoop-inspect/config.yaml`. Use the same file as the Docker tab: at least one entry in `listeners`, and `admin.listen` on `0.0.0.0`. See [Running as Sidecar](/install/kubernetes#running-as-sidecar) for the full Deployment and ConfigMap.
+
+            A Sidecar that already runs picks up the variables on a restart:
+
+            ```bash
+            kubectl rollout restart deployment/<your-sidecar-deployment>
+            ```
+          </Tab>
+        </Tabs>
+      </Tab>
+      <Tab title="Docker">
+        The Sidecar needs a config file on its first start. The Control Plane copies it once; after that, you edit the configuration in the Control Plane. Create `config.yaml` in the folder where you run `docker run`:
+
+        ```yaml config.yaml
+        admin:
+          listen: 0.0.0.0:19000      # the admin API port, used in step 4
+        listeners:
+          - name: appdb
+            protocol: postgres
+            listen: 0.0.0.0:15432
+            upstream: <your-database-host>:5432
+        ```
+
+        - `listeners` names the database the Sidecar sits in front of. The file needs at least one.
+        - `admin.listen` sets the port of the admin API. In a container, use `0.0.0.0`: a published port cannot reach the container's `127.0.0.1`.
+
+        See the [Config File Reference](/setup/configuration/hoop-sidecar/config-file) for every key.
+
+        Start the container with the variables, the file and both ports. See [Container Images](/install/container-images) for the image flavours.
+
+        ```bash
+        docker run -d --name hoop-sidecar \
+          -e HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com \
+          -e HOOP_SIDECAR_TOKEN=<the token you copied> \
+          -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+          -p 15432:15432 -p 19000:19000 \
+          hoophq/hoopsidecar:<version>
+        ```
+
+        A container keeps the variables it started with. To connect one that already runs, create it again: `docker rm -f <your-sidecar-container>`, then the same `docker run`.
+      </Tab>
+      <Tab title="CLI / Bare metal">
+        Put the URL in the config file and pass the token as a flag. Install the CLI from [Command Line](/install/cli).
+
+        ```yaml config.yaml
+        control_plane_url: https://hoop.your-company.com
+        admin:
+          listen: 127.0.0.1:19000    # the admin API port, used in step 4
+        listeners:
+          - name: appdb
+            protocol: postgres
+            listen: 127.0.0.1:15432
+            upstream: <your-database-host>:5432
+        ```
+
+        The Control Plane copies this file once, on the first start. It needs at least one entry in `listeners`.
+
+        ```bash
+        hoop start sidecar --config config.yaml --token "<the token you copied>"
+        ```
+
+        A Sidecar that already runs: stop it, then start it again with this command.
+      </Tab>
+    </Tabs>
 
     On the first start the Control Plane holds no configuration for this Sidecar. It answers `412`, the Sidecar imports the document from your local file, and then serves what the Control Plane sends back. That import happens once.
   </Step>
@@ -77,12 +191,14 @@ Four properties fall out of this shape, and they are the reason it looks like th
     `--config` becomes optional at this point. The URL and the token are enough to start.
   </Step>
   <Step title="Confirm what it resolved">
-    The admin API reports the live configuration. It only runs when the configuration names an address for it, so the document the Control Plane serves needs an `admin` block — there is no default port:
+    The admin API reports the live configuration. It runs only when the configuration names an address for it — there is no default port. The `config.yaml` from step 2 sets it with this block:
 
     ```yaml
     admin:
       listen: 127.0.0.1:19000
     ```
+
+    `listen` is the address and port of the admin API. To add or change it later, edit the Sidecar's configuration in the Control Plane, then restart the Sidecar.
 
     ```bash
     curl -s localhost:19000/healthz            # ok
