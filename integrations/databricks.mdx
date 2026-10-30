@@ -1,0 +1,264 @@
+---
+title: "Databricks"
+description: "Guardrails, data masking and audit on the SQL a Databricks workspace runs through its APIs, with no app code change."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+The Sidecar runs in your infrastructure, between your clients and a Databricks workspace. The Statement Execution API and the workspace SQL MCP server both carry SQL in JSON over HTTPS to the workspace host, so one `http` lane fronts both.
+
+Clients use the Sidecar's own name in place of the workspace host. No DNS change. The Sidecar reads the SQL inside each request body, so a guardrail refuses a `DROP` before the warehouse runs it. Every statement from an AI agent on the SQL MCP server, from an application on the Statement Execution API, or from a developer with `curl` or the Databricks SDK then passes through your guardrails, masking rules and audit trail.
+
+<Frame>
+  <img
+    className="block dark:hidden"
+    src="/images/integrations/databricks-sidecar-light.svg"
+    alt="AI agents on the workspace SQL MCP server, applications on the Statement Execution API and developers with curl or the Databricks SDK connect to the Hoop Sidecar by its own name. The Sidecar reads the SQL in each request, refuses writes, masks results and records every request, then connects over TLS to the workspace host and the SQL warehouse. Context-based ingress allows the API only from the Sidecar's IP. JDBC and ODBC speak Thrift and are not read; Cloud Fetch rows come from cloud storage; notebooks and Genie run inside Databricks."
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/integrations/databricks-sidecar-dark.svg"
+    alt="AI agents on the workspace SQL MCP server, applications on the Statement Execution API and developers with curl or the Databricks SDK connect to the Hoop Sidecar by its own name. The Sidecar reads the SQL in each request, refuses writes, masks results and records every request, then connects over TLS to the workspace host and the SQL warehouse. Context-based ingress allows the API only from the Sidecar's IP. JDBC and ODBC speak Thrift and are not read; Cloud Fetch rows come from cloud storage; notebooks and Genie run inside Databricks."
+  />
+</Frame>
+
+<Warning>
+The Sidecar reads the Statement Execution API and the workspace SQL MCP server only. JDBC, ODBC and the other Databricks SQL drivers speak Thrift, so their SQL is not read and their results are not masked. Notebooks, jobs, the SQL editor, dashboards and Genie run inside Databricks. See [Behavior to know](#behavior-to-know).
+</Warning>
+
+---
+
+## Requirements
+
+- A Databricks workspace with a SQL warehouse. A free trial works.
+- A personal access token. OAuth through the Sidecar's name is not tested yet.
+- A Sidecar token. The Sidecar runs logged in: sign in to [use.hoop.dev](https://use.hoop.dev), open **Sidecars**, choose **Connect an existing Sidecar**, and copy the token. A free use.hoop.dev organization holds one Sidecar.
+- Docker on a host with outbound HTTPS to the workspace host and to `use.hoop.dev`.
+- A certificate authority your clients trust, and `openssl` to issue a certificate from it.
+- A client: `curl`, the Databricks SDK, or an MCP client that speaks Streamable HTTP.
+- A Sidecar release with the `http.sql` block. An older one refuses the config with `unknown field "sql"`.
+
+---
+
+## Setup
+
+<Steps>
+  <Step title="Find the workspace host and the warehouse ID">
+    The workspace host is the host of your workspace URL, for example `dbc-a1b2c3d4-e5f6.cloud.databricks.com`. In **SQL Warehouses**, open your warehouse and its **Connection details** tab. The warehouse ID is the last segment of the HTTP path, `/sql/1.0/warehouses/<warehouse-id>`.
+  </Step>
+
+  <Step title="Issue a certificate for the Sidecar's name">
+    Clients call the Sidecar by its own name, for example `databricks.sidecar.internal`, so it presents a certificate for that name, issued by a CA your clients trust. With a private CA:
+
+    ```bash
+    mkdir certs && cd certs
+    openssl req -x509 -newkey rsa:2048 -nodes -days 365 -subj "/CN=Hoop Sidecar CA" \
+      -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" \
+      -keyout ca.key -out ca.crt
+    openssl req -newkey rsa:2048 -nodes -subj "/CN=<sidecar-host>" -keyout sidecar.key -out sidecar.csr
+    printf "subjectAltName=DNS:<sidecar-host>\nextendedKeyUsage=serverAuth\nauthorityKeyIdentifier=keyid,issuer\n" > ext.cnf
+    openssl x509 -req -in sidecar.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 365 -extfile ext.cnf -out sidecar.crt
+    ```
+
+    Python 3.13 and later refuse a certificate without `keyUsage` on the CA or `authorityKeyIdentifier` on the leaf, so keep both lines.
+  </Step>
+
+  <Step title="Write the config">
+    Save this as `config.yaml` next to the `certs` folder. Replace `<workspace-host>` with yours.
+
+    ```yaml config.yaml
+    admin:
+      listen: 0.0.0.0:19000
+
+    audit:
+      file: "-"
+      query_sessions: 500
+
+    listeners:
+      - name: databricks
+        protocol: http
+        listen: https://0.0.0.0:8443
+        upstream: https://<workspace-host>
+        downstream_tls:
+          cert_file: /etc/hoop-inspect/certs/sidecar.crt
+          key_file: /etc/hoop-inspect/certs/sidecar.key
+        http:
+          sql:
+            dialect: spark
+            fields:
+              /api/2.0/sql/statements: statement
+              /ai-gateway/mcp-services/**: params.arguments.query
+              /api/2.0/mcp/sql: params.arguments.query
+            tools: [execute_sql]
+            refuse: [disposition=EXTERNAL_LINKS, disposition=INLINE_OR_EXTERNAL_LINKS]
+            refuse_message: ask for disposition INLINE; external links skip this listener
+        guardrails:
+          rules:
+            - name: read-only
+              type: operation
+              operations: [insert, update, delete, create, drop, alter, truncate, grant, revoke, unknown]
+              message: this listener allows reads only
+        mask:
+          rules:
+            - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    ```
+
+    - `listen` and `upstream` as URLs: clients dial `https://<sidecar-host>:8443`, and the Sidecar sends each request to the workspace host with that host's name, over verified TLS.
+    - `http.sql` reads the SQL out of each request body. `fields` maps a route to the JSON path of its SQL: `statement` on the Statement Execution API, the `query` argument of a `tools/call` on the SQL MCP server. `tools` names the MCP tool that runs SQL. `dialect: spark` reads the SQL as Databricks SQL.
+    - `refuse` refuses a request that asks for external links, with `refuse_message`, which `refuse` requires. Those results come from cloud storage, so the rows would skip masking and the audit. The enum number (`"disposition": 2`) is refused too.
+    - The guardrail refuses the writes it names, and every statement the Sidecar cannot read (`unknown`). `COMMENT ON`, `ANALYZE TABLE` and `REFRESH` are `other` and pass; naming `other` refuses them, and `USE CATALOG` with them.
+    - `mask` replaces email addresses in JSON results.
+    - `audit` writes every request and statement to stdout as JSON lines, and `query_sessions` turns on the `/api/sessions` endpoint. `admin` serves it with no authentication, so the next step publishes it on loopback only.
+
+    The config holds no Databricks credential. The Sidecar relays the client's token.
+  </Step>
+
+  <Step title="Validate and start the Sidecar">
+    ```bash
+    docker run --rm \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
+      hoophq/hoopsidecar:<version> hoop start sidecar --validate
+
+    read -rs HOOP_SIDECAR_TOKEN && export HOOP_SIDECAR_TOKEN   # paste the Sidecar token
+    docker run -d --name hoop-databricks \
+      -p 8443:8443 -p 127.0.0.1:19000:19000 \
+      -e HOOP_SIDECAR_TOKEN \
+      -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+      -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
+      hoophq/hoopsidecar:<version>
+    ```
+
+    `--validate` prints `config OK: 1 listener(s)` and `limits: 1 guardrail rule(s), 1 data masking rule(s)`; it needs no token. Versions are on the [releases page](https://github.com/hoophq/hoop/releases).
+
+    The token logs the Sidecar in to your use.hoop.dev organization, and the lane runs this `config.yaml`. Without a token or a license the Sidecar waits for a person to approve a login code, which it prints in `docker logs hoop-databricks`.
+  </Step>
+
+  <Step title="Point your clients at the Sidecar">
+    Use `https://<sidecar-host>:8443` where the client had the workspace URL, and trust `ca.crt`:
+
+    | Client | Host | Trust `ca.crt` with |
+    |---|---|---|
+    | `curl` | `https://<sidecar-host>:8443/api/2.0/sql/statements` | `--cacert ca.crt` |
+    | Databricks SDK for Python | `WorkspaceClient(host="https://<sidecar-host>:8443")` | `REQUESTS_CA_BUNDLE=ca.crt` |
+    | MCP client on Node.js | `https://<sidecar-host>:8443/ai-gateway/mcp-services/system.ai.dbsql` | `NODE_EXTRA_CA_CERTS=ca.crt` |
+    | Any other client | the same URL | the host trust store |
+
+    The token stays the same: `Authorization: Bearer <token>`.
+  </Step>
+</Steps>
+
+---
+
+## Verify
+
+Create a table with email addresses in the SQL editor:
+
+```sql
+CREATE TABLE <catalog>.default.customers AS
+SELECT * FROM VALUES ('alice@example.com', 'Alice'), ('bob@example.com', 'Bob') AS c(email, name);
+```
+
+Query it through the Sidecar:
+
+```bash
+curl -s --cacert ca.crt https://<sidecar-host>:8443/api/2.0/sql/statements \
+  -H "Authorization: Bearer $DATABRICKS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"statement":"SELECT email, name FROM <catalog>.default.customers","warehouse_id":"<warehouse-id>","wait_timeout":"30s","disposition":"INLINE","format":"JSON_ARRAY"}' \
+  | jq -c .result.data_array
+```
+
+```json
+[["[REDACTED:EMAIL_ADDRESS]","Alice"],["[REDACTED:EMAIL_ADDRESS]","Bob"]]
+```
+
+A `DROP` is refused before it reaches the warehouse, and the table is still there:
+
+```bash
+curl -s --cacert ca.crt https://<sidecar-host>:8443/api/2.0/sql/statements \
+  -H "Authorization: Bearer $DATABRICKS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"statement":"DROP TABLE <catalog>.default.customers","warehouse_id":"<warehouse-id>"}' \
+  -w '\n HTTP %{http_code}\n'
+```
+
+```
+this listener allows reads only
+
+ HTTP 403
+```
+
+The same `DROP` as an `execute_sql` call on the SQL MCP server gets the same 403. A request for external links is refused with your message:
+
+```
+ask for disposition INLINE; external links skip this listener (disposition is EXTERNAL_LINKS): libhoop/codec: forwarding these bytes would bypass the relay
+
+ HTTP 403
+```
+
+The audit lists each session with its counts (fields trimmed):
+
+```bash
+curl -s 127.0.0.1:19000/api/sessions
+```
+
+```json
+{"sessions":[
+  {"connection":"databricks","statement_count":0,"denied_count":1,"error_count":1,"verdict":"denied"},
+  {"connection":"databricks","statement_count":2,"denied_count":1,"masked_count":0,"verdict":"denied"},
+  {"connection":"databricks","statement_count":3,"denied_count":0,"masked_count":2,"verdict":"clean"}],"total":3}
+```
+
+A request and the SQL it carried are two statements in the trail: `POST /api/2.0/sql/statements`, then `DROP TABLE <catalog>.default.customers` with `operation: drop` and the table it names.
+
+---
+
+## Allow only the Sidecar
+
+Without a network rule, a client that calls the workspace host directly skips the Sidecar. Databricks has two front-end controls; both are enforced together:
+
+- **[Context-based ingress](https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress)**, in the account console. Allow the **API** access type only from the Sidecar's egress IP, and keep the **Workspace UI** rule for your users. Enterprise tier on AWS and GCP, Premium on Azure.
+- **[IP access lists](https://docs.databricks.com/aws/en/security/network/front-end/ip-access-list)**, per workspace. Add the Sidecar's egress IP to an allow list. This list covers the UI too, so add your users' IPs as well. Enterprise tier on AWS, Premium on Azure and GCP. Public IPv4 addresses only.
+
+---
+
+## Behavior to know
+
+- **Thrift drivers are not read.** JDBC, ODBC and the Python, Go and Node.js SQL connectors speak Thrift by default. Their SQL is not read and their results are not masked. Cloud Fetch rows come from cloud storage directly.
+- **External links skip the Sidecar.** With `EXTERNAL_LINKS`, the API answers with links to cloud storage. `refuse` turns those requests away, so clients must ask for `INLINE`.
+- **Large results are refused, not leaked.** A JSON result the Sidecar cannot mask is refused with a 403: over 8 MiB as sent, or over 16 MiB once a gzip body is inflated. Databricks allows up to 25 MiB inline; use `row_limit` or `byte_limit` to stay under the Sidecar's limit.
+- **Long statements need a larger capture.** The Sidecar reads at most `max_body_bytes` of a request body, 64 KiB by default, and refuses a longer one. Raise `http.max_body_bytes` for long SQL.
+- **What `unknown` refuses besides writes.** A SQL script (`BEGIN ... END`), `EXECUTE IMMEDIATE`, and any statement that holds `${`. `VACUUM t DRY RUN` and `COPY INTO t ... VALIDATE` are refused as the write they preview. A read that names a column like a write verb after `THEN` reads as a write.
+- **`IDENTIFIER(:t)` hides the table from table rules.** The operation is still read.
+- **A denial is an HTTP 403 with a text body.** `curl` and MCP clients show the message. The Databricks SDK for Python raises `PermissionDenied` with `unable to parse response`, because it expects a JSON error body.
+- **The audit stores the bodies of the SQL routes.** That is the SQL and the warehouse ID, never the token. Requests to other APIs keep no body. Keep the admin port on loopback all the same.
+- **The principal reads `anonymous`.** The lane does not resolve the token to a Databricks user yet.
+- **Reviews are not available on this lane yet.** A lane with `http.sql` cannot set an analyzer that holds for approval.
+
+---
+
+## Free and Enterprise
+
+<EnterpriseLimit />
+
+- **The config fits the free tier.** It uses one guardrail rule, `read-only`, and one masking rule, `emails`. One rule can carry more than one check: `read-only` names ten operations.
+- **The license comes from use.hoop.dev.** With `HOOP_SIDECAR_TOKEN`, the Sidecar takes your use.hoop.dev organization's license on each heartbeat. A free organization holds one Sidecar. An Enterprise license with the guardrails and data-masking features lifts the one-rule caps. Your organization can hold it, or you pass it with `-e HOOP_LICENSE="$(cat license.json)"` instead of the token. See [Licensing](/setup/configuration/hoop-sidecar/config-file#licensing).
+- **Approvals and central management:** the [Control Plane](/core-concepts/control-plane) adds approvals, shared rule sets and one view of many Sidecars. It also needs an Enterprise license.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Data Masking" icon="mask" href="/features/data-masking">
+    Choose entity types, columns and masking strategies.
+  </Card>
+  <Card title="Policy rules" icon="shield-halved" href="/setup/configuration/hoop-sidecar/policy-rules">
+    Guardrail rule types, and OPA for everything they cannot express.
+  </Card>
+  <Card title="HTTP" icon="globe" href="/setup/configuration/hoop-sidecar/protocols/http">
+    What the http lane captures, masks and terminates.
+  </Card>
+  <Card title="Config File Reference" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    Every section and field of `config.yaml`.
+  </Card>
+</CardGroup>

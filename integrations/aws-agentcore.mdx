@@ -329,7 +329,7 @@ The Sidecar's:
 - **One token for every agent.** Each row names `agentcore`, not a person. Per-user rows need a per-user token.
 - **The rule reads the request method only.** An API that accepts `X-HTTP-Method-Override`, `X-HTTP-Method` or `X-Method-Override` runs the method that the header names, even on a `GET`. Turn overrides off at the API.
 - **A request is held until it is whole.** The Sidecar judges a request after its body arrives, and forwards none of it before. A request over 8 MiB is refused.
-- **Masking applies to responses.** A JSON or text response under `br` or `zstd` is refused, not forwarded unmasked. A response over 16 MiB passes unmasked. See [Masking](/setup/configuration/hoop-sidecar/protocols/http#masking).
+- **Masking applies to responses.** A JSON or text response under `br` or `zstd` is refused, not forwarded unmasked. A JSON or text response too large to mask is refused too: over 8 MiB as sent, or over 16 MiB once inflated. See [Masking](/setup/configuration/hoop-sidecar/protocols/http#masking).
 - **Scope.** The template covers JSON REST APIs over HTTP/1.1 and HTTP/2.
 
 ---
