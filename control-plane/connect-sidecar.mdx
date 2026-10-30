@@ -56,31 +56,71 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
 
     <Tabs>
       <Tab title="Kubernetes">
-        Put the token in a Secret:
+        Two ways to deploy on Kubernetes. The Helm chart does most of the work for you. Your own YAML gives you full control, and you write each object yourself.
 
-        ```bash
-        kubectl create secret generic hoop-sidecar-token \
-          --from-literal=token=<the token you copied>
-        ```
+        <Tabs>
+          <Tab title="Helm chart">
+            Write a `values.yaml`:
 
-        Set the variables on the container; it takes no arguments. See [Kubernetes](/install/kubernetes) for the full manifest. With the Helm chart, set [`controlPlane`](/install/kubernetes#control-plane) in your values instead.
+            ```yaml values.yaml
+            controlPlane:
+              url: https://hoop.your-company.com
+              token: <the token you copied>
+            config:
+              admin:
+                listen: 0.0.0.0:19000      # the admin API port; the chart needs 19000
+              listeners:
+                - name: appdb
+                  protocol: postgres
+                  listen: 0.0.0.0:15432
+                  upstream: <your-database-host>:5432
+            ```
 
-        ```yaml
-        env:
-          - name: HOOP_CONTROL_PLANE_URL
-            value: https://hoop.your-company.com
-          - name: HOOP_SIDECAR_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: hoop-sidecar-token
-                key: token
-        ```
+            - `config` is the Sidecar's config file. The Control Plane copies it once, on the first start. It needs at least one entry in `listeners`.
+            - This file holds the token. Keep it out of a repository.
 
-        A Sidecar that already runs picks up the variables on a restart:
+            Install the chart:
 
-        ```bash
-        kubectl rollout restart deployment/<your-sidecar-deployment>
-        ```
+            ```bash
+            VERSION=$(curl -s https://releases.hoop.dev/release/latest.txt)
+            helm upgrade --install hoop-sidecar \
+              oci://ghcr.io/hoophq/helm-charts/hoopsidecar-chart --version $VERSION \
+              --namespace hoop --create-namespace \
+              -f values.yaml
+            ```
+
+            A Sidecar that already runs from the chart: add the `controlPlane` block to its values and run the same `helm upgrade`. The chart restarts the pods. See [Kubernetes](/install/kubernetes#control-plane) for every value.
+          </Tab>
+          <Tab title="Your own YAML">
+            Put the token in a Secret:
+
+            ```bash
+            kubectl create secret generic hoop-sidecar-token \
+              --from-literal=token=<the token you copied>
+            ```
+
+            Set the variables on the Sidecar container; it takes no arguments:
+
+            ```yaml
+            env:
+              - name: HOOP_CONTROL_PLANE_URL
+                value: https://hoop.your-company.com
+              - name: HOOP_SIDECAR_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: hoop-sidecar-token
+                    key: token
+            ```
+
+            The container also needs the config file, from a ConfigMap mounted at `/etc/hoop-inspect/config.yaml`. Use the same file as the Docker tab: at least one entry in `listeners`, and `admin.listen` on `0.0.0.0`. See [Running as Sidecar](/install/kubernetes#running-as-sidecar) for the full Deployment and ConfigMap.
+
+            A Sidecar that already runs picks up the variables on a restart:
+
+            ```bash
+            kubectl rollout restart deployment/<your-sidecar-deployment>
+            ```
+          </Tab>
+        </Tabs>
       </Tab>
       <Tab title="Docker">
         The Sidecar needs a config file on its first start. The Control Plane copies it once; after that, you edit the configuration in the Control Plane. Create `config.yaml` in the folder where you run `docker run`:
