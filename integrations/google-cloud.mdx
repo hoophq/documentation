@@ -277,6 +277,7 @@ The template installs its own Sidecar, named `appdb-sidecar` like the one in [On
 
     - `RELEASE` is a hoop release tag, 1.281.1 or later. Older tags install an older Sidecar.
     - `--root-agent-name support_agent` is required: `app/agent.py` defines that agent.
+    - `Gemini platform connection failed: Status 404 ... gemini-2.5-flash` is harmless. agents-cli tests your login with its own default model; the agent uses its own model (`gemini-3.8-flash`, set by `AGENT_MODEL`).
   </Step>
 
   <Step title="Install the Sidecar and lock the database">
@@ -347,7 +348,7 @@ The template installs its own Sidecar, named `appdb-sidecar` like the one in [On
     kubectl -n hoop-sidecar logs deploy/appdb-sidecar-hoopsidecar | grep '"kind":"violation"'
     ```
 
-    `deployment_metadata.json` in the project directory records the agent's id.
+    `deployment_metadata.json` in the project directory records the agent's id. After a time with no requests, the agent stops. The first call starts it again and can fail with `Read timed out`: run it again.
   </Step>
 </Steps>
 
@@ -445,7 +446,7 @@ rm deployment_metadata.json
 - `AGENT_ID` is in `deployment_metadata.json`. In a new shell, set `ATTACHMENT` again: `gcloud compute network-attachments list --filter='name~^agent-psci-'` lists it.
 - A project with no organization uses `agents.global.proj-PROJECT_NUMBER.system.id.goog` in `AGENT`.
 
-Google can hold an attachment for an hour or more, most often one that an agent moved off by a redeploy: the delete then fails with `Network Attachment with connected endpoints cannot be deleted`. Run the two attachment lines again later.
+Google frees the attachment a few minutes after you delete the agent. An attachment that an agent moved off, for example by a redeploy, can stay held for more than a day: the delete fails with `Network Attachment with connected endpoints cannot be deleted`. Run the two attachment lines again later.
 
 The demo cluster: `gcloud container clusters delete hoop-demo --location us-east1`.
 
