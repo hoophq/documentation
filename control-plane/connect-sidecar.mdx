@@ -83,40 +83,51 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
         ```
       </Tab>
       <Tab title="Docker">
-        Set the variables and mount the config file. See [Container Images](/install/container-images) for the image flavours.
+        The Sidecar needs a config file on its first start. The Control Plane copies it once; after that, you edit the configuration in the Control Plane. Create `config.yaml` in the folder where you run `docker run`:
 
-        <CodeGroup>
-        ```bash docker run
+        ```yaml config.yaml
+        admin:
+          listen: 0.0.0.0:19000      # the admin API port, used in step 4
+        listeners:
+          - name: appdb
+            protocol: postgres
+            listen: 0.0.0.0:15432
+            upstream: <your-database-host>:5432
+        ```
+
+        - `listeners` names the database the Sidecar sits in front of. The file needs at least one.
+        - `admin.listen` sets the port of the admin API. In a container, use `0.0.0.0`: a published port cannot reach the container's `127.0.0.1`.
+
+        See the [Config File Reference](/setup/configuration/hoop-sidecar/config-file) for every key.
+
+        Start the container with the variables, the file and both ports. See [Container Images](/install/container-images) for the image flavours.
+
+        ```bash
         docker run -d --name hoop-sidecar \
           -e HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com \
           -e HOOP_SIDECAR_TOKEN=<the token you copied> \
           -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
-          -p 19000:19000 \
+          -p 15432:15432 -p 19000:19000 \
           hoophq/hoopsidecar:<version>
         ```
 
-        ```yaml compose.yaml
-        services:
-          hoop-sidecar:
-            image: hoophq/hoopsidecar:<version>
-            environment:
-              HOOP_CONTROL_PLANE_URL: https://hoop.your-company.com
-              HOOP_SIDECAR_TOKEN: <the token you copied>
-            volumes:
-              - ./config.yaml:/etc/hoop-inspect/config.yaml:ro
-        ```
-        </CodeGroup>
-
-        With Compose, start it with `docker compose up -d`.
-
-        A container keeps the variables it started with. To connect one that already runs, create it again: `docker rm -f <your-sidecar-container>`, then the same `docker run`. With Compose, add the two variables to the service and run `docker compose up -d`.
+        A container keeps the variables it started with. To connect one that already runs, create it again: `docker rm -f <your-sidecar-container>`, then the same `docker run`.
       </Tab>
       <Tab title="CLI / Bare metal">
         Put the URL in the config file and pass the token as a flag. Install the CLI from [Command Line](/install/cli).
 
         ```yaml config.yaml
         control_plane_url: https://hoop.your-company.com
+        admin:
+          listen: 127.0.0.1:19000    # the admin API port, used in step 4
+        listeners:
+          - name: appdb
+            protocol: postgres
+            listen: 127.0.0.1:15432
+            upstream: <your-database-host>:5432
         ```
+
+        The Control Plane copies this file once, on the first start. It needs at least one entry in `listeners`.
 
         ```bash
         hoop start sidecar --config config.yaml --token "<the token you copied>"
@@ -138,12 +149,14 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
     `--config` becomes optional at this point. The URL and the token are enough to start.
   </Step>
   <Step title="Confirm what it resolved">
-    The admin API reports the live configuration. It only runs when the configuration names an address for it, so the document the Control Plane serves needs an `admin` block — there is no default port:
+    The admin API reports the live configuration. It runs only when the configuration names an address for it — there is no default port. The `config.yaml` from step 2 sets it with this block:
 
     ```yaml
     admin:
       listen: 127.0.0.1:19000
     ```
+
+    `listen` is the address and port of the admin API. To add or change it later, edit the Sidecar's configuration in the Control Plane, then restart the Sidecar.
 
     ```bash
     curl -s localhost:19000/healthz            # ok
