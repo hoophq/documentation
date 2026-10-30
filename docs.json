@@ -113,6 +113,7 @@
                       "setup/configuration/hoop-sidecar/protocols/bigquery",
                       "setup/configuration/hoop-sidecar/protocols/http",
                       "setup/configuration/hoop-sidecar/protocols/kubernetes",
+                      "setup/configuration/hoop-sidecar/protocols/mcp",
                       {
                         "group": "SSH",
                         "pages": [
