@@ -17,20 +17,89 @@ listeners:
           type: operation
           operations: [drop, delete, truncate]
           message: destructive statements are not permitted on mssqldb
+        - name: no-secret-procs
+          type: procedure
+          procedures: [get_secrets, delete_customer]
+          message: this procedure is not callable through mssqldb
 ```
 
 ---
 
 ## What the codec reads
 
-A TDS message may span several packets, and the codec reassembles them before parsing: a statement classified from a fragment is the exact failure a policy cannot tolerate. Two message types carry SQL:
+A TDS message may span several packets, and the codec reassembles them before parsing: a statement classified from a fragment is the exact failure a policy cannot tolerate. Three message types carry something policy reads:
 
 | Packet | Carries |
 |---|---|
 | `0x01` SQLBatch | The statement as UCS-2LE, after the ALL_HEADERS block |
-| `0x03` RPCRequest | A proc call; when the proc is `sp_executesql`, the first NVARCHAR parameter holds the statement, which is how parameterized queries from .NET and JDBC arrive |
+| `0x03` RPCRequest | One or more procedure calls. Each becomes a statement: the SQL it carries when the procedure is one that runs a statement, `EXEC <name>` otherwise. See [Stored procedures](#stored-procedures) and [Prepared statements](#prepared-statements) |
+| `0x10` LOGIN7 | Who is logging in, from where, with what, when the packet crosses in the clear. See [Who the session is](#who-the-session-is) |
 
 The codec hands a batch to the classifier whole and splits it with T-SQL's own lexical rules (`[` opens a quoted identifier there and is an array subscript in PostgreSQL, so one dialect cannot serve both).
+
+### Stored procedures
+
+An RPCRequest is how a driver calls a procedure by name (`callproc`, `EXEC` from an ORM) and how .NET and JDBC send every parameterized query: `sp_executesql` with the statement as a parameter. The codec reads every call in the message:
+
+| The client sends | Policy sees |
+|---|---|
+| `sp_executesql N'select * from dbo.secrets'`, by id or by name in any spelling (`sys.sp_executesql`, `[dbo].[sp_executesql]`, `otherdb..sp_executesql`) | `select * from dbo.secrets`, operation `select`, with `mssql.proc: sp_executesql` |
+| `callproc("dbo.get_secrets")`, `EXEC dbo.get_secrets` | `EXEC dbo.get_secrets`, operation `unknown`, reason `stored procedure; body is in the catalog`, with `mssql.proc: dbo.get_secrets` |
+| several calls batched in one message (SqlClient's `SqlCommandSet`) | one statement per call |
+| a call with a parameter the codec cannot measure (a table-valued parameter, `sql_variant`, XML, an Always Encrypted value) | `unknown` with a reason naming the type, because a further call may sit behind it |
+
+Parameter values never enter the statement text: they are the data a mask rule exists to keep out of an audit trail.
+
+The system procedure is recognized the way SQL Server resolves it: an `sp_` name under `dbo` or `sys` in any database runs master's procedure, so those spellings carry the client's statement and are judged as such. `custom.sp_executesql` runs a user procedure of that name and stays an opaque `EXEC`.
+
+A procedure's body is in the catalog, so no rule on verbs or tables reaches it. Name the procedure instead, with the [`procedure` rule](/setup/configuration/hoop-sidecar/policy-rules#procedure):
+
+```yaml
+guardrails:
+  rules:
+    - name: no-destructive-tsql
+      type: operation
+      operations: [drop, delete, truncate]
+      message: destructive statements are not permitted on mssqldb
+    - name: no-secret-procs
+      type: procedure
+      procedures: [get_secrets, delete_customer]
+      message: this procedure is not callable through mssqldb
+```
+
+`get_secrets` matches `dbo.get_secrets`, `[dbo].[get_secrets]` and `appdb.dbo.get_secrets`, from a batch `EXEC` or an RPC call. Any procedure not named runs, is recorded as `EXEC <name>` with `mssql.proc`, and has its result set masked like a query's. Rego reads the same name as `input.metadata["mssql.proc"]`.
+
+<Warning>
+A `table` rule with `require_table_match: true` and no `operations:` scope refuses every procedure call, and the driver's `SET` and `USE` batches with it: none of them names a relation the scanner can read. `-validate` says so. Scope the rule, or name the procedures.
+</Warning>
+
+### Prepared statements
+
+JDBC, ODBC and SqlClient prepare with `sp_prepexec` (or `sp_prepare`, `sp_cursoropen` and the cursor family) and run with `sp_execute`, which carries an integer handle and nothing else. The handle is the server's: it comes back in the reply to the prepare. The codec drives both directions of the connection, reads the handle out of that reply and files the text under it, so every `sp_execute` is judged and recorded as the SQL it runs, with `mssql.proc: sp_execute` and `mssql.handle`. A `delete` rule reaches a prepared DELETE on its tenth execution as on its first.
+
+A handle prepared before the connection was observed, or whose reply the codec could not read, is `unknown` with a reason naming the handle. That is the fail-closed direction: reporting it as harmless because the bytes on the wire are one integer is how an execution of a prepared DELETE passes as nothing.
+
+### Who the session is
+
+A LOGIN7 that crosses in the clear is a statement: `LOGIN <user>`, operation `other`, with the client's host, application, database, driver and TDS version under `mssql.login.*`. The password, an SSPI ticket and a federated token are never reported.
+
+The user name of a SQL login names the session. Every audit row from there carries `principal: <user>`, which Rego reads as `input.context.principal`, and the `LOGIN` row loses `mssql.login.user`. The session opens as the connection and turns into the named one on the login frame, so the trail shows a 0-statement anonymous session before it, as an http lane does. No lane option governs this.
+
+| Login | Principal |
+|---|---|
+| SQL authentication, readable | the login's user name |
+| Integrated (Kerberos) | `anonymous`; the name is inside the ticket, and the `LOGIN` row carries `mssql.login.integrated: true` |
+| Encrypted (TDS 7.x `ENCRYPT_OFF`, every driver's default) | `anonymous`; no `LOGIN` row, and `mssql.login_encrypted: true` on each statement |
+
+Readable means the login was not the one encrypted packet: a TDS 8.0 session something in front terminated (the Envoy shape below), a client sending `ENCRYPT_NOT_SUP` (go-mssqldb's `encrypt=disable`), or a relay terminating the login itself. A login the codec cannot read is never refused over it; a lane that wants no unnamed sessions says so in Rego:
+
+```rego
+result := {"denied": true, "rule": "named-callers-only", "message": "log in with a SQL login this relay can read"} if {
+	input.context.principal == "anonymous"
+}
+```
+
+The name is the client's claim and the server's verdict: the server refuses a wrong password, so a session that went on to run statements ran them as this user. A session showing a principal and no statements is a login that failed.
 
 ### Integrated authentication passes through untouched
 
@@ -60,7 +129,11 @@ The hop from the lane to SQL Server stays plaintext: the Linux build accepts no 
 
 The codec re-frames TDS result sets: it reads each row against the `COLMETADATA` the server declared, rewrites matching values, and rebuilds the token stream around them. Column rules match those declared names.
 
-One limit: if a result set carries a column type whose wire length the codec cannot compute, masking **stops for that connection** rather than guessing at byte boundaries, because a wrong guess desynchronizes the client. Statements, policy and audit keep running; the rewrite alone stands down, and the lane logs it.
+An OUTPUT parameter comes back as a `RETURNVALUE` token and is masked the same way, under the parameter's name without its `@`: a rule on column `email` reaches `@email OUTPUT`, not `@e`. A PII rule reaches either.
+
+A driver that negotiates Always Encrypted gets a key table in front of every result set's columns. mssql-jdbc does on every connection, whether or not a column uses the feature. The codec reads the acknowledgement in the login response and parses accordingly, so a JDBC result set masks like any other.
+
+One limit: if a result set carries a column type whose wire length the codec cannot compute (`sql_variant`, XML, a UDT, an encrypted column), masking **stops for that connection** rather than guessing at byte boundaries, because a wrong guess desynchronizes the client. Statements, policy and audit keep running; the rewrite alone stands down. The stop is recorded once, as an `activity` audit row named `masking_declined` with the reason: values keep travelling after it, and neither end of the connection can tell.
 
 ---
 
