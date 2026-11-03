@@ -67,7 +67,7 @@ guardrails:
       message: this procedure is not callable through mssqldb
 ```
 
-`get_secrets` matches `dbo.get_secrets`, `[dbo].[get_secrets]` and `appdb.dbo.get_secrets`, from a batch `EXEC` or an RPC call. Any procedure not named runs, is recorded as `EXEC <name>` with `mssql.proc`, and has its result set masked like a query's. Rego reads the same name as `input.metadata["mssql.proc"]`.
+`get_secrets` matches `dbo.get_secrets`, `[dbo].[get_secrets]` and `appdb.dbo.get_secrets`, from a batch `EXEC` (with or without a `;` before it), an RPC call by name, or an `EXEC` wrapped in `sp_executesql`/`sp_prepexec` the way .NET and JDBC send it. Any procedure not named runs, is recorded as `EXEC <name>` with `mssql.proc`, and has its result set masked like a query's. Rego reads the same name as `input.metadata["mssql.proc"]`.
 
 <Warning>
 A `table` rule with `require_table_match: true` and no `operations:` scope refuses every procedure call, and the driver's `SET` and `USE` batches with it: none of them names a relation the scanner can read. `-validate` says so. Scope the rule, or name the procedures.
