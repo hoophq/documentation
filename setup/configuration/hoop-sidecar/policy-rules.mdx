@@ -168,7 +168,8 @@ The name comes from the protocol when it carries it structurally, an MSSQL RPC c
 |---|---|---|
 | `get_secrets` | `dbo.get_secrets`, `[dbo].[get_secrets]`, `appdb.dbo.get_secrets`, `GET_SECRETS` | `get_secrets_v2` |
 | `dbo.get_secrets` | `appdb.dbo.get_secrets`, `[DBO].[get_secrets]` | `custom.get_secrets` |
-| `get_secrets` | | `[dbo.sys].x`, `[get_secrets]]]` (a bracketed period is part of the name; `]]` is a bracket, not the end) |
+| `sys.x` | `[sys].[x]`, `db.sys.x` | `[dbo.sys].x` — a bracketed period is part of the name, so that is a procedure `x` in a schema named `dbo.sys` |
+| `get_secrets` | | `[get_secrets]]]` — `]]` is a bracket in the name, not its end, so that procedure is named `get_secrets]` |
 
 Only a client statement matches; a response calls nothing. `operations` scopes it as it scopes the other types, and `action: defer` reports a `procedure` finding whose `values.procedure` is the normalized dotted name. A rule with no procedures, an empty name, or a name with an empty part (`dbo.`) is refused at startup.
 

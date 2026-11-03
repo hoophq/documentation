@@ -48,7 +48,7 @@ An RPCRequest is how a driver calls a procedure by name (`callproc`, `EXEC` from
 | several calls batched in one message (SqlClient's `SqlCommandSet`) | one statement per call |
 | a call with a parameter the codec cannot measure (a table-valued parameter, `sql_variant`, XML, an Always Encrypted value) | `unknown` with a reason naming the type, because a further call may sit behind it |
 
-Parameter values never enter the statement text: they are the data a mask rule exists to keep out of an audit trail.
+Parameter values never enter the statement text: they are the data a mask rule exists to keep out of an audit trail. A call the client flagged not to run (TDS's NoExecFlag, which SqlClient sets on the prepare half of a prepare-and-execute pair) is still judged, because its text reached the server and a later call may run it; its row carries `mssql.noexec: true`.
 
 The system procedure is recognized the way SQL Server resolves it: an `sp_` name under `dbo` or `sys` in any database runs master's procedure, so those spellings carry the client's statement and are judged as such. `custom.sp_executesql` runs a user procedure of that name and stays an opaque `EXEC`.
 
