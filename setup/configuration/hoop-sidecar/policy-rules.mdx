@@ -35,6 +35,7 @@ Deferring moves the DETERMINATION and leaves the matching where it is. The local
 |---|---|---|
 | `operation` | the statement's most consequential effect | SQL, HTTP, SSH |
 | `table` | a relation the statement touches, narrowed by access | SQL |
+| `procedure` | the stored procedure a call names, in any spelling | SQL |
 | `deny_words_list` | a substring of the statement text | any |
 | `pattern_match` | an RE2 regex over the statement text | any |
 | `pii` | entity classes a detector finds in the text | any |
@@ -50,7 +51,7 @@ A rule type that reads a field the lane's protocol never produces is **refused a
 
 | Lane | Refuses |
 |---|---|
-| `ssh` | `table`, `http_resource`, `http_status`, `http_header`, `grpc_status` — SSH has no relations, no request path, no response status, no header and no RPC |
+| `ssh` | `table`, `procedure`, `http_resource`, `http_status`, `http_header`, `grpc_status` — SSH has no relations, no stored procedures, no request path, no response status, no header and no RPC |
 | SQL lanes | `http_resource`, `http_status`, `grpc_status` |
 
 Each block below is one entry in a lane's `guardrails.rules` list.
@@ -104,7 +105,7 @@ Every value `operations` accepts, across every protocol. The field narrows any r
 | `grant` | SQL | the statement text | |
 | `revoke` | SQL | the statement text | |
 | `copy` | SQL | the statement text | direction-dependent: `COPY … FROM STDIN` writes, `COPY (SELECT …) TO STDOUT` reads. Both classify as `copy` |
-| `call` | SQL | the statement text | **reports `unknown`**, because its body is in the catalog. A rule wanting both writes `operations: [call, unknown]`. See [Fail closed](#fail-closed-on-what-the-scanner-could-not-read) |
+| `call` | SQL | the statement text | **reports `unknown`**, because its body is in the catalog. A rule wanting both writes `operations: [call, unknown]`; a rule wanting one procedure by name is a [`procedure`](#procedure) rule. See [Fail closed](#fail-closed-on-what-the-scanner-could-not-read) |
 | `show` | SQL | the statement text | |
 | `set` | SQL | the statement text | |
 | `begin` | SQL | the statement text | |
@@ -148,7 +149,33 @@ INSERT INTO staging SELECT * FROM customers
 
 The scanner reports `staging` as a write and `customers` as a read. That false positive is how operators learn to widen a rule until it protects nothing. An unknown `access` value is refused at startup.
 
-Table matching is best effort. A bare name matches any schema qualification, so `customers` covers `public.customers`, and an empty relation list means "could not determine" rather than "touches nothing". Add `require_table_match: true` on a rule guarding something critical and accept the false positives.
+Table matching is best effort. A bare name matches any schema qualification, so `customers` covers `public.customers`, and an empty relation list means "could not determine" rather than "touches nothing". Add `require_table_match: true` on a rule guarding something critical and accept the false positives. On a lane that also carries stored-procedure calls, scope it with `operations:` — a procedure call names no relation, so an unscoped `require_table_match` refuses every one of them (and the driver's `SET`/`USE` batches); `-validate` says so.
+
+### procedure
+
+```yaml
+- name: no-secret-procs
+  type: procedure
+  procedures: [get_secrets, dbo.delete_customer]
+  message: this procedure is not callable through this lane
+```
+
+A stored procedure's body is in the catalog, so a call reaches policy as `unknown` with no relations: no `operation` or `table` rule can say what it does, and before this type the only way to name one was a regex scoped to `operations: [unknown]`, once per spelling. This rule reads the procedure's name and compares one normalized form.
+
+The name comes from two places, both read. The protocol's own field when it has one, an MSSQL RPC call's `mssql.proc`; and the text: every top-level `EXEC` or `EXECUTE` on a T-SQL lane and every top-level `CALL` elsewhere, so `SET NOCOUNT ON EXEC dbo.get_secrets` names what it runs with or without the semicolon, `IF 1=1 EXEC dbo.get_secrets` too, and so does an `EXEC dbo.get_secrets` that .NET or JDBC wrapped in `sp_executesql` or `sp_prepexec`. In PostgreSQL and MySQL `EXECUTE name` runs a prepared statement and names no procedure; T-SQL's `EXECUTE AS USER` is a context switch, not a call. A call inside a block or a subquery is not read; the block is already `unknown`. Neither is the body of a `CREATE PROCEDURE`, `FUNCTION` or `TRIGGER`: defining a module that calls `dbo.q` is not a call to `dbo.q`. Temporary procedures keep their prefix (`#local`, `##global`), comments between the parts of a name are dropped as SQL Server drops them, and whitespace inside a delimited name is kept: `[ secret ]` and `secret` are two procedures to SQL Server and to this rule. `master..sp_executesql` is a legal name; its omitted schema matches `sys`.
+
+Dynamic SQL names no procedure. `EXEC ('EXEC dbo.get_secrets')` and `sp_executesql` with a string the relay cannot see into are `unknown` with the reason "stored procedure; body is in the catalog"; this rule reads names, not strings, and the rule that refuses what nobody can read is `operations: [unknown]`. A lane that names procedures and lets dynamic SQL through has accepted that in writing. Normalization lowercases, removes `[...]`, `"..."` and `` `...` `` delimiters with their doubled-close escapes, and splits on periods outside them. A configured name matches when it equals the trailing parts of the called name:
+
+| Configured | Matches | Does not match |
+|---|---|---|
+| `get_secrets` | `dbo.get_secrets`, `[dbo].[get_secrets]`, `appdb.dbo.get_secrets`, `GET_SECRETS` | `get_secrets_v2` |
+| `dbo.get_secrets` | `appdb.dbo.get_secrets`, `[DBO].[get_secrets]` | `custom.get_secrets` |
+| `sys.x` | `[sys].[x]`, `db.sys.x` | `[dbo.sys].x` — a bracketed period is part of the name, so that is a procedure `x` in a schema named `dbo.sys` |
+| `get_secrets` | | `[get_secrets]]]` — `]]` is a bracket in the name, not its end, so that procedure is named `get_secrets]` |
+
+Only a client statement matches; a response calls nothing. The lexer runs once per statement however many procedure rules a lane has. `operations` scopes it as it scopes the other types, and `action: defer` reports a `procedure` finding whose `values.procedure` is the normalized dotted name. A rule with no procedures, an empty name, or a name with an empty part (`dbo.`) is refused at startup.
+
+The regex and word-list forms keep working beside it. Reach for this one when the thing you object to is *which procedure*, and for `pattern_match` when it is the shape of a call (`EXEC` with a string argument, say).
 
 ### deny_words_list
 
@@ -296,6 +323,7 @@ It leaves the process and costs money per statement. Read [Risk Analysis](/setup
 | `DO $$ … $$` | anonymous code block; body is interpreted at runtime |
 | `CALL purge()` | stored procedure; body is in the catalog |
 | `EXECUTE p` | prepared statement; the text was supplied elsewhere |
+| `EXEC dbo.get_secrets`, `callproc("dbo.get_secrets")` on MSSQL | stored procedure; body is in the catalog — name it with a [`procedure`](#procedure) rule |
 
 Those three are a permanent ceiling, and no parser lifts it, PostgreSQL's own grammar included. The body is not in the statement: it is in the catalog, in the client's earlier `PREPARE`, or in a string a PL interpreter reads at runtime. A fourth case sits beside them and does NOT set the flag: a function call inside a `SELECT` list can do anything the function does, and flagging every `SELECT count(*)` would make the flag mean nothing.
 
@@ -348,7 +376,7 @@ A `pii` rule knows which entity classes a statement carries. Whether a statement
     | `reason` | always present; the specific word behind a degraded status |
     | `values` | the producer's own payload, absent when it established nothing |
 
-    Findings key by TYPE rather than by name, so several `pii` rules fold into one finding: `values.rules` is the union of the names that matched and every list value unions. `pii` adds `values.entities`, `deny_words_list` adds `values.words`, and a matched pattern's TEXT never travels, because OPA's decision log is a copy of everything sent to it.
+    Findings key by TYPE rather than by name, so several `pii` rules fold into one finding: `values.rules` is the union of the names that matched and every list value unions. `pii` adds `values.entities`, `deny_words_list` adds `values.words`, `procedure` adds `values.procedure`, and a matched pattern's TEXT never travels, because OPA's decision log is a copy of everything sent to it.
   </Step>
 
   <Step title="The policy sees it in input.findings">

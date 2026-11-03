@@ -148,9 +148,14 @@ switch it off.
 Under integrated authentication, LOGIN7's username field is empty and the name
 lives inside the encrypted ticket. Reading it would mean implementing Kerberos.
 
-Audit rows on an MSSQL lane record `principal: anonymous`. To name the actor,
-populate it from whatever terminated the client's TLS through
-`proxy.Config.IdentityFn`: an mTLS peer certificate subject or a verified JWT.
+Audit rows on a Kerberos session record `principal: anonymous`, and the `LOGIN`
+row carries `mssql.login.integrated: true`. A SQL-authenticated login that
+crosses in the clear, which the Envoy shape here gives you, names its session
+instead: `principal: <user>` on every row. See [Who the session
+is](/setup/configuration/hoop-sidecar/protocols/mssql#who-the-session-is). To
+name a Kerberos actor, populate the identity from whatever terminated the
+client's TLS through `proxy.Config.IdentityFn`: an mTLS peer certificate
+subject or a verified JWT.
 
 ---
 
@@ -309,10 +314,11 @@ you know what the same login does without it.
 
 ## Limits
 
-- **MSSQL statement extraction covers `sp_executesql`.** `sp_prepare`,
-  `sp_prepexec` and the cursor family yield no statement, which is how JDBC and
-  .NET send prepared statements. `EXEC('DELETE ...')` classifies as a call rather
-  than a delete.
+- **An MSSQL procedure call is judged by its name, not its body.**
+  `sp_executesql`, `sp_prepexec` and the cursor family yield the SQL they carry,
+  and an `sp_execute` yields the text of the prepare whose handle it names. Any
+  other procedure, `EXEC('DELETE ...')` included, is `unknown` with the reason
+  "stored procedure; body is in the catalog"; a `procedure` rule names it.
 - **MSSQL logins need a directory.** SQL Server resolves `DOMAIN\user` to a SID
   over LDAP before it will store a login, so a keytab alone is not enough.
   Postgres compares the principal against `pg_authid`, a local table.
