@@ -3,9 +3,9 @@ title: "MCP"
 description: "A protocol: mcp lane in front of one remote MCP server: tool policy, guardrails, OPA and one audited session per MCP session"
 ---
 
-A `protocol: mcp` lane terminates MCP streamable HTTP on `/mcp` and forwards to one remote MCP server over `streamable-http` or `sse`. It filters the tool catalog, judges each `tools/call` with the lane's guardrails and OPA, and records one Sidecar session per MCP session.
+A `protocol: mcp` lane terminates MCP streamable HTTP on `/mcp` and forwards to one remote MCP server over `streamable-http` or `sse`. It hides the tools a rule denies, judges each `tools/call` with the lane's guardrails and OPA, and records one Sidecar session per MCP session.
 
-The lane embeds [mcpproxy](https://github.com/hoophq/mcpproxy). A Sidecar build without the MCP engine refuses the lane at `-validate`.
+The lane embeds [mcpproxy](https://github.com/hoophq/mcpproxy) and ships in Sidecar 1.289.0 and later. A Sidecar build without the MCP engine refuses the lane at `-validate`.
 
 ---
 
@@ -95,7 +95,7 @@ A rule edit applies without a restart and ends the open MCP sessions; the next s
 | `overrides` | none | Per tool: `name` renames it and `description` replaces its description in `tools/list`. A call to the new name reaches the real tool. | |
 | `block_sampling` | `true` | Refuses the server's `sampling/createMessage` requests, which ask the client's model to generate text. | Nothing: the client never sees the request, and the server gets `-32010`. |
 | `block_elicitation` | `true` | Refuses the server's `elicitation/create` requests, which ask the user for input. | As for `block_sampling`. |
-| `on_rug_pull` | `kill` | A rug pull is a later `tools/list` that changes the description or input schema of a tool this session already listed. `kill` ends the session; `alert` records it and goes on. | `kill`: `-32010` with the reason, then 404 on the session |
+| `on_rug_pull` | `kill` | A rug pull is a later `tools/list` that changes the description or input schema of a tool this session already listed. `kill` ends the session; `alert` records it and goes on. A tool an `mcp_tool` rule hides never counts. | `kill`: `-32010` with the reason, then 404 on the session |
 | `max_calls_per_session` | `0`: no limit | The tool calls one MCP session may attempt. A refused call counts too. | Past the limit: `-32012`, `session tool-call budget exhausted (N calls)` |
 | `tool_rate_limits` | none | Tool glob to calls per minute, per session. When several globs match a tool, the lowest limit applies. | Over the limit: `-32012`, `tool "x" rate limit exceeded (N calls/min)` |
 | `max_result_kb` | `0`: no limit | The text of a tool result is cut to this size and ends with `[truncated by gateway]`. | The cut result |
@@ -167,6 +167,31 @@ A rule reload ends the open MCP sessions. The next message on one is refused, an
 
 A change to the lane itself (`upstream`, `listen`, the `mcp_gateway` block) needs a restart, as for every listener.
 
+### What the audit records
+
+Each statement carries this metadata:
+
+| Key | On | Value |
+|---|---|---|
+| `mcp.method` | every statement | `tools/call` or `tools/list` |
+| `mcp.tool` | a call | the real name of the tool called |
+| `mcp.session` | every statement | the `Mcp-Session-Id` of the MCP session |
+| `mcp.tools_hidden` | a catalog statement | the tools an `mcp_tool` rule left out, comma-separated |
+
+The session also records these activities:
+
+| Activity | When | Attributes |
+|---|---|---|
+| `mcp_initialize` | the client's `initialize` | `client`, `client_version`, `protocol_version` |
+| `mcp_invalid_params` | a `tools/call` refused as invalid params | `reason` |
+| `mcp_catalog_unreadable` | a `tools/list` result the lane cannot read; the session ends | `reason` |
+| `rules_reloaded` | a rule reload ends the session | `reason` |
+| `mcp.tool_denied` | mcpproxy refuses a call, such as an unadvertised tool or a budget | `tool`, `rule`, `reason` |
+| `mcp.budget_exceeded` | a budget or a rate limit refuses a call, or a result is cut | `tool`, `rule`, `reason` |
+| `mcp.tools_changed` | a rug pull, or the server announces `tools/list_changed` | `tool`, `rule`, `reason` |
+
+A call a guardrail rule or OPA denies is a statement with its rule, not an activity.
+
 ---
 
 ## Auth
@@ -213,7 +238,7 @@ Not supported yet: a token from a file or a secret source and the caller's own t
 
 ## Try it
 
-The [`envoy-stack/mcp`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/mcp) demo runs one session through a lane in front of a test MCP server: `initialize`, `tools/list`, an allowed call, a call a rule denies and a call `mcp_gateway` denies, then the audit rows.
+The [`envoy-stack/mcp`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/mcp) demo runs one session through a lane in front of a test MCP server: `initialize`, `tools/list` without the tools an `mcp_tool` rule hides, an allowed call, a call to a hidden tool and a call over the `mcp_gateway` budget, then the audit rows.
 
 ---
 

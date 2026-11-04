@@ -290,7 +290,7 @@ A codec records facts the statement has no field for under `metadata`: a [plug-i
   allow: ["get_*", "list_*"]   # denies every other tool
 ```
 
-On an [MCP lane](/setup/configuration/hoop-sidecar/protocols/mcp#tool-allow-and-deny), the rule reads the tool a `tools/call` names. `tools` denies the tools that match; `allow` denies every tool that matches none. A rule sets one of the two.
+On an [MCP lane](/setup/configuration/hoop-sidecar/protocols/mcp#tool-allow-and-deny), Sidecar 1.289.0 and later, the rule reads the tool a `tools/call` names. `tools` denies the tools that match; `allow` denies every tool that matches none. A rule sets one of the two.
 
 A glob has `*` as its only metacharacter, and case counts: `get_*` does not match `Get_file`.
 
