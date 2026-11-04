@@ -170,7 +170,7 @@ The apiserver answers with `Transfer-Encoding: chunked`. The codec re-chunks wha
 $K get cm kube-root-ca.crt -w -o jsonpath='{.metadata.name} {.data.ca\.crt}{"\n"}'
 ```
 
-Responses the apiserver compresses (`Content-Encoding: gzip`, on bodies over 128 KiB when kubectl offers it) are inflated around the masker and compressed again. A response body above `MaxMessageBytes` (16 MiB) goes out unmasked and the next response is masked again.
+Responses the apiserver compresses (`Content-Encoding: gzip`, on bodies over 128 KiB when kubectl offers it) are inflated around the masker and compressed again. A chunked list or a watch streams value by value with no size limit. The lane refuses with a 403 and an `error` audit row a response it must mask as one unit above 16 MiB, one JSON document or a gzip body that inflates past it, and masks the next response again.
 
 `credentials-in-responses` runs beside the key rule. It redacts by class wherever the detector finds a match: an annotation, a pod's environment, a log line. The two rules do not collide; one claims a key path, the other claims entities.
 
