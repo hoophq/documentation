@@ -60,6 +60,17 @@ mask:                       # inherited by every listener
     - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
     - {name: ssn, entities: [US_SSN], strategy: partial, keep_last: 4}
 
+analyzer:
+  provider: vertex
+  model: claude-sonnet-4-5@20250929
+  extra: {project: my-gcp-project, region: global}
+  timeout_sec: 10
+  fail_open: true
+  send: redacted
+  cache: {size: 4096, ttl_sec: 900}
+  max_calls: 500
+  rate_limit: {calls: 30, per_sec: 60}
+
 listeners:
   - name: appdb
     protocol: postgres
@@ -67,14 +78,60 @@ listeners:
     upstream: appdb:5432
     guardrails:
       rules:
-        - name: no-destructive-sql
+        - name: block-destructive-ddl
           type: operation
-          operations: [drop, delete, truncate]
+          operations: [drop, truncate, alter]
           message: destructive statements are not permitted on appdb
     mask:
       rules:                # REPLACES the default list rather than extending it
         - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
         - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+        - {name: credit-card, entities: [CREDIT_CARD], strategy: partial, keep_last: 4}
+    analyzer:
+      trigger: {operations: [update, delete]}
+
+      # Each risk level (low, medium, high) accepts one of these actions:
+      #   allow             run with no check
+      #   warn              run and show a warning
+      #   block             stop the statement
+      #   defer             let a Rego policy decide
+      #   require_approval  wait for an AI agent or a human to approve
+      #   hand_off          let an AI agent select an action
+      low:
+        action: hand_off
+        ai_policy:
+          guardrails:
+            rules: [block-destructive-ddl]
+            one_time_rules: true
+          mask:
+            rules: [emails]
+            one_time_rules: true
+        hand_off:
+          allowed_actions: [allow, warn, block, defer]  # no require_approval, so no approval block
+
+      medium:
+        action: require_approval
+        ai_policy:
+          guardrails:
+            rules: [block-destructive-ddl]
+            one_time_rules: true
+        approval:
+          approver: human
+          strategy: ai  # How approval is done: ai | groups | rules
+          candidate-groups: []
+          candidate-rules: []
+          notify:
+            slack:
+              enabled: true
+              delivery: channel
+              channels: ["#payments-approvers", "#deal-citadel", "#pic-pay"]
+
+      high: block  # stops the statement; takes no other settings
+
+      approval_mode: hold
+      message: refused by risk analysis
+      prompt: |
+        Treat any statement on the payments schema as high risk.
 
   - name: mssqldb
     protocol: mssql
@@ -86,11 +143,35 @@ listeners:
           type: operation
           operations: [drop, delete, truncate]
           message: destructive statements are not permitted on mssqldb
+    analyzer:
+      trigger: {operations: [update]}
+
+      low: warn
+
+      medium:
+        action: require_approval
+        approval:
+          approver: ai_agent
+          prompt: Approve only if the statement has a WHERE clause.
+
+      high:
+        action: hand_off
+        hand_off:
+          allowed_actions: [allow, warn, block, defer, require_approval]
+        approval:  # used only when require_approval is allowed
+          approver: ai_agent
+          prompt: Approve only if the statement has a WHERE clause.
+
+      message: refused by risk analysis
 
   - name: httpbin
     protocol: http
     listen: 0.0.0.0:18080
     upstream: httpbin:8080
+    http:
+      capture_body: true
+      max_body_bytes: 8192
+      headers: [Content-Type]
     opa:                    # optional, and separate from the guardrails below
       url: http://opa:8181/v1/data/hoop/inspect
       fail_open: false
@@ -104,9 +185,44 @@ listeners:
           type: http_status   # response-side, so ext_authz cannot ask it
           statuses: ["5xx"]
           message: upstream failure suppressed by a guardrail
+    analyzer:
+      trigger: {resources: ["/orders/**"]}
+
+      low: allow
+
+      medium:
+        action: require_approval
+        approval:
+          approver: human
+          strategy: groups
+          groups: [payments-manager]
+          notify:
+            slack:
+              enabled: true
+              delivery: both
+              channels: ["#payments-approvers"]
+
+      high:
+        action: require_approval
+        approval:
+          approver: human
+          strategy: rules
+          rules: [payments-approvers]
+          notify:
+            slack:
+              enabled: true
+              delivery: channel
+              channels: ["#payments-approvers"]
+
+      approval_mode: return
+      message: refused by risk analysis
 ```
 
 Every lane enforces, and a `mask` block carrying rules masks. Neither is a second switch you can forget to set.
+
+`hand_off` lets the AI agent select the action for each statement. `allowed_actions` sets the actions the agent can select. The short form (`high: hand_off`) allows all actions. The `approval` block applies only when `allowed_actions` includes `require_approval`. You can use `hand_off` on every risk level.
+
+`block` stops the statement. It takes no other settings.
 
 ---
 
@@ -322,7 +438,7 @@ curl -s localhost:19000/config | python3 -m json.tool
 {"lanes": [
   {"name": "appdb", "protocol": "postgres", "listen": "0.0.0.0:15432",
    "upstream": "appdb:5432",
-   "rules": ["no-destructive-sql", "no-cpf-in-query"], "masking": true},
+   "rules": ["block-destructive-ddl", "no-cpf-in-query"], "masking": true},
   {"name": "mssqldb", "protocol": "mssql", "listen": "0.0.0.0:11433",
    "upstream": "mssql:1433",
    "rules": ["no-destructive-tsql", "no-cpf-in-query"], "masking": true},
