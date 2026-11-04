@@ -198,7 +198,7 @@ Every http lane appends `Via: <request version> hoop-<16 hex>` as the last reque
 
 The codec rebuilds the response around the masked values. A JSON body is walked value by value, and each string or number reaches the masker under its dotted key path (`data.password`, `items.metadata.name`), so a `columns` rule names a JSON key the way it names a result-set column and masks it whatever it holds. A text body (`text/*`, XML, YAML, form data, or no `Content-Type`) is masked as text. Binary types pass through untouched.
 
-`Content-Length` is corrected. A chunked body is re-chunked and streams: each complete top-level JSON value, or each line of text, goes out as soon as it is whole, so a watch or a log follow is not held to its end and a value split across two chunks is still masked whole. A gzip or deflate body is undone around the masker and compressed again. A text or JSON body under an encoding the codec cannot undo (zstd, br, lz4) is refused with a 403 and an `error` audit row rather than forwarded unmasked; a binary body under such an encoding passes. A JSON or text body too large to mask is refused the same way: one held past 8 MiB as sent, or a gzip or deflate body that inflates past 16 MiB. The lane keeps serving after the refusal. Older Sidecars could forward such a body unmasked.
+`Content-Length` is corrected. A chunked body is re-chunked and streams: each complete top-level JSON value, or each line of text, goes out as soon as it is whole, so a watch or a log follow is not held to its end and a value split across two chunks is still masked whole. A gzip or deflate body is undone around the masker and compressed again. A text or JSON body under an encoding the codec cannot undo (zstd, br, lz4) is refused with a 403 and an `error` audit row rather than forwarded unmasked; a binary body under such an encoding passes. The lane refuses, the same way, a body it must mask as one unit when that unit is larger than 16 MiB: one JSON document, or a gzip or deflate body that inflates past it. A fixed-length text body over 16 MiB goes out chunked. An HTTP/1.0 client cannot take chunking, so for that client the lane holds the body and refuses it at 16 MiB. The lane keeps serving after the refusal. Older Sidecars could forward such a body unmasked.
 
 See [Kubernetes API](/setup/configuration/hoop-sidecar/protocols/kubernetes) for `columns: [data]` against kube-apiserver's chunked responses, and the [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse) HTTP interface for TSV, `JSONEachRow` and `FORMAT JSON` results.
 
@@ -217,6 +217,14 @@ What it costs:
 - A streaming upload reaches the upstream only once it ends.
 - A client that sends `Expect: 100-continue` sends the body only after its own timeout, 1 second by default in curl and in Go's `http.DefaultTransport`. The upstream has not seen the headers, so no `100 Continue` comes back. curl sends the header for a body over 1 MiB, and `-H 'Expect:'` removes it. Go sends it only when the caller sets it.
 - A WebSocket message sent in fragments does not wait for its last fragment. Its earlier fragments reach the upstream before the message is judged.
+
+---
+
+## A response streams
+
+From 1.285.2, the lane forwards a response body as it arrives, framed by `Content-Length`, by chunking or by the close, with no size limit. The lane emits the statement when the body ends; under `capture_body` it holds the body cut at `max_body_bytes`, with `body_truncated` set. The lane holds a body when [masking](#masking) must rewrite it as one unit, up to 16 MiB.
+
+An older Sidecar held each response whole and cut it at 8 MiB. The client had the status line and the headers, then the body stopped, and the audit trail shows an `error` row reading `message exceeds max buffer`.
 
 ---
 

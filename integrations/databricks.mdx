@@ -225,7 +225,7 @@ Without a network rule, a client that calls the workspace host directly skips th
 
 - **Thrift drivers are not read.** JDBC, ODBC and the Python, Go and Node.js SQL connectors speak Thrift by default. Their SQL is not read and their results are not masked. Cloud Fetch rows come from cloud storage directly.
 - **External links skip the Sidecar.** With `EXTERNAL_LINKS`, the API answers with links to cloud storage. `refuse` turns those requests away, so clients must ask for `INLINE`.
-- **Large results are refused, not leaked.** A JSON result the Sidecar cannot mask is refused with a 403: over 8 MiB as sent, or over 16 MiB once a gzip body is inflated. Databricks allows up to 25 MiB inline; use `row_limit` or `byte_limit` to stay under the Sidecar's limit.
+- **Large results are refused, not leaked.** The Sidecar answers a JSON result it cannot mask with a 403: one JSON document over 16 MiB, as sent or after gzip inflates it. Databricks allows up to 25 MiB inline; use `row_limit` or `byte_limit` to stay under the Sidecar's limit.
 - **Long statements need a larger capture.** The Sidecar reads at most `max_body_bytes` of a request body, 64 KiB by default, and refuses a longer one. Raise `http.max_body_bytes` for long SQL.
 - **What `unknown` refuses besides writes.** A SQL script (`BEGIN ... END`), `EXECUTE IMMEDIATE`, and any statement that holds `${`. `VACUUM t DRY RUN` and `COPY INTO t ... VALIDATE` are refused as the write they preview. A read that names a column like a write verb after `THEN` reads as a write.
 - **`IDENTIFIER(:t)` hides the table from table rules.** The operation is still read.
