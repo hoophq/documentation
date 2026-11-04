@@ -1,0 +1,162 @@
+# Hoop.dev Documentation
+
+> Documentation for Hoop.dev - an access gateway with AI data masking, session recording, and security features for databases, cloud services, and development environments.
+
+## Overview
+
+Hoop.dev is an access gateway that provides secure, auditable access to databases, cloud services, web applications, and development environments. It features AI-powered data masking, access controls, session recording, and review workflows.
+
+## Core Features
+
+- **AI Data Masking**: Automatically detect and mask sensitive data (PII, credentials, etc.) in real-time
+- **Access Control**: Role-based access control with fine-grained permissions
+- **Session Recording**: Record and replay all access sessions for audit and compliance
+- **Reviews**: Command reviews and just-in-time (JIT) access reviews
+- **Guardrails**: Policy enforcement to prevent dangerous operations
+- **Runbooks**: Predefined, approved command sequences
+- **Secrets Manager**: Centralized secret management and injection
+- **Parallel Mode**: Execute multiple commands simultaneously
+
+## Documentation Structure
+
+### Getting Started
+- Introduction and getting started guide: `introduction/getting-started.mdx`
+- Quickstart guides for various integrations: `quickstart/`
+
+### Features Documentation
+- AI Data Masking: `learn/features/ai-data-masking.mdx`
+- Access Control: `learn/features/access-control.mdx`
+- Session Recording: `learn/features/session-recording.mdx`
+- Reviews (Command & JIT): `learn/features/reviews/`
+- Guardrails: `learn/features/guardrails.mdx`
+- Runbooks: `learn/features/runbooks.mdx`
+- Secrets Manager: `learn/features/secrets-manager.mdx`
+- Parallel Mode: `learn/features/parallel-mode.mdx`
+
+### Quickstart Guides
+
+#### Databases
+- PostgreSQL: `quickstart/databases/postgres.mdx`
+- MySQL: `quickstart/databases/mysql.mdx`
+- MongoDB: `quickstart/databases/mongodb.mdx`
+- DynamoDB: `quickstart/databases/dynamodb.mdx`
+- Oracle: `quickstart/databases/oracle.mdx`
+- MSSQL: `quickstart/databases/mssql.mdx`
+- Apache Cassandra: `quickstart/databases/apache-cassandra.mdx`
+- BigQuery: `quickstart/databases/bigquery.mdx`
+- Redis: `quickstart/databases/redis.mdx`
+
+#### Cloud Services
+- AWS CLI: `quickstart/cloud-services/aws/aws-cli.mdx`
+- AWS CloudWatch: `quickstart/cloud-services/aws/aws-cloudwatch.mdx`
+- AWS ECS: `quickstart/cloud-services/aws/aws-ecs.mdx`
+- AWS SSM: `quickstart/cloud-services/aws/aws-ssm.mdx`
+- Kubernetes: `quickstart/cloud-services/kubernetes/kubernetes.mdx`
+- Kubernetes EKS: `quickstart/cloud-services/kubernetes/kubernetes-eks.mdx`
+
+#### Web Applications
+- Web Apps and APIs: `quickstart/web-applications/webapps-and-apis.mdx`
+- HTTP Proxy: `quickstart/web-applications/http-proxy.mdx`
+
+#### Development Environments
+- Ruby on Rails: `quickstart/development-environments/ruby-on-rails.mdx`
+- Python Scripts: `quickstart/development-environments/python/python-scripts.mdx`
+- Django Admin: `quickstart/development-environments/python/django-admin.mdx`
+- PHP Artisan: `quickstart/development-environments/php-artisan.mdx`
+- Elixir IEx: `quickstart/development-environments/elixir-IEx.mdx`
+- Clojure: `quickstart/development-environments/clojure.mdx`
+- Node.js: `quickstart/development-environments/nodejs.mdx`
+
+#### Other
+- SSH: `quickstart/ssh.mdx`
+- Remote Desktop: `quickstart/applications/remote-desktop.mdx`
+
+### Setup & Administration
+
+#### Architecture
+- System architecture: `setup/architecture.mdx`
+
+#### Deployment
+- Overview: `setup/deployment/overview.mdx`
+- Docker Compose: `setup/deployment/docker-compose.mdx`
+- Kubernetes: `setup/deployment/kubernetes.mdx`
+- AWS: `setup/deployment/AWS.mdx`
+
+#### Configuration
+- AI Data Masking: `setup/configuration/ai-data-masking/`
+- Reviews: `setup/configuration/reviews/`
+- Access Control: `setup/configuration/access-control-configuration.mdx`
+- Guardrails: `setup/configuration/guardrails-configuration.mdx`
+- Runbooks: `setup/configuration/runbooks-configuration.mdx`
+- Secrets Manager: `setup/configuration/secrets-manager-configuration.mdx`
+- RDS IAM Auth: `setup/configuration/rds-iam-auth.mdx`
+- Environment Variables: `setup/configuration/env-vars.mdx`
+- Reverse Proxy: `setup/configuration/reverse-proxy.mdx`
+- Identity Providers (Auth0, Okta, Google, Azure, JumpCloud, AWS Cognito): `setup/configuration/idp/`
+
+#### APIs and Integration
+- API Keys: `setup/apis/api-key.mdx`
+- Service Accounts: `setup/apis/service-accounts.mdx`
+- Webhooks & SIEM: `setup/apis/webhooks-siem.mdx`
+- License Management: `setup/license-management.mdx`
+
+### Clients
+- CLI: `clients/cli.mdx`
+- Web App: `clients/webapp/`
+  - Overview: `clients/webapp/overview.mdx`
+  - Creating Resource Roles: `clients/webapp/creating-resource-roles.mdx`
+  - Managing Access: `clients/webapp/managing-access.mdx`
+  - Monitoring Sessions: `clients/webapp/monitoring-sessions.mdx`
+
+### Concepts
+- Agents: `concepts/agents.mdx`
+- Resource Roles: `concepts/resource-roles.mdx`
+
+### Integrations
+- Slack: `integrations/slack.mdx`
+- Microsoft Teams: `integrations/teams.mdx`
+- Jira: `integrations/jira.mdx`
+- Svix: `integrations/svix.mdx`
+- AWS: `integrations/aws.mdx`
+- Microsoft Presidio: `integrations/ms-presidio.mdx`
+
+## Key Information
+
+### Documentation Platform
+- Built with Mintlify (https://mintlify.com)
+- Content management via Decap CMS (https://decapcms.org)
+- Configuration: `docs.json`
+
+### Important Notes
+- Quickstart connection guides are generated from YAML templates in `store/connections/*.yml`
+- Direct edits to generated MDX files will be overwritten
+- Use Decap CMS (`/admin`) or edit YAML templates directly for connection configurations
+
+### Links
+- Main website: https://hoop.dev
+- Community: https://github.com/hoophq/hoop/discussions
+- Blog: https://hoop.dev/blog
+- API Reference: https://use.hoop.dev/api/openapiv3.json
+- GitHub: https://github.com/hoophq
+
+### Changelog
+- Release notes: `changelog/` directory
+- Latest versions: 1.43.1, 1.43.0, 1.42.9, etc.
+
+## Common Use Cases
+
+1. **Secure Database Access**: Connect to databases (PostgreSQL, MySQL, MongoDB, etc.) with data masking and audit trails
+2. **Cloud Service Management**: Securely access AWS services, Kubernetes clusters
+3. **Development Environment Access**: Connect to Rails console, Django admin, Node.js REPL with proper controls
+4. **Compliance & Audit**: Record all sessions, mask sensitive data, enforce review workflows
+5. **Just-in-Time Access**: Implement approval workflows for temporary elevated access
+
+## Search Strategy
+
+When searching this documentation:
+- For feature explanations: Look in `learn/features/`
+- For setup instructions: Look in `quickstart/` or `setup/deployment/`
+- For configuration: Look in `setup/configuration/`
+- For specific integrations: Look in `quickstart/` by category or `integrations/`
+- For concepts: Look in `concepts/`
+- For client usage: Look in `clients/`
