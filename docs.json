@@ -474,5 +474,10 @@
         ]
       }
     ]
+  },
+  "integrations": {
+    "clarity": {
+      "projectId": "h9osgp95be"
+    }
   }
 }
