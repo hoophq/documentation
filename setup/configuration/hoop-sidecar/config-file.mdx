@@ -785,7 +785,7 @@ Re-applying the caps to a running relay would mean deleting rules, and that is w
 
 ## Control Plane
 
-A Sidecar that knows nothing about a Control Plane reads its config file from disk and runs standalone. Pointing it at one is two independent settings: where the Control Plane is, and the credential that identifies this Sidecar to it.
+A Sidecar reaches a Control Plane in two ways: it logs in, or it carries a credential. On the free plan `hoop start sidecar` logs in on its first run (see [Login and saved credentials](#login-and-saved-credentials) below). With a token or a service account it does not log in. Pointing a Sidecar at a Control Plane is two independent settings: where the Control Plane is, and the credential that identifies this Sidecar to it.
 
 | Setting | Source | Spelling |
 |---|---|---|
@@ -812,6 +812,20 @@ HOOP_SIDECAR_TOKEN="$(cat /etc/hoop/sidecar.token)" hoop start sidecar --config 
 ```
 
 See [Connect a Sidecar](/control-plane/connect-sidecar) for the handshake itself and how to issue a token.
+
+### Login and saved credentials
+
+On the free plan the Sidecar logs in instead of carrying a token. The login goes to `HOOP_CONTROL_PLANE_URL`, then the config file's `control_plane_url`, else `https://use.hoop.dev`. An admin approves a code in the web app, and the Sidecar joins that organization. See [Connect a Sidecar](/control-plane/connect-sidecar#free-plan-log-in-instead-of-a-token).
+
+The login is saved in `~/.hoop/sidecar/credentials.json` (mode `0600`), one per Control Plane. Set `HOOP_SIDECAR_STATE_DIR` to move the folder. Keep it on a volume for a headless deployment, or the next restart logs in again.
+
+| Command | Does |
+|---|---|
+| `hoop sidecar status` | The Control Planes this machine is logged in to |
+| `hoop sidecar status --token` | The same, with each token, to set `HOOP_SIDECAR_TOKEN` on a headless host |
+| `hoop sidecar logout` | Forgets this machine's login; `--control-plane <url>` or `--all` when it holds several |
+| `--login` | Logs in again, even when a login is saved |
+| `--no-login` | Runs standalone; refused on the free plan, accepted with a license |
 
 ---
 
