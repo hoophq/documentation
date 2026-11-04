@@ -43,6 +43,7 @@ Deferring moves the DETERMINATION and leaves the matching where it is. The local
 | `http_header` | the value of one or more captured headers | HTTP |
 | `grpc_status` | the outcome in the `grpc-status` trailer | gRPC |
 | `metadata` | a key the codec put on the statement, such as a plug-in's native verb | any |
+| `mcp_tool` | the tool a `tools/call` names; the lane also hides it from `tools/list` | MCP |
 
 Every rule also takes `name` and `message`. `message` reaches the user in the protocol's own error frame, so write one: the fallback names the rule and the operation and nothing else.
 
@@ -249,6 +250,26 @@ The lane's codec fills a statement's headers from `http.headers` and nothing els
 ```
 
 A codec records facts the statement has no field for under `metadata`: a [plug-in](/setup/configuration/hoop-sidecar/plugins/overview) puts its native verb under `<protocol>.verb`, the MongoDB codec puts the command under `mongodb.command`. This rule reads that map. Each key in the rule must be present on the statement with one of its listed values; keys are ANDed, values under one key are ORed, and the rule lowercases both sides before an exact comparison. A key the statement lacks never matches, so a rule written for one protocol's keys stays silent on every other lane in a shared rule set. `operations` scopes it as it scopes the other types.
+
+### mcp_tool
+
+```yaml
+- name: no-delete-tools
+  type: mcp_tool
+  tools: ["*delete*"]          # denies these tools
+  message: deleting through MCP is not allowed
+- name: read-only-tools
+  type: mcp_tool
+  allow: ["get_*", "list_*"]   # denies every other tool
+```
+
+On an [MCP lane](/setup/configuration/hoop-sidecar/protocols/mcp#tool-allow-and-deny), the rule reads the tool a `tools/call` names. `tools` denies the tools that match; `allow` denies every tool that matches none. A rule sets one of the two.
+
+A glob has `*` as its only metacharacter, and case counts: `get_*` does not match `Get_file`.
+
+The lane also leaves every tool the rule denies out of `tools/list`, so the model never sees it. With `mode: observe` or `action: defer`, the rule hides nothing.
+
+Other lanes ignore the rule, so a top-level one reaches every MCP lane in a file that also serves databases.
 
 ### The AI analyzer is not one of them
 
