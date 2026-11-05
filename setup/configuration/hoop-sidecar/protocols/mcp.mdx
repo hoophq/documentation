@@ -69,7 +69,7 @@ A call to a hidden tool is denied like any rule denial: a tool result with `isEr
 
 A `tools/list` result the lane cannot read ends the session and records `mcp_catalog_unreadable`: the lane could neither hide tools from it nor judge it.
 
-Only an enforcing `mcp_tool` rule hides a tool. On an observing lane, or with `action: defer`, the rule hides nothing, and the verdict on a call is recorded as for any rule: without OPA, a deferring rule denies the call.
+With `action: defer`, an `mcp_tool` rule hides nothing, and OPA decides each call: without OPA, a deferring rule denies the call.
 
 Two `allow` rules let through only the tools both list.
 
@@ -189,6 +189,7 @@ The session also records these activities:
 | `mcp.tool_denied` | mcpproxy refuses a call, such as an unadvertised tool or a budget | `tool`, `rule`, `reason` |
 | `mcp.budget_exceeded` | a budget or a rate limit refuses a call, or a result is cut | `tool`, `rule`, `reason` |
 | `mcp.tools_changed` | a rug pull, or the server announces `tools/list_changed` | `tool`, `rule`, `reason` |
+| `mcp_session_killed` | the lane ends the session: a rug pull with `on_rug_pull: kill`, or a catalog it cannot read | `reason` |
 
 A call a guardrail rule or OPA denies is a statement with its rule, not an activity.
 

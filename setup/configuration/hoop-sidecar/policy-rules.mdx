@@ -294,7 +294,7 @@ On an [MCP lane](/setup/configuration/hoop-sidecar/protocols/mcp#tool-allow-and-
 
 A glob has `*` as its only metacharacter, and case counts: `get_*` does not match `Get_file`.
 
-The lane also leaves every tool the rule denies out of `tools/list`, so the model never sees it. With `mode: observe` or `action: defer`, the rule hides nothing.
+The lane also leaves every tool the rule denies out of `tools/list`, so the model never sees it. With `action: defer`, the rule hides nothing.
 
 Other lanes ignore the rule, so a top-level one reaches every MCP lane in a file that also serves databases.
 

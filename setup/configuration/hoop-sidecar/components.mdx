@@ -438,12 +438,13 @@ The step-by-step setup for each shape — including both permission traps a unix
 
 ## Identity
 
-A session records `principal: anonymous` until something names the caller. Three lanes can:
+A session records `principal: anonymous` until something names the caller. These lanes can:
 
 | Lane | Source of the principal |
 |---|---|
 | `http`, `grpc`, `spanner` | the header named by `identity_header`, set by the authenticating proxy in front. An `http` lane reads it on every request: the first names the first session, so `session_start` already carries it, and a request naming a different caller ends that session and opens a new one on the same connection. A grpc or spanner lane reads it per RPC and falls back to the mTLS peer certificate |
 | `http` | the request's Google OAuth2 bearer, verified per request, with `google_identity`. See [Google identity](/setup/configuration/hoop-sidecar/protocols/http#google-identity) |
+| `mcp` | the header named by `identity_header`, read when the MCP session opens. A request on the session that names another caller is refused. See [MCP auth](/setup/configuration/hoop-sidecar/protocols/mcp#auth) |
 | `postgres` | the `user` the client names in its StartupMessage |
 | `ssh` | the certificate the lane verified itself, mapped by `ssh.identity` |
 
