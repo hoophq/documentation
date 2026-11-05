@@ -83,7 +83,7 @@ The rule reads the real tool name, not the name `overrides` gives it.
 
 An `mcp_tool` rule in the top-level `guardrails` reaches every mcp lane, and other lanes ignore it. A lane's own rules run first and the top-level ones after them; `rules: []` on the lane drops the top-level ones.
 
-A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. The rules screen of the control plane does not offer `mcp_tool` yet (ENG-959): write it in the config file.
+A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. The rules screen of the control plane does not offer `mcp_tool` yet: write it in the config file.
 
 ---
 
@@ -210,7 +210,7 @@ The lane checks no credential on either side yet.
 
 Callers the lane cannot tell apart share the `anonymous` identity, so any of them that holds a session id can use that session.
 
-Not supported yet: a token the lane checks (ENG-963), a verified identity per user (ENG-961), and OAuth login of MCP clients. Until the lane checks callers, it binds loopback only.
+Not supported yet: a token the lane checks, a verified identity per user, and OAuth login of MCP clients. Until the lane checks callers, it binds loopback only.
 
 ### Lane to upstream
 
@@ -223,16 +223,16 @@ The lane sends no `Authorization` header to the upstream, the caller's included.
 
 For a server that needs a bearer token or OAuth: run the MCP server yourself with its credential, or run a proxy on loopback that adds the credential, and point `upstream` at that proxy (`http://127.0.0.1:<port>/mcp` is accepted on loopback).
 
-Not supported yet: a token from a file or a secret source and the caller's own token (ENG-961), OAuth to the upstream (ENG-958), and AWS SigV4 (ENG-957).
+Not supported yet: a token from a file or a secret source and the caller's own token, OAuth to the upstream, and AWS SigV4.
 
 ---
 
 ## Limits
 
 - `listen` takes a loopback address only. See [Auth](#auth).
-- No masking yet (ENG-965). Mask rules inherited from the top level are accepted, and `-validate` notes that they do not apply. A `mask` block on the lane is refused.
-- No human review yet: an `analyzer` block is refused (ENG-964), and holding a call for approval comes with ENG-967.
-- `max_conns` and `network: unix` are refused. `downstream_tls` is refused until ENG-963.
+- No masking yet. Mask rules inherited from the top level are accepted, and `-validate` notes that they do not apply. A `mask` block on the lane is refused.
+- No human review yet: an `analyzer` block is refused, and no call can be held for approval.
+- `max_conns` and `network: unix` are refused. So is `downstream_tls`.
 - Sessions live in memory: run one replica, or pin `Mcp-Session-Id` to one.
 
 ---
