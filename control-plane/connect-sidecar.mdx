@@ -3,11 +3,25 @@ title: "Connect a Sidecar"
 description: "Issue a token, point a Sidecar at the Control Plane, and let it pull its configuration."
 ---
 
-A [Sidecar](/core-concepts/sidecar) that knows nothing about a Control Plane reads its config file from disk and runs. Connecting it changes one thing: on boot, it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
+A [Sidecar](/core-concepts/sidecar) on the free plan logs in to join your organization (below). An Enterprise Sidecar connects with a token instead: on boot it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
 
 <Tip>
 Deploying many Sidecars with automation? Skip the per-Sidecar token: [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) lets each one authenticate with its Kubernetes or Google service account, and the Control Plane creates it on the first handshake.
 </Tip>
+
+---
+
+## Free plan: log in instead of a token
+
+On the free plan you do not issue a token. `hoop start sidecar` logs in on its first run. It prints a link and a code. An admin opens the link, checks the code, and approves it in the web app. The Sidecar then joins that admin's organization and connects on its own.
+
+The login goes to `HOOP_CONTROL_PLANE_URL`, then the config file's `control_plane_url`, else `https://use.hoop.dev`. Any other URL is an Enterprise Control Plane, and it uses a token with the steps below.
+
+The login is saved on the machine, one per Control Plane. The next run reuses it. Use `hoop sidecar status` to see it, and `hoop sidecar logout` to remove it. The Sidecar stays in your organization; delete it in the web app to remove it there.
+
+<Note>
+**Headless (a container or an agent).** Log in once, then pass the token in `HOOP_SIDECAR_TOKEN`. Get the token from the web app, or from `hoop sidecar status --token` on a machine that logged in. Keep `HOOP_SIDECAR_STATE_DIR` on a volume, or the next restart logs in again.
+</Note>
 
 ---
 
