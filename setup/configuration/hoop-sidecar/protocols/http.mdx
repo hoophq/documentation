@@ -155,7 +155,7 @@ listeners:
 - **The reserved route is guarded too.** [`/.well-known/hoop/`](/setup/configuration/hoop-sidecar/agent-approvals#read-the-status-on-an-http-listener) answers only a caller the token admits.
 - **Closed connections.** The lane closes the connection when it cannot read a request head, when the client sends bytes before the server answers an `Upgrade` or `CONNECT`, or when the codec cannot decode client bytes. After the server grants a switch, the tunnel is not checked again.
 - **No TLS of its own.** The token travels as written. Set `downstream_tls`, or put TLS in front of the listener.
-- `http` lanes only, and exclusive with `identity_header` and `google_identity`.
+- `http` and [`mcp`](/setup/configuration/hoop-sidecar/protocols/mcp#caller-token) lanes only, and exclusive with `identity_header` and `google_identity`.
 
 **The file.** It holds one token per line. Blank lines and surrounding whitespace are ignored. A token holds no whitespace, comma or control character, because a repeated header arrives joined as `a, b`. The Sidecar keeps only SHA-256 digests in memory and compares every candidate with every token in constant time.
 

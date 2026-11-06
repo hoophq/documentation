@@ -1,0 +1,294 @@
+---
+title: "MCP"
+description: "A protocol: mcp lane in front of one remote MCP server: tool policy, guardrails, OPA and one audited session per MCP session"
+---
+
+A `protocol: mcp` lane terminates MCP streamable HTTP on `/mcp` and forwards to one remote MCP server over `streamable-http` or `sse`. It hides the tools a rule denies, judges each `tools/call` with the lane's guardrails and OPA, and records one Sidecar session per MCP session.
+
+The lane embeds [mcpproxy](https://github.com/hoophq/mcpproxy) and ships in Sidecar 1.289.0 and later. A Sidecar build without the MCP engine refuses the lane at `-validate`.
+
+---
+
+## Configure a lane
+
+```yaml config.yaml
+listeners:
+  - name: github-mcp
+    protocol: mcp
+    listen: 127.0.0.1:18901      # loopback; another address needs caller_token
+    upstream: https://mcp.example.com/mcp   # a server that needs no credential; see Auth
+    idle_timeout_sec: 1800       # an idle MCP session ends after this; default 30 minutes
+    guardrails:                  # which tools the lane offers; see Tool allow and deny
+      rules:
+        - {name: no-delete-tools, type: mcp_tool, tools: ["*delete*"], message: deleting through MCP is not allowed}
+        - {name: read-only-tools, type: mcp_tool, allow: ["get_*", "list_*", "search_*"]}
+    mcp_gateway:
+      transport: streamable-http # or sse
+      block_sampling: true
+      block_elicitation: true
+      on_rug_pull: kill
+      max_calls_per_session: 200
+      max_result_kb: 256
+      tool_rate_limits: {"search_*": 30}
+      overrides:
+        get_file_contents: {description: Read one file from a repository.}
+```
+
+The MCP client points at `http://127.0.0.1:18901/mcp`.
+
+---
+
+## Listener keys
+
+| Key | Default | Effect |
+|---|---|---|
+| `listen` | required | `host:port` on loopback: `127.0.0.1`, `::1` or `localhost`. Any other address needs `caller_token`. MCP clients connect to `http://<listen>/mcp`, or `https://` with `downstream_tls`. |
+| `upstream` | required | The MCP endpoint, with its path. `https`, or `http` on loopback. No user, password, query or fragment. A redirect is followed only within its origin. |
+| `upstream_tls` | the host trust store | The CA, the client certificate and the server name for the hop to the upstream. |
+| `idle_timeout_sec` | `1800` | An MCP session with no message for this long ends, with its Sidecar session. |
+| `identity_header` | none | The header whose value names the caller. See [Auth](#auth). |
+| `caller_token` | none | Admits only a caller that sends a listed token. See [Caller token](#caller-token). |
+| `downstream_tls` | none | Terminates the client's TLS at the lane: `cert_file` and `key_file`. HTTP/1.1 over TLS 1.2 or later. |
+| `guardrails`, `opa` | the top-level blocks | The rules and OPA for this lane. `mcp_tool` rules decide which tools it offers. |
+| `mcp_gateway` | none | The upstream transport and the session policy. See below. |
+
+---
+
+## Tool allow and deny
+
+A guardrail rule of type `mcp_tool` decides which tools a lane offers. `tools` lists the tools it denies; `allow` lists the only tools it lets through. A rule sets one of the two.
+
+```yaml config.yaml
+guardrails:
+  rules:
+    - {name: no-delete-tools, type: mcp_tool, tools: ["*delete*"]}
+    - {name: read-only-tools, type: mcp_tool, allow: ["get_*", "list_*"]}
+```
+
+The lane leaves out of `tools/list` every tool an `mcp_tool` rule denies, so the model never sees it. The catalog statement names the hidden tools in `mcp.tools_hidden`.
+
+A call to a hidden tool is denied like any rule denial: a tool result with `isError: true` and the text `denied by the hoop sidecar (rule <name>): <message>`. MCP reports a failed tool call this way, as a result rather than a JSON-RPC error, so the model sees the denial and its message.
+
+A `tools/list` result the lane cannot read ends the session and records `mcp_catalog_unreadable`: the lane could neither hide tools from it nor judge it.
+
+With `action: defer`, an `mcp_tool` rule hides nothing, and OPA decides each call: without OPA, a deferring rule denies the call.
+
+Two `allow` rules let through only the tools both list.
+
+A `tools/call` is judged by its exact `name` key. Params that name no tool, or carry keys that differ only in case, are refused as invalid params (`-32602`) and recorded as `mcp_invalid_params`.
+
+Other rule types and OPA judge calls too, and hide nothing.
+
+A glob has one metacharacter: `*` matches any run of characters, including none. Every other character matches literally, and case counts: `*delete*` matches `bulk_delete_rows`, and `get_*` does not match `Get_file`.
+
+The rule reads the real tool name, not the name `overrides` gives it.
+
+An `mcp_tool` rule in the top-level `guardrails` reaches every mcp lane, and other lanes ignore it. A lane's own rules run first and the top-level ones after them; `rules: []` on the lane drops the top-level ones.
+
+A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. The rules screen of the control plane does not offer `mcp_tool` yet: write it in the config file.
+
+---
+
+## `mcp_gateway` keys
+
+| Key | Default | Effect | The client gets |
+|---|---|---|---|
+| `transport` | `streamable-http` | How the lane reaches the upstream: `streamable-http` or `sse`. | |
+| `overrides` | none | Per tool: `name` renames it and `description` replaces its description in `tools/list`. A call to the new name reaches the real tool. | |
+| `block_sampling` | `true` | Refuses the server's `sampling/createMessage` requests, which ask the client's model to generate text. | Nothing: the client never sees the request, and the server gets `-32010`. |
+| `block_elicitation` | `true` | Refuses the server's `elicitation/create` requests, which ask the user for input. | As for `block_sampling`. |
+| `on_rug_pull` | `kill` | A rug pull is a later `tools/list` that changes the description or input schema of a tool this session already listed. `kill` ends the session; `alert` records it and goes on. A tool an `mcp_tool` rule hides never counts. | `kill`: `-32010` with the reason, then 404 on the session |
+| `max_calls_per_session` | `0`: no limit | The tool calls one MCP session may attempt. A refused call counts too. | Past the limit: `-32012`, `session tool-call budget exhausted (N calls)` |
+| `tool_rate_limits` | none | Tool glob to calls per minute, per session. When several globs match a tool, the lowest limit applies. | Over the limit: `-32012`, `tool "x" rate limit exceeded (N calls/min)` |
+| `max_result_kb` | `0`: no limit | The text of a tool result is cut to this size and ends with `[truncated by gateway]`. | The cut result |
+
+`tool_rate_limits` globs work as in `mcp_tool`.
+
+Once the session has listed tools, a call to a tool the server did not list is refused too: `-32010`, `tool "x" was not advertised by the server`.
+
+A call these keys refuse, a truncated result and a rug pull reach the Sidecar session as activities: `mcp.tool_denied`, `mcp.budget_exceeded`, `mcp.tools_changed`.
+
+A key the block does not map, such as `allowed_tools` (an `mcp_tool` rule instead), `approval_tools`, `command` or `headers`, fails as `unknown field`.
+
+---
+
+## What the rules read
+
+Each `tools/call` is one statement: `operation: call`, `tables: [<tool>]` in lower case, the text `<tool>` with its arguments JSON on the next line, and the metadata `mcp.method`, `mcp.tool` and `mcp.session`.
+
+```yaml config.yaml
+guardrails:
+  rules:
+    - {name: no-delete, type: mcp_tool, tools: ["*delete*"]}                    # the tool name; hides it too
+    - {name: no-prod, type: deny_words_list, words: [prod-db]}                # tool name and arguments
+    - {name: no-prod-db, type: pattern_match, pattern_regex: '"db":\s*"prod-'}  # tool name and arguments
+    - {name: no-calls, type: operation, operations: [call]}                   # every tools/call
+```
+
+The metadata names the tool in the audit trail and in OPA's input.
+
+Each `tools/list` is one catalog statement: `direction: server`, `operation: show`, no tables, one `<name>: <description>` line per tool.
+
+Rules and OPA judge the catalog too, and a hit ends the session. A `deny_words_list` word in a tool description ends it.
+
+A `table` rule never matches the catalog, `require_table_match` included.
+
+[Policy Rules](/setup/configuration/hoop-sidecar/policy-rules) describes each rule type.
+
+---
+
+## OPA
+
+With an `opa` block, the lane consults OPA on every call and on the catalog. The input for a call, beside the `context` every lane sends:
+
+```json
+{"protocol": "mcp", "direction": "client", "operation": "call",
+ "tables": ["get_file_contents"], "statement": "get_file_contents\n{\"path\":\"README.md\"}",
+ "metadata": {"mcp.method": "tools/call", "mcp.tool": "get_file_contents", "mcp.session": "<id>"}}
+```
+
+`responses: false` keeps the catalog from OPA:
+
+```yaml config.yaml
+    opa:
+      url: http://opa:8181/v1/data/hoop/inspect
+      responses: false
+```
+
+---
+
+## Sessions and audit
+
+One Sidecar session per MCP session. It opens on the first message and closes on the client's `DELETE` or the idle timeout.
+
+The session records `initialize` as an activity (client name, version, protocol version), one statement per `tools/call`, allowed or denied with its rule, and one statement per `tools/list`.
+
+mcpproxy refusals, such as a budget or a rug pull, reach the session as activities.
+
+A rule reload ends the open MCP sessions. The next message on one is refused, and the client initializes again under the new rules.
+
+A change to the lane itself (`upstream`, `listen`, the `mcp_gateway` block) needs a restart, as for every listener.
+
+### What the audit records
+
+Each statement carries this metadata:
+
+| Key | On | Value |
+|---|---|---|
+| `mcp.method` | every statement | `tools/call` or `tools/list` |
+| `mcp.tool` | a call | the real name of the tool called |
+| `mcp.session` | every statement | the `Mcp-Session-Id` of the MCP session |
+| `mcp.tools_hidden` | a catalog statement | the tools an `mcp_tool` rule left out, comma-separated |
+
+The session also records these activities:
+
+| Activity | When | Attributes |
+|---|---|---|
+| `mcp_initialize` | the client's `initialize` | `client`, `client_version`, `protocol_version` |
+| `mcp_invalid_params` | a `tools/call` refused as invalid params | `reason` |
+| `mcp_catalog_unreadable` | a `tools/list` result the lane cannot read; the session ends | `reason` |
+| `rules_reloaded` | a rule reload ends the session | `reason` |
+| `mcp.tool_denied` | mcpproxy refuses a call, such as an unadvertised tool or a budget | `tool`, `rule`, `reason` |
+| `mcp.budget_exceeded` | a budget or a rate limit refuses a call, or a result is cut | `tool`, `rule`, `reason` |
+| `mcp.tools_changed` | a rug pull, or the server announces `tools/list_changed` | `tool`, `rule`, `reason` |
+| `mcp_session_killed` | the lane ends the session: a rug pull with `on_rug_pull: kill`, or a catalog it cannot read | `reason` |
+| `mcp.session_refused` | a request from another caller names the session; it gets a 404 | `caller`, `reason` |
+
+A call a guardrail rule or OPA denies is a statement with its rule, not an activity.
+
+---
+
+## Auth
+
+The lane can check a caller token. It sends no credential to the upstream except a mutual TLS certificate.
+
+### Caller to lane
+
+| Option | Config | The audit names |
+|---|---|---|
+| none, the default | | `anonymous` |
+| `identity_header` | `identity_header: x-forwarded-email` | the header's value |
+| `caller_token` | see [Caller token](#caller-token) | the token's `name` |
+
+`identity_header` names a caller and verifies nothing: any process that reaches the port can set it. Use it only behind a proxy on the same host or pod that authenticates the caller and sets the header.
+
+Callers the lane cannot tell apart share the `anonymous` identity, so any of them that holds a session id can use that session.
+
+Not supported yet: a verified identity per user, and OAuth login of MCP clients.
+
+### Caller token
+
+`caller_token` admits a caller by a shared token, so the lane can listen on an address other than loopback. Sidecar 1.290.0 and later; older builds refuse the key at `-validate`.
+
+```yaml config.yaml
+listeners:
+  - name: github-mcp
+    protocol: mcp
+    listen: 0.0.0.0:8443
+    upstream: https://mcp.example.com/mcp
+    downstream_tls: {cert_file: /etc/tls/tls.crt, key_file: /etc/tls/tls.key}
+    caller_token:
+      header: X-Hoop-Token                       # the default
+      file: /etc/hoop-inspect/caller-tokens      # one token per line; required
+      name: claude-code                          # the principal in the audit trail; required
+```
+
+The MCP client sends the token on every request:
+
+```bash
+claude mcp add --transport http github https://relay.example.com:8443/mcp \
+  --header "X-Hoop-Token: $HOOP_CALLER_TOKEN"
+```
+
+- **What is refused.** No header, an empty value, a value not in the file, or the header sent twice. The request gets a 403 `request refused: <reason>` before the lane reads its body, and the connection closes. Claude Code shows the server as `needs-auth`.
+- **403, not 401.** A 401 sends MCP clients into OAuth discovery, which the lane does not serve.
+- **Refusals are logged, not audited.** No MCP session exists yet. The Sidecar logs `mcp request refused` with the peer address and the reason.
+- **What is admitted.** The session and every statement name `name` as the principal.
+- **A session belongs to its token.** An `Mcp-Session-Id` works only with the token that opened it. A request with another token gets a 404, and the session records `mcp.session_refused`.
+- **The token stays in the Sidecar.** The lane removes the header first. The token never reaches the upstream, an audit row, policy input or a log.
+- **Refused at startup.** A `header` that MCP uses (`Mcp-*`, `Last-Event-ID`), or one the upstream, HTTP framing or the Sidecar already uses, such as `authorization` or `host`. `caller_token` together with `identity_header`.
+- **No TLS of its own.** The token travels as written. Set `downstream_tls`, or put TLS in front of the listener.
+
+The file, rotation and revocation work as on the `http` lane. See [Caller token](/setup/configuration/hoop-sidecar/protocols/http#caller-token).
+
+### Lane to upstream
+
+| Option | Config |
+|---|---|
+| no credential: a server on a private network, or one that holds its own credential | `upstream: https://mcp.internal.example.com/mcp` |
+| mutual TLS | `upstream_tls: {cert_file: /etc/tls/client.crt, key_file: /etc/tls/client.key, ca_file: /etc/tls/ca.pem}` |
+
+The lane sends no `Authorization` header to the upstream, the caller's included. It refuses `headers`, because the config holds no inline secret.
+
+For a server that needs a bearer token or OAuth: run the MCP server yourself with its credential, or run a proxy on loopback that adds the credential, and point `upstream` at that proxy (`http://127.0.0.1:<port>/mcp` is accepted on loopback).
+
+Not supported yet: a token from a file or a secret source and the caller's own token, OAuth to the upstream, and AWS SigV4.
+
+---
+
+## Limits
+
+- `listen` takes an address other than loopback only with `caller_token`. See [Caller token](#caller-token).
+- No masking yet. Mask rules inherited from the top level are accepted, and `-validate` notes that they do not apply. A `mask` block on the lane is refused.
+- No human review yet: an `analyzer` block is refused, and no call can be held for approval.
+- `max_conns` and `network: unix` are refused.
+- Sessions live in memory: run one replica, or pin `Mcp-Session-Id` to one.
+
+---
+
+## Try it
+
+The [`envoy-stack/mcp`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/mcp) demo runs one session through a lane in front of a test MCP server: a request without the caller token, refused with 403, then `initialize`, `tools/list` without the tools an `mcp_tool` rule hides, an allowed call, a call to a hidden tool and a call over the `mcp_gateway` budget, then the audit rows under the token's `name`.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Policy Rules" icon="shield" href="/setup/configuration/hoop-sidecar/policy-rules">
+    Every rule type, and how a lane inherits rules.
+  </Card>
+  <Card title="Config File" icon="file-code" href="/setup/configuration/hoop-sidecar/config-file">
+    The whole configuration, including the OPA block.
+  </Card>
+</CardGroup>
