@@ -16,6 +16,7 @@ flowchart LR
       BLK["block"]
       ALW["allow"]
       RVW["require_approval"]
+      HND["ai-handoff"]
       GR["Guardrails"]
       DM["Data Masking"]
     end
@@ -43,6 +44,7 @@ The listener's `analyzer` block maps each risk level the model can report to a t
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
 | `require_approval` | Hold the statement until it is approved. `approvers.<level>` names who approves: people in some groups (`human`), who have up to 30 minutes while the statement waits on its connection, or the approval agent (`ai_agent`), which decides at once in the Sidecar. An approval runs it; a rejection or a timeout denies, and an identical retry after a person's approval forwards once. |
+| `ai-handoff` | A second model turn, the hand-off agent, selects the action from the level's `allowed_actions` (`allow`, `warn`, `block`, `require_approval`). Any answer that is not one valid tool call applies the most restrictive allowed action. See [Handing off to the AI agent](/setup/configuration/hoop-sidecar/risk-analysis#handing-off-to-the-ai-agent). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
@@ -174,7 +176,7 @@ The analyzer defaults to `fail_open: true`. It depends on a third-party API, and
 
 Decide which you want per environment, and know that `fail_open: false` makes your model provider a hard dependency of your database.
 
-A listener that uses `require_approval` always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
+A listener that uses `require_approval`, or an `ai-handoff` level that can select it, always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
 
 ---
 
