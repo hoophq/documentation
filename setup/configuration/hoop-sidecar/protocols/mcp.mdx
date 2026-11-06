@@ -51,7 +51,7 @@ The MCP client points at `http://127.0.0.1:18901/mcp`.
 | `downstream_tls` | none | Terminates the client's TLS at the lane: `cert_file` and `key_file`. HTTP/1.1 over TLS 1.2 or later. |
 | `guardrails`, `opa` | the top-level blocks | The rules and OPA for this lane. `mcp_tool` rules decide which tools it offers. |
 | `mask` | the top-level block | The mask rules for tool and resource results. See [Masking](#masking). |
-| `analyzer` | the top-level block | The AI analyzer for tool calls. See [AI analyzer](#ai-analyzer). |
+| `analyzer` | none | A model rates each tool call. The provider and model come from the top-level `analyzer` section. See [AI analyzer](#ai-analyzer). |
 | `mcp_gateway` | none | The upstream transport and the session policy. See below. |
 
 ---
