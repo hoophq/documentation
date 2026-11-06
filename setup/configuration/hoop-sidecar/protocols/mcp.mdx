@@ -85,7 +85,7 @@ The rule reads the real tool name, not the name `overrides` gives it.
 
 An `mcp_tool` rule in the top-level `guardrails` reaches every mcp lane, and other lanes ignore it. A lane's own rules run first and the top-level ones after them; `rules: []` on the lane drops the top-level ones.
 
-A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. The rules screen of the control plane does not offer `mcp_tool` yet: write it in the config file.
+A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. On a managed sidecar, the Guardrails page of the control plane offers it as the rule type **MCP tool** on an MCP listener.
 
 ---
 
