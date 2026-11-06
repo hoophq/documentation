@@ -50,6 +50,8 @@ The MCP client points at `http://127.0.0.1:18901/mcp`.
 | `caller_token` | none | Admits only a caller that sends a listed token. See [Caller token](#caller-token). |
 | `downstream_tls` | none | Terminates the client's TLS at the lane: `cert_file` and `key_file`. HTTP/1.1 over TLS 1.2 or later. |
 | `guardrails`, `opa` | the top-level blocks | The rules and OPA for this lane. `mcp_tool` rules decide which tools it offers. |
+| `mask` | the top-level block | The mask rules for tool and resource results. See [Masking](#masking). |
+| `analyzer` | none | A model rates each tool call. The provider and model come from the top-level `analyzer` section. See [AI analyzer](#ai-analyzer). |
 | `mcp_gateway` | none | The upstream transport and the session policy. See below. |
 
 ---
@@ -215,6 +217,52 @@ With an `opa` block, the lane consults OPA on every call and on the catalog. The
 
 ---
 
+## Masking
+
+The lane masks tool and resource results with its [mask rules](/setup/configuration/hoop-sidecar/config-file#masking). It masks these strings of a `tools/call`, `resources/read` and `tasks/result` result:
+
+- `content[].text`
+- `content[].resource.text`, an embedded resource
+- `contents[].text`
+- every string of `structuredContent`, up to 128 levels deep
+
+Object keys, numbers and other fields are not masked: the client reads them as protocol. Prompts and upstream error messages are not masked.
+
+```yaml config.yaml
+    mask:
+      rules:
+        - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+        - {name: cards, entities: [CREDIT_CARD], strategy: partial, keep_last: 4}
+```
+
+- Rules find values by entity. The lane gets each string without its key, so a `columns` rule never matches. `-validate` refuses one in the lane's `mask` block. An inherited one does not apply on the lane, and `-validate` says so; inherited entity rules apply.
+- Each masked result is one `masked` audit row with the count and the entities, never the values.
+- The client gets JSON-RPC error `-32010` instead of the result, and the MCP session stays open, when the masker fails, its audit row cannot be written under `fail_on_audit_error`, a key repeats or differs only in case, `structuredContent` nests deeper than 128 levels, or the result or a field above has an unexpected type (an object where an array belongs). A `null` passes.
+- Turning masking on or off needs a restart. A rule change applies without one.
+- A Sidecar managed by a Control Plane gets mask rules on an mcp lane only when it reports the `mcp_mask` capability.
+
+---
+
+## AI analyzer
+
+An `analyzer` block, or an `ai_analysis` rule, classifies each `tools/call`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) for the block. The model reads the tool name and the arguments JSON, cut to `max_input_bytes` (default 8 KiB). It never reads `tools/list` or a result.
+
+```yaml config.yaml
+    analyzer:
+      trigger: {operations: [call]}   # omit it to classify every call
+      high: block
+      medium: warn
+```
+
+- `block` refuses the one call as a tool error. The MCP session stays open.
+- A hold refuses the call and files no approval request: the lane cannot hold a call for approval yet. A Sidecar with a hold on an mcp lane still needs a reviewer to start, as on the other lanes: a Control Plane with an approval rule, or a terminal reviewer.
+- A provider failure follows `fail_open`, as on the other lanes.
+- On a [SQL tool](#sql-tools), the model reads the call and each SQL statement of its argument: one model call for the call and one per statement.
+- The statement row carries `risk_level`, `risk_action`, `ai_rule` and `ai_status`.
+- A Sidecar managed by a Control Plane gets an analyzer on an mcp lane only when it reports the `mcp_analyzer` capability.
+
+---
+
 ## Sessions and audit
 
 One Sidecar session per MCP session. It opens on the first message and closes on the client's `DELETE` or the idle timeout.
@@ -363,8 +411,7 @@ Not supported yet: a token from a file or a secret source and the caller's own t
 ## Limits
 
 - `listen` takes an address other than loopback only with `caller_token`. See [Caller token](#caller-token).
-- No masking yet. Mask rules inherited from the top level are accepted, and `-validate` notes that they do not apply. A `mask` block on the lane is refused.
-- No human review yet: an `analyzer` block is refused, and no call can be held for approval.
+- No call can be held for approval. See [AI analyzer](#ai-analyzer).
 - `max_conns` and `network: unix` are refused.
 - Sessions live in memory: run one replica, or pin `Mcp-Session-Id` to one.
 
