@@ -299,6 +299,70 @@ An expired approval request releases nothing. The Sidecar denies with `the appro
 
 A time to decide shorter than 30 minutes ends a hold sooner: the next poll reads **Expired** and denies. A limit longer than 30 minutes does not make a hold wait longer.
 
+#### AI routing of approval requests
+
+`approvers.<level>` names who approves a held level, in place of the listener's `approval_rule`. A `human` level with fixed `groups` is static. A `human` level with `routing` lets an AI agent on the Control Plane select who gets each approval request:
+
+```yaml
+listeners:
+  - name: payments
+    protocol: postgres
+    # ...
+    analyzer:
+      trigger: {operations: [update, delete]}
+      high: require_approval
+      medium: require_approval
+      approvers:
+        high:
+          type: human
+          routing:
+            candidates: [payments-approvers, sre]   # empty or absent: every group
+            notify:
+              slack: {delivery: both, channels_candidates: [C0123ABC]}
+        medium: {type: human, groups: [sre]}        # static
+```
+
+<Note>
+This page documents `routing` only. The full `approvers` reference, with `ai_agent` levels and `prompt`, is a separate page that lands with its own release.
+</Note>
+
+| Key | Meaning |
+|---|---|
+| `candidates` | The groups the agent selects from. Empty or absent: every group. |
+| `notify.<integration>` | `slack` or `teams`. A key that is present notifies through that integration when the organization set it up. Absent `notify`: the notifications of today. |
+| `notify.<integration>.delivery` | `dm`, `channel` or `both`. Empty: `dm`. |
+| `notify.<integration>.channels_candidates` | The channels the agent selects from for `channel` and `both`: Slack channel ids, or Teams channel ids (`19:...@thread.tacv2`). Empty: every channel the integration reaches. |
+
+`routing: {}` is valid: AI routing over every group, with the notifications of today. `groups` and `routing` are alternatives: one entry carries one of them.
+
+**The Control Plane routes.** It runs the routing when it opens the approval request, with the organization's AI provider. The agent reads the approval history of this Sidecar and listener (the last 100 decided approval requests of the last 90 days) and selects one or more groups, the members of those groups to notify, and the channels. It reads opaque ids only, never a name or an email, and the statement as a shape with its literals removed: no value or comment reaches it, and table and column names stay. A protocol with no shape (http, grpc, ssh) sends none. The requester is never routed to and never notified, nor is a user outside the selected groups. No email is sent. The approval request records the groups, the notified users, the channels and the reason, and its details on the **Approvals** page show them.
+
+**The routing has 20 seconds.** On no AI provider, a timeout, a provider error, a refusal, no tool call or more than one, an invalid decision or no valid group, the Control Plane falls back to static routing: every candidate group gets the approval request. The approval request records the fallback and its cause. The routing time is part of the hold's wait.
+
+**What the Sidecar sends.** The Sidecar files the level as before and never the routing: the Control Plane reads `routing` from the config it served to this Sidecar, as it reads `groups`. A routed level's filing also carries `principal`, the statement's user as the Sidecar sees it (identity header, database user; at most 256 bytes), so the Control Plane can keep the requester out. A static level or an `approval_rule` filing never sends it.
+
+**Slack today.** Only Slack posts. The `teams` key is accepted, and the Control Plane sends no Teams notification yet: the approval request records each selected user as not reachable through `teams`.
+
+`--validate` and startup note these, and do not refuse them:
+
+| Setting | What happens |
+|---|---|
+| `routing` on an `ai_agent` level | Ignored: the approval agent notifies nobody |
+| A `notify` key other than `slack` or `teams` | Ignored |
+| `delivery` other than `dm`, `channel` or `both` | `dm` is used |
+| `channels_candidates` with `delivery: dm` (or no delivery) | Ignored: a DM posts to no channel |
+
+These are refused at load, by `--validate`, and by the Control Plane at save:
+
+| Setting | Why |
+|---|---|
+| `groups` and `routing` on one entry | They are alternatives |
+| A blank entry in `routing.candidates` or in a `channels_candidates` | It matches no group or channel |
+
+<Warning>
+A Sidecar that does not report the `analyzer_approval_routing` capability cannot read `routing`, and the Control Plane refuses to serve it a config that sets one, naming the capability. There is no downgrade: static `groups` or an `approval_rule` would page other people. Update the Sidecar first.
+</Warning>
+
 #### Spend an approval only on an accepted answer
 
 By default the Sidecar spends an approval when it releases the statement. An http or grpc request that the upstream refuses still uses it, for example a `401` because a bearer token expired during the hold. With `spend_approval_on: accepted`, the Control Plane reserves the approval (`PROCESSING`), and the Sidecar reports the upstream's answer before the client reads it:

@@ -75,6 +75,17 @@ listeners:
       rules:                # REPLACES the default list rather than extending it
         - {name: ssn-column, columns: [ssn], strategy: partial, keep_last: 4}
         - {name: emails, entities: [EMAIL_ADDRESS], strategy: redact}
+    analyzer:               # the AI risk classifier, see Risk Analysis
+      trigger: {operations: [update, delete]}
+      high: require_approval
+      medium: warn
+      approvers:
+        high:
+          type: human
+          routing:          # an AI agent on the Control Plane picks the approvers
+            candidates: [payments-approvers, sre]   # empty or absent: every group
+            notify:
+              slack: {delivery: both, channels_candidates: [C0123ABC]}
 
   - name: mssqldb
     protocol: mssql
@@ -160,7 +171,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `guardrails` | Adds to the top-level rule set for this lane. |
 | `opa` | Replaces the top-level OPA endpoint for this lane. |
 | `mask` | Replaces the top-level mask rules for this lane. |
-| `analyzer` | This lane's AI analyzer: trigger, risk→action map, prompt, and per-lane overrides of the top-level defaults. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
+| `analyzer` | This lane's AI analyzer: trigger, risk→action map, prompt, and per-lane overrides of the top-level defaults. `approvers.<level>` names who approves a level set to `require_approval`: `groups` is static, `routing` lets an AI agent on the Control Plane select the groups, the users to notify and the channels per approval request. `routing` carries `candidates` (the groups to select from; empty: every group) and `notify.slack` or `notify.teams`, each with `delivery` (`dm`, `channel` or `both`; empty: `dm`) and `channels_candidates` (the channel ids to select from; empty: every channel the integration reaches). `routing: {}` routes over every group with the notifications of today. `groups` and `routing` on one entry are refused. Needs the `analyzer_approval_routing` capability; the Control Plane refuses to serve `routing` to an older Sidecar. See [AI routing of approval requests](/setup/configuration/hoop-sidecar/risk-analysis#ai-routing-of-approval-requests). |
 | `http` | What the HTTP codec captures. Only valid on an `http` lane. See [HTTP](/setup/configuration/hoop-sidecar/protocols/http#the-http-block). |
 | `clickhouse` | Native frame and block memory limits. Only valid on a `clickhouse` lane. See [ClickHouse](/setup/configuration/hoop-sidecar/protocols/clickhouse#compression-and-memory-limits). |
 | `postgres` | What a postgres lane records from the client's `StartupMessage` onto the session's metadata. Without it, every `options` setting (such as `-c claude.session.id=...`) is recorded as `postgres.option.<name>`; `startup_metadata` narrows that to a list, or `[]` turns it off. Only valid on a `postgres` lane. See [Trace ids from the startup packet](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet). |
