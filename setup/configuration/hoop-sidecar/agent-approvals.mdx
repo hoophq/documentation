@@ -15,6 +15,8 @@ A listener in [return mode](/setup/configuration/hoop-sidecar/risk-analysis#retu
 
 The status path and the MCP server need a Control Plane, because the approval status lives there. None of the three returns the statement, and none approves anything.
 
+This page is about a level a person approves. A level the [approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent) decides (`approvers.<level>.type: ai_agent`) files no approval request: the client gets the decision at once, so there is no id to read and nothing to wait for. A rejection carries the reason code in the error text.
+
 <Note>
 Approvals were called reviews before 1.244.0. The Sidecar still answers every earlier name on this page: the `X-Hoop-Review-*` fields, the `/.well-known/hoop/reviews/<id>` path and the `review_*` MCP tools. An agent configured against them keeps working.
 </Note>
