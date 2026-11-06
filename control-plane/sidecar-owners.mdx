@@ -1,0 +1,70 @@
+---
+title: "Sidecar owners"
+description: "The person a Sidecar acts for, and who hears about a hold."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+<EnterpriseLimit />
+
+A Sidecar listener that [swaps credentials](/features/credential-swap) on a unix socket knows which pod opened it, not whose pod it is. The owner lives on the Control Plane and reaches the Sidecar with its configuration, on the heartbeat, so a change is in force within a minute and no process restarts.
+
+---
+
+## The person a Sidecar acts for
+
+A listener with `identity: {type: none}` trusts the unix socket: whoever reaches it is the caller. That is the right model for one workload per pod, but the Sidecar still needs to know whose workload it is. `owner_email` on the Sidecar says so.
+
+```bash
+curl -X PUT "$HOOP_URL/api/sidecars/ws-jane" \
+  -H "Authorization: Bearer $HOOP_TOKEN" \
+  -d '{"owner_email": "jane@acme.com", "configuration": {...}}'
+```
+
+`owner_email` is on `POST /api/sidecars`, `PUT /api/sidecars/{name}`, `PATCH /api/sidecars/{name}` and the Sidecar's page in the web app. `PATCH` with `{"owner_email": "jane@acme.com"}` alone changes the owner and leaves the configuration as stored, which is what the web app sends; a bare address is required, and an empty string clears it. A GitOps reconciler that creates one Sidecar per user pod writes it with the rest of the entry, from the same source that creates the pod. The pod proves which pod it is with its service account token (see [Sidecar service accounts](/setup/configuration/hoop-sidecar/service-accounts)); the Control Plane row says whose it is. Neither fact enters the pod.
+
+A Sidecar without an owner behaves as before: sessions carry the pod's name, holds are filed under the Sidecar, nothing is refused. Adding the owner later changes the next hold, not the running process.
+
+---
+
+## Who hears about a hold
+
+A statement a Sidecar holds for approval is filed under a person:
+
+1. the principal the Sidecar verified at login, when the lane has an `identity`;
+2. else the Sidecar's `owner_email`;
+3. else the Sidecar's name, as before.
+
+Slack posts to the lane's approver channel as configured in [Slack](/control-plane/slack), and additionally sends a direct message to the person when their hoop account is linked to Slack: once when the statement is held, once when it is approved or denied. The approver sees who asked; the requester does not have to watch a channel.
+
+---
+
+## Rolling out across a fleet
+
+Everything here is additive, so a fleet moves at the pace a reconciler applies entries:
+
+- A Sidecar with no owner and lanes with no `identity` keeps its current behaviour.
+- A lane can take the allowlist of `passthrough_users` first, then the verifier, then drop the allowlist.
+
+### Moving a pod's identity to SPIRE
+
+A Sidecar row is bound to the first identity that reaches it and refuses a second one. A pod that switches from a Kubernetes service account token to a SPIFFE JWT-SVID is a second identity. Per pod, in one pass: switch the chart to `controlPlane.identity: spiffe`, clear the binding with `DELETE /api/sidecars/{name}/identity`, let the next handshake rebind through a [sidecar service account](/setup/configuration/hoop-sidecar/service-accounts) that names SPIRE's issuer. Done out of order, the pod comes up and its row refuses it. Owner, rules and Slack channels do not move.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Credential Swap" icon="key" href="/features/credential-swap">
+    What the client presents, where the upstream credential comes from, and what a refused login looks like.
+  </Card>
+  <Card title="Identity & Credentials reference" icon="file-code" href="/setup/configuration/hoop-sidecar/credentials">
+    Every listener field of `identity`, `credentials`, `select`, `context`, `passthrough_users` and `propagate`.
+  </Card>
+  <Card title="Sidecar service accounts" icon="id-badge" href="/setup/configuration/hoop-sidecar/service-accounts">
+    How a Sidecar proves which workload it is, with a Kubernetes, Google or SPIRE token.
+  </Card>
+  <Card title="Slack" icon="slack" href="/control-plane/slack">
+    Approver channels per lane and the review buttons.
+  </Card>
+</CardGroup>

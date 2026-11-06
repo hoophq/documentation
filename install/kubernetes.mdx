@@ -583,12 +583,34 @@ serviceAccount:
   name: hoop-sidecar
 controlPlane:
   url: https://cp.example.com
-  identity: kubernetes          # or gcp, for a Google service account
+  identity: kubernetes          # or gcp (Google service account), or spiffe (SPIRE JWT-SVID)
   tokenExpirationSeconds: 3600  # kubernetes only: projected token lifetime; the chart refuses less than 600
   identityAudience: ''          # empty: controlPlane.url
 ```
 
 With `identity: kubernetes` the chart mounts a projected token whose audience is `controlPlane.identityAudience`, or `controlPlane.url` when it is empty, and sets `HOOP_SIDECAR_IDENTITY_TYPE=kubernetes` with `HOOP_SIDECAR_IDENTITY_TOKEN_FILE` pointing at it. With `gcp` it sets `HOOP_SIDECAR_IDENTITY_TYPE=gcp` and passes the audience as `HOOP_SIDECAR_IDENTITY_AUDIENCE`. Set `identityAudience` only when the Control Plane is shared by several organizations; each needs its own. `token` and `identity` are exclusive, and the chart refuses to render both. See [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) for the Control Plane side.
+
+With `identity: spiffe` the chart mounts the SPIRE Workload API socket at `/run/spire/sockets` through the `csi.spiffe.io` driver, or from `spiffe.socketHostPath` when set, sets `HOOP_SIDECAR_IDENTITY_TYPE=spiffe`, and points `HOOP_SIDECAR_IDENTITY_TOKEN_FILE` at `spiffe.tokenFile`, the JWT-SVID a spiffe-helper writes. The Control Plane side is a sidecar service account whose issuer is SPIRE's OIDC discovery provider.
+
+#### Mounts for credential swap
+
+A listener that [swaps credentials](/features/credential-swap) reads its upstream material from the pod. Three values mount it:
+
+```yaml
+credentials:
+  secretMounts:                     # one Secret, one read-only mount, mode 0400, per entry
+    - name: appdb-rw
+      secretName: appdb-rw          # keys: user, password
+      mountPath: /run/secrets/appdb-rw
+spiffe:
+  enabled: true                     # the Workload API socket for the spiffe credential source, without the spiffe identity
+kerberos:
+  ccache:
+    hostPath: /var/run/krb5/ccache  # or secretName; the ticket cache the kerberos source reads
+    mountPath: /run/krb5
+```
+
+The chart always sets `POD_UID`, `POD_NAME` and `POD_NAMESPACE` from the downward API; the `kubernetes` client identity pins a token to this pod with `POD_UID`.
 
 ### License
 
