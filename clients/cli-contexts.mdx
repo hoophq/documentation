@@ -25,6 +25,8 @@ hoop context <subcommand> [flags]
 | `use <name>` | | Switch the CLI to a context and sync its version |
 | `remove <name>` | `rm` | Delete a context |
 
+`hoop context` needs CLI 1.300.0 or later.
+
 ## Turn it on in each organization
 
 `hoop context use` is behind the experimental flag `experimental.cli_contexts`. It is **off by default**. Each gateway holds the flag for its own organization, so an admin of **each** installation you switch to turns it on:
@@ -35,7 +37,7 @@ hoop context <subcommand> [flags]
 The CLI reads the flag from the target gateway, with the target context's login, every time you run `hoop context use`.
 
 <Note>
-  If `experimental.cli_contexts` is not listed in **Settings > Experimental**, the gateway is older than this feature. Upgrade the gateway first: an older gateway cannot turn the flag on, so `hoop context use` refuses its contexts.
+  If `experimental.cli_contexts` is not listed in **Settings > Experimental**, the gateway is older than 1.300.0. Upgrade the gateway first: an older gateway cannot turn the flag on, so `hoop context use` refuses its contexts.
 </Note>
 
 `create`, `list`, `show` and `remove` only read and write files on your machine, so they work without the flag.
@@ -143,7 +145,7 @@ What `use` does depends on the answer of the target gateway:
 |---|---|
 | Has `experimental.cli_contexts` on | Switches and syncs the CLI version |
 | Has the flag off (the default) | Refuses. `config.toml` does not change |
-| Is older than the flag | Refuses. Upgrade the gateway, then turn the flag on |
+| Is older than 1.300.0 | Refuses. Upgrade the gateway, then turn the flag on |
 | Does not answer (down, timeout, server error) | Refuses |
 | The context has no login, or the login expired | Switches without the sync, so you can run `hoop login` |
 
