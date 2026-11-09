@@ -108,7 +108,7 @@ Principal, session id, tables and statement text are **never** on a metric: they
 | `hoop.sidecar.session_events.sent`, `.dropped` | counter | the Control Plane copy's counters; zero without one |
 | `hoop.sidecar.config.generation` | gauge | reloads applied since start |
 
-`hoop.analyzer.kind` is `classify` for a risk classification and `decide` for the [approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent) or the [hand-off agent](/setup/configuration/hoop-sidecar/risk-analysis#handing-off-to-the-ai-agent). Filter on `classify` where a query means classification.
+`hoop.analyzer.kind` is `classify` for a risk classification and `decide` for the [approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent) or the [hand-off agent](/setup/configuration/hoop-sidecar/risk-analysis#handing-off-to-the-ai-agent). Filter on `classify` where a query means classification. `hoop.action` on an `ai-handoff` level is the action the hand-off resolved to, never `ai-handoff`.
 
 Counters survive a hot reload. The three analyzer families are the ones `GET /metrics` serves in the Prometheus text format, which stays as it is; see [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#metrics).
 
