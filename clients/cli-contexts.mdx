@@ -1,0 +1,215 @@
+---
+title: "hoop context"
+description: "Save several hoop installations as named contexts and switch the CLI between them with one command: URL, login and CLI version."
+---
+
+## Overview
+
+When you work with more than one hoop installation (for example `dev`, `stg` and `prd`), switching usually means `hoop config create`, `hoop login` and `hoop versions sync` again, and the login of the installation you leave is lost.
+
+A **context** saves one installation: its API URL, gRPC URL, TLS CA and login. `hoop context use <name>` switches the CLI to it in one command:
+
+1. It saves the current `config.toml` back into the context you leave, so a `hoop login` made there is kept.
+2. It writes the target context into `$HOME/.hoop/config.toml`, in the format every hoop CLI reads.
+3. It installs and activates the CLI version that the target gateway runs, as [`hoop versions sync`](/clients/cli-versions#hoop-versions-sync) does.
+
+```bash
+hoop context <subcommand> [flags]
+```
+
+| Subcommand | Aliases | Purpose |
+|---|---|---|
+| `create <name>` | | Save an installation as a named context |
+| `list` | `ls` | List the contexts and mark the active one |
+| `show [name]` | | Show one context (the active one by default) |
+| `use <name>` | | Switch the CLI to a context and sync its version |
+| `remove <name>` | `rm` | Delete a context |
+
+## Turn it on in each organization
+
+`hoop context use` is behind the experimental flag `experimental.cli_contexts`. It is **off by default**. Each gateway holds the flag for its own organization, so an admin of **each** installation you switch to turns it on:
+
+1. Go to **Organization > Settings > Experimental**.
+2. Toggle `experimental.cli_contexts` to **On**.
+
+The CLI reads the flag from the target gateway, with the target context's login, every time you run `hoop context use`.
+
+<Note>
+  If `experimental.cli_contexts` is not listed in **Settings > Experimental**, the gateway is older than this feature. Upgrade the gateway first: an older gateway cannot turn the flag on, so `hoop context use` refuses its contexts.
+</Note>
+
+`create`, `list`, `show` and `remove` only read and write files on your machine, so they work without the flag.
+
+## Quick start
+
+```bash
+# save the installation you are logged in to now
+hoop context create dev
+
+# save another installation, with an API key as its login
+hoop context create prd --api-url https://prd.example.com --api-key hpk_...
+
+# switch: URL, login and CLI version in one command
+hoop context use prd
+hoop context use dev
+
+hoop context list
+```
+
+```
+   NAME  API URL                    LOGGED IN
+*  dev   https://dev.example.com    yes
+   prd   https://prd.example.com    yes
+```
+
+To log in with your identity provider instead of an API key, create the context without `--api-key`, switch to it, then run `hoop login`. The next switch saves that login into the context.
+
+---
+
+## hoop context create
+
+```bash
+hoop context create <name> [flags]
+```
+
+Without `--api-url`, the context copies the current `$HOME/.hoop/config.toml`, login included, and becomes the active context. Use this once to save the installation you already use.
+
+With `--api-url`, the context uses the values you pass.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--api-url` | | The API URL of the installation (`http://` or `https://`). Without it, the context copies the current configuration |
+| `--grpc-url` | | The gRPC URL of the installation (optional) |
+| `--tls-ca` | | The path to the TLS certificate authority to use (optional) |
+| `--api-key` | | An API key (`hpk_...`) to store as the login (optional) |
+| `--overwrite` | `false` | Replace a context that already exists |
+
+Context names use 1 to 64 lower-case letters, digits, `.`, `_` or `-`, and start with a letter or a digit. `current` is reserved.
+
+You cannot replace the active context with `--api-url ... --overwrite`: its login lives in `config.toml` and the next switch would save it back. Switch to another context first, or log in again with `hoop login`.
+
+---
+
+## hoop context list
+
+```bash
+hoop context list
+```
+
+The `*` marks the active context. `LOGGED IN` shows whether the context has a login.
+
+---
+
+## hoop context show
+
+```bash
+hoop context show [name]
+```
+
+```
+name=dev
+active=yes
+api_url=https://dev.example.com
+grpc_url=grpcs://dev.example.com:8443
+logged_in=yes
+token=OMITTED
+```
+
+The token is never printed.
+
+---
+
+## hoop context use
+
+```bash
+hoop context use <name> [flags]
+```
+
+```
+Switched to context prd (api_url=https://prd.example.com)
+Gateway at https://prd.example.com reports version 1.300.0
+Installing 1.300.0 for Darwin_arm64 ...
+Active hoop version is now 1.300.0
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--skip-sync` | `false` | Do not sync the CLI version with the gateway |
+| `--force` | `false` | Overwrite a current configuration that no context keeps |
+
+What `use` does depends on the answer of the target gateway:
+
+| The target gateway | Result |
+|---|---|
+| Has `experimental.cli_contexts` on | Switches and syncs the CLI version |
+| Has the flag off (the default) | Refuses. `config.toml` does not change |
+| Is older than the flag | Refuses. Upgrade the gateway, then turn the flag on |
+| Does not answer (down, timeout, server error) | Refuses |
+| The context has no login, or the login expired | Switches without the sync, so you can run `hoop login` |
+
+The refusals tell you what to do:
+
+```
+Error: experimental.cli_contexts is off on the gateway of context prd; ask an admin to turn it on at Settings > Experimental
+```
+
+```
+Error: the gateway of context prd is too old for experimental.cli_contexts; upgrade it, then ask an admin to turn the flag on at Settings > Experimental
+```
+
+After a switch without a login:
+
+```
+Version sync skipped: the context has no valid login. Run `hoop login`, then `hoop context use prd` again to sync the CLI version.
+```
+
+### A configuration no context keeps
+
+If `config.toml` points at an installation that no context saves (for example after `hoop config create`), `use` refuses, so that login is not lost:
+
+```
+Error: the current configuration is not saved in a context (api_url=https://other.example.com); save it first with `hoop context create NAME`, or pass --force to overwrite it
+```
+
+---
+
+## hoop context remove
+
+```bash
+hoop context remove <name> [--force]
+```
+
+Removing the active context needs `--force`. `$HOME/.hoop/config.toml` stays as it is.
+
+---
+
+## File layout
+
+```
+$HOME/.hoop/
+├── config.toml          # the active installation, read by every hoop CLI
+└── contexts/
+    ├── current          # the name of the active context
+    ├── dev.toml         # one file per context, mode 0600
+    └── prd.toml
+```
+
+A context file has the same keys as `config.toml`. Older CLIs never read `contexts/`, and they keep working with the `config.toml` that `hoop context use` writes.
+
+## Caveats
+
+- When `HOOP_APIURL`, `HOOP_GRPCURL` and `HOOP_TOKEN` are all set, the other hoop commands use them instead of `config.toml`. Unset them to use the active context.
+- Two `hoop context` commands that change files wait for each other, so running them in two terminals at the same time is safe.
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="hoop versions" icon="code-branch" href="/clients/cli-versions">
+    How the CLI installs and switches its own versions
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/install/cli">
+    Full CLI installation, authentication, and configuration guide
+  </Card>
+</CardGroup>

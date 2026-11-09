@@ -234,6 +234,7 @@
               },
               "install/cli",
               "clients/cli-versions",
+              "clients/cli-contexts",
               "clients/cli-resources",
               "clients/cli-federation",
               "clients/hsh",
