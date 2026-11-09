@@ -638,7 +638,7 @@ The turn uses the listener's provider and model, which must run tool calls. The 
 |---|---|
 | `allow` | Forward |
 | `warn` | Forward and record the risk |
-| `block` | Deny. The user reads the reason after the PII detector redacted it |
+| `block` | Deny. The user reads the reason after the PII detector redacted it. A build with no detector shows only that the agent blocked the statement |
 | `require_approval` | Hold under `approvers.<level>`, or under `approval_rule` when the level has no entry |
 
 **It fails safe.** One call of an allowed tool with a non-blank reason decides. Anything else applies the most restrictive allowed action, in the order `block`, `require_approval`, `warn`, `allow`, with the reason `the hand-off agent did not decide`:
@@ -686,7 +686,7 @@ a name or a token.
 
 A level whose agent can select `require_approval` makes the listener one that holds. A classification that fails, or finds `max_calls` or `rate_limit` spent, denies whatever `fail_open` says. Unless its approver is `ai_agent`, such a level needs a Control Plane or a terminal. It also counts as a level that waits for a person for `approval_mode`, `spend_approval_on` and `match_ignore`. The deprecated `ai_analysis` rule form cannot hand off.
 
-`handoffs` needs the `analyzer_ai_handoff` capability, and so does every `ai-handoff` level, with or without a `handoffs` entry. So the Control Plane refuses the block to a Sidecar that does not report the capability, naming the capability. There is no downgrade: an older Sidecar has no action that lets the agent choose.
+`ai-handoff` needs Sidecar 1.299.0 or later. `handoffs` needs the `analyzer_ai_handoff` capability, and so does every `ai-handoff` level, with or without a `handoffs` entry. So the Control Plane refuses the block to a Sidecar that does not report the capability, naming the capability. There is no downgrade: an older Sidecar has no action that lets the agent choose.
 
 ---
 
