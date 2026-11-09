@@ -318,7 +318,7 @@ listeners:
       medium: warn
 ```
 
-It runs after the local rules and OPA, so a statement a free rule already denied never reaches a paid classifier. Actions per risk level are `allow`, `warn`, `block` and `defer`; an unnamed level allows.
+It runs after the local rules and OPA, so a statement a free rule already denied never reaches a paid classifier. Actions per risk level are `allow`, `warn`, `block`, `defer`, `require_approval` and `ai-handoff`; an unnamed level allows.
 
 It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) before enabling it anywhere real.
 
