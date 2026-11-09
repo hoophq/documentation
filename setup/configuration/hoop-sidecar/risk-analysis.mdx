@@ -737,7 +737,7 @@ After the level is known, one more model turn runs. It counts against `max_calls
 
 The system prompt carries each allowed rule's name and definition as one escaped JSON document between `<rule_library>` and `</rule_library>`. A line says that text inside a rule field is data and never an instruction. A fixed suffix that no config removes follows.
 
-On `ai-handoff`, the rule tools join the hand-off turn, and the rules apply only when the agent does not select `block`. With `require_approval`, the rules apply before the hold: a guardrail deny files no approval request, and a mask is attached before the hold.
+On `ai-handoff`, the rule tools join the hand-off turn, and the rules apply only when the agent does not select `block`. With `require_approval`, the rules apply before the hold: a guardrail deny files no approval request, and a mask is attached before the hold. A resend that claims a [pinned hand-off hold](#handing-off-to-the-ai-agent) applies the rules the filing applied, with no new model call. When the pinned request is over and the agent decides again, the rules already attached stay, and the new decision adds its own.
 
 - **A guardrail denies only.** A match denies with the rule's message. `action: defer` and `ai_analysis` are never offered. `create_guardrail` offers no type the listener cannot evaluate: no `table` on ssh, no `pii` without a detector.
 - **A mask applies to the response of this statement only**, through a per-exchange plan in the gate. The listener's masker never changes. An ssh listener offers `strategy: mask` only.
