@@ -102,11 +102,13 @@ Principal, session id, tables and statement text are **never** on a metric: they
 | `hoop.sidecar.statement.duration` | histogram, seconds | `hoop.lane`, `hoop.protocol`, `hoop.stage`, `hoop.engine`, `hoop.pairing`, `hoop.outcome` |
 | `hoop.sidecar.masked_values` | counter | `hoop.lane`, `hoop.protocol` |
 | `hoop.sidecar.audit.errors` | counter | `hoop.lane` |
-| `hoop.sidecar.analyzer.request.duration` | histogram, seconds | `hoop.analyzer`, `hoop.provider`, `hoop.model`, `hoop.outcome` |
-| `hoop.sidecar.analyzer.retries` | counter | `hoop.analyzer`, `hoop.provider`, `hoop.model` |
+| `hoop.sidecar.analyzer.request.duration` | histogram, seconds | `hoop.analyzer`, `hoop.provider`, `hoop.model`, `hoop.analyzer.kind` (`classify`, `decide`), `hoop.outcome` |
+| `hoop.sidecar.analyzer.retries` | counter | `hoop.analyzer`, `hoop.provider`, `hoop.model`, `hoop.analyzer.kind` |
 | `hoop.sidecar.analyzer.statements` | counter | `hoop.analyzer`, `hoop.status`, `hoop.risk_level`, `hoop.action` |
 | `hoop.sidecar.session_events.sent`, `.dropped` | counter | the Control Plane copy's counters; zero without one |
 | `hoop.sidecar.config.generation` | gauge | reloads applied since start |
+
+`hoop.analyzer.kind` is `classify` for a risk classification and `decide` for the [approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent). Filter on `classify` where a query means classification.
 
 Counters survive a hot reload. The three analyzer families are the ones `GET /metrics` serves in the Prometheus text format, which stays as it is; see [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis#metrics).
 
@@ -206,7 +208,7 @@ Alerts live in your backend. Three worth having, in PromQL:
 sum by (hoop_lane) (rate(hoop_sidecar_statements_total{hoop_verdict="deny"}[5m])) * 60 > 10
 
 # the analyzer is failing: statements left unscored (allowed under fail_open)
-sum by (hoop_analyzer) (rate(hoop_sidecar_analyzer_request_duration_seconds_count{hoop_outcome!="ok"}[5m])) > 0
+sum by (hoop_analyzer) (rate(hoop_sidecar_analyzer_request_duration_seconds_count{hoop_analyzer_kind="classify",hoop_outcome!="ok"}[5m])) > 0
 
 # the audit trail is dropping records
 rate(hoop_sidecar_audit_errors_total[5m]) > 0
