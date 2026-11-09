@@ -305,11 +305,11 @@ Rules that always apply:
 
 #### Older Sidecars
 
-A Sidecar that does not report the `analyzer_level_approvers` capability cannot read `approvers`. When the block names an `approval_rule`, the Control Plane serves it without `approvers`, and every held level holds for a person under that rule, an `ai_agent` level included.
+`approvers` needs Sidecar 1.297.0 or later. A Sidecar that does not report the `analyzer_level_approvers` capability cannot read `approvers`. When the block names an `approval_rule`, the Control Plane serves it without `approvers`, and every held level holds for a person under that rule, an `ai_agent` level included.
 
 When that rule is the AI Analyzer rule's own, the Control Plane sets its groups from `approvers`, not from the request. It uses the groups every `human` level names, when all of them name the same, non-empty list. Otherwise it sets none, and only administrators approve. So no one approves a level on an older Sidecar that they could not approve on a new one: more oversight, not less.
 
-A block with `approvers` and no `approval_rule` is refused to such a Sidecar, naming the capability and the release that adds it.
+A block with `approvers` and no `approval_rule` is refused to such a Sidecar, naming the capability.
 
 #### Approving in the terminal
 
