@@ -3,6 +3,8 @@ title: "Connect a Sidecar"
 description: "Connect a Sidecar to the Control Plane with an approval in the web app, or with a token."
 ---
 
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
 A [Sidecar](/core-concepts/sidecar) on the free plan logs in to join your organization: see [Connect with approval (no token)](#connect-with-approval-no-token). An Enterprise Sidecar connects with a token instead: on boot it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
 
 <Tip>
@@ -38,10 +40,12 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
 | Method | Use it when |
 |---|---|
-| [Connect with approval (no token)](#connect-with-approval-no-token) | You are on the free plan, or a person starts the Sidecar. Recommended for the free plan. |
+| [Connect with approval (no token)](#connect-with-approval-no-token) | You are on the free plan. Recommended for the free plan. Also for an Enterprise Sidecar that a person starts. |
 | [Connect with a token](#connect-with-a-token) | You deploy with automation, or you already have a token. |
 
 Both methods end with the same [handshake](#the-handshake). With approval, the Sidecar gets its token without a copy and paste.
+
+The free plan uses the hosted Control Plane, `https://use.hoop.dev`. Your own Control Plane needs Enterprise. On your own Control Plane, the two methods are available, and its web app approves the request.
 
 ---
 
@@ -51,17 +55,19 @@ Start the Sidecar with the Control Plane URL only. The Sidecar sends a connectio
 
 You do not copy a token. The Sidecar makes its own token and sends it one time with the request. The Control Plane keeps only a hash of the token.
 
-An organization without an Enterprise license can have one Sidecar.
+<EnterpriseLimit />
 
 <Steps>
   <Step title="Set the Control Plane URL">
-    Set `HOOP_CONTROL_PLANE_URL` to the address of your Control Plane. Do not set `HOOP_SIDECAR_TOKEN`.
+    On the free plan, skip this step. Without a URL, the Sidecar sends the request to `https://use.hoop.dev`.
+
+    For your own Control Plane (Enterprise), set `HOOP_CONTROL_PLANE_URL` to its address. Do not set `HOOP_SIDECAR_TOKEN`.
 
     ```bash
     export HOOP_CONTROL_PLANE_URL=http://localhost:8009
     ```
 
-    `http://localhost:8009` is the address of a local Control Plane. The Sidecar reads the address from `HOOP_CONTROL_PLANE_URL`, then from `control_plane_url` in the config file. Without the two, the Sidecar sends the request to `https://use.hoop.dev`.
+    `http://localhost:8009` is the address of a Control Plane that runs on your machine. The Sidecar reads the address from `HOOP_CONTROL_PLANE_URL`, then from `control_plane_url` in the config file.
   </Step>
   <Step title="Start the Sidecar">
     <Tabs>
@@ -85,7 +91,18 @@ An organization without an Enterprise license can have one Sidecar.
         The Sidecar waits for the approval. The code stops working after 10 minutes. Start the Sidecar again to get a new code.
       </Tab>
       <Tab title="Docker">
-        Start the container with the URL and without a token:
+        The Sidecar saves its token in a volume. The container runs as user `10001`, and Docker makes a new volume for `root`. Give the volume to user `10001` one time:
+
+        ```bash
+        docker run --rm --user 0 \
+          -v hoop-sidecar-state:/var/lib/hoop-sidecar \
+          --entrypoint chown hoophq/hoopsidecar:<version> \
+          10001:10001 /var/lib/hoop-sidecar
+        ```
+
+        Use the default image for this command. The `-distroless` images do not have `chown`.
+
+        Start the container without a token. On the free plan, remove the `HOOP_CONTROL_PLANE_URL` line:
 
         ```bash
         docker run -d --name hoop-sidecar \
@@ -97,9 +114,7 @@ An organization without an Enterprise license can have one Sidecar.
           hoophq/hoopsidecar:<version>
         ```
 
-        {/* TODO: confirm the image user can write to the HOOP_SIDECAR_STATE_DIR volume */}
-
-        `config.yaml` is the same file as in the Docker tab of [Connect with a token](#connect-with-a-token). `HOOP_SIDECAR_STATE_DIR` is the folder where the Sidecar saves its token. Keep this folder on a volume. Without the volume, the Sidecar sends a new request after each restart.
+        `config.yaml` is the same file as in the Docker tab of [Connect with a token](#connect-with-a-token). `HOOP_SIDECAR_STATE_DIR` is the folder where the Sidecar saves its token. Without the volume, or when the Sidecar cannot write to it, the Sidecar sends a new request after each restart.
 
         With Docker Compose, set the same variables on the Sidecar service. Then start it:
 
