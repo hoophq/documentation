@@ -3,6 +3,8 @@ title: "Kerberos and SQL Server"
 description: "Inspect MSSQL and Postgres sessions where the user authenticates with a Kerberos ticket"
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 The Sidecar relays Kerberos-authenticated database sessions and inspects each
 statement inside them. It holds no credential, reads no ticket, and contains no
 Kerberos code.
@@ -11,14 +13,14 @@ A user runs `kinit`, their OS mints a ticket, and the Sidecar carries it to the
 database untouched. Policy, masking and the audit trail behave as they do
 on a password session.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client<br/>kinit alice"] -->|TLS| E["envoy<br/>terminates TLS"]
     E -->|plaintext| R["Sidecar<br/>inspects · masks · audits"]
     R --> D["mssql · postgres<br/>keytab"]
     K["KDC / AD"] -.->|ticket| C
     K -.->|service key| D
-```
+`} />
 
 <Note>
 For the commands, start at [Command Line](/install/cli#running-the-sidecar).

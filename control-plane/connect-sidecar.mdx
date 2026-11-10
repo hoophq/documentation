@@ -3,6 +3,8 @@ title: "Connect a Sidecar"
 description: "Issue a token, point a Sidecar at the Control Plane, and let it pull its configuration."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 A [Sidecar](/core-concepts/sidecar) on the free plan logs in to join your organization (below). An Enterprise Sidecar connects with a token instead: on boot it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
 
 <Tip>
@@ -27,7 +29,7 @@ The login is saved on the machine, one per Control Plane. The next run reuses it
 
 ## The handshake
 
-```mermaid
+<Diagram chart={`
 sequenceDiagram
     participant S as Sidecar
     participant CP as Control Plane
@@ -37,7 +39,7 @@ sequenceDiagram
     CP->>CP: identify the Sidecar from the token
     CP-->>S: your configuration
     S->>S: load into memory, start listeners
-```
+`} />
 
 Four properties fall out of this shape, and they are the reason it looks like this:
 

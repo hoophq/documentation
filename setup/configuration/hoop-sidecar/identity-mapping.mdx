@@ -3,6 +3,8 @@ title: "Identity Mapping"
 description: "Map credentials, clusters, projects and workspaces to Sidecars. Every supported layout, with tokens, Kubernetes service accounts and Google service accounts side by side."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 A Sidecar connected to a [Control Plane](/core-concepts/control-plane) proves who it is with one credential. The Control Plane turns that credential into a **Sidecar name**, and the name decides which configuration the Sidecar runs. This page shows every layout that follows from that, with the entry and the Helm values to build each one.
 
 How each credential works is covered in [Connect a Sidecar](/control-plane/connect-sidecar) (tokens) and [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) (platform identities). This page is about combining them.
@@ -43,7 +45,7 @@ The examples name namespaces `ws-acme`, `ws-beta` and so on, so one pattern (`ws
 
 ## How Mapping Works
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["Credential<br/>token · Kubernetes SA · Google SA"] --> E{"Entry<br/>subject_pattern<br/>name_template"}
     E -->|renders| N["Sidecar name"]
@@ -51,7 +53,7 @@ flowchart LR
     S -->|served to| P1["pod 1"]
     S -->|served to| P2["pod 2"]
     S -->|served to| P3["pod …"]
-```
+`} />
 
 - **One credential, one Sidecar.** A token *is* a Sidecar. A service account reaches the Sidecar its entry renders.
 - **The name is the only key.** Every pod that renders the same name reaches the **same** Sidecar and runs the **same** configuration. That includes restarts, replicas, other namespaces, other clusters and other projects.
@@ -98,7 +100,7 @@ curl -X POST https://hoop.your-company.com/api/sidecar-service-accounts \
 
 **Use when:** you run a few Sidecars, or the pods have no Kubernetes or Google identity. This is the standard flow.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     subgraph W1["workspace ws-acme"]
         P1["Sidecar pod<br/>HOOP_SIDECAR_TOKEN=tok-A"]
@@ -110,7 +112,7 @@ flowchart LR
     REG -. issues .-> P2
     P1 --> S1["Sidecar acme"]
     P2 --> S2["Sidecar beta"]
-```
+`} />
 
 <CodeGroup>
 ```bash Register
@@ -140,7 +142,7 @@ The same token in two deployments is the same Sidecar, with one configuration. S
 
 Every workspace namespace has a service account with the same name. The namespace is part of the identity, so each namespace is its own Sidecar.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     subgraph CL["cluster eu (issuer: the EU cluster)"]
         subgraph W1["ns ws-acme"]
@@ -154,7 +156,7 @@ flowchart LR
     P2 -->|"sub system:serviceaccount:ws-beta:hoop-sidecar"| E
     E --> S1["Sidecar gke-eu-acme"]
     E --> S2["Sidecar gke-eu-beta"]
-```
+`} />
 
 <CodeGroup>
 ```json entry.json
@@ -192,7 +194,7 @@ Get the cluster's issuer with `kubectl get --raw /.well-known/openid-configurati
 
 Each cluster is its own issuer, so each cluster needs its own entry. Give each entry its own name prefix, so namespaces with the same name in two clusters stay two Sidecars.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     subgraph EU["cluster eu"]
         A1["ns ws-acme<br/>SA hoop-sidecar"]
@@ -204,7 +206,7 @@ flowchart LR
     A2 --> E2{"entry gke-us<br/>issuer: us<br/>→ gke-us-{1}"}
     E1 --> S1["Sidecar gke-eu-acme"]
     E2 --> S2["Sidecar gke-us-acme"]
-```
+`} />
 
 <CodeGroup>
 ```json entry-eu.json
@@ -255,7 +257,7 @@ Two entries with the **same** `name_template` (for example, both `{1}`) send `ws
 
 Each workspace runs as its own Google service account: on GKE through Workload Identity, or as the service account of a VM or Cloud Run service.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     subgraph EU["GKE cluster eu"]
         P1["ns ws-acme<br/>KSA hoop-sidecar ⇄ GSA sidecar-acme"]
@@ -270,7 +272,7 @@ flowchart LR
     E --> S1["Sidecar gcp-acme"]
     E --> S2["Sidecar gcp-beta"]
     E --> S3["Sidecar gcp-gamma"]
-```
+`} />
 
 <CodeGroup>
 ```json entry.json
@@ -324,7 +326,7 @@ To share one values file across workspaces, pass the annotation per release: `--
 
 When several workspaces present the **same** identity, they are **one** Sidecar. This holds for every credential type. Here, the payments team runs two workspaces in the EU cluster and one in the US cluster, all as the team's service account:
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     subgraph EU["GKE cluster eu"]
         A1["ns payments-api<br/>KSA team-payments ⇄ GSA team-payments"]
@@ -337,7 +339,7 @@ flowchart LR
     A2 --> E
     A3 --> E
     E --> S["ONE Sidecar team-payments<br/>ONE configuration,<br/>served to all three workspaces"]
-```
+`} />
 
 <CodeGroup>
 ```json entry.json
@@ -397,7 +399,7 @@ The same applies to Kubernetes identities: replicas, or several Deployments in *
 
 The namespace is in the subject, so a Kubernetes identity separates the namespaces. But a pattern allows **one** `*`, so the team's name must be literal: one entry per team per cluster.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     subgraph CL["cluster eu"]
         A1["ns payments-api<br/>SA team-payments"]
@@ -407,7 +409,7 @@ flowchart LR
     A2 -->|"sub …:payments-jobs:team-payments"| E
     E --> S1["Sidecar eu-payments-api"]
     E --> S2["Sidecar eu-payments-jobs"]
-```
+`} />
 
 <CodeGroup>
 ```json entry.json
@@ -444,13 +446,13 @@ A single pattern for every team, such as `system:serviceaccount:*`, would captur
 
 An exact `subject_pattern` with a literal `name_template` maps one identity to one Sidecar. Exact entries win over wildcard ones, so a pinned entry also overrides a wildcard for that one identity.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     P["ns payments<br/>SA hoop-sidecar"] -->|"sub …:payments:hoop-sidecar"| X{"entry pin-payments (exact)<br/>system:serviceaccount:payments:hoop-sidecar<br/>→ prod-payments-db"}
     Q["ns ws-acme<br/>SA hoop-sidecar"] --> W{"entry gke-eu (wildcard)<br/>…:ws-*:hoop-sidecar → gke-eu-{1}"}
     X --> S1["Sidecar prod-payments-db"]
     W --> S2["Sidecar gke-eu-acme"]
-```
+`} />
 
 ```json entry.json
 {
@@ -476,13 +478,13 @@ After a rename, point the pinned entry at the new subject with the old name, the
 
 A Control Plane serves token Sidecars and service-account Sidecars at the same time. Render each Sidecar's existing name and set `adopt_existing_sidecars`:
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     OLD["Sidecar acme<br/>(registered with a token)"]
     T["pod with token<br/>(old deploy)"] --> OLD
     N["pod with SA hoop-sidecar<br/>(new deploy)"] --> E{"entry, adopt_existing_sidecars: true<br/>…:ws-*:hoop-sidecar → {1}"}
     E -->|"renders acme: binds to it"| OLD
-```
+`} />
 
 <CodeGroup>
 ```json entry.json
@@ -516,13 +518,13 @@ The token keeps working during the move. Set `adopt_existing_sidecars` back to `
 
 An issuer and audience pair belongs to one organization. All Google service accounts share the issuer `https://accounts.google.com`, and all Sidecars in one cluster share that cluster's issuer. So each organization picks its **own audience**:
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     A["org acme Sidecars<br/>identityAudience: https://hoop.your-company.com/org/acme"] --> EA{"acme's entry<br/>audience …/org/acme"}
     B["org beta Sidecars<br/>identityAudience: https://hoop.your-company.com/org/beta"] --> EB{"beta's entry<br/>audience …/org/beta"}
     EA --> SA["acme's Sidecars"]
     EB --> SB["beta's Sidecars"]
-```
+`} />
 
 <CodeGroup>
 ```yaml values.yaml

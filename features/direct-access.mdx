@@ -3,11 +3,13 @@ title: "Direct Access"
 description: "The straight-through path. Guardrails and Data Masking apply inline, with no model in the way."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 Direct access is the default path through the [Sidecar](/core-concepts/sidecar). A request arrives, the Sidecar decodes it, evaluates it against the rules you wrote, and forwards it. The response comes back through the same gate and sensitive values are rewritten before they reach the client.
 
 Nothing about this path is probabilistic. The same statement produces the same decision every time, there is no third-party API in the chain, and the only latency added is a parse and a scan.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C(["client"]) --> GR["Guardrails<br/><i>on the request</i>"]
     GR -->|allowed| R["Resource"]
@@ -15,8 +17,8 @@ flowchart LR
     R -->|response| DM["Data Masking"]
     DM --> C
 
-    style R fill:#2d5016,color:#fff
-```
+    class R strong
+`} />
 
 ---
 
