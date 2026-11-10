@@ -85,7 +85,7 @@ The rule reads the real tool name, not the name `overrides` gives it.
 
 An `mcp_tool` rule in the top-level `guardrails` reaches every mcp lane, and other lanes ignore it. A lane's own rules run first and the top-level ones after them; `rules: []` on the lane drops the top-level ones.
 
-A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. On a managed sidecar, the Guardrails page of the control plane offers it as the rule type **MCP tool** on an MCP listener.
+A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. On a managed sidecar, the Guardrails page of the control plane offers it as the rule type **MCP tool** on an MCP listener, from version 1.300.0.
 
 ---
 
@@ -142,7 +142,7 @@ A `table` rule never matches the catalog, `require_table_match` included.
 
 ## SQL tools
 
-`mcp_gateway.sql` names the tools whose calls carry SQL. The lane's rules then read that SQL as on a SQL lane.
+`mcp_gateway.sql` names the tools whose calls carry SQL. The lane's rules then read that SQL as on a SQL lane. Sidecar 1.302.0 and later; older builds refuse the key at `-validate`.
 
 ```yaml config.yaml
 listeners:
@@ -173,7 +173,7 @@ A call to a SQL tool is 1 + N statements, judged in order: the call statement, t
 
 Each SQL statement carries the SQL as its text, and the operation, effects and tables the lexer reads. [What the audit records](#what-the-audit-records) lists its metadata.
 
-`mcp_tool` rules read only the call statement. A `table` rule reads the tables of the SQL, and `require_table_match` denies a SQL statement that names none.
+`mcp_tool` rules read only the call statement. A `table` rule reads the tables of the SQL, and `require_table_match` denies a SQL statement that names none. Observe mode records all 1 + N.
 
 To scope a rule to one tool, use OPA or a [`metadata`](/setup/configuration/hoop-sidecar/policy-rules#metadata) rule on `mcp.tool`.
 
@@ -181,7 +181,7 @@ SQL the lexer cannot read is `operation: unknown`, as on a SQL lane: `EXECUTE IM
 
 With `googlesql`, a script part that starts with `LOOP`, `WHILE`, `REPEAT`, `FOR` or a `BEGIN` block, also after a label, is `unknown` with its writes as effects: a rule naming `delete` refuses a `DELETE` in a loop. A bare `BEGIN` and `BEGIN TRANSACTION` are not scripts.
 
-The lane refuses a call before any rule when it cannot read the argument:
+The lane refuses a call before any rule, also in observe mode, when it cannot read the argument:
 
 - `arguments` is absent or not an object.
 - The argument, by its exact name, is absent, not a string, blank or holds no statement.
@@ -262,6 +262,8 @@ A call a guardrail rule or OPA denies is a statement with its rule, not an activ
 ---
 
 ## Metrics
+
+Sidecar 1.302.0 and later.
 
 `GET /stats` lists the lane. `active` and `total` count MCP sessions.
 
