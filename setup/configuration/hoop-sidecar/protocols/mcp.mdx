@@ -1,6 +1,6 @@
 ---
 title: "MCP"
-description: "A protocol: mcp lane in front of one remote MCP server: tool policy, guardrails, OPA and one audited session per MCP session"
+description: "A protocol: mcp lane in front of one remote MCP server: tool policy, SQL tools, guardrails, OPA, metrics and one audited session per MCP session"
 ---
 
 A `protocol: mcp` lane terminates MCP streamable HTTP on `/mcp` and forwards to one remote MCP server over `streamable-http` or `sse`. It hides the tools a rule denies, judges each `tools/call` with the lane's guardrails and OPA, and records one Sidecar session per MCP session.
@@ -85,7 +85,7 @@ The rule reads the real tool name, not the name `overrides` gives it.
 
 An `mcp_tool` rule in the top-level `guardrails` reaches every mcp lane, and other lanes ignore it. A lane's own rules run first and the top-level ones after them; `rules: []` on the lane drops the top-level ones.
 
-A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. The rules screen of the control plane does not offer `mcp_tool` yet: write it in the config file.
+A rule edit applies without a restart and ends the open MCP sessions; the next session gets the new catalog. On a managed sidecar, the Guardrails page of the control plane offers it as the rule type **MCP tool** on an MCP listener, from version 1.300.0.
 
 ---
 
@@ -101,6 +101,7 @@ A rule edit applies without a restart and ends the open MCP sessions; the next s
 | `max_calls_per_session` | `0`: no limit | The tool calls one MCP session may attempt. A refused call counts too. | Past the limit: `-32012`, `session tool-call budget exhausted (N calls)` |
 | `tool_rate_limits` | none | Tool glob to calls per minute, per session. When several globs match a tool, the lowest limit applies. | Over the limit: `-32012`, `tool "x" rate limit exceeded (N calls/min)` |
 | `max_result_kb` | `0`: no limit | The text of a tool result is cut to this size and ends with `[truncated by gateway]`. | The cut result |
+| `sql` | none | The tools whose calls carry SQL. See [SQL tools](#sql-tools). | |
 
 `tool_rate_limits` globs work as in `mcp_tool`.
 
@@ -115,6 +116,8 @@ A key the block does not map, such as `allowed_tools` (an `mcp_tool` rule instea
 ## What the rules read
 
 Each `tools/call` is one statement: `operation: call`, `tables: [<tool>]` in lower case, the text `<tool>` with its arguments JSON on the next line, and the metadata `mcp.method`, `mcp.tool` and `mcp.session`.
+
+A call to a [SQL tool](#sql-tools) adds one statement per SQL statement in its argument.
 
 ```yaml config.yaml
 guardrails:
@@ -134,6 +137,61 @@ Rules and OPA judge the catalog too, and a hit ends the session. A `deny_words_l
 A `table` rule never matches the catalog, `require_table_match` included.
 
 [Policy Rules](/setup/configuration/hoop-sidecar/policy-rules) describes each rule type.
+
+---
+
+## SQL tools
+
+`mcp_gateway.sql` names the tools whose calls carry SQL. The lane's rules then read that SQL as on a SQL lane. Sidecar 1.302.0 and later; older builds refuse the key at `-validate`.
+
+```yaml config.yaml
+listeners:
+  - name: bigquery
+    protocol: mcp
+    listen: 127.0.0.1:18902
+    upstream: http://127.0.0.1:18903/mcp   # a loopback proxy that adds the credential; see Lane to upstream
+    guardrails:
+      rules:
+        - name: read-only
+          type: operation
+          operations: [insert, update, delete, merge, create, alter, drop, truncate, other, unknown]
+          message: this lane is read-only
+    mcp_gateway:
+      sql:
+        "execute_sql*": {argument: query, dialect: googlesql}
+```
+
+| Key | Effect |
+|---|---|
+| the key | A tool glob, as in `mcp_tool`. It reads the real tool name. When several globs match a tool, the longest wins. |
+| `argument` | The top-level argument that holds the SQL. Required. |
+| `dialect` | `postgres`, `mysql`, `mssql`, `clickhouse`, `googlesql`, `oracle` or `spark`. Required. BigQuery is `googlesql`. |
+
+`-validate` refuses an entry without a glob, an argument or a known dialect. The lane never guesses the dialect.
+
+A call to a SQL tool is 1 + N statements, judged in order: the call statement, then one statement per SQL statement in the argument. The first deny stops the call, and the client gets it as for any rule denial.
+
+Each SQL statement carries the SQL as its text, and the operation, effects and tables the lexer reads. [What the audit records](#what-the-audit-records) lists its metadata.
+
+`mcp_tool` rules read only the call statement. A `table` rule reads the tables of the SQL, and `require_table_match` denies a SQL statement that names none. Observe mode records all 1 + N.
+
+To scope a rule to one tool, use OPA or a [`metadata`](/setup/configuration/hoop-sidecar/policy-rules#metadata) rule on `mcp.tool`.
+
+SQL the lexer cannot read is `operation: unknown`, as on a SQL lane: `EXECUTE IMMEDIATE`, a script loop or block, `EXPORT DATA`. A rule must name `unknown` to refuse it.
+
+With `googlesql`, a script part that starts with `LOOP`, `WHILE`, `REPEAT`, `FOR` or a `BEGIN` block, also after a label, is `unknown` with its writes as effects: a rule naming `delete` refuses a `DELETE` in a loop. A bare `BEGIN` and `BEGIN TRANSACTION` are not scripts.
+
+The lane refuses a call before any rule, also in observe mode, when it cannot read the argument:
+
+- `arguments` is absent or not an object.
+- The argument, by its exact name, is absent, not a string, blank or holds no statement.
+- The argument appears two times, also after JSON unescape or in another case.
+- The argument holds invalid UTF-8 or a lone surrogate escape.
+- Two globs of the same length match the tool and disagree.
+
+The client gets `denied by the hoop sidecar (rule mcp_gateway.sql): <reason>`, and the session records `mcp_sql_unreadable`.
+
+A Sidecar managed by a Control Plane gets `sql` only when it reports the `mcp_sql` capability.
 
 ---
 
@@ -179,6 +237,10 @@ Each statement carries this metadata:
 | `mcp.tool` | a call | the real name of the tool called |
 | `mcp.session` | every statement | the `Mcp-Session-Id` of the MCP session |
 | `mcp.tools_hidden` | a catalog statement | the tools an `mcp_tool` rule left out, comma-separated |
+| `mcp.sql_statements` | a call to a SQL tool | the number of SQL statements in its argument |
+| `mcp.sql_argument`, `mcp.sql_dialect` | a SQL statement | the `argument` and `dialect` of its `mcp_gateway.sql` entry |
+| `mcp.sql_index` | a SQL statement | its position in the argument, from 1 |
+| `sql.incomplete` | a SQL statement that is `unknown` | the reason, when the lexer has one |
 
 The session also records these activities:
 
@@ -186,6 +248,7 @@ The session also records these activities:
 |---|---|---|
 | `mcp_initialize` | the client's `initialize` | `client`, `client_version`, `protocol_version` |
 | `mcp_invalid_params` | a `tools/call` refused as invalid params | `reason` |
+| `mcp_sql_unreadable` | a call to a SQL tool whose argument the lane cannot read | `tool`, `argument`, `reason` |
 | `mcp_catalog_unreadable` | a `tools/list` result the lane cannot read; the session ends | `reason` |
 | `rules_reloaded` | a rule reload ends the session | `reason` |
 | `mcp.tool_denied` | mcpproxy refuses a call, such as an unadvertised tool or a budget | `tool`, `rule`, `reason` |
@@ -195,6 +258,39 @@ The session also records these activities:
 | `mcp.session_refused` | a request from another caller names the session; it gets a 404 | `caller`, `reason` |
 
 A call a guardrail rule or OPA denies is a statement with its rule, not an activity.
+
+---
+
+## Metrics
+
+Sidecar 1.302.0 and later.
+
+`GET /stats` lists the lane. `active` and `total` count MCP sessions.
+
+`denied` counts the messages the lane refused, in both directions: by a rule or OPA, as invalid params, and by `mcp_gateway` (a budget, a rate limit, a tool the server did not list, a rug pull). A request that the caller token check refuses does not count.
+
+```json
+{"name": "github-mcp", "addr": "127.0.0.1:18901", "active": 1, "total": 3, "denied": 2}
+```
+
+With a [`telemetry`](/setup/configuration/hoop-sidecar/telemetry) block, the lane exports `hoop.sidecar.mcp.messages`, a counter of every message:
+
+| Attribute | Value |
+|---|---|
+| `hoop.lane`, `hoop.protocol` | as on every series |
+| `hoop.direction` | `client` or `server` |
+| `hoop.mcp.method` | the JSON-RPC method, such as `tools/call`. A response has none. A method MCP does not define is `(other)`. |
+| `hoop.mcp.tool` | the real name of the tool a `tools/call` names, or of the call a response answers. `(other)` for a tool that is not among the first 1024 tools the server listed, and for a call refused as invalid params. |
+| `hoop.mcp.decision` | `allow`, `deny`, or `kill`: the message ended the session |
+
+The method and tool labels are bounded, so a client cannot add series.
+
+Each tool call also counts in `hoop.sidecar.statements`. With traces on, each tool call is a trace of its own: a `hoop.statement` span with its stages.
+
+```promql
+# tool calls per second, by tool and decision
+sum by (hoop_mcp_tool, hoop_mcp_decision) (rate(hoop_sidecar_mcp_messages_total{hoop_mcp_method="tools/call"}[5m]))
+```
 
 ---
 
@@ -278,7 +374,7 @@ Not supported yet: a token from a file or a secret source and the caller's own t
 
 ## Try it
 
-The [`envoy-stack/mcp`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/mcp) demo runs one session through a lane in front of a test MCP server: a request without the caller token, refused with 403, then `initialize`, `tools/list` without the tools an `mcp_tool` rule hides, an allowed call, a call to a hidden tool and a call over the `mcp_gateway` budget, then the audit rows under the token's `name`.
+The [`envoy-stack/mcp`](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/mcp) demo runs one session through a lane in front of a test MCP server: a request without the caller token, refused with 403, then `initialize`, `tools/list` without the tools an `mcp_tool` rule hides, an allowed call, a call to a hidden tool and a call over the `mcp_gateway` budget, then the audit rows under the token's `name`, `/stats`, the `hoop.sidecar.mcp.messages` points and the trace of each call.
 
 ---
 

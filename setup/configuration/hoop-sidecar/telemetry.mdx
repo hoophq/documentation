@@ -71,9 +71,9 @@ The resource identifies the process:
 | `host.name` | the hostname |
 | `hoop.sidecar.runtime` | `linux`, `docker`, `kubernetes`, `macos`, `windows` |
 | `hoop.sidecar.entrypoint` | `hoop`, `hoop-inspect` or `embedded` |
-| `hoop.schema.version` | `1.0` |
+| `hoop.schema.version` | `1.1` |
 
-The schema URL is `https://hoop.dev/schemas/sidecar-telemetry/1.0`. An attribute or series **added** bumps the minor version. One **renamed or removed** bumps the major, because a dashboard written against the old name goes dark.
+The schema URL is `https://hoop.dev/schemas/sidecar-telemetry/1.1`. An attribute or series **added** bumps the minor version. One **renamed or removed** bumps the major, because a dashboard written against the old name goes dark.
 
 Attributes shared by the signals:
 
@@ -102,6 +102,7 @@ Principal, session id, tables and statement text are **never** on a metric: they
 | `hoop.sidecar.statement.duration` | histogram, seconds | `hoop.lane`, `hoop.protocol`, `hoop.stage`, `hoop.engine`, `hoop.pairing`, `hoop.outcome` |
 | `hoop.sidecar.masked_values` | counter | `hoop.lane`, `hoop.protocol` |
 | `hoop.sidecar.audit.errors` | counter | `hoop.lane` |
+| `hoop.sidecar.mcp.messages` | counter | `hoop.lane`, `hoop.protocol`, `hoop.direction`, `hoop.mcp.method`, `hoop.mcp.tool`, `hoop.mcp.decision`. An mcp lane only; see [MCP metrics](/setup/configuration/hoop-sidecar/protocols/mcp#metrics) |
 | `hoop.sidecar.analyzer.request.duration` | histogram, seconds | `hoop.analyzer`, `hoop.provider`, `hoop.model`, `hoop.analyzer.kind` (`classify`, `decide`), `hoop.outcome` |
 | `hoop.sidecar.analyzer.retries` | counter | `hoop.analyzer`, `hoop.provider`, `hoop.model`, `hoop.analyzer.kind` |
 | `hoop.sidecar.analyzer.statements` | counter | `hoop.analyzer`, `hoop.status`, `hoop.risk_level`, `hoop.action` |
@@ -161,7 +162,7 @@ hoop.session  (one byte-path connection)      hoop.rpc  (one gRPC call)
         (event: upstream, hoop.duration_ms, hoop.pairing)
 ```
 
-The sampling decision is taken **once, at the exchange**, so every statement of a sampled connection is in, and a 1% ratio costs 1%. The statement span carries `hoop.direction`, `hoop.operation`, the HTTP method, path and status, the database and tables, then at the end `hoop.verdict`, `hoop.deny.source`, `hoop.rule`, `hoop.risk_level`. A denied statement's span has an error status naming the rule. The exchange span carries `hoop.principal` and `hoop.session_id`. The upstream measurement is an event on the enclosing span.
+The sampling decision is taken **once, at the exchange**, so every statement of a sampled connection is in, and a 1% ratio costs 1%. An mcp lane opens no exchange span: each tool call it judges is a trace of its own, sampled on its own. The statement span carries `hoop.direction`, `hoop.operation`, the HTTP method, path and status, the database and tables, then at the end `hoop.verdict`, `hoop.deny.source`, `hoop.rule`, `hoop.risk_level`. A denied statement's span has an error status naming the rule. The exchange span carries `hoop.principal` and `hoop.session_id`. The upstream measurement is an event on the enclosing span.
 
 The OPA decision and the analyzer's provider call carry the stage's span as a W3C `traceparent` header, so a Rego service or a model gateway that is itself traced joins the same trace.
 
