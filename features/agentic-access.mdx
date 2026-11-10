@@ -3,11 +3,13 @@ title: "Agentic Access"
 description: "Let a language model classify the statement, and let the risk level pick the tool."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 Rules are good at effects you can name. `DROP` is destructive, `/admin/**` is off limits, the `salaries` table is not yours. They are useless against intent you could not enumerate in advance — which is most of what an agent does.
 
 Agentic access closes that gap. The AI Analyzer sits in front of the resource, classifies the statement, and the risk it reports selects a tool.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C(["client ·<br/>agent"]) --> AI["AI Analyzer"]
 
@@ -16,6 +18,7 @@ flowchart LR
       BLK["block"]
       ALW["allow"]
       RVW["require_approval"]
+      HND["ai-handoff"]
       GR["Guardrails"]
       DM["Data Masking"]
     end
@@ -23,8 +26,8 @@ flowchart LR
     AI --> TOOLS
     TOOLS --> R["Resource"]
 
-    style R fill:#2d5016,color:#fff
-```
+    class R strong
+`} />
 
 <Note>
 This runs entirely in the [Sidecar](/core-concepts/sidecar). The Sidecar holds the provider credential and reads one YAML file, and no statement is sent anywhere you did not configure.
@@ -42,12 +45,13 @@ The listener's `analyzer` block maps each risk level the model can report to a t
 | `warn` | Forward and record the risk. Observe-only, one tier at a time. |
 | `block` | Deny, with the model's own title in the protocol's error frame. |
 | `defer` | Forward, and hand the decision to [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa), which reads the risk level alongside the actor, the hour and the table. |
-| `require_approval` | Hold the statement on its connection for up to 30 minutes until a person approves or rejects it. An approval runs it; a timeout denies, and an identical retry after approval forwards once. |
+| `require_approval` | Hold the statement until it is approved. `approvers.<level>` names who approves: people in some groups (`human`), who have up to 30 minutes while the statement waits on its connection, or the approval agent (`ai_agent`), which decides at once in the Sidecar. An approval runs it; a rejection or a timeout denies, and an identical retry after a person's approval forwards once. |
+| `ai-handoff` | A second model turn, the hand-off agent, selects the action from the level's `allowed_actions` (`allow`, `warn`, `block`, `require_approval`). Any answer that is not one valid tool call applies the most restrictive allowed action. See [Handing off to the AI agent](/setup/configuration/hoop-sidecar/risk-analysis#handing-off-to-the-ai-agent). |
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down.
 
 <Note>
-`require_approval` needs a [Control Plane](/core-concepts/control-plane), which stores the approval requests, and an `approval_rule` on the listener naming the access request rule that decides who may approve. It works on every protocol, http included; an ssh listener holds `exec` only and must drop `shell`. See [What a hold files](/setup/configuration/hoop-sidecar/risk-analysis#what-a-hold-files) for what the approver reads on each protocol. `require_review`, the earlier name, is still accepted.
+A level a person approves needs a [Control Plane](/core-concepts/control-plane), which stores the approval requests, or a Sidecar running in a terminal. A level the [approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent) decides needs neither: the listener's own model approves or rejects, and any answer that is not a valid approve rejects. `require_approval` works on every protocol, http included; an ssh listener holds `exec` only and must drop `shell`. See [What a hold files](/setup/configuration/hoop-sidecar/risk-analysis#what-a-hold-files) for what the approver reads on each protocol. `require_review`, the earlier name, is still accepted.
 
 The wait ends before 30 minutes when the client hangs up, when `idle_timeout_sec` is shorter, or when the caller's own deadline expires. In practice the caller's deadline is the limit: an http client behind Envoy gives up after the 15 s default route timeout. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) for the retry.
 </Note>
@@ -174,7 +178,7 @@ The analyzer defaults to `fail_open: true`. It depends on a third-party API, and
 
 Decide which you want per environment, and know that `fail_open: false` makes your model provider a hard dependency of your database.
 
-A listener that uses `require_approval` always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
+A listener that uses `require_approval`, or an `ai-handoff` level that can select it, always fails closed, whatever `fail_open` says. A failed classification, a spent `max_calls` or an unreachable Control Plane denies there, because forwarding a statement nobody classified would bypass the human gate.
 
 ---
 

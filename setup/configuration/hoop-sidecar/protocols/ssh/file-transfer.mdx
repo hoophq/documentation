@@ -3,9 +3,11 @@ title: "File Transfer"
 description: "sftp, scp in both of its modes, and rsync — four clients, four different policy surfaces"
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 `ssh`, `sftp`, `scp` and `rsync` are not four ways to do the same thing. Each takes a different route through an SSH connection and therefore produces **different statements** — which is what decides whether a rule can see it.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client"]
     E["end-hop<br/>one connection"]
@@ -14,9 +16,8 @@ flowchart LR
     E -->|"sftp, scp"| F["subsystem sftp<br/>one per file op"]
     E -->|"ssh interactive"| SH["channel shell<br/>no statements"]
 
-    classDef term fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#24292f
-    class E term
-```
+    class E focus
+`} />
 
 | Client | Route | Statements produced |
 |---|---|---|

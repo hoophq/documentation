@@ -3,6 +3,8 @@ title: "Codec Plug-ins"
 description: "Inspect a proprietary wire protocol with a WebAssembly module the Sidecar loads from its config file"
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 A codec plug-in is one WebAssembly module that decodes one protocol the Sidecar does not ship. The Sidecar loads it at startup, hands it the bytes of each connection, and reads back the statements its rules evaluate. Guardrails, data masking, audit and the AI analyzer treat the result the same way they treat a `postgres` or `http` lane.
 
 Use one when the resource speaks a protocol of its own: an in-house database, a vendor's binary RPC, a legacy TCP service. The vendor writes the decoder once, in Rust, Go, C or any language with a wasm32 target, and ships a single `.wasm` file that runs on every architecture the Sidecar runs on.
@@ -79,19 +81,19 @@ A module that carries SQL text calls the Sidecar's own classifier through a host
 
 The Sidecar owns the socket, the policy, the audit trail and the masker. The module owns one thing: the meaning of the bytes. Every box the module touches below is one export the ABI names; everything else is the same code path a `postgres` lane runs.
 
-```mermaid
+<Diagram chart={`
 flowchart TB
     C(["Client"])
     U(["Upstream"])
 
     subgraph REQ["request path, client to upstream"]
       direction LR
-      F1["filter"]:::plugin --> D1["decode"]:::plugin --> P["policy<br/>guardrails · OPA · analyzer"] --> A1["audit"]
+      F1["filter"]:::focus --> D1["decode"]:::focus --> P["policy<br/>guardrails · OPA · analyzer"] --> A1["audit"]
     end
 
     subgraph RESP["response path, upstream to client"]
       direction LR
-      F2["filter"]:::plugin --> D2["decode"]:::plugin --> P2["policy"] --> RW["rewrite"]:::plugin --> A2["audit"]
+      F2["filter"]:::focus --> D2["decode"]:::focus --> P2["policy"] --> RW["rewrite"]:::focus --> A2["audit"]
     end
 
     subgraph HOST["host imports"]
@@ -102,18 +104,17 @@ flowchart TB
 
     C -- bytes --> REQ
     A1 -- allowed --> U
-    P -. denied .-> DN["deny frame"]:::plugin -. error frame .-> C
+    P -. denied .-> DN["deny frame"]:::focus -. error frame .-> C
     U -- bytes --> RESP
     A2 -- masked bytes --> C
     D1 -. "analyze_sql(text)" .-> L
     RW -. "mask(column, value)" .-> M
 
-    classDef plugin fill:#d68a3c,color:#fff,stroke:#b5702a
-    style L fill:#2d5016,color:#fff
-    style M fill:#2d5016,color:#fff
-```
+    class L strong
+    class M strong
+`} />
 
-Orange is the module; green is the host answering a module's import. The two dotted calls are the whole of what a module can ask the host for on the data path, and both run on the stack of the export that called them.
+Blue is the module; grey is the host answering a module's import. The two dotted calls are the whole of what a module can ask the host for on the data path, and both run on the stack of the export that called them.
 
 Reading the request path left to right:
 
@@ -128,16 +129,14 @@ Not on the data path: **`take_credential`** runs between `decode` and policy on 
 
 Load time is a separate, one-off sequence:
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     CFG["config:<br/>plugins[].module + sha256"] --> R["read or fetch<br/>(path, https://, gs://)"] --> H{"sha256<br/>matches?"}
     H -- no --> X1["refuse: lane never starts"]
-    H -- yes --> CO["compile<br/>(wazero)"] --> DS["describe<br/>on a throwaway instance"]:::plugin --> V{"manifest valid,<br/>exports ⇔ capabilities,<br/>imports allowed?"}
+    H -- yes --> CO["compile<br/>(wazero)"] --> DS["describe<br/>on a throwaway instance"]:::focus --> V{"manifest valid,<br/>exports ⇔ capabilities,<br/>imports allowed?"}
     V -- no --> X2["refuse: lane never starts"]
-    V -- yes --> LANE["lane ready"] --> I["one instance<br/>per connection"]:::plugin
-
-    classDef plugin fill:#d68a3c,color:#fff,stroke:#b5702a
-```
+    V -- yes --> LANE["lane ready"] --> I["one instance<br/>per connection"]:::focus
+`} />
 
 Each accepted connection gets its own instance of the compiled module (or, under `instances: per_lane`, its own `conn` id in one shared instance). A trap, a deadline or a memory cap kills that instance and that connection only; the compiled module and every other connection stay up.
 
