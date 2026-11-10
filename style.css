@@ -75,8 +75,8 @@
 :root:not(.dark) #body-content li,
 :root:not(.dark) #body-content dd,
 :root:not(.dark) #body-content blockquote,
-:root:not(.dark) #body-content span,
-:root:not(.dark) #body-content td {
+:root:not(.dark) #body-content span:not(.ha-root *),
+:root:not(.dark) #body-content td:not(.ha-root *) {
   color: var(--hoop-body) !important;
 }
 
@@ -386,4 +386,136 @@ button[class][class*="rounded-"] {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--hoop-gray-400);
+}
+
+/* --------------------------------------------------------------------------
+   Diagrams  (<Diagram> in snippets/diagram.jsx, drawn by diagrams.js)
+   Tokens from the Design MD skill: bars, one accent, flat, Inter.
+   -------------------------------------------------------------------------- */
+
+.hoop-diagram,
+.hoop-diagram-overlay {
+  --hd-bg: #F7F8FB; --hd-fg: #0F1631; --hd-line: #5A6178; --hd-arrow: #0F1631;
+  --hd-muted: #5A6178; --hd-node: #ECEEF4; --hd-label: #F7F8FB;
+  --hd-group-line: color-mix(in srgb, #0F1631 18%, #F7F8FB);
+  --hd-focus: #3E63DD; --hd-on-focus: #FFFFFF;
+  --hd-strong: #5A6178; --hd-on-strong: #F7F8FB;
+  --hd-endpoint: #0F1631; --hd-on-endpoint: #F7F8FB;
+}
+:root.dark .hoop-diagram,
+:root.dark .hoop-diagram-overlay {
+  --hd-bg: #0F1631; --hd-fg: #F7F8FB; --hd-line: rgba(247, 248, 251, .55); --hd-arrow: #F7F8FB;
+  --hd-muted: rgba(247, 248, 251, .7); --hd-node: #0A0F24; --hd-label: #0F1631;
+  --hd-group-line: rgba(247, 248, 251, .2);
+  --hd-endpoint: #F7F8FB; --hd-on-endpoint: #0F1631;
+}
+
+.hoop-diagram {
+  position: relative;
+  background: var(--hd-bg);
+  padding: 56px 24px 24px;
+  margin: 24px 0;
+  cursor: zoom-in;
+}
+.hoop-diagram-svg { display: flex; justify-content: center; }
+.hoop-diagram-enlarge {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 100px;
+  border: 1.5px solid var(--hd-group-line);
+  background: var(--hd-bg);
+  color: var(--hd-muted);
+  font: 500 13px/1.4 'Inter', system-ui, sans-serif;
+  cursor: zoom-in;
+}
+.hoop-diagram-enlarge svg { flex: none; }
+.hoop-diagram-enlarge:hover { color: var(--hd-fg); border-color: var(--hd-muted); }
+.hoop-diagram-enlarge:focus-visible { outline: 2px solid var(--hoop-indigo); outline-offset: 2px; }
+.hoop-diagram-loading { min-height: 160px; cursor: default; }
+.hoop-diagram-error { display: block; cursor: default; color: var(--hd-fg); }
+.hoop-diagram-error pre { white-space: pre-wrap; }
+
+/* The SVG parts beautiful-mermaid has no option for. */
+.hoop-diagram svg,
+.hoop-diagram-full svg { overflow: visible; }
+.hoop-diagram svg .node rect,
+.hoop-diagram svg .node polygon,
+.hoop-diagram-full svg .node rect,
+.hoop-diagram-full svg .node polygon { stroke-width: 0; }
+.hoop-diagram svg .node[data-shape="stadium"] rect,
+.hoop-diagram-full svg .node[data-shape="stadium"] rect { fill: var(--hd-endpoint); }
+.hoop-diagram svg .node[data-shape="stadium"] text,
+.hoop-diagram-full svg .node[data-shape="stadium"] text { fill: var(--hd-on-endpoint); }
+.hoop-diagram svg .edge,
+.hoop-diagram-full svg .edge { stroke-width: 1.5; }
+.hoop-diagram svg .edge[data-style="thick"],
+.hoop-diagram-full svg .edge[data-style="thick"] { stroke: var(--hd-fg); stroke-width: 2.5; }
+.hoop-diagram svg .edge-label rect,
+.hoop-diagram-full svg .edge-label rect { fill: var(--hd-label); stroke: none; }
+.hoop-diagram svg .edge-label text,
+.hoop-diagram-full svg .edge-label text { fill: var(--hd-muted); }
+.hoop-diagram svg .subgraph > rect:first-of-type,
+.hoop-diagram-full svg .subgraph > rect:first-of-type { fill: none; stroke: var(--hd-group-line); stroke-width: 1; }
+.hoop-diagram svg .subgraph > rect:nth-of-type(2),
+.hoop-diagram svg .block > rect:nth-of-type(2),
+.hoop-diagram-full svg .subgraph > rect:nth-of-type(2),
+.hoop-diagram-full svg .block > rect:nth-of-type(2) { fill: var(--hd-node); stroke: none; }
+.hoop-diagram svg .subgraph > text,
+.hoop-diagram svg .block > text,
+.hoop-diagram-full svg .subgraph > text,
+.hoop-diagram-full svg .block > text { fill: var(--hd-fg); font-weight: 500; }
+.hoop-diagram svg .block > rect:first-of-type,
+.hoop-diagram-full svg .block > rect:first-of-type { stroke: var(--hd-group-line); }
+.hoop-diagram svg .actor rect,
+.hoop-diagram-full svg .actor rect { stroke-width: 0; }
+.hoop-diagram svg .message line,
+.hoop-diagram-full svg .message line { stroke-width: 1.5; }
+.hoop-diagram svg .message text,
+.hoop-diagram-full svg .message text {
+  fill: var(--hd-fg);
+  paint-order: stroke; stroke: var(--hd-bg); stroke-width: 5px; stroke-linejoin: round;
+}
+.hoop-diagram svg text,
+.hoop-diagram-full svg text { font-family: 'Inter', system-ui, sans-serif; }
+
+/* Click to enlarge */
+.hoop-diagram-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--hd-bg);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  cursor: zoom-out;
+}
+.hoop-diagram-full {
+  margin: auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 64px 32px 48px;
+}
+.hoop-diagram-full svg {
+  display: block;
+  margin: 0 auto;
+  width: min(100%, calc(var(--hd-w) * 1.5)) !important;
+  max-width: none;
+  height: auto;
+}
+.hoop-diagram-close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 8px 20px;
+  border-radius: 100px;
+  border: 1.5px solid var(--hd-fg);
+  background: transparent;
+  color: var(--hd-fg);
+  font: 500 14px/1.2 'Inter', system-ui, sans-serif;
+  cursor: pointer;
 }

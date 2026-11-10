@@ -3,11 +3,13 @@ title: "Agentic Access"
 description: "Let a language model classify the statement, and let the risk level pick the tool."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 Rules are good at effects you can name. `DROP` is destructive, `/admin/**` is off limits, the `salaries` table is not yours. They are useless against intent you could not enumerate in advance — which is most of what an agent does.
 
 Agentic access closes that gap. The AI Analyzer sits in front of the resource, classifies the statement, and the risk it reports selects a tool.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C(["client ·<br/>agent"]) --> AI["AI Analyzer"]
 
@@ -24,8 +26,8 @@ flowchart LR
     AI --> TOOLS
     TOOLS --> R["Resource"]
 
-    style R fill:#2d5016,color:#fff
-```
+    class R strong
+`} />
 
 <Note>
 This runs entirely in the [Sidecar](/core-concepts/sidecar). The Sidecar holds the provider credential and reads one YAML file, and no statement is sent anywhere you did not configure.
