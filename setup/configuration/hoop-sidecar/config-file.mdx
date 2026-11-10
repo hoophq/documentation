@@ -680,6 +680,10 @@ Masking needs a codec that can carry it. HTTP declares its body length in a head
 **An `ssh` lane takes `strategy: mask` and nothing else.** It rewrites a byte stream in place — there is no length header to correct and no frame to rebuild — so a replacement of a different size shifts every byte after it and desynchronizes the terminal. `redact` (which is the default when `strategy` is omitted), `partial` and `hash` are each refused at startup on an `ssh` lane, and so is a `mask_char` above U+007F, because `mask` preserves the **rune** count where this lane needs the **byte** count preserved. See [Configuration](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#masking).
 </Warning>
 
+<Note>
+**An `mcp` lane takes entity rules only.** It masks the strings of tool and resource results without their keys, so a `columns` rule never matches, and the lane's own `mask` block refuses one at startup. See [MCP](/setup/configuration/hoop-sidecar/protocols/mcp#masking).
+</Note>
+
 ---
 
 ## Licensing

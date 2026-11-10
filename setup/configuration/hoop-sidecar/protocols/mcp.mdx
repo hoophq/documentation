@@ -259,7 +259,7 @@ An `analyzer` block, or an `ai_analysis` rule, classifies each `tools/call`. See
 - A provider failure follows `fail_open`, as on the other lanes.
 - On a [SQL tool](#sql-tools), the model reads the call and each SQL statement of its argument: one model call for the call and one per statement.
 - The statement row carries `risk_level`, `risk_action`, `ai_rule` and `ai_status`.
-- A Sidecar managed by a Control Plane gets an analyzer on an mcp lane only when it reports the `mcp_analyzer` capability.
+- A Sidecar managed by a Control Plane gets an analyzer on an mcp lane only when it reports the `mcp_analyzer` capability. The AI Analyzer page offers MCP listeners, with "Hold for approval" disabled.
 
 ---
 

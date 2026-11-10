@@ -87,7 +87,7 @@ Both are reported as `US_SSN`. Prefer a `columns` rule for a column you can name
 
 Two ways to name what gets masked, and they fail in opposite directions.
 
-**Entity rules** mask by detection. They work anywhere a value appears, including inside an opaque HTTP body where the protocol names nothing — and they miss whatever the detector does not recognize.
+**Entity rules** mask by detection. They work anywhere a value appears, including inside an opaque HTTP body or an MCP tool result, where the protocol names nothing — and they miss whatever the detector does not recognize.
 
 **Column rules** mask by position. They cannot miss, because they never guess — and they only work where the protocol names its values, which means result sets, not payloads.
 

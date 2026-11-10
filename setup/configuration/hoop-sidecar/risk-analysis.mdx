@@ -3,7 +3,7 @@ title: "AI Analyzer Reference"
 description: "Classify statements with a language model and block on the risk it reports"
 ---
 
-The analyzer is a per-listener component: an `analyzer:` block declared beside `guardrails`, `opa` and `mask`, not inside them. It sends a statement to a language model and denies on the risk that comes back. It runs wherever a content builder renders the statement for a model: SQL on a `postgres`, `mysql`, `mssql` or `clickhouse` listener, request bodies on an `http` one.
+The analyzer is a per-listener component: an `analyzer:` block declared beside `guardrails`, `opa` and `mask`, not inside them. It sends a statement to a language model and denies on the risk that comes back. It runs wherever a content builder renders the statement for a model: SQL on a `postgres`, `mysql`, `mssql` or `clickhouse` listener, request bodies on an `http` one, tool calls on an `mcp` one.
 
 It is the only evaluator that leaves the process, costs money per statement and can take a second, so most of its design is about not doing those things. Read the [cost controls](#the-four-cost-controls) before you enable it anywhere real.
 
@@ -338,7 +338,7 @@ Approve stays off until the whole statement has been on screen. Each decision is
 A configured Control Plane always wins. Its approvers decide, and the terminal never releases a statement the Control Plane governs. Off a terminal (a pipe, a container, CI), there is nobody to ask, and the Sidecar refuses a level a person approves at startup as before.
 </Note>
 
-Every protocol can hold. What the approver reads differs per protocol; see [What a hold files](#what-a-hold-files).
+Every protocol except `mcp` can hold. On an `mcp` listener a hold refuses the call before any approver; see [MCP](/setup/configuration/hoop-sidecar/protocols/mcp#ai-analyzer). What the approver reads differs per protocol; see [What a hold files](#what-a-hold-files).
 
 **The approval runs last.** The Sidecar files an approval request only after every other check allowed the statement, the decide-phase OPA call included. A decide denial files nothing, pages nobody and spends no approval. The decide call sees the pending approval as `input.review` (the key keeps its earlier name, so existing Rego keeps working; see [the OPA input document](/setup/configuration/hoop-sidecar/config-file#opa)), and it can deny the statement but cannot skip the approval. The [approval agent](#the-approval-agent) runs last the same way, so a decide denial spends no model call on it. The decide call sees it as `input.review.mode == "agent"`.
 
