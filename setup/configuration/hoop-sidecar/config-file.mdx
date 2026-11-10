@@ -387,9 +387,9 @@ The scanner discards comments and string literals before it classifies, so `SELE
   message: destructive statements are not permitted on appdb
 ```
 
-Add `unknown` to that list on a lane where a statement the scanner could not read must not run. `unknown` matches what the client sends only: a response carries no verb and never matches it. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
+Add `unknown` to that list on a lane where a statement the scanner could not read must not run. It also refuses client bytes the codec cannot decode; see [Bytes the codec cannot decode](/setup/configuration/hoop-sidecar/policy-rules#bytes-the-codec-cannot-decode). `unknown` matches what the client sends only: a response carries no verb and never matches it. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
 
-SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
+SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`, or client bytes the codec could not decode, with the error in `metadata["parse_error"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
 
 <Warning>
 **Breaking change: `CALL` and `EXECUTE` report `unknown`.** Their bodies live in the catalog, so no parser can say what they touch, and reporting `call` claimed knowledge the Sidecar does not have. A rule written as `operations: [call]` **stops matching them**. Write `operations: [call, unknown]`.
@@ -506,6 +506,8 @@ The Sidecar does not own policy; it owns the input document:
 ```
 
 `operation` is the worst effect and `tables` the flattened relation names, both unchanged. `effects` and `relations` say what those two could not: a data-modifying CTE both deletes and selects, and a flat name list cannot separate the table a statement writes from the one it reads. `findings` carries what each deferring rule established, keyed by producer source. A lane with no producers sends a byte-identical document to the one it sent before findings existed.
+
+Client bytes the codec cannot decode reach OPA too, as an `unknown` client statement with no text and the codec's error in `metadata.parse_error`. A denial drops the bytes and ends the connection; an allow forwards them. With `fail_open: false`, a policy that returns no decision for them denies. See [Bytes the codec cannot decode](/setup/configuration/hoop-sidecar/policy-rules#bytes-the-codec-cannot-decode).
 
 `review` rides the decide phase only, and only when a risk level asked for `require_approval` (or its earlier spelling, `require_review`). The key keeps its name after the rename to approval, so Rego written against it keeps working. The approval request is filed after decide allows, so the key carries no id or status:
 
