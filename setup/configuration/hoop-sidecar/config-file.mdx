@@ -826,7 +826,7 @@ See [Connect a Sidecar](/control-plane/connect-sidecar) for the handshake itself
 
 ### Login and saved credentials
 
-On the free plan the Sidecar logs in instead of carrying a token. The login goes to `HOOP_CONTROL_PLANE_URL`, then the config file's `control_plane_url`, else `https://use.hoop.dev`. An admin approves a code in the web app, and the Sidecar joins that organization. See [Connect a Sidecar](/control-plane/connect-sidecar#free-plan-log-in-instead-of-a-token).
+On the free plan the Sidecar logs in instead of carrying a token. The login goes to `HOOP_CONTROL_PLANE_URL`, then the config file's `control_plane_url`, else `https://use.hoop.dev`. An admin approves a code in the web app, and the Sidecar joins that organization. See [Connect a Sidecar](/control-plane/connect-sidecar#connect-with-approval-no-token).
 
 The login is saved in `~/.hoop/sidecar/credentials.json` (mode `0600`), one per Control Plane. Set `HOOP_SIDECAR_STATE_DIR` to move the folder. Keep it on a volume for a headless deployment, or the next restart logs in again.
 

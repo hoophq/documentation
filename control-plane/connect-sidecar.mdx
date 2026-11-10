@@ -1,29 +1,16 @@
 ---
 title: "Connect a Sidecar"
-description: "Issue a token, point a Sidecar at the Control Plane, and let it pull its configuration."
+description: "Connect a Sidecar to the Control Plane with an approval in the web app, or with a token."
 ---
 
 import { Diagram } from '/snippets/diagram.jsx';
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
 
-A [Sidecar](/core-concepts/sidecar) on the free plan logs in to join your organization (below). An Enterprise Sidecar connects with a token instead: on boot it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
+A [Sidecar](/core-concepts/sidecar) on the free plan logs in to join your organization: see [Connect with approval (no token)](#connect-with-approval-no-token). An Enterprise Sidecar connects with a token instead: on boot it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
 
 <Tip>
 Deploying many Sidecars with automation? Skip the per-Sidecar token: [Service Accounts](/setup/configuration/hoop-sidecar/service-accounts) lets each one authenticate with its Kubernetes or Google service account, and the Control Plane creates it on the first handshake.
 </Tip>
-
----
-
-## Free plan: log in instead of a token
-
-On the free plan you do not issue a token. `hoop start sidecar` logs in on its first run. It prints a link and a code. An admin opens the link, checks the code, and approves it in the web app. The Sidecar then joins that admin's organization and connects on its own.
-
-The login goes to `HOOP_CONTROL_PLANE_URL`, then the config file's `control_plane_url`, else `https://use.hoop.dev`. Any other URL is an Enterprise Control Plane, and it uses a token with the steps below.
-
-The login is saved on the machine, one per Control Plane. The next run reuses it. Use `hoop sidecar status` to see it, and `hoop sidecar logout` to remove it. The Sidecar stays in your organization; delete it in the web app to remove it there.
-
-<Note>
-**Headless (a container or an agent).** Log in once, then pass the token in `HOOP_SIDECAR_TOKEN`. Get the token from the web app, or from `hoop sidecar status --token` on a machine that logged in. Keep `HOOP_SIDECAR_STATE_DIR` on a volume, or the next restart logs in again.
-</Note>
 
 ---
 
@@ -50,7 +37,169 @@ Four properties fall out of this shape, and they are the reason it looks like th
 
 ---
 
-## Two ways to connect
+## Choose a method
+
+| Method | Use it when |
+|---|---|
+| [Connect with approval (no token)](#connect-with-approval-no-token) | You are on the free plan. Recommended for the free plan. Also for an Enterprise Sidecar that a person starts. |
+| [Connect with a token](#connect-with-a-token) | You deploy with automation, or you already have a token. |
+
+Both methods end with the same [handshake](#the-handshake). With approval, the Sidecar gets its token without a copy and paste.
+
+The free plan uses the hosted Control Plane, `https://use.hoop.dev`. Your own Control Plane needs Enterprise. On your own Control Plane, the two methods are available, and its web app approves the request.
+
+---
+
+## Connect with approval (no token)
+
+Start the Sidecar with the Control Plane URL only. The Sidecar sends a connection request. An admin approves the request in the web app. Then the Sidecar connects.
+
+You do not copy a token. The Sidecar makes its own token and sends it one time with the request. The Control Plane keeps only a hash of the token.
+
+<EnterpriseLimit />
+
+<Steps>
+  <Step title="Set the Control Plane URL">
+    On the free plan, skip this step. Without a URL, the Sidecar sends the request to `https://use.hoop.dev`.
+
+    For your own Control Plane (Enterprise), set `HOOP_CONTROL_PLANE_URL` to its address. Do not set `HOOP_SIDECAR_TOKEN`.
+
+    ```bash
+    export HOOP_CONTROL_PLANE_URL=http://localhost:8009
+    ```
+
+    `http://localhost:8009` is the address of a Control Plane that runs on your machine. The Sidecar reads the address from `HOOP_CONTROL_PLANE_URL`, then from `control_plane_url` in the config file.
+  </Step>
+  <Step title="Start the Sidecar">
+    <Tabs>
+      <Tab title="CLI">
+        Install the CLI from [Command Line](/install/cli). Then start the Sidecar:
+
+        ```bash
+        hoop start sidecar
+        ```
+
+        The terminal shows a URL and a code:
+
+        ```
+        Approve this sidecar in your browser:
+
+          http://localhost:8009/sidecars/login?code=BCDF-GHJK
+
+        The page shows the code BCDF-GHJK. Approve only if it matches this one.
+        ```
+
+        The Sidecar waits for the approval. The code stops working after 10 minutes. Start the Sidecar again to get a new code.
+      </Tab>
+      <Tab title="Docker">
+        The Sidecar saves its token in a volume. The container runs as user `10001`, and Docker makes a new volume for `root`. Give the volume to user `10001` one time:
+
+        ```bash
+        docker run --rm --user 0 \
+          -v hoop-sidecar-state:/var/lib/hoop-sidecar \
+          --entrypoint chown hoophq/hoopsidecar:<version> \
+          10001:10001 /var/lib/hoop-sidecar
+        ```
+
+        Use the default image for this command. The `-distroless` images do not have `chown`.
+
+        Start the container without a token. On the free plan, remove the `HOOP_CONTROL_PLANE_URL` line:
+
+        ```bash
+        docker run -d --name hoop-sidecar \
+          -e HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com \
+          -e HOOP_SIDECAR_STATE_DIR=/var/lib/hoop-sidecar \
+          -v hoop-sidecar-state:/var/lib/hoop-sidecar \
+          -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
+          -p 15432:15432 -p 19000:19000 \
+          hoophq/hoopsidecar:<version>
+        ```
+
+        `config.yaml` is the same file as in the Docker tab of [Connect with a token](#connect-with-a-token). `HOOP_SIDECAR_STATE_DIR` is the folder where the Sidecar saves its token. Without the volume, or when the Sidecar cannot write to it, the Sidecar sends a new request after each restart.
+
+        With Docker Compose, set the same variables on the Sidecar service. Then start it:
+
+        ```bash
+        docker compose pull
+        docker compose up -d --force-recreate
+        ```
+
+        The container writes the request to its log as a JSON line. Read the log:
+
+        ```bash
+        docker logs hoop-sidecar
+        ```
+
+        ```json
+        {"msg":"sidecar login required: approve the code in the web app","event":"sidecar_login_required","verification_url":"https://hoop.your-company.com/sidecars/login?code=BCDF-GHJK","user_code":"BCDF-GHJK","expires_in":600}
+        ```
+
+        Copy the value of `verification_url`.
+
+        <Note>
+        A container that no person can approve must use a token. Get the token from the web app, or from `hoop sidecar status --token` on a machine that is connected. Then set `HOOP_SIDECAR_TOKEN`.
+        </Note>
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Open the request in the web app">
+    Sign in to the web app as an admin. Open the URL from step 2.
+
+    If your browser cannot open the URL, open `/sidecars/login` on your Control Plane. Type the code in the **Code** field. Click **Continue**.
+
+    The **Connect a Sidecar** page shows the pending request and its code.
+
+    <Frame>
+      <img
+        className="block"
+        src="/images/control-plane/sidecar-approval-pending.webp"
+        alt="Connect a Sidecar page with a pending request, the code, the Sidecar name field, and the Approve and Deny buttons"
+      />
+    </Frame>
+  </Step>
+  <Step title="Approve the request">
+    Make sure that the code on the page is the same as the code from the Sidecar. If the codes are different, click **Deny**.
+
+    Change the **Sidecar name** if necessary. Click **Approve**.
+
+    The page shows that the Sidecar is approved. The Sidecar is now in your organization.
+
+    <Frame>
+      <img
+        className="block"
+        src="/images/control-plane/sidecar-approval-approved.webp"
+        alt="Connect a Sidecar page after approval, with the message that the Sidecar is approved"
+      />
+    </Frame>
+  </Step>
+  <Step title="Make sure that the Sidecar is connected">
+    The Sidecar connects by itself after the approval. A Sidecar that you started in a terminal without a config file first shows a setup screen. Complete the setup in the terminal.
+
+    In the web app, click **Sidecars** in the menu. Open the Sidecar. Before the setup is complete, the status is **Waiting**. After the setup, the status is **Active** and the page shows a recent check-in.
+
+    <Frame>
+      <img
+        className="block"
+        src="/images/control-plane/sidecar-approval-active.webp"
+        alt="Sidecar details page with the Active status and a recent check-in"
+      />
+    </Frame>
+  </Step>
+</Steps>
+
+The Sidecar saves its token in `~/.hoop/sidecar/credentials.json`, or in the folder that `HOOP_SIDECAR_STATE_DIR` names. The next start uses the saved token and does not ask for approval.
+
+| Command | Result |
+|---|---|
+| `hoop sidecar status` | Shows the Control Planes that this machine is connected to. |
+| `hoop sidecar status --token` | Shows the token also. Use it to set `HOOP_SIDECAR_TOKEN` on a different machine. |
+| `hoop sidecar logout` | Removes the saved token from this machine. The Sidecar stays in the organization. Delete it in the web app to remove it. |
+
+---
+
+## Connect with a token
+
+### Two ways to connect
 
 Both paths end the same way — a token, pointed at the Control Plane — and both use the steps below.
 
@@ -59,7 +208,7 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
 
 ---
 
-## Steps
+### Steps
 
 <Steps>
   <Step title="Issue a token in the Control Plane">
@@ -298,6 +447,7 @@ The Control Plane then sends only that flag and the license, and the Sidecar run
 
 | Symptom | Check |
 |---|---|
+| The Sidecar waits and does not connect | The request is not approved. Open the URL from the Sidecar and approve it. A code stops working after 10 minutes: start the Sidecar again for a new code. |
 | The Sidecar does not start at all | A first handshake that fails stops startup; there is no fallback to the local file. Check the URL, the token, and outbound HTTPS to the Control Plane host. |
 | The Sidecar starts but never appears in the Control Plane | Outbound HTTPS to the Control Plane host. The Sidecar dials out; nothing dials in. |
 | It warns that the config file's listeners are ignored | Expected once the Control Plane holds the configuration. Edit it there; the local file no longer holds it. |
