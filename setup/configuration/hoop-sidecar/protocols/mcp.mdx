@@ -239,7 +239,7 @@ Object keys, numbers and other fields are not masked: the client reads them as p
 - Each masked result is one `masked` audit row with the count and the entities, never the values.
 - The client gets JSON-RPC error `-32010` instead of the result, and the MCP session stays open, when the masker fails, its audit row cannot be written under `fail_on_audit_error`, a key repeats or differs only in case, `structuredContent` nests deeper than 128 levels, or the result or a field above has an unexpected type (an object where an array belongs). A `null` passes.
 - Turning masking on or off needs a restart. A rule change applies without one.
-- A Sidecar managed by a Control Plane gets mask rules on an mcp lane only when it reports the `mcp_mask` capability.
+- A Sidecar managed by a Control Plane gets mask rules on an mcp lane only when it reports the `mcp_mask` capability. The Data masking page offers MCP listeners and binds entity rules only.
 
 ---
 
