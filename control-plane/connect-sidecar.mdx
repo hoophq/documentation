@@ -3,6 +3,7 @@ title: "Connect a Sidecar"
 description: "Connect a Sidecar to the Control Plane with an approval in the web app, or with a token."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
 import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
 
 A [Sidecar](/core-concepts/sidecar) on the free plan logs in to join your organization: see [Connect with approval (no token)](#connect-with-approval-no-token). An Enterprise Sidecar connects with a token instead: on boot it asks the Control Plane what its configuration should be, and from then on the Control Plane owns that configuration.
@@ -15,7 +16,7 @@ Deploying many Sidecars with automation? Skip the per-Sidecar token: [Service Ac
 
 ## The handshake
 
-```mermaid
+<Diagram chart={`
 sequenceDiagram
     participant S as Sidecar
     participant CP as Control Plane
@@ -25,7 +26,7 @@ sequenceDiagram
     CP->>CP: identify the Sidecar from the token
     CP-->>S: your configuration
     S->>S: load into memory, start listeners
-```
+`} />
 
 Four properties fall out of this shape, and they are the reason it looks like this:
 

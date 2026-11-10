@@ -3,6 +3,8 @@ title: "Slack"
 description: "Send held statements to Slack. Approvers approve there without signing in."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 When a listener holds a statement for a person ([`require_approval`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person)), the Control Plane posts an approval request to Slack. An approver clicks **Approve** or **Reject** in the message. hoop finds the hoop user behind the Slack user by email and checks that user's groups.
 
 <Frame caption="A held statement in Slack. The approver sees who ran it, on which connection, and the exact statement.">
@@ -21,7 +23,7 @@ This page is for the Control Plane. For the Gateway, see [Slack](/integrations/s
 
 ## How it works
 
-```mermaid
+<Diagram chart={`
 sequenceDiagram
     actor R as Approver
     participant IdP as Identity provider
@@ -44,7 +46,7 @@ sequenceDiagram
     end
     S->>CP: poll the approval request, every 5 seconds
     CP-->>S: approved: run the statement
-```
+`} />
 
 - **Approvers are hoop users.** Their groups come from your identity provider at each login.
 - **Channels are per listener.** A listener without channels uses the fallback channel.
