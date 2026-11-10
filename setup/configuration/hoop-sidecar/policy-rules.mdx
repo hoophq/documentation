@@ -114,7 +114,7 @@ Every value `operations` accepts, across every protocol. The field narrows any r
 | `rollback` | SQL | the statement text | |
 | `explain` | SQL | the statement text | `EXPLAIN DELETE …` plans; `EXPLAIN ANALYZE DELETE …` classifies as `delete`, because it executes |
 | `other` | SQL | the statement text | parsed, but not a verb the scanner classifies. `REFRESH MATERIALIZED VIEW` lands here, **and it writes** |
-| `unknown` | SQL | the statement text | the scanner did not understand it. **Always name this on a lane that refuses writes** |
+| `unknown` | SQL; any protocol for client bytes the codec cannot decode | the statement text; empty for undecodable bytes | the scanner did not understand it, or the codec could not decode the bytes. **Always name this on a lane that refuses writes**. See [Bytes the codec cannot decode](#bytes-the-codec-cannot-decode) |
 | `get` `post` `put` `patch` | HTTP | the request | the verb is its own operation value, distinct from the SQL set |
 | `head` `options` `connect` `trace` | HTTP | the request | |
 | `exec_line` | SSH | the whole command, one statement | produced by `ssh <cmd>`, `scp -O` and `rsync` |
@@ -318,7 +318,7 @@ listeners:
       medium: warn
 ```
 
-It runs after the local rules and OPA, so a statement a free rule already denied never reaches a paid classifier. Actions per risk level are `allow`, `warn`, `block` and `defer`; an unnamed level allows.
+It runs after the local rules and OPA, so a statement a free rule already denied never reaches a paid classifier. Actions per risk level are `allow`, `warn`, `block`, `defer`, `require_approval` and `ai-handoff`; an unnamed level allows.
 
 It leaves the process and costs money per statement. Read [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) before enabling it anywhere real.
 
@@ -355,6 +355,23 @@ Those three are a permanent ceiling, and no parser lifts it, PostgreSQL's own gr
 </Warning>
 
 The scanner is measured against PostgreSQL's own grammar. On the differential oracle it agrees exactly on 72 of 74 statements, concedes 2 (`DO` and `CALL`) and gets 0 wrong. Run over PostgreSQL 17.5's own regression suite, 20,391 statements, it reads 99.3% end to end; all 151 concessions are `PREPARE`, `CALL`, `DO` and three unbalanced-paren statements, and every one of them fails closed.
+
+### Bytes the codec cannot decode
+
+Client bytes that are malformed for the lane's protocol also reach policy as `unknown`. The statement has no text, and the codec's error travels in `metadata["parse_error"]`, which reaches Rego as `input.metadata["parse_error"]`:
+
+```json
+{"input": {"protocol": "postgres", "direction": "client", "operation": "unknown",
+           "statement": "", "metadata": {"parse_error": "libhoop/codec/postgres: malformed message"}}}
+```
+
+A rule naming `unknown` refuses them, and so does OPA when it denies or, with `fail_open: false`, returns no decision. To refuse them in Rego by name:
+
+```rego
+result := {"denied": true, "rule": "parse-error"} if input.metadata.parse_error
+```
+
+A refusal drops the bytes and ends the connection, because the codec no longer tracks the stream after a decode error. A policy that allows them, or a lane with no guardrails and no OPA, forwards them, and the database's own parser decides. Response bytes the codec cannot decode are forwarded without a policy decision. The audit trail records the error as `kind: error` in every case.
 
 ---
 

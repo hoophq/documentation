@@ -3,11 +3,13 @@ title: "Bastion SSH Termination"
 description: "A bastion that terminates the jump and relays to a stock sshd, so guardrails, masking and the audit trail apply to a host with nothing installed on it"
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 The three topologies in [Topologies](/setup/configuration/hoop-sidecar/protocols/ssh/topologies) put the inspecting endpoint **on the target**. This one puts it **in the middle**.
 
 The bastion accepts the client's jump channel, and instead of dialling the target and piping bytes, it runs an SSH server inside that channel and opens its own connection to a stock `sshd`. It decrypts both hops, so guardrails, the analyzer, masking and the audit trail all apply — to a host with nothing installed on it.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client"]
     B["terminating bastion :2222<br/>terminates SSH #1 AND SSH #2"]
@@ -16,9 +18,8 @@ flowchart LR
     C ==>|"SSH #2 — the session"| B
     B ==>|"upstream: the bastion's own connection"| T
 
-    classDef term fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#24292f
-    class B term
-```
+    class B focus
+`} />
 
 **One block turns it on.** Add `ssh.relay` to a listener and the destinations it names get terminated. Delete it and you have the ordinary blind bastion of Mode 2.
 
@@ -60,7 +61,7 @@ Both can be true at once. A single listener terminates the destinations in `rela
 
 The client still makes two hops, the same two as every other mode. What changes is where hop 2 lands.
 
-```mermaid
+<Diagram chart={`
 sequenceDiagram
     participant U as Client
     participant B as Terminating bastion
@@ -87,7 +88,7 @@ sequenceDiagram
         T-->>B: output
         B-->>U: masked output
     end
-```
+`} />
 
 **The relay match is the only new decision.** Everything around it behaves exactly as it does on a blind bastion.
 
@@ -267,7 +268,7 @@ That's what the other three modes do, and it still works — it's now an explici
 
 **Three sources. A target picks exactly one** — they are not a fallback chain.
 
-```mermaid
+<Diagram chart={`
 flowchart TD
     A["hop 2 authenticated<br/>subject known from the certificate"] --> B{"target sets<br/>agent_identity?"}
     B -->|yes| C{"client forwarded<br/>an agent?"}
@@ -278,7 +279,7 @@ flowchart TD
     E -->|no| G{"target has<br/>private_key?"}
     G -->|yes| H["shared key<br/>WARN in the trail"]
     G -->|no| X
-```
+`} />
 
 | Source | What the target's `auth.log` shows | Provisioning cost |
 |---|---|---|
@@ -459,7 +460,7 @@ This affects `sftp`, `scp` on OpenSSH 9 defaults, and `rsync`. See [File Transfe
 
 **`ssh -L` works inside a terminated session, and the TARGET makes the TCP connection.** The bastion opens a `direct-tcpip` channel on its own upstream connection and splices the two together.
 
-```mermaid
+<Diagram chart={`
 sequenceDiagram
     participant User
     participant Bastion as Terminating bastion
@@ -472,7 +473,7 @@ sequenceDiagram
     Target->>Target: sshd resolves 127.0.0.1 as its OWN loopback
     Target-->>Bastion: channel open
     Bastion-->>User: channel open — bytes relayed, metadata audited
-```
+`} />
 
 **`127.0.0.1` in `forwards_allowed` is the target's loopback.** That's the whole reason the target dials it. If the bastion dialled, `localhost` would mean the bastion — a security bug, not a shortcut.
 

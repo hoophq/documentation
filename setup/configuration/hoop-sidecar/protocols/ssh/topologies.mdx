@@ -3,6 +3,8 @@ title: "Topologies"
 description: "Four ways to deploy an SSH listener: three that enforce at the end of the hop, and one that terminates in the middle"
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 A listener is one of three things, and the config decides which:
 
 | Role | What it is | The keys that make it one |
@@ -19,16 +21,15 @@ Mode 4 breaks that rule on purpose, and it is the only mode that does. Use it wh
 
 ## Mode 1 — Direct
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client"]
     E["end-hop :2222<br/>handshake terminates"]
     S["/bin/sh<br/>uid 10001 devuser"]
     C ==>|"SSH"| E ==>|"spawns"| S
 
-    classDef term fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#24292f
-    class E term
-```
+    class E focus
+`} />
 
 One hop, one termination. The certificate, the account, the guardrail, the mask and the audit record all happen in that one process.
 
@@ -44,7 +45,7 @@ Direct exposure is defensible here for a reason that does not hold for `sshd`: t
 
 ## Mode 2 — Bastion Hoop Sidecar
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client"]
     B["hoop bastion :2222<br/>terminates SSH #1"]
@@ -52,9 +53,8 @@ flowchart LR
     C ==>|"SSH #1"| B -->|"TCP"| E
     C -.->|"SSH #2, end to end"| E
 
-    classDef term fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#24292f
-    class B,E term
-```
+    class B,E focus
+`} />
 
 **Two SSH sessions, nested.** The bastion terminates the outer one — that is how `destinations_allowed` can be checked at all — and carries the inner one blind. SSH #2 is encrypted between the client and the end-hop, so the bastion cannot read those bytes, and it re-signs no identity.
 
@@ -104,7 +104,7 @@ A forward gets no statement, deliberately — its bytes are relayed blind, so th
 
 ## Mode 3 — Bastion OpenSSH
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client"]
     B["existing sshd :22<br/>stock OpenSSH"]
@@ -112,9 +112,8 @@ flowchart LR
     C ==>|"SSH #1"| B -->|"TCP"| E
     C -.->|"SSH #2, end to end"| E
 
-    classDef term fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#24292f
-    class B,E term
-```
+    class B,E focus
+`} />
 
 Same shape as mode 2. The middle box changed vendor and nothing else moved — same hops, the last termination in the same place, the same enforcement.
 
@@ -131,7 +130,7 @@ The forwarding is what a corporate jump host already does. It carries the sessio
 
 ## Mode 4 — Bastion SSH Termination
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client"]
     B["terminating bastion :2222<br/>terminates SSH #1 AND SSH #2"]
@@ -140,9 +139,8 @@ flowchart LR
     C ==>|"SSH #2 — the session"| B
     B ==>|"upstream"| T
 
-    classDef term fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#24292f
-    class B term
-```
+    class B focus
+`} />
 
 **The one mode where the endpoint is not on the target.** The bastion accepts the jump channel and, instead of dialling the target and piping bytes, runs an SSH server inside that channel and opens its own connection to a stock `sshd`.
 

@@ -3,6 +3,8 @@ title: "Architecture"
 description: "How a request flows through the Sidecar, and how to place it in a real deployment"
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 This page traces one connection from the client through Envoy, through the Sidecar, to the upstream and back. Read it to find out where a guardrail denial happens, why Postgres masking takes a different path from HTTP masking, and which knob in `config.yaml` controls which behavior.
 
 <Note>
@@ -15,7 +17,7 @@ For the commands, start at [Command Line](/install/cli#running-the-sidecar). For
 
 Envoy owns TLS and the network path. OPA answers reachability. The Sidecar reads the payload.
 
-```mermaid
+<Diagram chart={`
 flowchart TB
     C["client<br/>curl · psql"]
 
@@ -40,7 +42,7 @@ flowchart TB
     L8443 -. "gRPC, fails closed" .-> OPA
     L8443 -- "socket or port" --> LH --> H
     L5432 -- "socket or port" --> LP -- "TLS (pgwire StartTLS)" --> D
-```
+`} />
 
 Envoy sees less on each lane going down the table.
 
@@ -127,7 +129,7 @@ A re-framing codec holds rows back until their result set ends, so `pump` defers
 
 Four steps run per chunk, and the order carries weight.
 
-```mermaid
+<Diagram chart={`
 flowchart TB
     IN(["bytes from pump"]) --> INSP
 
@@ -146,7 +148,7 @@ flowchart TB
     MASK --> AUD2["audit.Write<br/>masked: names, count"]
     AUD2 --> OUT(["Decision"])
     DENY --> OUT
-```
+`} />
 
 Auditing **before** the forward costs a write on the hot path. It buys you the property that a crash between the two cannot lose the record of the statement that caused it. Reverse the order and you lose the one row an incident review needs most.
 
@@ -324,7 +326,7 @@ There are no build tags. The config file decides every capability, so an operato
 
 ## Audit: six kinds, one write path, three sinks
 
-```mermaid
+<Diagram chart={`
 sequenceDiagram
     autonumber
     participant C as client
@@ -363,7 +365,7 @@ sequenceDiagram
     G-->>P: Decision{Allowed=false, Payload=nil}
     P-->>C: pgwire ErrorResponse FATAL 42501
     Note over P,U: upstream never saw the DELETE
-```
+`} />
 
 | Kind | Fires | Carries |
 |---|---|---|
@@ -378,7 +380,7 @@ sequenceDiagram
 
 ### Where the events go
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     G[gate.writeAudit] --> AS
 
@@ -392,7 +394,7 @@ flowchart LR
     J --> LOGS[container log pipeline]
     MEM --> E["GET /events"]
     Q --> API["GET /api/sessions<br/>GET /api/events<br/>GET /api/stats"]
-```
+`} />
 
 The JSONL sink goes first, and the multi-sink attempts every sink regardless of what an earlier one returned, so the durable record survives a failure in the in-memory ring or the query store. Both in-memory sinks drop their oldest entry when full and report the drop count, so a reader can tell a partial window from a complete one. The JSONL stream stays the record of truth.
 

@@ -387,9 +387,9 @@ The scanner discards comments and string literals before it classifies, so `SELE
   message: destructive statements are not permitted on appdb
 ```
 
-Add `unknown` to that list on a lane where a statement the scanner could not read must not run. `unknown` matches what the client sends only: a response carries no verb and never matches it. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
+Add `unknown` to that list on a lane where a statement the scanner could not read must not run. It also refuses client bytes the codec cannot decode; see [Bytes the codec cannot decode](/setup/configuration/hoop-sidecar/policy-rules#bytes-the-codec-cannot-decode). `unknown` matches what the client sends only: a response carries no verb and never matches it. For anything one verb describes too coarsely, `input.effects` and `input.relations` carry the full picture to Rego; see [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules).
 
-SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
+SQL operations: `select`, `insert`, `update`, `delete`, `merge`, `create`, `drop`, `alter`, `truncate`, `grant`, `revoke`, `call`, `copy`, `explain`, `show`, `set`, `begin`, `commit`, `rollback`. Two more carry a meaning of their own: `other` is a statement that parsed into none of those, and `unknown` is one the scanner could not finish, with the reason in `metadata["sql.incomplete"]`, or client bytes the codec could not decode, with the error in `metadata["parse_error"]`. HTTP verbs are distinct values: `get`, `post`, `put`, `patch`.
 
 <Warning>
 **Breaking change: `CALL` and `EXECUTE` report `unknown`.** Their bodies live in the catalog, so no parser can say what they touch, and reporting `call` claimed knowledge the Sidecar does not have. A rule written as `operations: [call]` **stops matching them**. Write `operations: [call, unknown]`.
@@ -507,6 +507,8 @@ The Sidecar does not own policy; it owns the input document:
 
 `operation` is the worst effect and `tables` the flattened relation names, both unchanged. `effects` and `relations` say what those two could not: a data-modifying CTE both deletes and selects, and a flat name list cannot separate the table a statement writes from the one it reads. `findings` carries what each deferring rule established, keyed by producer source. A lane with no producers sends a byte-identical document to the one it sent before findings existed.
 
+Client bytes the codec cannot decode reach OPA too, as an `unknown` client statement with no text and the codec's error in `metadata.parse_error`. A denial drops the bytes and ends the connection; an allow forwards them. With `fail_open: false`, a policy that returns no decision for them denies. See [Bytes the codec cannot decode](/setup/configuration/hoop-sidecar/policy-rules#bytes-the-codec-cannot-decode).
+
 `review` rides the decide phase only, and only when a risk level asked for `require_approval` (or its earlier spelling, `require_review`). The key keeps its name after the rename to approval, so Rego written against it keeps working. The approval request is filed after decide allows, so the key carries no id or status:
 
 ```json
@@ -514,6 +516,15 @@ The Sidecar does not own policy; it owns the input document:
 ```
 
 `mode` is `hold` or `return`, and `mode_source` is `listener` or `client`. A denial here files nothing.
+
+A level the [approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent) decides (`approvers.<level>.type: ai_agent`) arrives as `"mode": "agent"` with `"mode_source": "approver"`. The agent runs after decide allows, so a denial here spends no model call. A policy that must not let the agent release some statements denies on it:
+
+```rego
+result := {"denied": true, "rule": "no-agent-on-payouts"} if {
+	input.review.mode == "agent"
+	"payouts" in input.tables
+}
+```
 
 `context` comes from the session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them, plus the session's metadata keys, such as the [`postgres.option.<name>`](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) keys a postgres lane records from the client's `options`. On a postgres lane, `principal` is the `StartupMessage` `user`.
 
@@ -815,7 +826,7 @@ See [Connect a Sidecar](/control-plane/connect-sidecar) for the handshake itself
 
 ### Login and saved credentials
 
-On the free plan the Sidecar logs in instead of carrying a token. The login goes to `HOOP_CONTROL_PLANE_URL`, then the config file's `control_plane_url`, else `https://use.hoop.dev`. An admin approves a code in the web app, and the Sidecar joins that organization. See [Connect a Sidecar](/control-plane/connect-sidecar#free-plan-log-in-instead-of-a-token).
+On the free plan the Sidecar logs in instead of carrying a token. The login goes to `HOOP_CONTROL_PLANE_URL`, then the config file's `control_plane_url`, else `https://use.hoop.dev`. An admin approves a code in the web app, and the Sidecar joins that organization. See [Connect a Sidecar](/control-plane/connect-sidecar#connect-with-approval-no-token).
 
 The login is saved in `~/.hoop/sidecar/credentials.json` (mode `0600`), one per Control Plane. Set `HOOP_SIDECAR_STATE_DIR` to move the folder. Keep it on a volume for a headless deployment, or the next restart logs in again.
 
@@ -1105,6 +1116,8 @@ The Sidecar rewrites a file mechanically: `hoop-inspect --migrate --config confi
 | `mask.rules[].entity` | `mask.rules[].entities` | A list, even for one type. `entity: US_SSN` becomes `entities: [US_SSN]`. |
 | `listeners[].connection` | *(removed)* — use `name` | The listener's `name` is the label audit events and `input.context.connection` carry. |
 | `pii` *(required)* | `pii` *(optional)* | Omitted, every supported entity is enabled. |
+| `analyzer.<level>: require_review` | `require_approval` | Works. A local file warns. |
+| `analyzer.approval_rule` | `analyzer.approvers.<level>: {type: human, groups: [...]}`; see [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) | Works. A local file warns, and `--migrate` names each listener that has one. |
 
 Three of those changes alter behavior rather than spelling:
 

@@ -3,6 +3,8 @@ title: "Kubernetes API"
 description: "Put kube-apiserver behind an http lane: read kubectl's headers as a guardrail, mask Secret and ConfigMap data by JSON key, judge bodiless requests with the analyzer, and audit kubectl exec frames"
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 kubectl sends no request body. A `GET` on `/api/v1/namespaces/prod/secrets/db-root` is the whole operation, and the `Accept` header says whether the caller wants a table of names or the object itself. An `http` lane in front of kube-apiserver reads those three things, path, query and headers, and applies rules, masking and analysis to them.
 
 This page walks the configuration the [kubernetes overlay](https://github.com/hoophq/hoop/tree/main/deploy/docker-compose/envoy-stack/kubernetes) of the compose stack runs. The same file works against your own cluster with the `upstream` and TLS paths changed.
@@ -73,13 +75,13 @@ Connect Gateway fronts a registered cluster's API server at `/v1/projects/P/loca
 
 The usual topology is a transparent MITM proxy (Envoy here) that intercepts kubectl's TLS to `connectgateway.googleapis.com` with your own CA and forwards it to the lane as h2c:
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     K[kubectl] -->|TLS h2, re-signed| E[Envoy MITM]
     E -->|"h2c, or HTTP/1.1 for Upgrade"| L[gke lane]
     L -->|TLS, exempt from interception| G[connectgateway.googleapis.com]
     L -->|tokeninfo| O[oauth2.googleapis.com]
-```
+`} />
 
 ```yaml config.yaml
 trust:

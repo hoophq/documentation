@@ -3,6 +3,8 @@ title: "Slack"
 description: "Send held statements to Slack. Approvers approve there without signing in."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 When a listener holds a statement for a person ([`require_approval`](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person)), the Control Plane posts an approval request to Slack. An approver clicks **Approve** or **Reject** in the message. hoop finds the hoop user behind the Slack user by email and checks that user's groups.
 
 <Frame caption="A held statement in Slack. The approver sees who ran it, on which connection, and the exact statement.">
@@ -21,7 +23,7 @@ This page is for the Control Plane. For the Gateway, see [Slack](/integrations/s
 
 ## How it works
 
-```mermaid
+<Diagram chart={`
 sequenceDiagram
     actor R as Approver
     participant IdP as Identity provider
@@ -44,7 +46,7 @@ sequenceDiagram
     end
     S->>CP: poll the approval request, every 5 seconds
     CP-->>S: approved: run the statement
-```
+`} />
 
 - **Approvers are hoop users.** Their groups come from your identity provider at each login.
 - **Channels are per listener.** A listener without channels uses the fallback channel.
@@ -167,7 +169,7 @@ If an approver's Slack email differs from their hoop email, set their **Slack ID
 
 ## 4. Name the approvers on the rule
 
-Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**, then pick the groups in **Approvers**. The list shows every group of the organization. One approval from any of them releases the statement.
+Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**. In the level's **Approver** card, under **Who approves**, select **Human**, then pick the groups. The list shows every group of the organization. One approval from any of them releases the statement. A level whose approver is **AI agent** files no approval request, so nothing reaches Slack.
 
 **While held for approval** picks how the client waits: for the decision, or denied at once to run the statement again after approval. See [Return mode for agents](/setup/configuration/hoop-sidecar/risk-analysis#return-mode-for-agents).
 

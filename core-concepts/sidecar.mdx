@@ -3,6 +3,8 @@ title: "Sidecar"
 description: "The engine. No external dependency, connected directly to the resource."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
 
 The Sidecar is where runtime control happens. It is a proxy that runs next to the resource it protects, decodes the wire protocol between a client and that resource, and decides what reaches the resource and what comes back.
@@ -27,7 +29,7 @@ It is a single binary with no external dependency — one config file is the who
 
 A listener decides how requests behave inside the Sidecar. Every request takes one of two paths, and both end at the resource or at a denial.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     REQ(["Request /<br/>Response"])
 
@@ -54,9 +56,9 @@ flowchart LR
     TOOLS --> RES
     RES -.->|"response"| DM
 
-    style RES fill:#2d5016,color:#fff
-    style REQ fill:#d68a3c,color:#fff
-```
+    class RES strong
+    class REQ focus
+`} />
 
 **Direct access** sends the request straight through. Guardrails and Data Masking apply inline, deterministically, with no model call. See [Direct Access](/features/direct-access).
 

@@ -3,6 +3,8 @@ title: "Command Line"
 description: "Install and configure the hoop.dev CLI to interact with your applications."
 ---
 
+import { Diagram } from '/snippets/diagram.jsx';
+
 import Prerequisites from '/snippets/GettingStartedPrerequisites.mdx';
 
 <Prerequisites />
@@ -89,11 +91,11 @@ The same binary also runs the Sidecar directly — an inspecting proxy that deco
 
 It routes nothing and terminates no client TLS. A client can dial it directly:
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client<br/>psql · curl"] -->|TCP or socket| H["Sidecar<br/>is this DELETE allowed?"]
     H --> U["postgres · HTTP API"]
-```
+`} />
 
 Or, if you already run something that owns the network path and identity — Envoy is the common choice in bigger environments — put that in front instead. That's entirely optional, and it's covered at the end of this page in [Optional: Put Envoy in Front](#optional-put-envoy-in-front).
 
@@ -232,7 +234,7 @@ hoop start sidecar --config config.yaml
 ```
 
 <Note>
-  **The free plan logs in.** On its first run the Sidecar prints a link and a code. Open the link, check the code, and approve it in the web app. The Sidecar then joins your organization and connects on its own. The login is saved on this machine, and the next run reuses it. See [Connect a Sidecar](/control-plane/connect-sidecar#free-plan-log-in-instead-of-a-token).
+  **The free plan logs in.** On its first run the Sidecar prints a link and a code. Open the link, check the code, and approve it in the web app. The Sidecar then joins your organization and connects on its own. The login is saved on this machine, and the next run reuses it. See [Connect a Sidecar](/control-plane/connect-sidecar#connect-with-approval-no-token).
 
   A run with a token, a service account or a license does not log in. `--no-login` runs standalone and needs a license.
 </Note>
@@ -449,13 +451,13 @@ SQL Server runs in two stacks of its own, and what separates them is who termina
 
 Everything above works with a client dialing the Sidecar directly. If you already run something that owns the network path and identity — Envoy is the common choice in bigger environments — you can put it in front instead. None of the steps above change; this only adds a hop.
 
-```mermaid
+<Diagram chart={`
 flowchart LR
     C["client<br/>psql · curl"] -->|TLS| E["envoy<br/>terminates TLS"]
     E -.->|ext_authz| O["OPA<br/>can alice reach it?"]
     E -->|socket or port| H["Sidecar<br/>is this DELETE allowed?"]
     H --> U["postgres · HTTP API"]
-```
+`} />
 
 Envoy answers reachability. The Sidecar answers what the statement does, and what comes back.
 
