@@ -6,12 +6,12 @@
  * Shows a live postgres session:
  *   1. Query types out character by character
  *   2. Data rows fade in staggered
- *   3. Sensitive columns flash warm-gold (var(--warm-gold))
+ *   3. Sensitive columns flash on an accent bar
  *   4. Masking applied — SSN + email replaced, badge slides in
  *   5. Resets and loops
  *
  * Pure CSS keyframes + React state — no external animation library.
- * All colors from Styleguide §2 — rgba transparency system (§4.5).
+ * Colors are Hoop tokens on an ink field (Design MD skill).
  */
 
 export const HeroAnimation = () => {
@@ -90,14 +90,8 @@ export const HeroAnimation = () => {
       <div className={`mock-container ha-mock${isResetting ? ' ha-fadeout' : ''}`}>
 
         {/* Toolbar */}
-        <div className="mock-toolbar" style={{ justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <div className="mock-dot" />
-            <div className="mock-dot" />
-            <div className="mock-dot" />
-          </div>
+        <div className="ha-toolbar">
           <span className="ha-wintitle">hoop — postgres:prod</span>
-          <span style={{ width: 48 }} />
         </div>
 
         {/* Query bar */}
@@ -151,15 +145,20 @@ export const HeroAnimation = () => {
       </div>
 
       <style>{`
+        /* Hoop tokens on an ink field: bg #F7F8FB text, bg at 70% for secondary,
+           ink-deep #0A0F24 panels, accent-on-ink #94A9F5 for accent text. */
         .ha-root {
           position: relative;
           width: 100%;
-          max-width: 540px;
+          height: 100%;
+          display: flex;
         }
 
         .ha-mock {
-          border-radius: 12px;
-          overflow: hidden;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
           transition: opacity 0.4s ease;
         }
 
@@ -167,42 +166,44 @@ export const HeroAnimation = () => {
           opacity: 0;
         }
 
+        .ha-toolbar {
+          padding: 0 0 12px;
+        }
+
         .ha-wintitle {
-          font-family: var(--mono);
-          font-size: 11px;
-          color: rgba(var(--sand-100-rgb), 0.2);
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 13px;
+          color: rgba(247, 248, 251, 0.7);
         }
 
         /* Query bar */
         .ha-querybar {
           display: flex;
           align-items: center;
-          padding: 9px 16px;
-          background: rgba(var(--sand-100-rgb), 0.03);
-          border-top: 1px solid rgba(var(--sand-100-rgb), 0.06);
-          border-bottom: 1px solid rgba(var(--sand-100-rgb), 0.06);
-          min-height: 38px;
+          padding: 12px 16px;
+          background: #0A0F24;
+          min-height: 46px;
         }
 
         .ha-prompt {
-          font-family: var(--mono);
-          font-size: 12px;
-          color: rgba(var(--warm-gold-rgb), 0.7);
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 14px;
+          color: #94A9F5;
           flex-shrink: 0;
         }
 
         .ha-querytext {
-          font-family: var(--mono);
-          font-size: 12px;
-          color: rgba(var(--sand-100-rgb), 0.7);
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 14px;
+          color: #F7F8FB;
         }
 
         .ha-cursor {
           display: inline-block;
-          width: 6px;
-          height: 13px;
-          background: rgba(var(--sand-100-rgb), 0.5);
-          margin-left: 1px;
+          width: 8px;
+          height: 16px;
+          background: #F7F8FB;
+          margin-left: 2px;
           vertical-align: middle;
           animation: ha-blink 1s step-end infinite;
         }
@@ -215,60 +216,62 @@ export const HeroAnimation = () => {
         /* Table */
         .ha-tablewrap {
           overflow-x: auto;
-          padding-bottom: 4px;
+          padding-top: 8px;
         }
 
         .ha-table {
-          width: 100%;
+          display: table;
+          width: 100% !important;
+          max-width: none;
+          margin: 0;
           border-collapse: collapse;
-          font-family: var(--mono);
-          font-size: 12px;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 14px;
         }
 
         .ha-th {
           text-align: left;
-          padding: 7px 16px;
-          color: rgba(var(--sand-100-rgb), 0.25);
-          font-size: 10px;
+          padding: 10px 16px;
+          color: rgba(247, 248, 251, 0.7);
+          font-size: 13px;
           font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          border-bottom: 1px solid rgba(var(--sand-100-rgb), 0.04);
+          border-bottom: 1px solid rgba(247, 248, 251, 0.16);
         }
 
         .ha-tr:not(:last-child) td {
-          border-bottom: 1px solid rgba(var(--sand-100-rgb), 0.04);
+          border-bottom: 1px solid rgba(247, 248, 251, 0.1);
         }
 
         .ha-td {
-          padding: 7px 16px;
+          padding: 10px 16px;
           transition: color 0.25s ease, background 0.25s ease;
         }
 
-        .ha-dim       { color: rgba(var(--sand-100-rgb), 0.3);  }
-        .ha-bright    { color: rgba(var(--sand-100-rgb), 0.6);  }
-        .ha-sensitive { color: rgba(var(--sand-100-rgb), 0.5);  }
+        .ha-dim       { color: rgba(247, 248, 251, 0.7); }
+        .ha-bright    { color: #F7F8FB; }
+        .ha-sensitive { color: #F7F8FB; }
 
         .ha-flash {
-          color: var(--warm-gold) !important;
-          background: rgba(var(--warm-gold-rgb), 0.1);
+          color: #FFFFFF !important;
+          background: #3E63DD;
         }
 
         .ha-masked {
-          color: var(--warm-gold) !important;
+          color: #94A9F5 !important;
           font-weight: 600;
         }
 
-        /* Masking notice */
+        /* Masking notice, pinned to the bottom of the frame */
         .ha-notice {
           display: flex;
           align-items: center;
-          gap: 7px;
-          padding: 8px 16px;
-          border-top: 1px solid rgba(var(--sand-100-rgb), 0.06);
-          font-family: var(--sans);
-          font-size: 11px;
-          color: rgba(var(--warm-gold-rgb), 0.75);
+          gap: 8px;
+          margin-top: auto;
+          padding: 12px 16px 0;
+          font-family: 'Inter', system-ui, sans-serif;
+          font-size: 14px;
+          font-weight: 500;
+          color: #94A9F5;
           opacity: 0;
           transform: translateY(4px);
           transition: opacity 0.3s ease, transform 0.3s ease;
@@ -280,10 +283,9 @@ export const HeroAnimation = () => {
         }
 
         .ha-notice-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--warm-gold);
+          width: 8px;
+          height: 8px;
+          background: #3E63DD;
           flex-shrink: 0;
         }
       `}</style>
