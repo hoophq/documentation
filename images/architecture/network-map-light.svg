@@ -8,7 +8,7 @@
             <polygon points="0,0 10,4 0,8" fill="#3E63DD"/>
           </marker>
           <marker id="lm1-data" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
-            <polygon points="0,0 10,4 0,8" fill="#0F1631"/>
+            <polygon points="0,0 10,4 0,8" fill="#8DA4EF"/>
           </marker>
           <marker id="lm1-muted" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto">
             <polygon points="0,0 10,4 0,8" fill="#5A6178"/>
@@ -59,21 +59,21 @@
         <line x1="164" y1="294" x2="198" y2="348" stroke="#0F1631" stroke-width="1.4" marker-end="url(#lm1-ink)"/>
 
         <!-- upstreams -->
-        <rect x="438" y="192" width="106" height="56" fill="#ECEEF4" stroke="none"/>
+        <rect x="438" y="192" width="106" height="56" fill="#ECEEF4" stroke="#1F2D5C" stroke-width="1.6"/>
         <text x="491" y="214" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11.5" fill="#0F1631">appdb:5432</text>
         <text x="491" y="232" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" fill="#5A6178">pgwire</text>
 
-        <rect x="438" y="256" width="106" height="56" fill="#ECEEF4" stroke="none"/>
+        <rect x="438" y="256" width="106" height="56" fill="#ECEEF4" stroke="#1F2D5C" stroke-width="1.6"/>
         <text x="491" y="278" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11.5" fill="#0F1631">mssql:1433</text>
         <text x="491" y="296" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" fill="#5A6178">TDS</text>
 
-        <rect x="438" y="320" width="106" height="56" fill="#ECEEF4" stroke="none"/>
+        <rect x="438" y="320" width="106" height="56" fill="#ECEEF4" stroke="#1F2D5C" stroke-width="1.6"/>
         <text x="491" y="342" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11.5" fill="#0F1631">billing:8080</text>
         <text x="491" y="360" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" fill="#5A6178">HTTP</text>
 
-        <line x1="392" y1="220" x2="434" y2="220" stroke="#5A6178" stroke-width="1.6" marker-end="url(#lm1-ink)"/>
-        <line x1="392" y1="284" x2="434" y2="284" stroke="#5A6178" stroke-width="1.6" marker-end="url(#lm1-ink)"/>
-        <line x1="392" y1="348" x2="434" y2="348" stroke="#5A6178" stroke-width="1.6" marker-end="url(#lm1-ink)"/>
+        <line x1="392" y1="220" x2="434" y2="220" stroke="#1F2D5C" stroke-width="1.6" marker-end="url(#lm1-ink)"/>
+        <line x1="392" y1="284" x2="434" y2="284" stroke="#1F2D5C" stroke-width="1.6" marker-end="url(#lm1-ink)"/>
+        <line x1="392" y1="348" x2="434" y2="348" stroke="#1F2D5C" stroke-width="1.6" marker-end="url(#lm1-ink)"/>
 
         <text x="40" y="512" font-family="Inter, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0F1631">One listener per upstream, all in one process.</text>
         <text x="40" y="532" font-family="Inter, Helvetica, Arial, sans-serif" font-size="12" fill="#5A6178">Nothing in this zone ever accepts a connection from the Control Plane.</text>
@@ -96,13 +96,13 @@
         <text x="801" y="270" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" fill="#5A6178">:8009 · one HTTP port · holds no session</text>
 
         <!-- cp to db -->
-        <line x1="801" y1="294" x2="801" y2="384" stroke="#0F1631" stroke-width="2.2" marker-end="url(#lm1-data)"/>
+        <line x1="801" y1="294" x2="801" y2="384" stroke="#8DA4EF" stroke-width="2.2" marker-end="url(#lm1-data)"/>
         <text x="814" y="326" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11" fill="#0F1631">TCP 5432</text>
         <text x="814" y="344" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11.5" fill="#5A6178">required at startup</text>
 
         <!-- database -->
-        <path d="M644 400 a157 16 0 0 1 314 0 v60 a157 16 0 0 1 -314 0 z" fill="#ECEEF4" stroke="#5A6178" stroke-width="1.5"/>
-        <path d="M644 400 a157 16 0 0 0 314 0" fill="none" stroke="#5A6178" stroke-width="1.5"/>
+        <path d="M644 400 a157 16 0 0 1 314 0 v60 a157 16 0 0 1 -314 0 z" fill="#E6EDFE" stroke="#8DA4EF" stroke-width="2"/>
+        <path d="M644 400 a157 16 0 0 0 314 0" fill="none" stroke="#8DA4EF" stroke-width="2"/>
         <text x="801" y="438" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#0F1631">PostgreSQL</text>
         <text x="801" y="457" text-anchor="middle" font-family="Inter, Helvetica, Arial, sans-serif" font-size="11.5" fill="#5A6178">all Control Plane state</text>
 
