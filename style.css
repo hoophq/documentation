@@ -352,6 +352,17 @@ button[class][class*="rounded-"] {
 [class*="chat-assistant"] div[class*="rounded-"] {
   border-radius: 9999px !important;
 }
+/* Mintlify fixes the box at 60px (inline !important), with the text at the
+   top and the send button at the bottom. Center both in the pill. */
+.chat-assistant-input {
+  padding: 20px 48px 20px 20px !important;
+}
+.chat-assistant-send-button {
+  top: 50% !important;
+  bottom: auto !important;
+  right: 14px !important;
+  transform: translateY(-50%);
+}
 
 /* --------------------------------------------------------------------------
    10. Badges (both modes)
