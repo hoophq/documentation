@@ -25,30 +25,24 @@ This page is for the Control Plane. For the Gateway, see [Slack](/integrations/s
 
 <Diagram chart={`
 sequenceDiagram
-    actor R as Approver
-    participant IdP as Identity provider
     participant S as Sidecar
     participant CP as Control Plane
     participant SL as Slack
+    actor A as Approver
 
-    R->>IdP: log in to the Control Plane
-    IdP->>CP: the user's groups (each login)
-    S->>CP: hold a statement (approval_rule)
-    CP->>SL: post the approval request to the listener's channels, else the fallback channel
-    R->>SL: click Approve or Reject
-    SL->>CP: the click (Socket Mode)
-    CP->>SL: read the Slack user (users.info)
-    CP->>CP: find the hoop user by Slack ID, else email, then check status and group
-    alt allowed
-        CP->>SL: update the message: approved, or rejected with the reason
-    else refused
-        CP-->>SL: tell only the clicker why
-    end
-    S->>CP: poll the approval request, every 5 seconds
-    CP-->>S: approved: run the statement
+    S->>CP: hold the statement
+    CP->>SL: post the request
+    A->>SL: click Approve or Reject
+    SL->>CP: send the click
+    CP->>CP: check the approver
+    CP->>SL: show the result
+    S->>CP: check every 5 s
+    CP-->>S: approved: run it
 `} />
 
-- **Approvers are hoop users.** Their groups come from your identity provider at each login.
+- **Hold.** An `approval_rule` holds the statement until someone decides.
+- **Approvers are hoop users.** Their groups come from your identity provider at each login. The Control Plane finds the hoop user by Slack ID, else by email, then checks their status and group.
+- **Result.** The message shows approved, or rejected with the reason. A click that is not allowed shows why to that person only.
 - **Channels are per listener.** A listener without channels uses the fallback channel.
 - **Socket Mode.** The Control Plane dials out to Slack. No inbound URL is exposed.
 

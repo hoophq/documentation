@@ -348,9 +348,23 @@ button[class][class*="rounded-"] {
   border-radius: 9999px !important;
 }
 
-/* Ask-AI assistant — the "Ask a question" bar is an input, so pill its box */
+/* Ask-AI assistant — the "Ask a question" bar. Its height grows with the
+   question, so a fixed 32px radius: a pill on one line, no curve over the
+   text on three. */
 [class*="chat-assistant"] div[class*="rounded-"] {
-  border-radius: 9999px !important;
+  border-radius: 32px !important;
+}
+/* Mintlify sizes the box to two lines plus padding, with the text at the top.
+   More padding on top brings the empty bar's text near the middle; the 10px
+   at the bottom keeps a long question off the edge. */
+.chat-assistant-input {
+  padding: 20px 48px 10px 24px !important;
+}
+.chat-assistant-send-button {
+  top: 50% !important;
+  bottom: auto !important;
+  right: 14px !important;
+  transform: translateY(-50%);
 }
 
 /* --------------------------------------------------------------------------
@@ -479,8 +493,20 @@ button[class][class*="rounded-"] {
 .hoop-diagram-full svg .block > rect:first-of-type { stroke: var(--hd-group-line); }
 .hoop-diagram svg .actor rect,
 .hoop-diagram-full svg .actor rect { stroke-width: 0; }
+/* Sequence diagrams: messages in Hoop blue, the Control Plane outlined in it,
+   as in the Architecture images. */
 .hoop-diagram svg .message line,
-.hoop-diagram-full svg .message line { stroke-width: 1.5; }
+.hoop-diagram svg .message polyline,
+.hoop-diagram-full svg .message line,
+.hoop-diagram-full svg .message polyline { stroke: var(--hd-focus); stroke-width: 1.5; }
+.hoop-diagram svg marker[id$="seq-arrow"] polygon,
+.hoop-diagram-full svg marker[id$="seq-arrow"] polygon { fill: var(--hd-focus); }
+.hoop-diagram svg marker[id$="seq-arrow-open"] polyline,
+.hoop-diagram-full svg marker[id$="seq-arrow-open"] polyline { stroke: var(--hd-focus); }
+.hoop-diagram svg .actor[data-label="Control Plane"] rect,
+.hoop-diagram-full svg .actor[data-label="Control Plane"] rect { stroke: var(--hd-focus); stroke-width: 2; }
+.hoop-diagram svg .actor[data-type="actor"] :not(text),
+.hoop-diagram-full svg .actor[data-type="actor"] :not(text) { stroke: var(--hd-focus); }
 .hoop-diagram svg .message text,
 .hoop-diagram-full svg .message text {
   fill: var(--hd-fg);
