@@ -331,6 +331,12 @@ button[class][class*="rounded-"] {
   border-radius: 9999px !important;
 }
 
+/* Sidebar group toggles (chevron rows) are buttons, but their hover stays
+   square like the nav links. */
+#sidebar button[class][class*="rounded-"] {
+  border-radius: 0 !important;
+}
+
 /* Feedback footer links ("Suggest edits" / "Raise issue") are bordered <a>,
    scoped to the toolbar so content cards are untouched. */
 .feedback-toolbar a[class*="rounded-"] {
