@@ -194,6 +194,16 @@ Both in-memory views are off by default, and each has its own budget: `audit.mem
 The admin listener's read routes have no authentication and no CORS of its own, and they serve every statement every user ran. Bind it to loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port. `PUT /license` asks for `HOOP_SIDECAR_ADMIN_SECRET` as a bearer token, and the listener is plain HTTP: send it from the host or through an encrypted tunnel.
 </Warning>
 
+To keep `/healthz` and `/readyz` where your platform probes them without serving the read routes there, set one key under `admin`. `api_listen` moves `/stats`, `/metrics`, `/config`, `/events` and `/api/*` to their own address; `disable_api: true` turns them off. The probes and `PUT /license` stay on `admin.listen` either way, and the old port answers the moved routes with a 404 that says why. With neither key, everything stays on `admin.listen`, as before. A Sidecar older than these keys refuses a config file that sets them, and the Control Plane does not send them to one.
+
+```yaml
+admin:
+  listen: 0.0.0.0:19000         # probes, reachable from the pod IP
+  api_listen: 127.0.0.1:19002   # read routes, loopback only
+  # or, instead of api_listen:
+  # disable_api: true
+```
+
 Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-sidecar/components#audit-six-kinds-one-write-path-three-sinks). To watch the Sidecar from Grafana, Honeycomb or Datadog — statements per lane, denials, and where each statement's time goes — see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry).
 
 ---

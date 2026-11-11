@@ -392,7 +392,7 @@ readinessProbe:
 ```
 
 <Warning>
-The admin server has no authentication. On `0.0.0.0` it is reachable by anything in the cluster that can route to the pod, and it serves `/config`, `/stats`, `/events` and — when `audit.query_sessions` is set — `/api/sessions`, a read interface to every statement every user ran. Keep it away from the cluster with a NetworkPolicy, or bind it to loopback and probe with `exec`.
+The admin server has no authentication. On `0.0.0.0` it is reachable by anything in the cluster that can route to the pod, and it serves `/config`, `/stats`, `/events` and — when `audit.query_sessions` is set — `/api/sessions`, a read interface to every statement every user ran. Keep the probes on `0.0.0.0` and move the read routes to loopback with `admin.api_listen: 127.0.0.1:19002`, or turn them off with `admin.disable_api: true`. Otherwise keep it away from the cluster with a NetworkPolicy, or bind it to loopback and probe with `exec`.
 </Warning>
 
 ## Sharing a Socket with Envoy
@@ -462,6 +462,8 @@ probe:
 <Warning>
 Under `controlPlane.url` or `existingConfigMap` the chart cannot see the configuration, so that check does not run and putting the admin server on 19000 is yours to get right. Set `probe.port: 19000` explicitly in those modes — the chart has no document to read it from.
 </Warning>
+
+The read routes on 19000 (`/stats`, `/config`, `/api/*`) have no authentication. To keep the probes on 19000 without them, set `config.admin.api_listen: '127.0.0.1:19002'` (reach it with `kubectl port-forward`) or `config.admin.disable_api: true`. The probes and the Service do not change.
 
 Everything the admin server serves is reachable on that port:
 

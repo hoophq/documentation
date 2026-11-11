@@ -117,7 +117,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
 | `license` | The license this process runs under. A path or the document itself. `--license` and `HOOP_LICENSE` outrank it. See [Licensing](#licensing). |
 | `control_plane_url` | The Control Plane this Sidecar reports to. `HOOP_CONTROL_PLANE_URL` outranks it. Omit it to run standalone from the local config file alone. See [Control Plane](#control-plane). |
-| `admin` | Health, stats, Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics) and the audit query API. Disabled when `listen` is empty. |
+| `admin` | Health, stats, Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics) and the audit query API, on `listen`. Disabled when `listen` is empty. `api_listen` moves the read routes (stats, metrics, config, events, query API) to their own address and `disable_api: true` turns them off; the health checks stay on `listen` either way. See [The admin API](/core-concepts/sidecar#the-admin-api). |
 | `audit` | Where events go and what a failed write means. |
 | `telemetry` | Metrics, traces and audit events over OTLP to a collector. Absent means off. See [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry). |
 | `pii` | The detector engine. Omit it and every supported entity is enabled. |
