@@ -352,10 +352,11 @@ button[class][class*="rounded-"] {
 [class*="chat-assistant"] div[class*="rounded-"] {
   border-radius: 9999px !important;
 }
-/* Mintlify fixes the box at 60px (inline !important), with the text at the
-   top and the send button at the bottom. Center both in the pill. */
+/* Mintlify sizes the box to two lines plus padding, with the text at the top
+   and the send button at the bottom. Move the bottom padding to the top: the
+   height stays the same and the text sits in the middle. */
 .chat-assistant-input {
-  padding: 20px 48px 20px 20px !important;
+  padding: 20px 48px 0 20px !important;
 }
 .chat-assistant-send-button {
   top: 50% !important;
@@ -490,8 +491,20 @@ button[class][class*="rounded-"] {
 .hoop-diagram-full svg .block > rect:first-of-type { stroke: var(--hd-group-line); }
 .hoop-diagram svg .actor rect,
 .hoop-diagram-full svg .actor rect { stroke-width: 0; }
+/* Sequence diagrams: messages in Hoop blue, the Control Plane outlined in it,
+   as in the Architecture images. */
 .hoop-diagram svg .message line,
-.hoop-diagram-full svg .message line { stroke-width: 1.5; }
+.hoop-diagram svg .message polyline,
+.hoop-diagram-full svg .message line,
+.hoop-diagram-full svg .message polyline { stroke: var(--hd-focus); stroke-width: 1.5; }
+.hoop-diagram svg marker[id$="seq-arrow"] polygon,
+.hoop-diagram-full svg marker[id$="seq-arrow"] polygon { fill: var(--hd-focus); }
+.hoop-diagram svg marker[id$="seq-arrow-open"] polyline,
+.hoop-diagram-full svg marker[id$="seq-arrow-open"] polyline { stroke: var(--hd-focus); }
+.hoop-diagram svg .actor[data-label="Control Plane"] rect,
+.hoop-diagram-full svg .actor[data-label="Control Plane"] rect { stroke: var(--hd-focus); stroke-width: 2; }
+.hoop-diagram svg .actor[data-type="actor"] :not(text),
+.hoop-diagram-full svg .actor[data-type="actor"] :not(text) { stroke: var(--hd-focus); }
 .hoop-diagram svg .message text,
 .hoop-diagram-full svg .message text {
   fill: var(--hd-fg);
