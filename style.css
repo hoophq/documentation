@@ -348,15 +348,17 @@ button[class][class*="rounded-"] {
   border-radius: 9999px !important;
 }
 
-/* Ask-AI assistant — the "Ask a question" bar is an input, so pill its box */
+/* Ask-AI assistant — the "Ask a question" bar. Its height grows with the
+   question, so a fixed 32px radius: a pill on one line, no curve over the
+   text on three. */
 [class*="chat-assistant"] div[class*="rounded-"] {
-  border-radius: 9999px !important;
+  border-radius: 32px !important;
 }
-/* Mintlify sizes the box to two lines plus padding, with the text at the top
-   and the send button at the bottom. Move the bottom padding to the top: the
-   height stays the same and the text sits in the middle. */
+/* Mintlify sizes the box to two lines plus padding, with the text at the top.
+   More padding on top brings the empty bar's text near the middle; the 10px
+   at the bottom keeps a long question off the edge. */
 .chat-assistant-input {
-  padding: 20px 48px 0 20px !important;
+  padding: 20px 48px 10px 24px !important;
 }
 .chat-assistant-send-button {
   top: 50% !important;
