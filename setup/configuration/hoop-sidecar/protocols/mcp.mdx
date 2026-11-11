@@ -1,9 +1,9 @@
 ---
 title: "MCP"
-description: "A protocol: mcp lane in front of one remote MCP server: tool policy, SQL tools, guardrails, OPA, metrics and one audited session per MCP session"
+description: "A protocol: mcp lane in front of one remote MCP server: tool policy, SQL tools, guardrails, OPA, result masking, the AI analyzer, metrics and one audited session per MCP session"
 ---
 
-A `protocol: mcp` lane terminates MCP streamable HTTP on `/mcp` and forwards to one remote MCP server over `streamable-http` or `sse`. It hides the tools a rule denies, judges each `tools/call` with the lane's guardrails and OPA, and records one Sidecar session per MCP session.
+A `protocol: mcp` lane terminates MCP streamable HTTP on `/mcp` and forwards to one remote MCP server over `streamable-http` or `sse`. It hides the tools a rule denies, judges each `tools/call` with the lane's guardrails, OPA and AI analyzer, masks tool and resource results, and records one Sidecar session per MCP session.
 
 The lane embeds [mcpproxy](https://github.com/hoophq/mcpproxy) and ships in Sidecar 1.289.0 and later. A Sidecar build without the MCP engine refuses the lane at `-validate`.
 
@@ -228,6 +228,8 @@ The lane masks tool and resource results with its [mask rules](/setup/configurat
 
 Object keys, numbers and other fields are not masked: the client reads them as protocol. Prompts and upstream error messages are not masked.
 
+Sidecar 1.304.0 and later. Older builds refuse a `mask` block on the lane and do not mask inherited rules.
+
 ```yaml config.yaml
     mask:
       rules:
@@ -245,7 +247,7 @@ Object keys, numbers and other fields are not masked: the client reads them as p
 
 ## AI analyzer
 
-An `analyzer` block, or an `ai_analysis` rule, classifies each `tools/call`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) for the block. The model reads the tool name and the arguments JSON, cut to `max_input_bytes` (default 8 KiB). It never reads `tools/list` or a result.
+An `analyzer` block, or an `ai_analysis` rule, classifies each `tools/call`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis) for the block. The model reads the tool name and the arguments JSON, cut to `max_input_bytes` (default 8 KiB). It never reads `tools/list` or a result. Sidecar 1.305.0 and later; older builds refuse an `analyzer` block on the lane at `-validate`.
 
 ```yaml config.yaml
     analyzer:
@@ -257,7 +259,7 @@ An `analyzer` block, or an `ai_analysis` rule, classifies each `tools/call`. See
 - `block` refuses the one call as a tool error. The MCP session stays open.
 - A hold refuses the call before any approver, the AI agent included, and files no approval request: the lane cannot hold a call for approval yet. A hold that a person approves still needs a reviewer to start, as on the other lanes: a Control Plane with an approval rule, or a terminal reviewer.
 - A provider failure follows `fail_open`, as on the other lanes.
-- On a [SQL tool](#sql-tools), the model reads the call and each SQL statement of its argument: one model call for the call and one per statement.
+- On a [SQL tool](#sql-tools), the model reads the call and each SQL statement of its argument: one model call for the call and one per statement. A trigger selects the SQL by its own operation and tables, and also by `call` or by the tool name in `tables`.
 - The statement row carries `risk_level`, `risk_action`, `ai_rule` and `ai_status`.
 - A Sidecar managed by a Control Plane gets an analyzer on an mcp lane only when it reports the `mcp_analyzer` capability. The AI Analyzer page offers MCP listeners, with "Hold for approval" disabled.
 
@@ -305,7 +307,7 @@ The session also records these activities:
 | `mcp_session_killed` | the lane ends the session: a rug pull with `on_rug_pull: kill`, or a catalog it cannot read | `reason` |
 | `mcp.session_refused` | a request from another caller names the session; it gets a 404 | `caller`, `reason` |
 
-A call a guardrail rule or OPA denies is a statement with its rule, not an activity.
+A call a guardrail rule or OPA denies is a statement with its rule, not an activity. A masked result adds a `masked` row; see [Masking](#masking). The analyzer's verdict is on the call's statement; see [AI analyzer](#ai-analyzer).
 
 ---
 
