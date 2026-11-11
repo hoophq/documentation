@@ -584,10 +584,10 @@ listeners:
 
 `opa` REPLACES instead of merging: two decision endpoints cannot become one. So does `mask`. There is no enforcement switch at either level — every lane enforces its resolved rule set.
 
-Reading the file will not tell you what a lane ended up with, because the merge happens at startup. Ask the running process, which reports rule names per resolved lane:
+Reading the file will not tell you what a lane ended up with, because the merge happens at startup. Ask the running process on `admin.api_listen`, which reports rule names per resolved lane:
 
 ```bash
-curl -s localhost:19000/config | jq '.lanes[] | {name, rules}'
+curl -s localhost:19002/config | jq '.lanes[] | {name, rules}'
 ```
 
 ---

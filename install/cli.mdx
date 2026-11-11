@@ -130,7 +130,8 @@ Pick a transport first. One field decides it, and the rest of the file is identi
     log_level: info
 
     admin:
-      listen: 127.0.0.1:19000     # /healthz, /stats, /config, /api/*
+      listen: 127.0.0.1:19000       # /healthz, /readyz
+      api_listen: 127.0.0.1:19002   # /stats, /config, /api/*; off unless set
 
     audit:
       file: "-"                   # JSON lines on stdout
@@ -156,7 +157,8 @@ Pick a transport first. One field decides it, and the rest of the file is identi
     log_level: info
 
     admin:
-      listen: 127.0.0.1:19000     # /healthz, /stats, /config, /api/*
+      listen: 127.0.0.1:19000       # /healthz, /readyz
+      api_listen: 127.0.0.1:19002   # /stats, /config, /api/*; off unless set
 
     audit:
       file: "-"                   # JSON lines on stdout
@@ -245,7 +247,7 @@ Check it came up:
 
 ```bash
 curl -s localhost:19000/healthz     # ok
-curl -s localhost:19000/config | python3 -m json.tool
+curl -s localhost:19002/config | python3 -m json.tool
 ```
 
 ---
@@ -293,8 +295,8 @@ A rule written as `operations: [call]` stops matching `CALL` and `EXECUTE` entir
 Read what the Sidecar recorded:
 
 ```bash
-curl -s localhost:19000/stats                  | python3 -m json.tool
-curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
+curl -s localhost:19002/stats                  | python3 -m json.tool
+curl -s 'localhost:19002/api/sessions?limit=1' | python3 -m json.tool
 ```
 
 ```json
@@ -324,10 +326,11 @@ netstat -ltn        # or: ss -ltn
 
 ```
 tcp  0  0  127.0.0.11:41515  0.0.0.0:*  LISTEN     docker's internal resolver
-tcp  0  0  :::19000          :::*       LISTEN     the admin API
+tcp  0  0  :::19000          :::*       LISTEN     the admin listener
+tcp  0  0  :::19002          :::*       LISTEN     the admin API (read routes)
 ```
 
-The admin port is the only entry left. A TCP deployment lists `:::15432` and `:::18080` beside it. From a peer, `nc -z -w2 hoop-inspect 15432` reports closed or open to match.
+The two admin ports are the only entries left. A TCP deployment lists `:::15432` and `:::18080` beside them. From a peer, `nc -z -w2 hoop-inspect 15432` reports closed or open to match.
 
 <Warning>
 Check with `nc`, not `(echo > /dev/tcp/host/port)`. The latter is a bash builtin, and under BusyBox or dash it fails with no such device and calls every port closed, including open ones. It looks like a passing check and proves nothing.
@@ -420,7 +423,8 @@ The stack ships both transports. TCP is the default because it needs no shared v
 |---|---|
 | 8443 | Envoy HTTPS, to the HTTP lane |
 | 5433 | Envoy TCP, to the Postgres lane |
-| 19000 | relay admin: `/healthz`, `/stats`, `/config`, `/events`, `/api/*` |
+| 19000 | relay admin (`admin.listen`): `/healthz`, `/readyz` |
+| 19002 | relay admin API (`admin.api_listen`): `/stats`, `/metrics`, `/config`, `/events`, `/api/*` |
 | 9901 | Envoy admin |
 
 Inside the compose network that Postgres listener is `envoy:5432`. The host publishes it on 5433, because a laptop tends to have something on 5432 already. Those are Envoy's ports and the overlay leaves them alone: it removes the Sidecar's two, which were never published to the host.
@@ -435,7 +439,7 @@ SQL Server runs in two stacks of its own, and what separates them is who termina
 
 | Symptom | Check |
 |---|---|
-| A rule you wrote never fires | `curl -s localhost:19000/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
+| A rule you wrote never fires | `curl -s localhost:19002/config` and read the lane's resolved `rules`. A rule naming `operations: [call]` stopped matching: `CALL` and `EXECUTE` now report `unknown`. |
 | Masking leaves a value alone | The detector may refuse it. Add a column rule, or check that no `pii.entities` list is narrowing the type out. |
 | The Sidecar refuses to start | It prints every config problem at once, each naming its lane |
 | psql says SSL is required | Set `PGSSLMODE=disable`, or terminate the client's TLS in Envoy with [`postgres_proxy`](#terminating-client-tls). The Sidecar reads plaintext either way. |
