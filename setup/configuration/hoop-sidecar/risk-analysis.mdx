@@ -786,7 +786,7 @@ Bytes the codec still holds when a connection ends belong to the exchange in fli
 | A level left with no rule to apply and none to create | Warned |
 | `mask` on a protocol without a scope, or on `mysql`, `oracle` or `clickhouse` (table above) | Warned |
 
-`ai_rules` and `rule_library` need the `analyzer_ai_rules` capability. There is no downgrade: the Control Plane refuses the document to a Sidecar that does not report the capability, naming the capability.
+`ai_rules` and `rule_library` need Sidecar 1.307.0 or later, and the `analyzer_ai_rules` capability. There is no downgrade: the Control Plane refuses the document to a Sidecar that does not report the capability, naming the capability.
 
 ---
 
