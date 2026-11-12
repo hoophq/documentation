@@ -990,6 +990,36 @@ listeners:
 
 ---
 
+## Editing the file of a running process
+
+The Sidecar stats its config file every ten seconds and re-reads it when the size or modification time changes, or at once on `SIGHUP` (`kill -HUP <pid>`, `docker kill -s HUP <container>`). What the edit touches decides what happens:
+
+| Edit | The Sidecar | Log line |
+|---|---|---|
+| guardrails, masking, `pii`, OPA, a listener's `analyzer` block, the `license` key | swaps the rules in place; open connections keep the rules they started with | `config file configuration applied` |
+| a listener added | builds the lane, binds its socket, serves it | `listener started` |
+| a listener deleted | closes its socket and the connections on it | `listener stopped` |
+| a running listener's own fields: `listen`, `upstream`, `protocol`, TLS, `descriptors` | keeps serving what it had | `restart to apply it`, naming the listener |
+| a listener renamed | keeps serving what it had | `restart to apply it`, naming the old and new name |
+| a listener added or deleted while another has no `name` | keeps serving what it had | `restart to apply it` |
+| `audit`, `admin`, `log_level`, the top-level `analyzer` section, `plugins` | keeps serving what it had | `restart to apply it` |
+
+The other listeners keep their sockets and their connections through an add or a delete. Every lane kind starts and stops this way, unix sockets included: the Sidecar binds the path on add and unlinks it on delete.
+
+Added listeners bind before anything else in the file applies. A listener that cannot bind (a port another process holds, a socket path the Sidecar cannot write to) refuses the whole edit: no lane starts, no rule moves, the running lanes keep serving, and the log names the listener and the error:
+
+```
+level=WARN msg="the config file added a listener this process could not start; keeping the running lanes" listener=appdb-live error="sidecar/proxy: listen tcp 0.0.0.0:19000: bind: address already in use"
+```
+
+Fix the address and save the file again. A file that does not load keeps the running configuration, is retried on the next tick, and warns once until it loads.
+
+Unnamed listeners are keyed by position (`listener[0]`, `listener[1]`), so inserting one would rename the ones after it; name every listener before you add or delete one on a running process.
+
+Under a Control Plane the [heartbeat](/control-plane/connect-sidecar#staying-in-sync) delivers the edit and reaches the same outcome.
+
+---
+
 ## Validate before you deploy
 
 Nothing needs to be running:
