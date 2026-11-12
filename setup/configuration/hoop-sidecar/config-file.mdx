@@ -126,6 +126,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `opa` | Default OPA endpoint for every lane. Omit it and no lane calls OPA. |
 | `mask` | Default response rewriting for every lane. |
 | `analyzer` | The AI risk classifier: the provider, the model, the credential, and the defaults every listener inherits. Each listener carries its own `analyzer` block beside `guardrails`. See [Risk Analysis](/setup/configuration/hoop-sidecar/risk-analysis). |
+| `rule_library` | Guardrail and masking rules that run only when the AI analyzer applies one to a statement. Needs an Enterprise license. See [AI-applied Guardrails and Data Masking](/setup/configuration/hoop-sidecar/risk-analysis#ai-applied-guardrails-and-data-masking). |
 | `trust` | Extra CA certificates added to the host trust store for outbound TLS. See [Adding a CA to the trust store](#adding-a-ca-to-the-trust-store). |
 | `mcp` | An MCP server that tells agents the status of this Sidecar's approval requests. Needs a Control Plane. See [Approval Status for Agents](/setup/configuration/hoop-sidecar/agent-approvals#the-mcp-server). |
 | `plugins` | Codec plug-ins: WebAssembly modules that decode a protocol this build does not ship. A listener names a plug-in's protocol the way it names `postgres`. See [Codec plug-ins](#codec-plug-ins). |
@@ -689,7 +690,7 @@ Masking needs a codec that can carry it. HTTP declares its body length in a head
 
 ## Licensing
 
-Unlicensed, the Sidecar enforces **one guardrail rule and one data masking rule**. The cap is per process, not per lane: one rule in the top-level `guardrails` block counts once however many listeners inherit it, and `mask.rules` on a lane counts against the same budget as the default block it replaces. The AI analyzer is not a rule and is not capped, because its controls are the trigger and `max_calls` rather than a number of rules; deprecated `ai_analysis` rules still in a guardrails block are not counted against the cap either.
+Unlicensed, the Sidecar enforces **one guardrail rule and one data masking rule**. The cap is per process, not per lane: one rule in the top-level `guardrails` block counts once however many listeners inherit it, and `mask.rules` on a lane counts against the same budget as the default block it replaces. The AI analyzer is not a rule and is not capped, because its controls are the trigger and `max_calls` rather than a number of rules; deprecated `ai_analysis` rules still in a guardrails block are not counted against the cap either. `rule_library` rules count against no cap, but [AI-applied rules](/setup/configuration/hoop-sidecar/risk-analysis#ai-applied-guardrails-and-data-masking) need a license that grants guardrails (or data masking): without one, the Sidecar refuses a config that sets `ai_rules` or that kind of library.
 
 A license Hoop signed lifts the caps for the features it names.
 

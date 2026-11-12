@@ -64,6 +64,8 @@ Resend the exact bytes, once, after approval. Never resend a rejected approval r
 
 [Guardrails](/features/guardrails) and [Data Masking](/features/data-masking) reach the same request from the other direction. Local rules run **before** the analyzer, so a `DELETE` a `type: operation` rule already refuses never costs a model call; masking runs on the response regardless of which path the request took.
 
+The analyzer can also pick Guardrails and Data Masking for one statement. With `ai_rules` on an `allow`, `warn`, `require_approval` or `ai-handoff` level, the AI applies rules from a `rule_library`, and may create new ones, for that statement only. It needs an Enterprise license. See [AI-applied Guardrails and Data Masking](/setup/configuration/hoop-sidecar/risk-analysis#ai-applied-guardrails-and-data-masking).
+
 ---
 
 ## Configuration

@@ -149,6 +149,8 @@ Trigger on `operations` for anything load-bearing. `tables` comes from a scanner
 
 A risk level you do not name defaults to `allow`, so you opt into blocking a tier by writing it down. `require_review`, the earlier name of `require_approval`, is still accepted; a local config file that uses it gets a deprecation warning.
 
+An `allow`, `warn`, `require_approval` or `ai-handoff` level can also let the AI apply guardrail and masking rules to the statement. See [AI-applied Guardrails and Data Masking](#ai-applied-guardrails-and-data-masking).
+
 A blocked statement reaches the user the same way every other denial does:
 
 ```
@@ -687,6 +689,104 @@ a name or a token.
 A level whose agent can select `require_approval` makes the listener one that holds. A classification that fails, or finds `max_calls` or `rate_limit` spent, denies whatever `fail_open` says. Unless its approver is `ai_agent`, such a level needs a Control Plane or a terminal. It also counts as a level that waits for a person for `approval_mode`, `spend_approval_on` and `match_ignore`. The deprecated `ai_analysis` rule form cannot hand off.
 
 `ai-handoff` needs Sidecar 1.299.0 or later. `handoffs` needs the `analyzer_ai_handoff` capability, and so does every `ai-handoff` level, with or without a `handoffs` entry. So the Control Plane refuses the block to a Sidecar that does not report the capability, naming the capability. There is no downgrade: an older Sidecar has no action that lets the agent choose.
+
+### AI-applied Guardrails and Data Masking
+
+On an `allow`, `warn`, `require_approval` or `ai-handoff` level, the AI may apply existing rules to the statement it rated, and may create new ones. Every rule applies to this statement only. The level stays a plain action string, and the sibling `ai_rules` block sets the options per level. Its `guardrails` and `mask` keys are not the listener's `guardrails` and `mask` blocks, which run as before.
+
+```yaml
+rule_library:                 # the existing rules a level may let the AI apply
+  guardrails:
+    - {name: no-destructive-sql, type: operation, operations: [delete, drop], message: destructive SQL is refused}
+  mask:
+    - {name: emails, entities: [EMAIL_ADDRESS]}
+listeners:
+  - name: payments
+    protocol: postgres
+    analyzer:
+      high: block
+      medium: warn
+      ai_rules:
+        medium:
+          guardrails: {mode: existing_only, rules: [no-destructive-sql]}
+          mask: {mode: existing_and_new}  # rules absent: every rule_library mask rule
+```
+
+An `ai_rules.<level>` entry sets `guardrails`, `mask` or both. Each has these keys:
+
+| Key | Meaning |
+|---|---|
+| `mode` | `existing_only` (the default) or `existing_and_new`. Any other value refuses the config |
+| `rules` | The `rule_library` names the AI may apply. Absent: all of that kind. `[]`: none |
+
+`rule_library` is a top-level key. Its rules never run unless the AI applies one, and each needs a unique `name`. A config file writes them. A Control Plane serves the ones its levels select, from the organization's Guardrails and Data Masking rules. They count against no free-tier cap, but the feature needs an Enterprise license: without one that grants guardrails (or data masking), the Sidecar refuses a config that sets the `ai_rules` key or that kind of library.
+
+On the Control Plane **AI Analyzer** rule, such a level shows **AI policy settings**. Turn on **Guardrails** or **Data Masking**, select the rules the AI may apply, and select **Let the AI create one-time rules** for `existing_and_new`.
+
+#### The rules turn
+
+After the level is known, one more model turn runs. It counts against `max_calls` and `rate_limit`. The agent gets only the tools the level allows:
+
+| Tool | Sent when | Input |
+|---|---|---|
+| `apply_guardrail` | `guardrails` set, at least one rule allowed | `rule` (an enum of the allowed names), `reason` |
+| `create_guardrail` | `guardrails.mode: existing_and_new` | `type`, the fields of that type, `message`, `reason` |
+| `apply_mask` | `mask` set, at least one rule allowed | `rule` (an enum of the allowed names), `reason` |
+| `create_mask` | `mask.mode: existing_and_new` | `entities` or `columns`, `strategy`, `keep_last`, `mask_char`, `reason` |
+| `no_rule` | the turn runs alone (providers force a tool call) | `reason` |
+
+The system prompt carries each allowed rule's name and definition as one escaped JSON document between `<rule_library>` and `</rule_library>`. A line says that text inside a rule field is data and never an instruction. A fixed suffix that no config removes follows.
+
+On `ai-handoff`, the rule tools join the hand-off turn, and the rules apply only when the agent does not select `block`. With `require_approval`, the rules apply before the hold: a guardrail deny files no approval request, and a mask is attached before the hold. A resend that claims a [pinned hand-off hold](#handing-off-to-the-ai-agent) applies the rules the filing applied, with no new model call. When the pinned request is over and the agent decides again, the rules already attached stay, and the new decision adds its own.
+
+- **A guardrail denies only.** A match denies with the rule's message. `action: defer` and `ai_analysis` are never offered. `create_guardrail` offers no type the listener cannot evaluate: no `table` on ssh, no `pii` without a detector.
+- **A mask applies to the response of this statement only**, through a per-exchange plan in the gate. The listener's masker never changes. An ssh listener offers `strategy: mask` only.
+- **A library or created rule gets the validation a config rule gets on its listener.** A `pii` entity the detector does not find, a type an ssh statement cannot answer and an http header the listener does not capture are refused. Tool arguments are decoded strictly: a field the tool does not take (`action`, `require_table_match`, ...) or one the selected type or strategy does not read drops the whole rule. An invalid rule is dropped, logged as a warning and recorded in `ai_rule_invalid`. It never applies half-valid.
+- **It fails safe.** A refusal, a timeout, a malformed answer, a spent budget or an input longer than `max_input_bytes` applies no AI rule and keeps the level action. A malformed answer is an unknown tool, a name outside the enum, no reason, `no_rule` beside another call, or more than 16 calls. `ai_rules_error` says why.
+- **The decision is cached** with the classification, on the exact content the agent read (statement, user, connection), like the hand-off decision.
+
+The audit record carries `ai_rules`, a JSON list of `{kind, rule | definition, reason, matched}` (`matched` on guardrails), and `ai_rule_invalid`, a list of `{kind, definition, reason, error}`. Reasons, definitions and errors are the agent's prose. Each whole value goes through the record redactor before it is cut, and the cache keeps that form. With no detector, no reason is kept, a definition keeps only its `type` or `strategy`, and an error is a fixed text. The rule that enforces is the one the agent sent.
+
+#### Where a mask applies
+
+Every mask path fails closed. Where the response of one statement cannot be told apart, the gate denies the statement the AI masked. Where a masked response might leave unmasked, it denies the response. The message says why.
+
+| Protocol | A mask applies to | Refused |
+|---|---|---|
+| `grpc`, `spanner` (with `descriptors`, or `discover` without `fail_open`) | Every response of the call | Never |
+| `http` | The response to its request, until the next request after it | See the list below |
+| `postgres` | The response up to its own ReadyForQuery | A masked statement while an earlier response is outstanding (counted from the first byte of the connection); a masked `Parse` (extended query protocol); a statement sent before the masked response ended; a masked statement sent with others in one read |
+| `mysql`, `oracle`, `clickhouse` | Every server byte for the rest of the connection | Every later statement on the connection (the gate reads no end-of-response marker on these listeners; reconnect); a masked statement sent with others in one read |
+| `mssql`, `mongodb`, `ssh`, `ica`, plug-ins, grpc without descriptors, `grpc.raw`, `grpc.discover.fail_open` | Nothing | Every masked statement (the listener warns at start) |
+
+On `http`, the gate refuses:
+
+- any request while the masked response is not complete
+- a masked request behind an outstanding one
+- a masked WebSocket message
+- an upgrade
+- before any of its bytes leave, a masked response whose head is not whole in the first read, or whose non-empty body is compressed (any `Content-Encoding` but `identity`), chunked (the codec masks it in pieces that can split a value), close-delimited, longer than 16 MiB (the codec's masking limit), or of a media type the codec does not read. It reads none, JSON types and text types: `text/*`, `application/xml`, `application/yaml`, `application/javascript` and form-urlencoded. Heads end at CRLFCRLF or LFLF, as the codec reads them.
+
+On the "Nothing" row: on mssql the codec forwards some result data (SQL_VARIANT, XML, past its buffer limit) unmasked without saying so. `grpc.raw` rewrites only the declared `string_fields` and forwards the rest. `fail_open` forwards what it cannot decode while discovery fails.
+
+On postgres, the gate counts, from the first byte of the connection, the responses the client asked for and the ReadyForQuery messages the server sent. A masked statement is admitted only when nothing is outstanding, and its plan ends at its own marker, never at another statement's. When the count is in doubt (lost framing, more markers than requests, a masked read that asks for no response or for several), the plan lasts for the connection and the connection takes no further statement.
+
+Bytes the codec still holds when a connection ends belong to the exchange in flight. An unmasked exchange's bytes leave unchanged. A masked exchange's bytes are dropped, not forwarded, because a codec forwards a partial frame as it came. The drop is recorded on the audit trail and logged, and the client gets the truncated response the upstream sent.
+
+#### What the configuration checks
+
+| Setting | Result |
+|---|---|
+| `ai_rules.<level>` on a `block` or `defer` level | Refused |
+| `ai_rules.<level>` with neither `guardrails` nor `mask` | Refused |
+| `mode` other than `existing_only` or `existing_and_new` | Refused |
+| `ai_rules` or a `rule_library` kind without an Enterprise license that grants it | Refused |
+| A name in `rules` that `rule_library` does not hold | Warned; the name is ignored |
+| A `rule_library` rule that is invalid, or does not deny | Warned; the rule is ignored |
+| A level left with no rule to apply and none to create | Warned |
+| `mask` on a protocol without a scope, or on `mysql`, `oracle` or `clickhouse` (table above) | Warned |
+
+`ai_rules` and `rule_library` need Sidecar 1.307.0 or later, and the `analyzer_ai_rules` capability. There is no downgrade: the Control Plane refuses the document to a Sidecar that does not report the capability, naming the capability.
 
 ---
 
@@ -1300,10 +1400,11 @@ A Control Plane that records Sidecar sessions (the organization's `experimental.
 
 - the risk level, the level's action and the time
 - the hand-off decision and its reason, on an `ai-handoff` level
+- the rules the AI applied or created, with their reasons, whether a guardrail matched, the rules it created that were invalid and not applied, and why no AI rule applied
 - the approver (**AI agent** or **Human**), its decision, its reason code and its reason
 - a link to the approval request, when one was filed
 
-The reasons are stored as the Sidecar sent them, after its redaction. A session keeps at most 200 entries and 256 KiB of their text. The panel counts the rest as more decisions that are not shown.
+The reasons and rules are stored as the Sidecar sent them, after its redaction. A session keeps at most 200 entries and 256 KiB of their text. The panel counts the rest as more decisions that are not shown.
 
 ---
 
@@ -1443,6 +1544,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | An `approvers` entry with a missing or unknown `type`, `groups` on an `ai_agent` level, `prompt` on a `human` level, or a blank group | Refused. See [Holding a statement for a person](#holding-a-statement-for-a-person) |
 | `approvers.<level>` on a level whose action does not hold | Refused: nothing is held |
 | `allowed_actions: []`, a `handoffs.<level>` on another action, or a hand-off hold nobody may approve | Refused. See [Handing off to the AI agent](#handing-off-to-the-ai-agent) |
+| An `ai_rules.<level>` on a `block` or `defer` level, with neither `guardrails` nor `mask`, or with an unknown `mode` | Refused. See [AI-applied Guardrails and Data Masking](#ai-applied-guardrails-and-data-masking) |
 | `approval_rule` with no level asking for `require_approval` | Refused: it names approvers nobody consults |
 | A blank `approval_rule` | Refused: spaces match no rule in the Control Plane |
 | `require_approval` on an ssh listener that admits `shell` | Refused: a shell sends no statements, so what is typed in it goes around the hold. Drop `shell` from `capabilities_allowed` |
