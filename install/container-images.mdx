@@ -77,7 +77,7 @@ Set `HOOP_SIDECAR_CONFIG` to an **empty** string to run against a Control Plane.
 
 ### Running it with Docker Compose
 
-The process needs no privileges, so run it as a non-root user. Expose the admin port to your scraper, never the data lanes:
+The process needs no privileges, so run it as a non-root user. Expose the admin ports, never the data lanes. 19000 (`admin.listen`) serves the healthcheck. 19002 (`admin.api_listen`) serves your scraper and has no authentication, so publish it on loopback or a private network only:
 
 ```yaml docker-compose.yml
 hoop-inspect:
@@ -85,7 +85,8 @@ hoop-inspect:
   volumes:
     - ./config.yaml:/etc/hoop-inspect/config.yaml:ro
   ports:
-    - "19000:19000"    # admin only; data lanes reach Envoy over the socket
+    - "19000:19000"              # admin.listen: /healthz /readyz
+    - "127.0.0.1:19002:19002"    # admin.api_listen: /stats /metrics /config /api/*
   healthcheck:
     test: ["CMD-SHELL", "curl -sf http://127.0.0.1:19000/healthz || exit 1"]
 ```

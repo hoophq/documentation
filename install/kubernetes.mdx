@@ -392,7 +392,7 @@ readinessProbe:
 ```
 
 <Warning>
-The admin server has no authentication. On `0.0.0.0` it is reachable by anything in the cluster that can route to the pod, and it serves `/config`, `/stats`, `/events` and — when `audit.query_sessions` is set — `/api/sessions`, a read interface to every statement every user ran. Keep it away from the cluster with a NetworkPolicy, or bind it to loopback and probe with `exec`.
+`admin.listen` serves only `/healthz`, `/readyz` and the token-gated ICA `POST /v1/drain`, so on `0.0.0.0` the probes expose no audit data or rules. The read routes (`/stats`, `/metrics`, `/config`, `/events`, `/api/*`) have no authentication and are on `admin.api_listen`, which is off unless set. When you set it, keep it on `127.0.0.1` and reach it with `kubectl port-forward`: on `0.0.0.0` anything in the cluster that can route to the pod reads every statement every user ran.
 </Warning>
 
 ## Sharing a Socket with Envoy
@@ -463,19 +463,28 @@ probe:
 Under `controlPlane.url` or `existingConfigMap` the chart cannot see the configuration, so that check does not run and putting the admin server on 19000 is yours to get right. Set `probe.port: 19000` explicitly in those modes — the chart has no document to read it from.
 </Warning>
 
-Everything the admin server serves is reachable on that port:
+Port 19000 serves only the probes and the token-gated ICA `POST /v1/drain`:
 
 | Endpoint | Shows |
 |---|---|
 | `/healthz` | `ok` |
-| `/config` | The **resolved** configuration, every inherited default folded in |
-| `/stats` | Per-lane connection and denial counts |
-| `/api/sessions` | Sessions, with verdict and masked counts |
-| `/api/events?kind=violation` | What was refused, and by which rule |
+| `/readyz` | `200` when every lane is ready, `503` while a lane still loads |
+
+The read routes (`/config`, `/stats`, `/metrics`, `/events`, `/api/*`) are on `config.admin.api_listen`, which is off unless set. The chart does not declare or publish that port. Set it on loopback and reach it with `kubectl port-forward`:
+
+```yaml
+config:
+  admin:
+    listen: '0.0.0.0:19000'
+    api_listen: '127.0.0.1:19002'
+```
 
 ```bash
-kubectl -n hoop port-forward svc/appdb-lane-hoopsidecar 19000:19000
+kubectl -n hoop port-forward deploy/appdb-lane-hoopsidecar 19002:19002
+curl -s localhost:19002/config
 ```
+
+Releases up to 1.306 served the read routes on 19000. A scraper or script that reads them there needs `api_listen` set and its URL moved to 19002. See [The admin API](/core-concepts/sidecar#the-admin-api).
 
 ### Service
 
@@ -546,7 +555,8 @@ These are the conventional port numbers, and what the examples in these docs bin
 
 | Port | Lane |
 |---|---|
-| 19000 | admin |
+| 19000 | admin (`admin.listen`): probes |
+| 19002 | admin API (`admin.api_listen`): read routes, off unless set, not published |
 | 15432 | postgres |
 | 18080 | http |
 | 11433 | mssql |

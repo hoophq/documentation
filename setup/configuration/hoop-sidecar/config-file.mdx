@@ -30,7 +30,8 @@ license: /etc/hoop-inspect/license.json
 control_plane_url: https://hoop.your-company.com
 
 admin:
-  listen: 127.0.0.1:19000   # /healthz /stats /metrics /config /events /api/*, PUT /license
+  listen: 127.0.0.1:19000       # /healthz /readyz, POST /v1/drain (ICA, token-gated)
+  api_listen: 127.0.0.1:19002   # /stats /metrics /config /events /api/*; off unless set
 
 audit:
   file: "-"                 # stdout as JSON lines; a path appends to that file
@@ -117,7 +118,7 @@ Every lane enforces, and a `mask` block carrying rules masks. Neither is a secon
 | `log_level` | `debug`, `info`, `warn` or `error`. Default `info`. |
 | `license` | The license this process runs under. A path or the document itself. `--license` and `HOOP_LICENSE` outrank it. See [Licensing](#licensing). |
 | `control_plane_url` | The Control Plane this Sidecar reports to. `HOOP_CONTROL_PLANE_URL` outranks it. Omit it to run standalone from the local config file alone. See [Control Plane](#control-plane). |
-| `admin` | Health, stats, Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics) and the audit query API. Disabled when `listen` is empty. |
+| `admin` | `listen` serves `/healthz`, `/readyz` and the token-gated ICA `POST /v1/drain`; disabled when empty. `api_listen` serves `/stats`, Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics), `/config`, `/events` and the audit query API; off unless set, and it must not bind the same address and port as `listen`. See [The admin API](/core-concepts/sidecar#the-admin-api). |
 | `audit` | Where events go and what a failed write means. |
 | `telemetry` | Metrics, traces and audit events over OTLP to a collector. Absent means off. See [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry). |
 | `pii` | The detector engine. Omit it and every supported entity is enabled. |
@@ -214,7 +215,7 @@ Both carry the same traffic. They differ in who can reach the lane and what it c
 
 A socket gives the tighter boundary: no port exists, so reachability is a filesystem question. A port gives the simpler deployment, which is why the compose stack defaults to it and keeps sockets in an overlay. Lanes in one process can differ, so you can take the socket where it is cheap and leave the port where it is not.
 
-Keep the admin listener on TCP. It serves `/healthz` to a container healthcheck and `/stats` and `/metrics` to a scraper, and moving it to a socket means exec-ing into the container to read any of them.
+Keep `admin.listen` on TCP. It serves `/healthz` to a container healthcheck, and moving it to a socket means exec-ing into the container to probe it. `admin.api_listen`, which serves `/stats` and `/metrics` to a scraper, takes only a `host:port`.
 
 #### Which transport is running
 
@@ -315,7 +316,7 @@ A `plugin` block on a listener whose protocol no entry declares fails validation
 Reading the file will not tell you which rules a lane ended up with, because inheritance happens at startup. Ask the running process:
 
 ```bash
-curl -s localhost:19000/config | python3 -m json.tool
+curl -s localhost:19002/config | python3 -m json.tool
 ```
 
 ```json
@@ -739,7 +740,7 @@ license: expired. "Acme Corp" expired on 2026-05-01, running the free tier. Rene
 license: missing, running the free tier. Add one with the license flag, the HOOP_LICENSE environment variable, or the "license" key in the config file
 ```
 
-`GET /config` on the admin listener serves the same verdict under `license` and the caps under `limits`, where `null` means the license lifted one. It never returns the signature:
+`GET /config` on `admin.api_listen` serves the same verdict under `license` and the caps under `limits`, where `null` means the license lifted one. It never returns the signature:
 
 ```json
 {
@@ -760,26 +761,16 @@ Missing and expired are states, not failures: the process starts and the caps st
 
 ### Changing the license of a running process
 
-A renewal or a replacement needs no restart. Three ways, and a restart picks the same license the running process ends up with:
+A renewal or a replacement needs no restart. Two ways, and a restart picks the same license the running process ends up with:
 
 - **Replace the file.** When the source in force — `--license`, `HOOP_LICENSE` or the `license` key — names a path, the Sidecar stats that file every ten seconds and re-reads it when it changes, or at once on `SIGHUP`. A new document is in force on that tick and logged as `license file replaced`. A file that does not load keeps the license in use and warns once. On Kubernetes, mount a Secret as a directory, not through `subPath`, and point the source at the file in it.
 - **Edit the `license` key** in the config file, when neither the flag nor `HOOP_LICENSE` outranks it. It applies with the next config reload.
-- **`PUT /license` on the admin listener**, with the document as the body. It is off unless `HOOP_SIDECAR_ADMIN_SECRET` is set; then the request needs `Authorization: Bearer <secret>`.
 
-```bash
-curl -X PUT --data-binary @license.json \
-  -H "Authorization: Bearer $HOOP_SIDECAR_ADMIN_SECRET" localhost:19000/license
-```
+A replaced file or an edited key is the owner's change, so it takes effect even when it covers fewer rules, and the relay then stops as it does when a term ends.
 
-The answer is `{"outcome": "installed" | "unchanged", "license": {...}}`, the same report `GET /config` serves. `401` is a missing or wrong secret, `403` means the endpoint is off, `409` means a Control Plane owns the license, and `422` is a license the Sidecar refuses, with the reason. The license lives in memory: the next change to the source in force replaces it, and so does a restart, so update the source as well.
+A license given inline (`--license '{...}'`, `HOOP_LICENSE='{...}'`) cannot change in a running process; use a path or a restart. Under a Control Plane that manages licensing, set the license there: the [heartbeat](/control-plane/connect-sidecar#the-license) applies it and no local file is watched.
 
-A replaced file or an edited key is the owner's change, so it takes effect even when it covers fewer rules, and the relay then stops as it does when a term ends. The admin API is stricter: it takes only a current license that covers the running rules, so whoever holds the secret cannot stop the relay. It takes only the document, never a path.
-
-<Warning>
-The admin listener is plain HTTP. Send `PUT /license` from the Sidecar's host or through an encrypted tunnel such as `kubectl port-forward`; never send the secret across a network others can read.
-</Warning>
-
-A license given inline (`--license '{...}'`, `HOOP_LICENSE='{...}'`) cannot change in a running process; use a path, the admin API, or a restart. Under a Control Plane that manages licensing, set the license there: the [heartbeat](/control-plane/connect-sidecar#the-license) applies it, no local file is watched, and the admin API answers `409`.
+Earlier releases also installed a license through `PUT /license` on the admin listener. That endpoint is removed. A Sidecar that still finds `HOOP_SIDECAR_ADMIN_SECRET` set logs a warning and ignores it.
 
 ### When a term ends under a running process
 
@@ -871,7 +862,7 @@ The Sidecar records what was masked, never the values:
 ```
 
 <Warning>
-The admin listener's read routes serve every statement every user ran, with no authentication and no CORS of its own. Bind it to loopback or put it behind whatever already gates audit access, and never expose it on a data port. `PUT /license` is off unless `HOOP_SIDECAR_ADMIN_SECRET` is set, and the listener is plain HTTP, so send that secret only from the host or through an encrypted tunnel.
+The read routes on `admin.api_listen` serve every statement every user ran, with no authentication and no CORS of their own. They are off unless set. Bind `api_listen` to loopback or put it behind whatever already gates audit access, and never expose it on a data port.
 </Warning>
 
 ---

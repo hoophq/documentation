@@ -160,10 +160,10 @@ This is the only evaluator that leaves the process, costs money per statement an
   </Step>
 </Steps>
 
-Watch the hit rate on the admin API before you enable a blocking action:
+Watch the hit rate on the admin API (`admin.api_listen`, off unless set) before you enable a blocking action:
 
 ```bash
-curl -s localhost:19000/stats | python3 -m json.tool
+curl -s localhost:19002/stats | python3 -m json.tool
 ```
 
 <Tip>

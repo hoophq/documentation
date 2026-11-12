@@ -159,7 +159,8 @@ listeners:
     upstream: billing.internal:8080
 
 admin:
-  listen: 127.0.0.1:19000             # keep this on loopback
+  listen: 127.0.0.1:19000             # probes
+  api_listen: 127.0.0.1:19002         # read routes; keep this on loopback
 ```
 
 Both transports carry the same traffic. They differ in who can reach the listener and what it costs to set up.
@@ -177,7 +178,7 @@ Listeners are configured independently of one another:
 - **Rules are per listener.** Top-level guardrails and masking are defaults that every listener inherits, and any listener can override them. A strict production database and a permissive staging one can run in the same process.
 
 <Warning>
-The admin listener's read routes have no authentication of their own and serve every statement every user ran. Bind it to loopback, or place it behind whatever already gates your audit trail. Do not expose it on a data port. Its one write route, `PUT /license`, is off unless `HOOP_SIDECAR_ADMIN_SECRET` is set, and then asks for that secret.
+`admin.listen` serves only the probes and the token-gated ICA `POST /v1/drain`. The read routes are on `admin.api_listen`, off unless set. They have no authentication of their own and serve every statement every user ran. Bind `api_listen` to loopback, or place it behind whatever already gates your audit trail. Do not expose it on a data port.
 </Warning>
 
 See [Listeners](/setup/configuration/hoop-sidecar/config-file#listeners) and [Transport](/setup/configuration/hoop-sidecar/config-file#transport) for every field.
@@ -236,7 +237,7 @@ Losing the Control Plane therefore degrades management — no configuration chan
 
 **Control Plane** — `GET /api/healthz` on `8009`, under `API_URL`'s path if it has one. Give it a ten-second initial delay: the listener opens only after migrations, the organization bootstrap and the identity provider, so a response means the bootstrap finished.
 
-**Sidecar** — `GET /healthz` on the admin listener. It runs only when the configuration names an address for it; there is no default port.
+**Sidecar** — `GET /healthz` or `GET /readyz` on the admin listener (`admin.listen`). It runs only when the configuration names an address for it; there is no default port.
 
 ---
 
@@ -252,9 +253,10 @@ The complete set of connections a deployment makes:
 | Control Plane → PostgreSQL | `5432` | TCP, TLS by the URI | yes |
 | Browser → Control Plane | `8009` or `443` | HTTPS | yes |
 | Control Plane → identity provider | `443` | HTTPS | with OIDC or SAML |
-| Monitoring → Sidecar admin API | `19000` | HTTP | no |
+| Health check → Sidecar admin listener | `19000` | HTTP | no |
+| Monitoring → Sidecar admin API | `19002` | HTTP | no |
 
-A listener on a unix socket opens no port, so the first rule does not apply to it. The admin API belongs on loopback, which makes the last rule a local concern rather than a firewall one.
+A listener on a unix socket opens no port, so the first rule does not apply to it. The admin API (`admin.api_listen`) belongs on loopback, which makes the last rule a local concern rather than a firewall one.
 
 No rule is needed for Control Plane → Sidecar. The Control Plane never opens a connection to a Sidecar, in any topology or at any scale.
 

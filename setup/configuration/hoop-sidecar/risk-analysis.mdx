@@ -127,7 +127,7 @@ A Sidecar older than 1.198.0 cannot read `rate_limit`. The Control Plane refuses
 Watch the hit rate before you enable a blocking action. `status="cached"` against `status="ok"` is the share of statements that cost nothing:
 
 ```bash
-curl -s localhost:19000/metrics | grep hoop_inspect_analyzer_statements_total
+curl -s localhost:19002/metrics | grep hoop_inspect_analyzer_statements_total
 ```
 
 <Tip>
@@ -1275,8 +1275,8 @@ Every classified statement carries its risk into the audit trail, on allowed sta
 That feeds a per-session rollup that keeps the **highest** risk the session reached:
 
 ```bash
-curl -s 'localhost:19000/api/sessions?limit=1' | python3 -m json.tool
-curl -s localhost:19000/api/stats             | python3 -m json.tool
+curl -s 'localhost:19002/api/sessions?limit=1' | python3 -m json.tool
+curl -s localhost:19002/api/stats             | python3 -m json.tool
 ```
 
 ```json
@@ -1309,14 +1309,14 @@ The reasons are stored as the Sidecar sent them, after its redaction. A session 
 
 ## Metrics
 
-The admin listener serves `GET /metrics` in the Prometheus text format. Prometheus, an OpenTelemetry Collector with the `prometheus` receiver, or any agent that reads that format can scrape it. A Sidecar with no analyzer answers an empty document, so one scrape job can cover every Sidecar.
+The admin API listener (`admin.api_listen`, off unless set) serves `GET /metrics` in the Prometheus text format. Prometheus, an OpenTelemetry Collector with the `prometheus` receiver, or any agent that reads that format can scrape it. A Sidecar with no analyzer answers an empty document, so one scrape job can cover every Sidecar. Releases up to 1.306 served it on `admin.listen`: move the scrape target to the `api_listen` port.
 
 <Note>
 These three families also travel over OTLP as `hoop.sidecar.analyzer.*`, beside per-lane statement counts and the latency split into policy, analyzer, review and upstream, when the config carries a `telemetry` block. See [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry).
 </Note>
 
 ```bash
-curl -s localhost:19000/metrics
+curl -s localhost:19002/metrics
 ```
 
 ```text
@@ -1386,11 +1386,11 @@ Two alerts cover most incidents: the timeout share above a few percent, and any 
 scrape_configs:
   - job_name: hoop-sidecar
     static_configs:
-      - targets: ["sidecar:19000"]
+      - targets: ["sidecar:19002"]
 ```
 
 <Warning>
-`/metrics` shares the admin listener with the audit query API, which has no authentication. Scrape it on a private network or from inside the pod. Do not expose the admin port to reach the metrics. See [the admin listener](/setup/configuration/hoop-sidecar/config-file).
+`/metrics` shares `admin.api_listen` with the audit query API, which has no authentication. Scrape it on a private network or from inside the pod. Do not expose that port to reach the metrics. To send them without that port, push them over OTLP with a [`telemetry` block](/setup/configuration/hoop-sidecar/telemetry). See [The admin API](/core-concepts/sidecar#the-admin-api).
 </Warning>
 
 ### The same numbers in the log

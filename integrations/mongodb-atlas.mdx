@@ -75,6 +75,7 @@ The Sidecar sees driver connections only. The Atlas UI, including Data Explorer,
     ```yaml config.yaml
     admin:
       listen: 0.0.0.0:19000
+      api_listen: 0.0.0.0:19002   # the audit query API; published on loopback below
 
     audit:
       file: "-"
@@ -115,7 +116,7 @@ The Sidecar sees driver connections only. The Atlas UI, including Data Explorer,
       hoophq/hoopsidecar:<version> hoop start sidecar --validate
 
     docker run -d --name hoop-atlas \
-      -p 127.0.0.1:27017:27017 -p 127.0.0.1:19000:19000 \
+      -p 127.0.0.1:27017:27017 -p 127.0.0.1:19000:19000 -p 127.0.0.1:19002:19002 \
       -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
       hoophq/hoopsidecar:<version>
     ```
@@ -184,7 +185,7 @@ MongoServerError: destructive commands are blocked by Hoop
 The audit lists the session with its counts (fields trimmed):
 
 ```bash
-curl -s '127.0.0.1:19000/api/sessions?denied=true'
+curl -s '127.0.0.1:19002/api/sessions?denied=true'
 ```
 
 ```json

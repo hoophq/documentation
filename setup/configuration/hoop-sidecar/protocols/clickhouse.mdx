@@ -74,6 +74,7 @@ license: /etc/hoop-inspect/license.json   # more than one rule needs one; see Li
 
 admin:
   listen: 127.0.0.1:19000
+  api_listen: 127.0.0.1:19002   # /config and /api/*, read below
 
 audit:
   file: "-"
@@ -187,7 +188,7 @@ config OK: 3 listener(s)
   orders           mysql     enforcing 3 rule(s) + masking + ai analyzer
 ```
 
-`GET /config` on the admin listener returns the same resolved stack by rule
+`GET /config` on `admin.api_listen` returns the same resolved stack by rule
 name. With `provider: vertex`, `--validate` also mints one token, so a bad
 credential fails here rather than on the first risky statement.
 
@@ -241,8 +242,8 @@ session that touched all three databases reads as three connections with one
 principal:
 
 ```bash
-curl -s 'localhost:19000/api/events?connection=warehouse' | jq
-curl -s 'localhost:19000/api/sessions?limit=10' | jq '.sessions[] | {connection, verdict, risk_level}'
+curl -s 'localhost:19002/api/events?connection=warehouse' | jq
+curl -s 'localhost:19002/api/sessions?limit=10' | jq '.sessions[] | {connection, verdict, risk_level}'
 ```
 
 <Tip>
@@ -475,8 +476,8 @@ the unmasked result set even when the client received it masked.
 Inspect the resolved listener and its audit events:
 
 ```bash
-curl -s localhost:19000/config | jq '.lanes[] | select(.name == "analytics")'
-curl -s 'localhost:19000/api/events?connection=analytics' | jq
+curl -s localhost:19002/config | jq '.lanes[] | select(.name == "analytics")'
+curl -s 'localhost:19002/api/events?connection=analytics' | jq
 ```
 
 ---
