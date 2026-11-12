@@ -400,9 +400,11 @@ Connecting a licensed standalone Sidecar takes a restart, and after it the Contr
 
 A heartbeat repeats the handshake every minute.
 
-A change that only touches rules — guardrails, masking, PII, OPA, a listener's analyzer block — is applied in place and logged as `control plane configuration applied`. Connections already open drain under the rules they were accepted with.
+A change that only touches rules (guardrails, masking, PII, OPA, a listener's analyzer block) applies in place and logs `control plane configuration applied`. Connections already open drain under the rules they were accepted with.
 
-A change beyond the rules — listeners, audit, admin, log level — logs `restart to apply it` instead.
+A listener you add starts in place: the Sidecar binds its socket, logs `listener started`, and `/stats` lists it. A listener you delete stops: the Sidecar closes its socket and the connections on it, and logs `listener stopped`. The other listeners keep their sockets and their connections. A listener that cannot bind (the port is held by another process) refuses the whole change: nothing starts, no rule moves, and the Sidecar page shows `Refused` with the listener and the error. Fix the address and save again.
+
+Three edits to a listener still need a restart, and the log names the listener: changing a running listener's own fields (address, upstream, protocol, TLS), renaming one, and adding or removing a listener while another has no `name`. A change to audit, admin or log level logs `restart to apply it` as well.
 
 A failed heartbeat changes nothing. The Sidecar keeps serving the configuration and the license it last received.
 
@@ -453,7 +455,7 @@ The Control Plane then sends only that flag and the license, and the Sidecar run
 | It warns that the config file's listeners are ignored | Expected once the Control Plane holds the configuration. Edit it there; the local file no longer holds it. |
 | It warns that your license is ignored | Expected while the Control Plane manages licensing. Apply the license to the organization instead. |
 | The admin API refuses the connection | `admin.listen` is not in the configuration the Control Plane serves. There is no default address. |
-| Rules changed centrally but the Sidecar did not | Configuration is picked up on the heartbeat, not pushed. Wait up to a minute. A listener change needs a restart. |
+| Rules changed centrally but the Sidecar did not | Configuration is picked up on the heartbeat, not pushed. Wait up to a minute. A change to a running listener's own fields needs a restart; the Sidecar page shows the reason. |
 | Authentication fails | The token is per-Sidecar. Reusing one across two Sidecars is not a supported shape. |
 | The Sidecar page shows `Refused` or `Not applied` | The Sidecar's version cannot read the configuration. The page shows the reason. Upgrade the Sidecar, or remove the setting. See [Upgrading](#upgrading). |
 | `more than one control plane credential is set` | Set either `HOOP_SIDECAR_TOKEN` (or `--token`) or `HOOP_SIDECAR_IDENTITY_TYPE`, not both. |
