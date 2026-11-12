@@ -392,7 +392,7 @@ readinessProbe:
 ```
 
 <Warning>
-`admin.listen` serves only `/healthz`, `/readyz` and the authenticated `PUT /license` and `POST /v1/drain`, so on `0.0.0.0` the probes expose no audit data or rules. The read routes (`/stats`, `/metrics`, `/config`, `/events`, `/api/*`) have no authentication and are on `admin.api_listen`, which is off unless set. When you set it, keep it on `127.0.0.1` and reach it with `kubectl port-forward`: on `0.0.0.0` anything in the cluster that can route to the pod reads every statement every user ran.
+`admin.listen` serves only `/healthz`, `/readyz` and the token-gated ICA `POST /v1/drain`, so on `0.0.0.0` the probes expose no audit data or rules. The read routes (`/stats`, `/metrics`, `/config`, `/events`, `/api/*`) have no authentication and are on `admin.api_listen`, which is off unless set. When you set it, keep it on `127.0.0.1` and reach it with `kubectl port-forward`: on `0.0.0.0` anything in the cluster that can route to the pod reads every statement every user ran.
 </Warning>
 
 ## Sharing a Socket with Envoy
@@ -463,7 +463,7 @@ probe:
 Under `controlPlane.url` or `existingConfigMap` the chart cannot see the configuration, so that check does not run and putting the admin server on 19000 is yours to get right. Set `probe.port: 19000` explicitly in those modes — the chart has no document to read it from.
 </Warning>
 
-Port 19000 serves only the probes and the two authenticated writes:
+Port 19000 serves only the probes and the token-gated ICA `POST /v1/drain`:
 
 | Endpoint | Shows |
 |---|---|

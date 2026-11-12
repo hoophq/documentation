@@ -167,11 +167,11 @@ A denial writes `violation` **instead of** `statement`, not in addition to it, s
 
 ### The admin API
 
-The Sidecar serves a small HTTP interface on two listeners of its own, separate from every data lane. `admin.listen` (`127.0.0.1:19000` by convention) serves the probes and two authenticated writes. It serves no audit data and no lane rules, so a platform can probe it. `/readyz` on it names the lanes that are not ready yet. `admin.api_listen` (`127.0.0.1:19002` by convention) serves the read routes: what config the process resolved and what it recorded. It is off unless you set it.
+The Sidecar serves a small HTTP interface on two listeners of its own, separate from every data lane. `admin.listen` (`127.0.0.1:19000` by convention) serves the probes and the token-gated ICA drain. It serves no audit data and no lane rules, so a platform can probe it. `/readyz` on it names the lanes that are not ready yet. `admin.api_listen` (`127.0.0.1:19002` by convention) serves the read routes: what config the process resolved and what it recorded. It is off unless you set it.
 
 ```yaml
 admin:
-  listen: 127.0.0.1:19000       # /healthz /readyz, PUT /license, POST /v1/drain
+  listen: 127.0.0.1:19000       # /healthz /readyz, POST /v1/drain (ICA, token-gated)
   api_listen: 127.0.0.1:19002   # /stats /metrics /config /events /api/*
 ```
 
@@ -181,7 +181,6 @@ admin:
 |---|---|---|
 | `admin.listen` | `GET /healthz` | `ok`. What a container healthcheck polls. |
 | `admin.listen` | `GET /readyz` | `200` when every lane is ready. `503` while a lane still loads, with `not ready: <lane names>`. With `admin.ica_readiness_json`, a JSON body: `status`, `inspection_enabled`, `graphics_bypassed`, `protocol_validation_enabled`. |
-| `admin.listen` | `PUT /license` | Installs a license without a restart. Off unless `HOOP_SIDECAR_ADMIN_SECRET` is set; see [Changing the license of a running process](/setup/configuration/hoop-sidecar/config-file#changing-the-license-of-a-running-process). |
 | `admin.listen` | `POST /v1/drain` | Drains the ICA lanes. Needs their deployment token. |
 | `admin.api_listen` | `GET /stats` | Live counters, plus one line per listener with the address it really bound — a path means unix, a `host:port` means TCP. With a `telemetry` block, how many audit events the exporter sent and dropped. |
 | `admin.api_listen` | `GET /metrics` | Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics). To push them over OTLP instead, see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry). |
@@ -208,7 +207,7 @@ The query endpoints filter on `principal`, `connection`, `protocol`, `since`, `u
 Both in-memory views are off by default, and each has its own budget: `audit.memory_buffer` sets how many events `/events` keeps, `audit.query_sessions` how many sessions back `/api/*`. Zero on either disables that surface without touching the JSON lines stream, which stays the record of truth.
 
 <Warning>
-The read routes on `admin.api_listen` have no authentication and no CORS of their own, and they serve every statement every user ran. They are off by default. When you turn them on, keep `api_listen` on loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port. `PUT /license` on `admin.listen` asks for `HOOP_SIDECAR_ADMIN_SECRET` as a bearer token, and the listener is plain HTTP: send it from the host or through an encrypted tunnel.
+The read routes on `admin.api_listen` have no authentication and no CORS of their own, and they serve every statement every user ran. They are off by default. When you turn them on, keep `api_listen` on loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port.
 </Warning>
 
 Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-sidecar/components#audit-six-kinds-one-write-path-three-sinks). To watch the Sidecar from Grafana, Honeycomb or Datadog — statements per lane, denials, and where each statement's time goes — see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry).

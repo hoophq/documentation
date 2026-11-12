@@ -178,7 +178,7 @@ Listeners are configured independently of one another:
 - **Rules are per listener.** Top-level guardrails and masking are defaults that every listener inherits, and any listener can override them. A strict production database and a permissive staging one can run in the same process.
 
 <Warning>
-`admin.listen` serves only the probes and two authenticated writes. The read routes are on `admin.api_listen`, off unless set. They have no authentication of their own and serve every statement every user ran. Bind `api_listen` to loopback, or place it behind whatever already gates your audit trail. Do not expose it on a data port. The write route `PUT /license` is off unless `HOOP_SIDECAR_ADMIN_SECRET` is set, and then asks for that secret.
+`admin.listen` serves only the probes and the token-gated ICA `POST /v1/drain`. The read routes are on `admin.api_listen`, off unless set. They have no authentication of their own and serve every statement every user ran. Bind `api_listen` to loopback, or place it behind whatever already gates your audit trail. Do not expose it on a data port.
 </Warning>
 
 See [Listeners](/setup/configuration/hoop-sidecar/config-file#listeners) and [Transport](/setup/configuration/hoop-sidecar/config-file#transport) for every field.
