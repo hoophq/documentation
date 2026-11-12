@@ -360,7 +360,7 @@ These are refused at load, by `--validate`, and by the Control Plane at save:
 | A blank entry in `routing.candidates` or in a `channels_candidates` | It matches no group or channel |
 
 <Warning>
-A Sidecar that does not report the `analyzer_approval_routing` capability cannot read `routing`, and the Control Plane refuses to serve it a config that sets one, naming the capability. There is no downgrade: static `groups` or an `approval_rule` would page other people. Update the Sidecar first.
+`routing` needs Sidecar 1.308.0 or later. A Sidecar that does not report the `analyzer_approval_routing` capability cannot read `routing`, and the Control Plane refuses to serve it a config that sets one, naming the capability. There is no downgrade: static `groups` or an `approval_rule` would page other people. Update the Sidecar first.
 </Warning>
 
 #### Spend an approval only on an accepted answer
