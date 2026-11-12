@@ -248,13 +248,13 @@ existingConfigMap: my-sidecar-config
 The name is used verbatim, never rewritten with the release prefix. `config` and `existingConfigMap` are mutually exclusive; setting both is refused.
 
 <Note>
-**Rule-only edits apply without a rollout.** The Sidecar watches its configuration file (a stat every ten seconds), and the kubelet updates a mounted ConfigMap in place on its sync period, so a change to guardrails, masking, `pii`, OPA, a listener's `analyzer` block or the `license` key reaches the running pods on its own. The log says `config file configuration applied`; open connections keep the rules they started with, new ones get the new rules. This needs the ConfigMap mounted as a volume, which is what the chart does — a `subPath` mount is never updated by the kubelet.
+**Rule and listener edits apply without a rollout.** The Sidecar watches its configuration file (a stat every ten seconds), and the kubelet updates a mounted ConfigMap in place on its sync period, so a change to guardrails, masking, `pii`, OPA, a listener's `analyzer` block or the `license` key reaches the running pods on its own. The log says `config file configuration applied`; open connections keep the rules they started with, new ones get the new rules. A listener you add starts in place and a listener you delete stops, logged as `listener started` and `listener stopped`; the other listeners keep their connections. A port the new listener uses must also be in the Service, which is a manifest change and rolls nothing. This needs the ConfigMap mounted as a volume, which is what the chart does; the kubelet does not update a `subPath` mount.
 </Note>
 
 <Warning>
 **Set `configRevision` too, or restart-bound edits never reach the pods.**
 
-The ConfigMap lives outside the release, so the chart cannot see its contents and its checksum never changes — `helm upgrade` produces a byte-identical pod template and rolls nothing. Listeners, `audit`, `admin`, `log_level` and the top-level `analyzer` section are bound at startup: the Sidecar logs `restart to apply it` and keeps serving the document it booted with until the pod is replaced.
+The ConfigMap lives outside the release, so the chart cannot see its contents and its checksum never changes: `helm upgrade` produces a byte-identical pod template and rolls nothing. `audit`, `admin`, `log_level`, the top-level `analyzer` section and a running listener's own fields (address, upstream, protocol, TLS) are bound at startup: the Sidecar logs `restart to apply it`, names the listener when one is the cause, and keeps serving the document it booted with until the pod is replaced.
 
 Put anything that changes with the content in `configRevision`, and change it in the same commit that changes the ConfigMap:
 
