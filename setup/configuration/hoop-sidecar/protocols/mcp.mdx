@@ -435,10 +435,10 @@ claude mcp add --transport http github http://127.0.0.1:18901/mcp \
 
 - **What is forwarded.** The lane removes the header and sends its value as `Authorization: Bearer <value>`. A `Bearer ` prefix on the value is accepted.
 - **What is refused.** No header, an empty value, or the header sent twice. The request gets a 403 `request refused: <reason>` that names the header, and the connection closes.
-- **The token stays out of the record.** It never reaches an audit row, policy input, the AI analyzer or a log.
+- **The token stays out of the record.** It never reaches an audit row, policy input, the AI analyzer or a log. An upstream error that quotes it is logged with `[REDACTED]` in its place.
 - **Each request uses its own token.** A session does not keep the token of the request that opened it.
 - **With caller auth.** It works with `caller_token`, with `identity_header` or with neither. With `caller_token`, the lane checks the caller token first, and the upstream gets only the passthrough token.
-- **Refused at startup.** `transport: sse`, because the sse stream keeps the token of the request that opened it. A header that is the `caller_token` header or the `identity_header`, one MCP uses (`Mcp-*`, `Last-Event-ID`), or one HTTP framing or a proxy uses, such as `host` or `proxy-authorization`. `authorization` is accepted.
+- **Refused at startup.** `transport: sse`, because the sse stream keeps the token of the request that opened it. A header that is the `caller_token` header or the `identity_header`, one an MCP client sends for itself (`Mcp-*`, `Last-Event-ID`, `Accept`, `Content-Type`, `Origin`, `User-Agent`), or one HTTP framing or a proxy uses, such as `host`, `proxy-authorization` or `x-forwarded-for`. `authorization` is accepted.
 
 ---
 
