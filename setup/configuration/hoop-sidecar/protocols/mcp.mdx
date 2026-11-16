@@ -104,6 +104,7 @@ A rule edit applies without a restart and ends the open MCP sessions; the next s
 | `tool_rate_limits` | none | Tool glob to calls per minute, per session. When several globs match a tool, the lowest limit applies. | Over the limit: `-32012`, `tool "x" rate limit exceeded (N calls/min)` |
 | `max_result_kb` | `0`: no limit | The text of a tool result is cut to this size and ends with `[truncated by gateway]`. | The cut result |
 | `sql` | none | The tools whose calls carry SQL. See [SQL tools](#sql-tools). | |
+| `passthrough_header` | none | The header that carries the caller's own credential for the upstream. See [The caller's own token](#the-callers-own-token). | Without it: 403 |
 
 `tool_rate_limits` globs work as in `mcp_tool`.
 
@@ -346,7 +347,7 @@ sum by (hoop_mcp_tool, hoop_mcp_decision) (rate(hoop_sidecar_mcp_messages_total{
 
 ## Auth
 
-The lane can check a caller token. It sends no credential to the upstream except a mutual TLS certificate.
+The lane can check a caller token. To the upstream it sends a mutual TLS certificate, or each caller's own token, and no credential of its own.
 
 ### Caller to lane
 
@@ -403,12 +404,41 @@ The file, rotation and revocation work as on the `http` lane. See [Caller token]
 |---|---|
 | no credential: a server on a private network, or one that holds its own credential | `upstream: https://mcp.internal.example.com/mcp` |
 | mutual TLS | `upstream_tls: {cert_file: /etc/tls/client.crt, key_file: /etc/tls/client.key, ca_file: /etc/tls/ca.pem}` |
+| the caller's own token | `mcp_gateway: {passthrough_header: X-Hoop-Upstream-Authorization}`. See [The caller's own token](#the-callers-own-token). |
 
-The lane sends no `Authorization` header to the upstream, the caller's included. It refuses `headers`, because the config holds no inline secret.
+Without `passthrough_header`, the lane sends no `Authorization` header to the upstream, the caller's included. It refuses `headers`, because the config holds no inline secret.
 
-For a server that needs a bearer token or OAuth: run the MCP server yourself with its credential, or run a proxy on loopback that adds the credential, and point `upstream` at that proxy (`http://127.0.0.1:<port>/mcp` is accepted on loopback).
+For a server that needs a token the caller does not hold, or OAuth: run the MCP server yourself with its credential, or run a proxy on loopback that adds the credential, and point `upstream` at that proxy (`http://127.0.0.1:<port>/mcp` is accepted on loopback).
 
-Not supported yet: a token from a file or a secret source and the caller's own token, OAuth to the upstream, and AWS SigV4.
+Not supported yet: a token from a file or a secret source, OAuth to the upstream, and AWS SigV4.
+
+### The caller's own token
+
+With `mcp_gateway.passthrough_header`, each caller sends its own token for the upstream, such as a GitHub personal access token or a Stripe restricted key. The lane forwards it as `Authorization: Bearer <token>`. Older Sidecar builds refuse the key at `-validate`, and the control plane does not serve it to them.
+
+```yaml config.yaml
+listeners:
+  - name: github-mcp
+    protocol: mcp
+    listen: 127.0.0.1:18901
+    upstream: https://api.githubcopilot.com/mcp
+    mcp_gateway:
+      passthrough_header: X-Hoop-Upstream-Authorization
+```
+
+The MCP client sends the token on every request:
+
+```bash
+claude mcp add --transport http github http://127.0.0.1:18901/mcp \
+  --header "X-Hoop-Upstream-Authorization: Bearer $GITHUB_PAT"
+```
+
+- **What is forwarded.** The lane removes the header and sends its value as `Authorization: Bearer <value>`. A `Bearer ` prefix on the value is accepted.
+- **What is refused.** No header, an empty value, or the header sent twice. The request gets a 403 `request refused: <reason>` that names the header, and the connection closes.
+- **The token stays out of the record.** It never reaches an audit row, policy input, the AI analyzer or a log.
+- **Each request uses its own token.** A session does not keep the token of the request that opened it.
+- **With caller auth.** It works with `caller_token`, with `identity_header` or with neither. With `caller_token`, the lane checks the caller token first, and the upstream gets only the passthrough token.
+- **Refused at startup.** `transport: sse`, because the sse stream keeps the token of the request that opened it. A header that is the `caller_token` header or the `identity_header`, one MCP uses (`Mcp-*`, `Last-Event-ID`), or one HTTP framing or a proxy uses, such as `host` or `proxy-authorization`. `authorization` is accepted.
 
 ---
 
