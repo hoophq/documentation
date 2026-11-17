@@ -213,7 +213,7 @@ Concatenation is safe here precisely because first-match-wins applies to denials
   </Step>
   <Step title="Read what got denied">
     ```bash
-    curl -s 'localhost:19000/api/events?kind=violation' | python3 -m json.tool
+    curl -s 'localhost:19002/api/events?kind=violation' | python3 -m json.tool
     ```
 
     Each `violation` names the rule that fired and the message the client read, so an over-broad rule is visible by name before it reaches production.

@@ -1,0 +1,223 @@
+---
+title: "Per-Query Approval and Data Masking for AI Agents with Okta"
+sidebarTitle: "Okta"
+description: "Okta decides who an agent or engineer is and whether they connect. The hoop.dev Sidecar decides what each statement does after that, and your Okta groups decide who approves a held one."
+---
+
+import EnterpriseLimit from '/snippets/EnterpriseLimit.mdx';
+
+Okta decides who a person or an AI agent is, and whether they may connect. The hoop.dev Sidecar, a proxy in front of your database or API, decides what each statement does once they are connected. It can [refuse it](/setup/configuration/hoop-sidecar/policy-rules), [mask what comes back](/setup/configuration/hoop-sidecar/config-file#masking), [hold it for an approver](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) and [record it](/setup/configuration/hoop-sidecar/config-file#audit). The two meet at the approval step: the [Control Plane](/core-concepts/control-plane) signs approvers in through Okta and [reads their groups at each login](/control-plane/slack#3-give-approvers-their-groups), and those groups decide who may release a held statement. You keep Okta where it is and put the Sidecar in front of [PostgreSQL, MySQL, SQL Server, MongoDB, ClickHouse, HTTP APIs, SSH or an MCP server](/setup/configuration/hoop-sidecar/config-file#listeners).
+
+<Info>
+Last checked against Okta's documentation and ours on November 10, 2026. Okta ships often, so open the Okta pages linked below before you rely on a row about Okta.
+</Info>
+
+---
+
+## What does Okta decide, and what does the Sidecar decide?
+
+Each request meets two kinds of check. Okta answers questions about the caller. The Sidecar answers questions about the statement. The table follows one statement from sign-in to the audit row. Sign-in uses the Control Plane's [identity provider settings](/control-plane/environment-variables#identity-provider), and the caller's name comes from the [lane's identity source](/setup/configuration/hoop-sidecar/components#identity). Statements meet [guardrails](/setup/configuration/hoop-sidecar/policy-rules) and the [analyzer](/setup/configuration/hoop-sidecar/risk-analysis), responses meet [masking](/setup/configuration/hoop-sidecar/config-file#masking), and every decision lands in the [audit trail](/setup/configuration/hoop-sidecar/config-file#audit).
+
+| Stage | Who decides | What it checks | When the answer is no |
+|---|---|---|---|
+| An approver signs in | Okta, through the Control Plane's OIDC sign-in | The person, under your Okta sign-on policy | Okta refuses the sign-in |
+| Groups reach hoop.dev | Okta's `groups` claim, read by the Control Plane | Group membership, at each login | A removed group stops counting at the next login |
+| A client connects | The Sidecar listener | The caller's name: the Postgres `user`, or a header your proxy sets | No name runs as `anonymous`, and your policy decides |
+| Each statement | Guardrails and OPA in the Sidecar | The operations, tables, words and patterns your rules name | Refused with the message your rule sets |
+| A risky statement | The analyzer, then the level's approver | The risk level, then an approval agent or a person in the level's groups | Rejected, or held until someone approves |
+| Each response | Mask rules in the Sidecar | The entity types and columns your rules name | Masked before the client reads it |
+| The record | The Sidecar's audit trail | Session start, each statement or denial, masking, session end | A denial is written as a `violation` event |
+
+---
+
+## What does Okta already cover?
+
+Okta covers a lot of this ground, and a team that runs it well has most identity questions answered:
+
+- **Agents as identities.** [Okta for AI Agents](https://www.okta.com/products/govern-ai-agent-identity/) registers agents in Universal Directory with a human owner, issues them short-lived tokens, and governs them with certifications, approval workflows and deactivation.
+- **Tool calls through MCP.** [Agent Gateway](https://developer.okta.com/docs/concepts/agent-gateway/) is, in Okta's words, "an identity-native proxy that sits between AI agents and the enterprise tools that they call." It attributes each tool call to the agent's identity, and an admin picks the tools each connection exposes. Its docs describe remote MCP servers that accept OAuth bearer tokens, not servers on a private network. Okta's [September 22 announcement](https://www.okta.com/newsroom/press-releases/ai-innovations-oktane-2026/) said it was planned for general availability in Q3, and its docs page states no status.
+- **Database credentials for people.** [Okta Privileged Access](https://www.okta.com/blog/product-innovation/opa-securing-databases/) vaults and rotates shared database passwords for PostgreSQL, MySQL, SQL Server, MongoDB, MariaDB and Oracle, with time-bound checkout and MFA on each request.
+
+Those answers stop at the connection. Okta's docs describe who connects, which tools an agent may call, and which database account a person checks out. They do not describe reading the statements inside a database session, masking values in a result, or holding one statement for a person. That is the layer the Sidecar adds, and it runs behind Okta.
+
+---
+
+## When is Okta enough on its own?
+
+Pick by the question you need answered:
+
+- **Which agents exist, who owns them, and how to switch one off:** Okta for AI Agents.
+- **Which SaaS tools an agent may call through a remote MCP server:** Okta Agent Gateway.
+- **Which person may check out a shared database password, and for how long:** Okta Privileged Access.
+- **Whether a `DROP` or `DELETE` runs on this database at all:** the Sidecar, with an [operation guardrail](/setup/configuration/hoop-sidecar/policy-rules#operation).
+- **Whether an email address leaves the database in a result:** the Sidecar, with a [mask rule](/setup/configuration/hoop-sidecar/config-file#masking) on `EMAIL_ADDRESS`.
+- **Whether the payments team approves an `UPDATE` first:** the Sidecar, with an [approver per risk level](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person) whose groups come from Okta.
+- **An agent that runs SQL against a database, not through MCP:** the Sidecar. Agent Gateway's docs cover MCP tool calls.
+
+If every answer you need is in the first three lines, Okta covers you. The Sidecar earns its place from the fourth line down.
+
+---
+
+## How do Okta groups decide who approves a held statement?
+
+This is where the two products connect today. The Control Plane signs approvers in with OIDC, Okta sends their groups at each login, and each listener names the groups that may approve each risk level.
+
+<Steps>
+  <Step title="Create the Okta application">
+    In Okta, create an OIDC web application with the sign-in redirect `{API_URL}/api/callback`, and copy its client ID and secret, as in [Okta](/setup/configuration/idp/okta). Then, on the authorization server you use as the issuer (`default`, for example):
+
+    - **Add a `groups` claim** to the ID token, with the value type **Groups**, so Okta sends each user's groups.
+    - **Assign an access policy to the application**, with a rule that allows the Authorization Code grant. Without one, Okta refuses the sign-in with "Policy evaluation failed".
+
+    <Note>
+    Tested on November 13, 2026 with an Okta Integrator org and Control Plane 1.309.2: the sign-in worked, and the user arrived in hoop.dev with their Okta groups.
+    </Note>
+  </Step>
+  <Step title="Point the Control Plane at Okta">
+    Set the [identity provider variables](/control-plane/environment-variables#identity-provider). Any `IDP_*` variable switches sign-in from local users to OIDC.
+
+    ```bash
+    IDP_ISSUER='https://<your-okta-domain>/oauth2/default'
+    IDP_CLIENT_ID='<client-id>'
+    IDP_CLIENT_SECRET='<client-secret>'
+    IDP_GROUPS_CLAIM='groups'
+    ```
+
+    `IDP_GROUPS_CLAIM` defaults to `https://app.hoop.dev/groups`. Okta sends groups in `groups`, so set it. At startup, the Control Plane prints the redirect it resolved: `loaded oidc provider configuration, redirect-url=...`.
+  </Step>
+  <Step title="Name the Okta groups that approve each level">
+    In the listener's analyzer, give each held level an approver. A `human` level names groups. An approver is a user [in a group the rule names](/control-plane/slack#3-give-approvers-their-groups), so write the Okta group names as Okta sends them.
+
+    ```yaml config.yaml
+    listeners:
+      - name: payments
+        protocol: postgres
+        # ...
+        analyzer:
+          trigger: {operations: [update, delete]}
+          high: require_approval
+          medium: require_approval
+          low: allow
+          approvers:
+            high:   {type: human, groups: [payments-approvers]}
+            medium: {type: ai_agent, prompt: "Approve a write only when it names its rows by id."}
+    ```
+
+    A `human` level files its request with the Control Plane, which checks the approver's groups. An `ai_agent` level is decided in the Sidecar at once and files nothing. `approvers` needs Sidecar 1.297.0 or later. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
+  </Step>
+  <Step title="Approve where people already work">
+    Connect [Slack](/control-plane/slack), so approvers click **Approve** in a channel. The Control Plane matches the Slack user to a hoop.dev user by Slack ID, then by email, and checks the group.
+  </Step>
+</Steps>
+
+With Okta as the identity provider, the [first login creates the user](/control-plane/slack#3-give-approvers-their-groups), so nobody needs an invitation. A group change in Okta reaches hoop.dev at the approver's next login.
+
+<Note>
+The approval agent on a `medium` level reads the statement as untrusted data and must call `approve` or `reject` with a reason code. Anything else rejects, so it [fails closed](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent). The client sees the code, such as `(unbounded_scope)`, and never the agent's text.
+</Note>
+
+---
+
+## How does the Sidecar know which agent or engineer sent a statement?
+
+An Okta token proves who the caller is to services that check Okta tokens. The Sidecar reads a name from the connection, and the [source depends on the lane](/setup/configuration/hoop-sidecar/components#identity):
+
+| Lane | Where the name comes from |
+|---|---|
+| `postgres` | The `user` the client names when it connects |
+| `http`, `grpc`, `spanner` | A header your authenticating proxy sets, named by `identity_header` |
+| `http` | A Google bearer token, checked with [`google_identity`](/setup/configuration/hoop-sidecar/protocols/http#google-identity) |
+| `mcp` | A header, or the `name` of a [`caller_token`](/setup/configuration/hoop-sidecar/protocols/mcp#caller-token) |
+| `ssh` | The certificate the lane verified |
+
+For an Okta identity, the documented pattern is a proxy in front that authenticates the caller and sets a header, and a Sidecar listener that trusts that header:
+
+```yaml config.yaml
+listeners:
+  - name: payments-api
+    protocol: http
+    listen: 127.0.0.1:18080
+    upstream: payments:8080
+    identity_header: x-hoop-user      # trust only behind an authenticating proxy
+```
+
+The header proves nothing on its own. [`identity_header`](/setup/configuration/hoop-sidecar/protocols/http#identity) verifies nothing, so any process that reaches the port can claim any name. Bind the listener to loopback or a unix socket, behind the proxy that checked the caller. A request without the header runs as `anonymous`, and a policy that needs a named caller must deny `input.context.principal == "anonymous"` itself.
+
+The Sidecar does not check Okta tokens itself. Use the authenticating proxy you already run in front of the service, and let it pass the verified name in the header.
+
+On a Postgres lane, the name is the `user` the client sends when it connects.
+
+---
+
+## Can an AI agent go around the Sidecar?
+
+Only if the network lets it. The Sidecar decides on the traffic that passes through it. A database credential used from a host that reaches the database directly skips every rule on this page, whoever issued that credential.
+
+The integration guides close that path with the network. On [Claude Managed Agents](/integrations/claude-managed-agents#why-the-agent-cannot-skip-the-sidecar), the sandbox reaches the Sidecar's host and no other. On [Amazon Bedrock AgentCore](/integrations/aws-agentcore#why-the-agent-cannot-skip-the-sidecar), four VPC controls do the same, and a CI check fails if one goes away. In both, the network closes the path, and the Sidecar decides on what reaches it. Plan the network for your own agents the same way.
+
+---
+
+## What happens when something in the chain fails?
+
+Every row below comes from the page linked beside it.
+
+| What fails | What happens | Source |
+|---|---|---|
+| The Control Plane is unreachable, on a listener that holds for a person | Every statement that listener would hold is denied | [Control Plane](/core-concepts/control-plane) |
+| The Control Plane is unreachable, on any other listener | The Sidecar keeps serving with the configuration it holds | [Control Plane](/core-concepts/control-plane) |
+| Nobody approves within 30 minutes | The statement times out. Once someone approves, an identical retry runs once | [Control Plane](/core-concepts/control-plane) |
+| The approval agent's model times out, refuses or errors | The agent rejects with `the approval agent did not decide` | [The approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent) |
+| A request arrives without the identity header | It runs as `anonymous`, and your policy can refuse it | [HTTP identity](/setup/configuration/hoop-sidecar/protocols/http#identity) |
+| Someone leaves an Okta group | They stop approving for that group at their next login | [Slack approvals](/control-plane/slack#3-give-approvers-their-groups) |
+| An audit record cannot be written | The statement runs and the error is logged, unless `fail_closed: true` | [Audit](/setup/configuration/hoop-sidecar/config-file#audit) |
+---
+
+## What does each audit trail record?
+
+Okta's [System Log](https://developer.okta.com/docs/reference/api/system-log/) "records system events that are related to your organization in order to provide an audit trail." That is where sign-ins and group changes in your Okta org show up.
+
+The Sidecar's [audit trail](/setup/configuration/hoop-sidecar/config-file#audit) writes six kinds of event: `session_start`, `statement`, `violation`, `masked`, `error` and `session_end`. Each carries the caller's name, the protocol and the listener. A denial is written as a `violation`, so a security team can select denials without reading every statement. A masked value is recorded as masked, never as the value.
+
+A level the approval agent decides adds `approver: ai_agent`, `approval_decision` and `approval_reason_code` to the statement's event. The agent's own reason is kept only after the [PII detector redacts it](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent).
+
+Read the two side by side. Okta shows who signed in and which groups they held. The Sidecar shows what ran under that name, what was refused and who released it.
+
+---
+
+## Can MCP clients sign in to the Sidecar with Okta?
+
+Not yet. The Sidecar's MCP lane names a caller by a header or a [caller token](/setup/configuration/hoop-sidecar/protocols/mcp#caller-token). Its docs list "a verified identity per user, and OAuth login of MCP clients" as [not supported yet](/setup/configuration/hoop-sidecar/protocols/mcp#auth).
+
+Today the lane [hides and refuses the tools](/setup/configuration/hoop-sidecar/protocols/mcp#tool-allow-and-deny) a rule denies. It records [one audit session per MCP session](/setup/configuration/hoop-sidecar/protocols/mcp#sessions-and-audit), [masks tool results](/setup/configuration/hoop-sidecar/protocols/mcp#masking), and lets the [AI analyzer](/setup/configuration/hoop-sidecar/protocols/mcp#ai-analyzer) block a risky call. It cannot hold a call for approval yet. See [Limits](/setup/configuration/hoop-sidecar/protocols/mcp#limits).
+
+Two paths sign MCP clients in with Okta today:
+
+- **The hoop.dev Gateway**, the earlier architecture, sends MCP clients to your identity provider for OAuth. If your Okta org does not offer dynamic client registration, pre-register an OIDC application for the client. See [MCP server configuration](/setup/configuration/mcp-server-configuration) and the [Gateway overview](/gateway/overview).
+- **Okta Agent Gateway**, for agents that call remote MCP servers that accept OAuth bearer tokens. See [Okta's docs](https://developer.okta.com/docs/concepts/agent-gateway/).
+
+---
+
+## Free and Enterprise
+
+The Sidecar runs free from a config file. Okta sign-in, approver groups and human approval live in the [Control Plane](/core-concepts/control-plane), which is Enterprise. An `ai_agent` approval level is decided in the Sidecar and needs no Control Plane.
+
+<EnterpriseLimit />
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Risk Analysis" icon="scale-balanced" href="/setup/configuration/hoop-sidecar/risk-analysis">
+    Risk levels, approvers per level and the approval agent.
+  </Card>
+  <Card title="Identity Provider Variables" icon="id-card" href="/control-plane/environment-variables#identity-provider">
+    The `IDP_*` settings that point the Control Plane at Okta.
+  </Card>
+  <Card title="Slack Approvals" icon="slack" href="/control-plane/slack">
+    Approve held statements in a channel, with groups from Okta.
+  </Card>
+  <Card title="hoop.dev vs Teleport" icon="code-compare" href="https://hoop.dev/compare/hoop-vs-teleport">
+    Run Teleport too? See what each one decides.
+  </Card>
+</CardGroup>

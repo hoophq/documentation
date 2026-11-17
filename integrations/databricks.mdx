@@ -69,6 +69,7 @@ The Sidecar reads the Statement Execution API and the workspace SQL MCP server o
     ```yaml config.yaml
     admin:
       listen: 0.0.0.0:19000
+      api_listen: 0.0.0.0:19002   # the audit query API; published on loopback below
 
     audit:
       file: "-"
@@ -108,7 +109,7 @@ The Sidecar reads the Statement Execution API and the workspace SQL MCP server o
     - `refuse` refuses a request that asks for external links, with `refuse_message`, which `refuse` requires. Those results come from cloud storage, so the rows would skip masking and the audit. The enum number (`"disposition": 2`) is refused too.
     - The guardrail refuses the writes it names, and every statement the Sidecar cannot read (`unknown`). `COMMENT ON`, `ANALYZE TABLE` and `REFRESH` are `other` and pass; naming `other` refuses them, and `USE CATALOG` with them.
     - `mask` replaces email addresses in JSON results.
-    - `audit` writes every request and statement to stdout as JSON lines, and `query_sessions` turns on the `/api/sessions` endpoint. `admin` serves it with no authentication, so the next step publishes it on loopback only.
+    - `audit` writes every request and statement to stdout as JSON lines, and `query_sessions` turns on the `/api/sessions` endpoint. `admin.api_listen` serves it with no authentication, so the next step publishes it on loopback only.
 
     The config holds no Databricks credential. The Sidecar relays the client's token.
   </Step>
@@ -122,7 +123,7 @@ The Sidecar reads the Statement Execution API and the workspace SQL MCP server o
 
     read -rs HOOP_SIDECAR_TOKEN && export HOOP_SIDECAR_TOKEN   # paste the Sidecar token
     docker run -d --name hoop-databricks \
-      -p 8443:8443 -p 127.0.0.1:19000:19000 \
+      -p 8443:8443 -p 127.0.0.1:19000:19000 -p 127.0.0.1:19002:19002 \
       -e HOOP_SIDECAR_TOKEN \
       -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
       -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
@@ -198,7 +199,7 @@ ask for disposition INLINE; external links skip this listener (disposition is EX
 The audit lists each session with its counts (fields trimmed):
 
 ```bash
-curl -s 127.0.0.1:19000/api/sessions
+curl -s 127.0.0.1:19002/api/sessions
 ```
 
 ```json
@@ -230,7 +231,7 @@ Without a network rule, a client that calls the workspace host directly skips th
 - **What `unknown` refuses besides writes.** A SQL script (`BEGIN ... END`), `EXECUTE IMMEDIATE`, and any statement that holds `${`. `VACUUM t DRY RUN` and `COPY INTO t ... VALIDATE` are refused as the write they preview. A read that names a column like a write verb after `THEN` reads as a write.
 - **`IDENTIFIER(:t)` hides the table from table rules.** The operation is still read.
 - **A denial is an HTTP 403 with a text body.** `curl` and MCP clients show the message. The Databricks SDK for Python raises `PermissionDenied` with `unable to parse response`, because it expects a JSON error body.
-- **The audit stores the bodies of the SQL routes.** That is the SQL and the warehouse ID, never the token. Requests to other APIs keep no body. Keep the admin port on loopback all the same.
+- **The audit stores the bodies of the SQL routes.** That is the SQL and the warehouse ID, never the token. Requests to other APIs keep no body. Keep the admin API port (`admin.api_listen`) on loopback all the same.
 - **The principal reads `anonymous`.** The lane does not resolve the token to a Databricks user yet.
 - **Reviews are not available on this lane yet.** A lane with `http.sql` cannot set an analyzer that holds for approval.
 

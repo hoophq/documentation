@@ -76,6 +76,7 @@ The Sidecar sees requests to the account host only. A result above the inline si
     ```yaml config.yaml
     admin:
       listen: 0.0.0.0:19000
+      api_listen: 0.0.0.0:19002   # the audit query API; published on loopback below
 
     audit:
       file: "-"
@@ -118,7 +119,7 @@ The Sidecar sees requests to the account host only. A result above the inline si
       hoophq/hoopsidecar:<version> hoop start sidecar --validate
 
     docker run -d --name hoop-snowflake \
-      -p 443:443 -p 127.0.0.1:19000:19000 \
+      -p 443:443 -p 127.0.0.1:19000:19000 -p 127.0.0.1:19002:19002 \
       -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
       -v "$PWD/certs:/etc/hoop-inspect/certs:ro" \
       hoophq/hoopsidecar:<version>
@@ -196,7 +197,7 @@ curl -s https://<account-host>/api/v2/statements \
 The audit lists each session with its counts (fields trimmed):
 
 ```bash
-curl -s 127.0.0.1:19000/api/sessions
+curl -s 127.0.0.1:19002/api/sessions
 ```
 
 ```json
@@ -291,7 +292,7 @@ A programmatic access token needs a network policy on its user. Snowflake refuse
 - **Arrow results are not read.** Without the JSON pin from the last setup step, the Python, Go, JDBC and ODBC drivers receive Arrow and nothing is masked.
 - **Compressed requests are not read.** The Python connector, the Snowflake CLI and the JDBC driver gzip request bodies. Their SQL is not visible to the policy, and the audit stores the compressed body.
 - **A denial is an HTTP 403.** Drivers surface it as an HTTP error, not as a SQL error, and do not retry it.
-- **The audit stores bodies, the login response included.** That response carries the session token. Keep the admin port on loopback and treat the audit output as a secret.
+- **The audit stores bodies, the login response included.** That response carries the session token. Keep the admin API port (`admin.api_listen`) on loopback and treat the audit output as a secret.
 - **The principal reads `anonymous`.** The `http` lane does not read the Snowflake login name yet.
 - **The managed MCP server passes through.** `initialize` and `tools/list` work through the Sidecar. Tool calls were not tested, because trial accounts cannot run them.
 - **No measurable latency.** `SELECT 1` took 84 ms at p50 direct and 80 ms through the Sidecar, from the same host.

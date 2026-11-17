@@ -5,7 +5,13 @@ description: "What to do with a running Sidecar"
 
 You have a Sidecar running from the file in [Overview](/introduction/getting-started#run-it). This page is what to do with it: confirm what it resolved, watch the rules fire, read what it recorded, and reshape the file as your setup grows.
 
-Every command below assumes that file and a Sidecar started with it.
+Every command below assumes that file and a Sidecar started with it. The commands that read the Sidecar's state use `admin.api_listen`, which is off unless set. Make sure the file has it:
+
+```yaml
+admin:
+  listen: 127.0.0.1:19000       # /healthz /readyz
+  api_listen: 127.0.0.1:19002   # /config /api/*
+```
 
 ---
 
@@ -25,7 +31,7 @@ config OK: 1 listener(s)
 One line per listener, already resolved: the rule count includes anything inherited from the top level, and `+ masking` means a `mask` block reached it. Ask a running process the same question:
 
 ```bash
-curl -s localhost:19000/config | jq '.lanes[] | {name, rules}'
+curl -s localhost:19002/config | jq '.lanes[] | {name, rules}'
 ```
 
 This is the first thing to check when a rule you wrote never fires.
@@ -103,7 +109,7 @@ That is a real pgwire error carrying the `message` you wrote in the config, so t
 A rule set that reaches a lane enforces — there is no observe-only switch to leave off. To measure first, run the new rules on a lane pointed at a staging copy of the resource, send real query shapes through it, and read what got denied:
 
 ```bash
-curl -s 'localhost:19000/api/events?kind=violation' | python3 -m json.tool
+curl -s 'localhost:19002/api/events?kind=violation' | python3 -m json.tool
 ```
 
 Each `violation` names the rule that fired and the message the client read, so an over-broad rule is visible by name before it reaches production. For a rule you want live on production without deciding on its own, give it `action: defer` and let [OPA](/setup/configuration/hoop-sidecar/policy-rules#deferring-to-opa) allow it while you watch the findings.
@@ -115,8 +121,8 @@ Each `violation` names the rule that fired and the message the client read, so a
 Every session is recorded whether or not it issues a statement. The admin API is the fast way in:
 
 ```bash
-curl -s localhost:19000/api/stats                | python3 -m json.tool
-curl -s 'localhost:19000/api/sessions?limit=1'   | python3 -m json.tool
+curl -s localhost:19002/api/stats                | python3 -m json.tool
+curl -s 'localhost:19002/api/sessions?limit=1'   | python3 -m json.tool
 ```
 
 ```json

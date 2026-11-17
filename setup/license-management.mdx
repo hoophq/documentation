@@ -140,7 +140,7 @@ config OK: 1 listener(s)
   appdb            postgres  enforcing 3 rule(s) + masking
 ```
 
-A running process reports the same verdict at `GET /config` on its admin listener, under `license` and `limits`, minus the signature.
+A running process reports the same verdict at `GET /config` on `admin.api_listen`, under `license` and `limits`, minus the signature.
 
 ### Expiry on the Sidecar
 

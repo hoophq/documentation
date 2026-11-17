@@ -129,7 +129,7 @@ A listener's `mask` block **replaces** the top-level list rather than extending 
 
 ## Verify what actually resolved
 
-The admin API reports the resolved state per listener, which is the only place the merge above is visible:
+The admin API (`admin.api_listen`, off unless set) reports the resolved state per listener, which is the only place the merge above is visible:
 
 ```bash
 hoop start sidecar --config config.yaml --validate
@@ -141,7 +141,7 @@ config OK: 1 listener(s)
 ```
 
 ```bash
-curl -s localhost:19000/config | python3 -m json.tool
+curl -s localhost:19002/config | python3 -m json.tool
 ```
 
 <Tip>

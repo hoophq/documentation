@@ -489,6 +489,35 @@ The same constraint applies across deployments: a Gateway and a Control Plane po
 
 The strategy is `Recreate` for the same reason. At one replica, `RollingUpdate`'s default surge runs two pods through every upgrade, which is two Slack sockets on a timer. The Control Plane holds no sessions, so the short API gap drops nothing. A deployment already running several replicas has accepted that condition — set `RollingUpdate` there.
 
+### Database Connections
+
+```yaml
+postgresPool:
+  connectionBudget: 8   # a 2 vCPU database
+```
+
+Each pod caps the connections it opens to the database
+(`POSTGRES_MAX_OPEN_CONNS`, 50 by default). Past the cap a query waits in
+process, so a burst of API requests queues inside the pod instead of
+exhausting the server's connection slots, which fails every caller of that
+database.
+
+The database serves the sum over every pod, and throughput peaks at 2-4
+connections per database vCPU: past that, connections only queue on the CPU.
+`postgresPool.connectionBudget` is that sum. The chart divides it by the pods
+that can run at once (`replicas`, plus `maxSurge` unless the strategy is
+`Recreate`) and starts each pod with the result, so raising `replicas` keeps
+the sum once the rollout settles. A budget below that pod count, or not a
+positive integer, fails the render. Set it or `config.POSTGRES_MAX_OPEN_CONNS`
+(the per-pod value), not both.
+
+The sum is the steady state. With `RollingUpdate`, a stopping pod keeps its
+pool for up to 10 seconds beside its replacement, and a pod from before a
+`replicas` change keeps the cap it started with; for those seconds the sum can
+reach about twice the budget. Keep twice the budget below the database's
+`max_connections` minus its reserved slots. `Recreate` removes every old pod
+before it creates one, so it never overlaps.
+
 ### Computing Resources
 
 The chart is API-only: it carries no sessions and runs no proxies.

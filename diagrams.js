@@ -39,9 +39,36 @@
           if (src.split(s[0]).length !== 2) throw new Error('beautiful-mermaid sizes not found; check the version');
           src = src.replace(s[0], s[1]);
         });
-        // The CDN build imports its dependencies by path; a blob needs full URLs.
-        src = src.replace(/from"\/npm\//g, 'from"' + CDN + '/npm/');
-        return import(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        // The hoop.dev CSP blocks blob: and data: scripts, but allows https:
+        // imports and eval. So: import the dependencies from the CDN, and run
+        // the patched module body as a function that returns its exports.
+        var deps = [];
+        src = src.replace(/import(\{[^}]*\}|\s*\w+)\s*from"(\/npm\/[^"]+)";/g, function (all, names, path) {
+          deps.push({ names: names.trim(), url: CDN + path });
+          return '';
+        });
+        var exp = src.match(/export\{([^}]*)\};?/);
+        if (deps.length !== 2 || !exp) throw new Error('beautiful-mermaid imports/exports not found; check the version');
+        src = src.replace(exp[0], 'return{' + exp[1].split(',').map(function (e) {
+          var p = e.trim().split(/\s+as\s+/);
+          return (p[1] || p[0]) + ':' + p[0];
+        }).join(',') + '};');
+        return Promise.all(deps.map(function (d) { return import(d.url); })).then(function (mods) {
+          var params = [], args = [];
+          deps.forEach(function (d, i) {
+            if (d.names[0] === '{') {
+              d.names.slice(1, -1).split(',').forEach(function (e) {
+                var p = e.trim().split(/\s+as\s+/);
+                params.push(p[1] || p[0]);
+                args.push(mods[i][p[0]]);
+              });
+            } else {
+              params.push(d.names);
+              args.push(mods[i].default);
+            }
+          });
+          return Function.apply(null, params.concat('"use strict";' + src)).apply(null, args);
+        });
       });
     lib.catch(function () { lib = null; });
     return lib;

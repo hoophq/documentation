@@ -167,23 +167,39 @@ A denial writes `violation` **instead of** `statement`, not in addition to it, s
 
 ### The admin API
 
-The Sidecar serves a small HTTP interface on its own listener, separate from every data lane — `admin.listen`, `127.0.0.1:19000` by convention. It answers three different questions: is the process healthy, what config did it actually resolve, and what has it recorded. Every route reads, except `PUT /license`, which is off unless you turn it on.
+The Sidecar serves a small HTTP interface on two listeners of its own, separate from every data lane. `admin.listen` (`127.0.0.1:19000` by convention) serves the probes and the token-gated ICA drain. It serves no audit data and no lane rules, so a platform can probe it. `/readyz` on it names the lanes that are not ready yet. `admin.api_listen` (`127.0.0.1:19002` by convention) serves the read routes: what config the process resolved and what it recorded. It is off unless you set it.
 
-| Endpoint | Returns |
-|---|---|
-| `GET /healthz` | `ok`. What a container healthcheck polls. |
-| `GET /stats` | Live counters, plus one line per listener with the address it really bound — a path means unix, a `host:port` means TCP. With a `telemetry` block, how many audit events the exporter sent and dropped. |
-| `GET /config` | The **resolved** config: each listener's guardrails after inheritance, its OPA endpoint, and the analyzer settings with the credential omitted. |
-| `GET /events` | The last N events from an in-memory ring buffer. |
-| `GET /api/sessions` | One row per session: principal, connection, statement / denial / mask counts, and a verdict. |
-| `GET /api/events` | Individual events, filterable. |
-| `GET /api/stats` | Aggregates: totals, plus breakdowns by connection and by rule. |
-| `PUT /license` | Installs a license without a restart. Off unless `HOOP_SIDECAR_ADMIN_SECRET` is set; see [Changing the license of a running process](/setup/configuration/hoop-sidecar/config-file#changing-the-license-of-a-running-process). |
+```yaml
+admin:
+  listen: 127.0.0.1:19000       # /healthz /readyz, POST /v1/drain (ICA, token-gated)
+  api_listen: 127.0.0.1:19002   # /stats /metrics /config /events /api/*
+```
+
+`api_listen` must not bind the same address and port as `listen`. If either listener cannot bind, the Sidecar stops.
+
+| Listener | Endpoint | Returns |
+|---|---|---|
+| `admin.listen` | `GET /healthz` | `ok`. What a container healthcheck polls. |
+| `admin.listen` | `GET /readyz` | `200` when every lane is ready. `503` while a lane still loads, with `not ready: <lane names>`. With `admin.ica_readiness_json`, a JSON body: `status`, `inspection_enabled`, `graphics_bypassed`, `protocol_validation_enabled`. |
+| `admin.listen` | `POST /v1/drain` | Drains the ICA lanes. Needs their deployment token. |
+| `admin.api_listen` | `GET /stats` | Live counters, plus one line per listener with the address it really bound — a path means unix, a `host:port` means TCP. With a `telemetry` block, how many audit events the exporter sent and dropped. |
+| `admin.api_listen` | `GET /metrics` | Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics). To push them over OTLP instead, see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry). |
+| `admin.api_listen` | `GET /config` | The **resolved** config: each listener's guardrails after inheritance, its OPA endpoint, and the analyzer settings with the credential omitted. |
+| `admin.api_listen` | `GET /events` | The last N events from an in-memory ring buffer. |
+| `admin.api_listen` | `GET /api/sessions` | One row per session: principal, connection, statement / denial / mask counts, and a verdict. |
+| `admin.api_listen` | `GET /api/events` | Individual events, filterable. |
+| `admin.api_listen` | `GET /api/stats` | Aggregates: totals, plus breakdowns by connection and by rule. |
+
+On `admin.listen`, the read routes answer `404` with `moved: this route is served on admin.api_listen, which is off unless set`.
+
+Releases up to 1.306 served the read routes on `admin.listen`. After the upgrade, a scraper or script that reads them needs `api_listen` set and its URL moved to that port. The Control Plane does not send `api_listen` to an older Sidecar, because that Sidecar refuses a config with a key it does not know.
+
+To probe a port other than `admin.listen`, set the environment variable `HOOP_SIDECAR_HEALTH_LISTEN` to a `host:port`. It binds one more listener with `/healthz` and `/readyz` only.
 
 `GET /config` is the one to reach for when a rule you wrote never fires. Inheritance is merged at startup, so the file tells you what you asked for and `/config` tells you what the process resolved:
 
 ```bash
-curl -s localhost:19000/config | jq '.lanes[] | {name, rules}'
+curl -s localhost:19002/config | jq '.lanes[] | {name, rules}'
 ```
 
 The query endpoints filter on `principal`, `connection`, `protocol`, `since`, `until`, `denied`, `open`, and `q` for substring search, with `limit` and `cursor` for paging. `/api/events` also takes `session_id` and a repeatable `kind`.
@@ -191,7 +207,7 @@ The query endpoints filter on `principal`, `connection`, `protocol`, `since`, `u
 Both in-memory views are off by default, and each has its own budget: `audit.memory_buffer` sets how many events `/events` keeps, `audit.query_sessions` how many sessions back `/api/*`. Zero on either disables that surface without touching the JSON lines stream, which stays the record of truth.
 
 <Warning>
-The admin listener's read routes have no authentication and no CORS of its own, and they serve every statement every user ran. Bind it to loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port. `PUT /license` asks for `HOOP_SIDECAR_ADMIN_SECRET` as a bearer token, and the listener is plain HTTP: send it from the host or through an encrypted tunnel.
+The read routes on `admin.api_listen` have no authentication and no CORS of their own, and they serve every statement every user ran. They are off by default. When you turn them on, keep `api_listen` on loopback, or put it behind whatever already gates access to your audit trail. Never expose it on a data port.
 </Warning>
 
 Where those events go on the way out — the bounded async queue, the file, and the two in-memory sinks — is in [Architecture](/setup/configuration/hoop-sidecar/components#audit-six-kinds-one-write-path-three-sinks). To watch the Sidecar from Grafana, Honeycomb or Datadog — statements per lane, denials, and where each statement's time goes — see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry).

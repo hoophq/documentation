@@ -18,6 +18,7 @@ API_URL='https://cp.yourdomain.tld'
 | Variable | Required | Default |
 |---|---|---|
 | `POSTGRES_DB_URI` | **yes** | — |
+| `POSTGRES_MAX_OPEN_CONNS` | no | `50` |
 | `API_URL` | **yes** | — |
 | `IDP_ISSUER` | no | unset, meaning local authentication |
 | `IDP_CLIENT_ID` | with an issuer | — |
@@ -47,6 +48,25 @@ POSTGRES_DB_URI='postgres://hoopuser:<passwd>@db-host:5432/hoopdb'
 
 URL-encode a password containing special characters. Append `?sslmode=disable`
 if your database does not support TLS.
+
+`POSTGRES_MAX_OPEN_CONNS` is the most connections this process opens to the
+database, 50 by default. Past it a query waits in process for a free
+connection instead of opening one, so a burst of API requests (a Terraform
+apply over a sidecar fleet, for example) queues inside the Control Plane
+rather than exhausting the server's connection slots, which would fail every
+caller of that database.
+
+```bash
+POSTGRES_MAX_OPEN_CONNS='8'
+```
+
+Size it to the database, not to the traffic. Throughput peaks at 2-4
+connections per database vCPU; past that, connections only queue on the CPU.
+The database serves the sum over every process that uses it, so divide that
+sum by the number of Control Plane pods: a 2 vCPU database serving two pods
+takes `4` each. On Kubernetes, `postgresPool.connectionBudget` in the chart
+does the division (see [Kubernetes](/control-plane/deployment/kubernetes)).
+A value that is not a positive integer stops startup.
 
 ---
 

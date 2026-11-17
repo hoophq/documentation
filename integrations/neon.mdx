@@ -73,6 +73,7 @@ The Sidecar sees Postgres connections only. The Neon serverless driver over HTTP
     ```yaml config.yaml
     admin:
       listen: 0.0.0.0:19000
+      api_listen: 0.0.0.0:19002   # the audit query API; published on loopback below
 
     audit:
       file: "-"
@@ -118,7 +119,7 @@ The Sidecar sees Postgres connections only. The Neon serverless driver over HTTP
       hoophq/hoopsidecar:<version> hoop start sidecar --validate
 
     docker run -d --name hoop-neon \
-      -p 127.0.0.1:15432:15432 -p 127.0.0.1:15433:15433 -p 127.0.0.1:19000:19000 \
+      -p 127.0.0.1:15432:15432 -p 127.0.0.1:15433:15433 -p 127.0.0.1:19000:19000 -p 127.0.0.1:19002:19002 \
       -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
       hoophq/hoopsidecar:<version>
     ```
@@ -174,7 +175,7 @@ FATAL:  destructive statements are blocked by Hoop
 The audit lists each session with its listener, its principal and counts (fields trimmed):
 
 ```bash
-curl -s 127.0.0.1:19000/api/sessions
+curl -s 127.0.0.1:19002/api/sessions
 ```
 
 ```json

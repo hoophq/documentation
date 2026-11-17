@@ -235,7 +235,8 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
               token: <the token you copied>
             config:
               admin:
-                listen: 0.0.0.0:19000      # the admin API port; the chart needs 19000
+                listen: 0.0.0.0:19000      # probes; the chart needs 19000
+                api_listen: 127.0.0.1:19002 # read routes, used in step 4
               listeners:
                 - name: appdb
                   protocol: postgres
@@ -279,7 +280,7 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
                     key: token
             ```
 
-            The container also needs the config file, from a ConfigMap mounted at `/etc/hoop-inspect/config.yaml`. Use the same file as the Docker tab: at least one entry in `listeners`, and `admin.listen` on `0.0.0.0`. See [Running as Sidecar](/install/kubernetes#running-as-sidecar) for the full Deployment and ConfigMap.
+            The container also needs the config file, from a ConfigMap mounted at `/etc/hoop-inspect/config.yaml`. Use the same file as the Docker tab: at least one entry in `listeners`, `admin.listen` on `0.0.0.0`, and `admin.api_listen` on `127.0.0.1`. See [Running as Sidecar](/install/kubernetes#running-as-sidecar) for the full Deployment and ConfigMap.
 
             A Sidecar that already runs picks up the variables on a restart:
 
@@ -296,7 +297,8 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
 
         ```yaml config.yaml
         admin:
-          listen: 0.0.0.0:19000      # the admin API port, used in step 4
+          listen: 0.0.0.0:19000      # probes, used in step 4
+          api_listen: 0.0.0.0:19002  # read routes, used in step 4
         listeners:
           - name: appdb
             protocol: postgres
@@ -305,7 +307,7 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
         ```
 
         - `listeners` names the database the Sidecar sits in front of. The file needs at least one.
-        - `admin.listen` sets the port of the admin API. In a container, use `0.0.0.0`: a published port cannot reach the container's `127.0.0.1`.
+        - `admin.listen` sets the port of the probes, and `admin.api_listen` the port of the read routes. In a container, use `0.0.0.0`: a published port cannot reach the container's `127.0.0.1`. The `docker run` below publishes 19002 on the host's loopback only, because the read routes have no authentication.
 
         See the [Config File Reference](/setup/configuration/hoop-sidecar/config-file) for every key.
 
@@ -316,7 +318,7 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
           -e HOOP_CONTROL_PLANE_URL=https://hoop.your-company.com \
           -e HOOP_SIDECAR_TOKEN=<the token you copied> \
           -v "$PWD/config.yaml:/etc/hoop-inspect/config.yaml:ro" \
-          -p 15432:15432 -p 19000:19000 \
+          -p 15432:15432 -p 19000:19000 -p 127.0.0.1:19002:19002 \
           hoophq/hoopsidecar:<version>
         ```
 
@@ -328,7 +330,8 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
         ```yaml config.yaml
         control_plane_url: https://hoop.your-company.com
         admin:
-          listen: 127.0.0.1:19000    # the admin API port, used in step 4
+          listen: 127.0.0.1:19000    # probes, used in step 4
+          api_listen: 127.0.0.1:19002 # read routes, used in step 4
         listeners:
           - name: appdb
             protocol: postgres
@@ -363,14 +366,17 @@ Both paths end the same way — a token, pointed at the Control Plane — and bo
     ```yaml
     admin:
       listen: 127.0.0.1:19000
+      api_listen: 127.0.0.1:19002
     ```
 
-    `listen` is the address and port of the admin API. To add or change it later, edit the Sidecar's configuration in the Control Plane, then restart the Sidecar.
+    `listen` serves the probes. `api_listen` serves `/config` and the other read routes, and is off unless set. To add or change either later, edit the Sidecar's configuration in the Control Plane, then restart the Sidecar.
 
     ```bash
     curl -s localhost:19000/healthz            # ok
-    curl -s localhost:19000/config | python3 -m json.tool
+    curl -s localhost:19002/config | python3 -m json.tool
     ```
+
+    On Kubernetes, run `kubectl port-forward deploy/<your-sidecar-deployment> 19002:19002` first. The chart does not publish 19002.
 
     The Sidecar should also appear in the Control Plane's list, with a recent check-in.
   </Step>
@@ -452,7 +458,8 @@ The Control Plane then sends only that flag and the license, and the Sidecar run
 | The Sidecar starts but never appears in the Control Plane | Outbound HTTPS to the Control Plane host. The Sidecar dials out; nothing dials in. |
 | It warns that the config file's listeners are ignored | Expected once the Control Plane holds the configuration. Edit it there; the local file no longer holds it. |
 | It warns that your license is ignored | Expected while the Control Plane manages licensing. Apply the license to the organization instead. |
-| The admin API refuses the connection | `admin.listen` is not in the configuration the Control Plane serves. There is no default address. |
+| The admin API refuses the connection | `admin.listen` is not in the configuration the Control Plane serves, or, for `/config`, `admin.api_listen` is not. There is no default address. |
+| `/config` on 19000 answers `404 moved` | The read routes are on `admin.api_listen`. Set it and use that port. |
 | Rules changed centrally but the Sidecar did not | Configuration is picked up on the heartbeat, not pushed. Wait up to a minute. A listener change needs a restart. |
 | Authentication fails | The token is per-Sidecar. Reusing one across two Sidecars is not a supported shape. |
 | The Sidecar page shows `Refused` or `Not applied` | The Sidecar's version cannot read the configuration. The page shows the reason. Upgrade the Sidecar, or remove the setting. See [Upgrading](#upgrading). |
