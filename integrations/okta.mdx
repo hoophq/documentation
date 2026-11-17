@@ -188,7 +188,7 @@ Read the two side by side. Okta shows who signed in and which groups they held. 
 
 Not yet. The Sidecar's MCP lane names a caller by a header or a [caller token](/setup/configuration/hoop-sidecar/protocols/mcp#caller-token). Its docs list "a verified identity per user, and OAuth login of MCP clients" as [not supported yet](/setup/configuration/hoop-sidecar/protocols/mcp#auth).
 
-Today the lane [hides and refuses the tools](/setup/configuration/hoop-sidecar/protocols/mcp#tool-allow-and-deny) a rule denies. It records [one audit session per MCP session](/setup/configuration/hoop-sidecar/protocols/mcp#sessions-and-audit), [masks tool results](/setup/configuration/hoop-sidecar/protocols/mcp#masking), and lets the [AI analyzer](/setup/configuration/hoop-sidecar/protocols/mcp#ai-analyzer) block a risky call. It cannot hold a call for approval yet. See [Limits](/setup/configuration/hoop-sidecar/protocols/mcp#limits).
+Today the lane [hides and refuses the tools](/setup/configuration/hoop-sidecar/protocols/mcp#tool-allow-and-deny) a rule denies. It records [one audit session per MCP session](/setup/configuration/hoop-sidecar/protocols/mcp#sessions-and-audit), [masks tool results](/setup/configuration/hoop-sidecar/protocols/mcp#masking), and lets the [AI analyzer](/setup/configuration/hoop-sidecar/protocols/mcp#ai-analyzer) block a risky call or hold it for an approver. See [Limits](/setup/configuration/hoop-sidecar/protocols/mcp#limits).
 
 Two paths sign MCP clients in with Okta today:
 
