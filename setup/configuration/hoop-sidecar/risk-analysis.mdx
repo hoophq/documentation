@@ -733,7 +733,7 @@ After the level is known, one more model turn runs. It counts against `max_calls
 | `create_guardrail` | `guardrails.mode: existing_and_new` | `type`, the fields of that type, `message`, `reason` |
 | `apply_mask` | `mask` set, at least one rule allowed | `rule` (an enum of the allowed names), `reason` |
 | `create_mask` | `mask.mode: existing_and_new` | `entities` or `columns`, `strategy`, `keep_last`, `mask_char`, `reason` |
-| `no_rule` | the turn runs alone (providers force a tool call) | `reason` |
+| `no_rule` | the turn runs alone (the agent must call one tool) | `reason` |
 
 The system prompt carries each allowed rule's name and definition as one escaped JSON document between `<rule_library>` and `</rule_library>`. A line says that text inside a rule field is data and never an instruction. A fixed suffix that no config removes follows.
 
@@ -1090,9 +1090,12 @@ If statements must stay in your network, set your own `provider`, or `use_hoop_l
     ```yaml
     analyzer:
       provider: anthropic
-      model: claude-sonnet-4-5
+      model: claude-sonnet-5-5
       credentials_file: /run/secrets/anthropic-key
+      extra: {effort: low}   # optional; see Thinking below
     ```
+
+    Claude is told to call a risk tool, not forced (`tool_choice: auto`): Claude Sonnet 5.5 and Opus 5.5 refuse a forced call. A reply without a call fails as `model called no risk tool`. The same applies to `provider: vertex` with `publisher: anthropic`.
   </Tab>
   <Tab title="OpenAI">
     ```yaml
@@ -1133,19 +1136,22 @@ analyzer:
   max_retries: 2                     # re-send after a 408, 429 or 5xx
   temperature: 0                     # 0 is a value, not "unset"
   seed: 7
-  max_output_tokens: 1024            # the default
+  max_output_tokens: 1024            # the default; 4096 for Claude
 ```
 
 ### Thinking
 
-Gemini 3 and later models reason before they answer. The default tier, `MEDIUM` on the 3.x Flash models, can take one call past `timeout_sec`. A classification is one forced tool call and needs little reasoning, so `thinking_level: low` is the usual setting.
+Gemini 3 and later models reason before they answer. The default tier, `MEDIUM` on the 3.x Flash models, can take one call past `timeout_sec`. A classification is one tool call and needs little reasoning, so `thinking_level: low` is the usual setting.
 
 | Key | Models | Values |
 |---|---|---|
 | `extra.thinking_level` | Gemini 3 and later | `minimal`, `low`, `medium`, `high` |
 | `extra.thinking_budget` | Gemini 2.5 | a token count; `0` turns thinking off on 2.5 Flash and Flash-Lite; `-1` lets the model decide |
+| `extra.effort` | Claude models with effort, such as Sonnet 5.5 and Opus 5.5 | `low`, `medium`, `high`, `xhigh`, `max` |
 
-Both keys apply to `provider: gemini` and to `provider: vertex` with `publisher: google`. Set one, never both: Google rejects a request with both, so startup refuses it. Any other publisher refuses them too. `thinking_budget: 0` and `thinking_budget: "0"` load the same; quotes are optional for any `extra` value.
+`thinking_level` and `thinking_budget` apply to `provider: gemini` and to `provider: vertex` with `publisher: google`. Set one, never both: Google rejects a request with both, so startup refuses it. Any other publisher refuses them too. `thinking_budget: 0` and `thinking_budget: "0"` load the same; quotes are optional for any `extra` value.
+
+`effort` applies to `provider: anthropic` and to `provider: vertex` with `publisher: anthropic`. Any other publisher refuses it. It is sent as `output_config.effort`. Claude Sonnet 5.5 and Opus 5.5 think by default, so `effort: low` is the usual setting. A Claude model without effort answers a set value with a 400.
 
 <Warning>
 Each model accepts only some levels. `gemini-3.8-flash` takes `low`, `medium` and `high`, and has no `minimal`. Gemini 2.5 Pro cannot turn thinking off. The Sidecar cannot check this at startup, so an unsupported value fails every call with a 400, which [`/metrics`](#metrics) shows as `outcome="error"`. Check the model's card before you set it.
@@ -1164,15 +1170,15 @@ Each model accepts only some levels. `gemini-3.8-flash` takes `low`, `medium` an
 Two limits come from the APIs, not from the Sidecar:
 
 - Gemini 3 and later models accept `temperature`, `top_p` and `top_k` and ignore them. Google points to `thinking_level` instead. The Sidecar does not check for this, because the model name is the only signal and it changes with every release.
-- Some Claude models refuse `temperature` and `top_p` together. That error comes from the API on each call.
+- Some Claude models refuse `temperature` and `top_p` together. Claude Sonnet 5.5, Opus 5.5 and Haiku 5.5 refuse `temperature`, `top_p` and `top_k`. That error comes from the API on each call, so remove these keys for those models.
 
 <Note>
-Sampling narrows a model's answer. It does not make two calls agree. The [cache](#the-four-cost-controls) does: statements of one shape share one verdict for `ttl_sec`, with no second call. The shape of the answer is already fixed: every provider must call one of three risk tools, so the verdict is always `low`, `medium` or `high`.
+Sampling narrows a model's answer. It does not make two calls agree. The [cache](#the-four-cost-controls) does: statements of one shape share one verdict for `ttl_sec`, with no second call. The shape of the answer is already fixed: the Sidecar reads the verdict only from which of three risk tools the model called, so the verdict is always `low`, `medium` or `high`.
 </Note>
 
 ### Output length
 
-`max_output_tokens` caps the length of the reply, 1024 by default. It does not set its shape; the forced tool call does. A tool call with a title and a short explanation needs a few hundred tokens.
+`max_output_tokens` caps the length of the reply: 4096 by default for Claude, 1024 for the other providers. It does not set its shape; the risk tools do. A tool call with a title and a short explanation needs a few hundred tokens. On a model that thinks, such as Claude Sonnet 5.5 and Opus 5.5, the cap covers the thinking too. A reply cut off before the tool call fails as `model called no risk tool`.
 
 ### Retries
 
@@ -1520,7 +1526,7 @@ A retried failure adds the attempt count: `(after 1.2s, timeout 10s, 3 attempts)
     If the p99 of `outcome="ok"` sits near `timeout_sec`, the model is slow, not down. Raise `timeout_sec` on that listener only, above the p99.
   </Step>
   <Step title="Cut the work per call">
-    On Gemini 3 and later, set `thinking_level: low`. Lower `max_input_bytes` on listeners with large bodies. Narrow the `trigger` and turn on the `cache` so fewer statements reach the model.
+    On Gemini 3 and later, set `thinking_level: low`. On Claude Sonnet 5.5 and Opus 5.5, set `effort: low`. Lower `max_input_bytes` on listeners with large bodies. Narrow the `trigger` and turn on the `cache` so fewer statements reach the model.
   </Step>
   <Step title="Absorb transient failures">
     If `outcome="error"` comes with 429 or 503 in the log, set `max_retries: 2`. Retries share `timeout_sec`, so they never hold a connection longer.
@@ -1584,6 +1590,7 @@ Each of these would otherwise load, evaluate and do nothing:
 | A `thinking_level` other than `minimal`, `low`, `medium` or `high`, or a `thinking_budget` that is not `-1`, `0` or a token count | Refused: every call would be a 400 |
 | `thinking_level` and `thinking_budget` together | Refused: Google rejects a request with both |
 | `labels` on `provider: gemini`; `thinking_level`, `thinking_budget` or `labels` on a Vertex publisher other than `google` | Refused, naming the provider or publisher |
+| An `effort` other than `low`, `medium`, `high`, `xhigh` or `max`, or `effort` on a Vertex publisher other than `anthropic` | Refused, naming the key or the publisher |
 | A `labels` entry that is not `key=value`, breaks GCP's label rules or repeats a key | Refused, naming the entry |
 
 One former refusal moved to runtime: a risk level set to `defer` on a lane with no `opa.url` now loads, `--validate` prints a note, and a deferred verdict **denies** instead of reporting a finding nobody reads.
