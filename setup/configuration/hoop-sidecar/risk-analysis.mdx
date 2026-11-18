@@ -340,7 +340,7 @@ Approve stays off until the whole statement has been on screen. Each decision is
 A configured Control Plane always wins. Its approvers decide, and the terminal never releases a statement the Control Plane governs. Off a terminal (a pipe, a container, CI), there is nobody to ask, and the Sidecar refuses a level a person approves at startup as before.
 </Note>
 
-Every protocol except `mcp` can hold. On an `mcp` listener a hold refuses the call before any approver; see [MCP](/setup/configuration/hoop-sidecar/protocols/mcp#ai-analyzer). What the approver reads differs per protocol; see [What a hold files](#what-a-hold-files).
+Every protocol can hold. On an `mcp` listener a held call waits 4 minutes at most; see [MCP](/setup/configuration/hoop-sidecar/protocols/mcp#ai-analyzer). What the approver reads differs per protocol; see [What a hold files](#what-a-hold-files).
 
 **The approval runs last.** The Sidecar files an approval request only after every other check allowed the statement, the decide-phase OPA call included. A decide denial files nothing, pages nobody and spends no approval. The decide call sees the pending approval as `input.review` (the key keeps its earlier name, so existing Rego keeps working; see [the OPA input document](/setup/configuration/hoop-sidecar/config-file#opa)), and it can deny the statement but cannot skip the approval. The [approval agent](#the-approval-agent) runs last the same way, so a decide denial spends no model call on it. The decide call sees it as `input.review.mode == "agent"`.
 
@@ -359,6 +359,7 @@ The wait and the poll interval are constants, with no config field. A Control Pl
 | The client hangs up or the upstream closes | The audit record carries the cause. Ctrl-C in `psql` or `mysql` does **not** end the wait: both send the cancel on a separate connection. Close the client instead. |
 | `idle_timeout_sec` is shorter than 30 minutes | A held connection is idle. `--validate` prints a note. |
 | The caller's own deadline expires | In practice this sets the limit on http, grpc and spanner. An http client behind Envoy gives up after the 15 s default route timeout. |
+| The listener is `mcp` | The wait ends after 4 minutes, so an approved call keeps a minute of the 5-minute request limit to run. |
 
 **A timed-out statement is released by a retry.** The developer asks an approver, then runs the same statement again:
 
@@ -517,6 +518,8 @@ Text an approver cannot see, such as a zero-width space or a bidi control, takes
 - A message larger than `grpc.max_payload_bytes` denies without filing.
 - A message carrying a request id, a nonce or a transaction id never matches twice. Metadata is not filed, so a trace header does not break a match.
 - The request headers reach the upstream before the analyzer decides; the message does not.
+
+**mcp** files the tool name, a newline, then the call's arguments as the client sent them. The same tool with the same arguments, byte for byte, matches the approval.
 
 **ssh** holds `exec` only, because the analyzer classifies `exec_line` alone. A shell sends no statements, so a user could type in a shell what `exec` would hold. A holding ssh listener must therefore drop `shell` from [`capabilities_allowed`](/setup/configuration/hoop-sidecar/protocols/ssh/configuration#capabilities-allowed). An absent key admits `shell`, so write the list out:
 

@@ -258,11 +258,15 @@ An `analyzer` block, or an `ai_analysis` rule, classifies each `tools/call`. See
 ```
 
 - `block` refuses the one call as a tool error. The MCP session stays open.
-- A hold refuses the call before any approver, the AI agent included, and files no approval request: the lane cannot hold a call for approval yet. A hold that a person approves still needs a reviewer to start, as on the other lanes: a Control Plane with an approval rule, or a terminal reviewer.
+- A hold files the call as on the other lanes: the tool name and the arguments, byte for byte. Approved, the call runs once. Rejected or expired, it is a tool error with the reason, and the MCP session stays open.
+- With `review_mode: hold` (the default), the call waits 4 minutes at most. The lane ends a request after 5 minutes, and an approved call keeps the last minute to run. A call still pending then gets a tool error that starts `held for approval by the hoop sidecar` and names the approval. After the approval, the same call runs.
+- The 4 minutes count from the start of the call and cover all its holds. A [SQL tool](#sql-tools) call with two held statements spends the first approval when its statement is released. If the second is still pending at the limit, the call does not run, and the retry files the first statement again.
+- With `review_mode: return`, a pending call gets that tool error at once. When the Sidecar has the [approval MCP server](/setup/configuration/hoop-sidecar/agent-approvals#the-mcp-server), the error names `approval_wait`. Use `return` when a review takes longer than the client waits for a tool call. Check that limit in the client's own settings.
+- A hold that a person approves needs a reviewer to start, as on the other lanes: a Control Plane with an approval rule, or a terminal reviewer.
 - A provider failure follows `fail_open`, as on the other lanes.
 - On a [SQL tool](#sql-tools), the model reads the call and each SQL statement of its argument: one model call for the call and one per statement. A trigger selects the SQL by its own operation and tables, and also by `call` or by the tool name in `tables`.
 - The statement row carries `risk_level`, `risk_action`, `ai_rule` and `ai_status`.
-- A Sidecar managed by a Control Plane gets an analyzer on an mcp lane only when it reports the `mcp_analyzer` capability. The AI Analyzer page offers MCP listeners, with "Hold for approval" disabled.
+- A Sidecar managed by a Control Plane gets an analyzer on an mcp lane only when it reports the `mcp_analyzer` capability. The AI Analyzer page offers MCP listeners.
 
 ---
 
@@ -446,7 +450,7 @@ claude mcp add --transport http github http://127.0.0.1:18901/mcp \
 ## Limits
 
 - `listen` takes an address other than loopback only with `caller_token`. See [Caller token](#caller-token).
-- No call can be held for approval. See [AI analyzer](#ai-analyzer).
+- A held call waits 4 minutes at most. See [AI analyzer](#ai-analyzer).
 - `max_conns` and `network: unix` are refused.
 - Sessions live in memory: run one replica, or pin `Mcp-Session-Id` to one.
 
