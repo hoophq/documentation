@@ -452,19 +452,35 @@ claude mcp add --transport http github http://127.0.0.1:18901/mcp \
 
 ## Feature coverage
 
-Which part of MCP each feature reads. Each link opens the test that proves the cell. A part marked No passes through unread.
+Which part of MCP each feature reads. A part marked No passes through unread. Descriptions are the `tools/list` result, after `overrides`.
 
-| Feature | Tool call arguments | Tool descriptions | Result `content[].text` | Result `structuredContent` | Resources | Prompts |
+| Feature | Call arguments | Descriptions | `content[].text` | `structuredContent` | Resources | Prompts |
 |---|---|---|---|---|---|---|
-| Guardrails | [Judged](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [Judged; a hit ends the session](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | No | No | No | No |
-| OPA | [Judged](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [Judged; a deny ends the session](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | No | No | No | No |
-| Masking | No | No | [Masked](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) | [Masked](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) | [`resources/read` text masked; `blob` not](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) | No |
-| SQL rules | [The SQL in an `mcp_gateway.sql` argument](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpsql_test.go) | No | No | No | No | No |
-| AI analyzer | [Rated](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpanalyzer_test.go) | No | No | No | No | No |
-| Approvals | [Held](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpanalyzer_test.go) | No | No | No | No | No |
-| Audit | [One statement per call](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [One statement per list](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [The count of masked values, not the text](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [The count of masked values, not the text](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | No | No |
+| Guardrails | Judged | Judged; a hit ends the session | No | No | No | No |
+| OPA | Judged | Judged, unless `responses: false`; a deny ends the session | No | No | No | No |
+| Masking | No | No | Masked | Masked | `resources/read` text masked; `blob` not | No |
+| SQL rules | The SQL in an `mcp_gateway.sql` argument | No | No | No | No | No |
+| AI analyzer | Rated | No | No | No | No | No |
+| Approvals | Held | No | No | No | No | No |
+| Audit | One statement per call | One statement per list | The masked count | The masked count | The masked count; no statement | No |
 
-Tool descriptions are the `tools/list` result, after `overrides`.
+The tests behind each cell:
+
+| Cell | Tests |
+|---|---|
+| Guardrails, arguments | [`TestMCPLaneRuleTypes`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go), [`TestARuleDenialIsAToolError`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mcpgateway_test.go), [`TestMCPToolRule`](https://github.com/hoophq/hoop/blob/main/sidecar/policy/mcp_test.go) |
+| Guardrails, descriptions | [`TestMCPLaneRuleTypes`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go), [`TestADeniedCatalogEndsTheSession`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mcpgateway_test.go), [`TestAHiddenToolIsAbsentFromTheCatalogAndRefused`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mcpgateway_test.go) |
+| OPA, arguments and descriptions | [`TestMCPLaneConsultsOPA`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go), [`TestADeniedCatalogEndsTheSession`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mcpgateway_test.go) |
+| Masking, `content[].text` | [`TestAToolResultTextIsMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) |
+| Masking, `structuredContent` | [`TestEveryStructuredContentStringIsMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) |
+| Masking, resources | [`TestAResourceReadIsMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go), [`TestANestedResourceTextIsMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go), [`TestAResourceBlobIsNotMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) |
+| SQL rules, arguments | [`TestAnMCPSQLToolCallIsJudgedPerStatement`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpsql_test.go), [`TestAnMCPSQLArgumentTheLaneCannotReadIsRefused`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpsql_test.go) |
+| AI analyzer, arguments | [`TestMCPLaneAnalyzerRefusesOneCall`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpanalyzer_test.go), [`TestMCPBuilderSendsTheToolNameAndArguments`](https://github.com/hoophq/hoop/blob/main/sidecar/analyzer/mcp_test.go) |
+| Approvals, arguments | [`TestMCPLaneHoldReleasesAnApprovedCall`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpanalyzer_test.go), [`TestMCPLaneHoldRefusesARejectedCall`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpanalyzer_test.go), [`TestAHeldCallAnswersWithinTheRequestTimeout`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mcpgateway_test.go) |
+| Audit, arguments | [`TestMCPLaneSessionRecordsOneStatementPerCall`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) |
+| Audit, descriptions | [`TestMCPLaneRecordsHiddenTools`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) |
+| Audit, results and resources | [`TestAToolResultTextIsMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go), [`TestEveryStructuredContentStringIsMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go), [`TestAResourceReadIsMasked`](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go), [`TestMCPLaneSessionMasksAndRecordsTheCount`](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) |
+
 
 ---
 
