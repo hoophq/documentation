@@ -189,7 +189,7 @@ Nothing above the transport changes. Guardrails, masking, audit and `upstream_tl
 ```yaml config.yaml
 listeners:
   - name: mssqldb
-    protocol: mssql             # postgres | mysql | mssql | mongodb | grpc | http
+    protocol: mssql             # postgres | mysql | mssql | mongodb | grpc | http | mcp
     listen: 127.0.0.1:11433     # network: unix works here too
     upstream: mssql:1433
     guardrails:

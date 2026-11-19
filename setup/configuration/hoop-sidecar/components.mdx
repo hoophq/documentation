@@ -226,6 +226,7 @@ The suite asserts one thing: the scanner's write-set equals PostgreSQL's, or the
 | `postgres` | `Query` ('Q'), `Parse` ('P'); handshake skipped | `RowDescription` ('T'), `DataRow` ('D'), and the terminators that end a result set | yes |
 | `mssql` | `SQLBatch` (`0x01`); every call in an `RPC` (`0x03`), with `sp_executesql`'s statement unwrapped and a prepared handle resolved to the text its `sp_prepexec` carried; a readable `LOGIN7` (`0x10`) as a `LOGIN` statement that names the session; PRELOGIN, SSPI and an `ENCRYPT_OFF` encrypted login forwarded untouched | the login reply is scanned once (a routing ENVCHANGE ends the connection; a column-encryption acknowledgement is noted); a prepare's reply is read for its handle; `COLMETADATA`, `ROW`, `NBCROW` and `RETURNVALUE` for masking | yes, both directions on one codec |
 | `http` | HTTP/1.x requests | HTTP/1.x responses | no |
+| `mcp` | each `tools/call`; no codec, see [MCP](/setup/configuration/hoop-sidecar/protocols/mcp#what-the-rules-read) | each `tools/list` result, as one catalog statement; tool and resource results are masked, not judged | yes: one MCP session |
 
 Both database codecs are stateful: one Postgres `RowDescription` describes every `DataRow` after it, one TDS `COLMETADATA` describes every `ROW`, and those land in different TCP reads.
 
@@ -467,7 +468,7 @@ A sidecar lane used to send an **empty** `input.context`. The gate looked for a 
 
 Read these before writing a policy against the Sidecar.
 
-- **Six codecs ship: postgres, mysql, mssql, mongodb, clickhouse and http.** Adding one means a new `codec/<name>` package and nothing else. `grpc`, `spanner` and `ssh` lanes are not codecs: each terminates its protocol itself and builds statements above it.
+- **Six codecs ship: postgres, mysql, mssql, mongodb, clickhouse and http.** Adding one means a new `codec/<name>` package and nothing else. `grpc`, `spanner`, `ssh` and `mcp` lanes are not codecs: each terminates its protocol itself and builds statements above it.
 - **Relations come from a scanner, not a SQL grammar.** One pass over a labelled region stack, reporting each relation as a read or a write. A statement it cannot finish comes back with no relations and an `unknown` operation carrying the reason in `metadata["sql.incomplete"]`, so "could not determine" never reads as "touches nothing". Set `require_table_match: true` on rules protecting something critical and accept the false positives. `lexer/conformance` holds the scanner to zero wrong answers against PostgreSQL 17.5's grammar.
 - **A response batch can be truncated.** The Postgres codec stops decoding columns past 1000 rows in one result set, to keep the Sidecar's memory out of a query's hands. It keeps counting and marks the batch truncated. A policy must read that as inconclusive, never as proof a value is absent.
 - **A response statement carries no verb.** For database codecs a server-direction statement reports `unknown`, because the operation belongs to the request the audit trail already recorded. Key a response-side SQL rule on the result, not on the operation.

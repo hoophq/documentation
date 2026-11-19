@@ -174,7 +174,7 @@ Both transports carry the same traffic. They differ in who can reach the listene
 Listeners are configured independently of one another:
 
 - **Transports are independent.** Moving `billing` to a socket leaves `appdb` on its TCP port. Guardrails, masking and audit behave the same either way, because the gate reads a connection without asking what kind it is.
-- **Protocols are independent.** Any mix of `postgres`, `mysql`, `mssql`, `mongodb`, `http`, `ssh`, `grpc`, `spanner` and `bigquery` runs in one process, each with its own rules and its own audit trail.
+- **Protocols are independent.** Any mix of `postgres`, `mysql`, `mssql`, `mongodb`, `http`, `ssh`, `grpc`, `spanner`, `bigquery` and `mcp` runs in one process, each with its own rules and its own audit trail.
 - **Rules are per listener.** Top-level guardrails and masking are defaults that every listener inherits, and any listener can override them. A strict production database and a permissive staging one can run in the same process.
 
 <Warning>
