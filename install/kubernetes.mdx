@@ -226,7 +226,7 @@ config:
 
   listeners:
     - name: appdb
-      protocol: postgres   # postgres | mysql | mssql | mongodb | grpc | spanner | http
+      protocol: postgres   # postgres | mysql | mssql | mongodb | grpc | spanner | http | mcp
       listen: '0.0.0.0:15432'
       upstream: postgres.default.svc.cluster.local:5432
 ```

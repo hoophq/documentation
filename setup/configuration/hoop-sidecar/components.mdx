@@ -226,6 +226,7 @@ The suite asserts one thing: the scanner's write-set equals PostgreSQL's, or the
 | `postgres` | `Query` ('Q'), `Parse` ('P'); handshake skipped | `RowDescription` ('T'), `DataRow` ('D'), and the terminators that end a result set | yes |
 | `mssql` | `SQLBatch` (`0x01`); every call in an `RPC` (`0x03`), with `sp_executesql`'s statement unwrapped and a prepared handle resolved to the text its `sp_prepexec` carried; a readable `LOGIN7` (`0x10`) as a `LOGIN` statement that names the session; PRELOGIN, SSPI and an `ENCRYPT_OFF` encrypted login forwarded untouched | the login reply is scanned once (a routing ENVCHANGE ends the connection; a column-encryption acknowledgement is noted); a prepare's reply is read for its handle; `COLMETADATA`, `ROW`, `NBCROW` and `RETURNVALUE` for masking | yes, both directions on one codec |
 | `http` | HTTP/1.x requests | HTTP/1.x responses | no |
+| `mcp` | each `tools/call`; no codec, see [MCP](/setup/configuration/hoop-sidecar/protocols/mcp#what-the-rules-read) | each `tools/list` result, as one catalog statement; tool and resource results are masked, not judged | yes: one MCP session |
 
 Both database codecs are stateful: one Postgres `RowDescription` describes every `DataRow` after it, one TDS `COLMETADATA` describes every `ROW`, and those land in different TCP reads.
 

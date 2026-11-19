@@ -7,6 +7,8 @@ A `protocol: mcp` lane terminates MCP streamable HTTP on `/mcp` and forwards to 
 
 The lane embeds [mcpproxy](https://github.com/hoophq/mcpproxy) and ships in Sidecar 1.289.0 and later. A Sidecar build without the MCP engine refuses the lane at `-validate`.
 
+[Feature coverage](#feature-coverage) shows which part of MCP each feature reads. [Limits](#limits) lists what the lane does not do.
+
 ---
 
 ## Configure a lane
@@ -45,7 +47,7 @@ The MCP client points at `http://127.0.0.1:18901/mcp`.
 | `listen` | required | `host:port` on loopback: `127.0.0.1`, `::1` or `localhost`. Any other address needs `caller_token`. MCP clients connect to `http://<listen>/mcp`, or `https://` with `downstream_tls`. |
 | `upstream` | required | The MCP endpoint, with its path. `https`, or `http` on loopback. No user, password, query or fragment. A redirect is followed only within its origin. |
 | `upstream_tls` | the host trust store | The CA, the client certificate and the server name for the hop to the upstream. |
-| `idle_timeout_sec` | `1800` | An MCP session with no message for this long ends, with its Sidecar session. |
+| `idle_timeout_sec` | `1800` | An MCP session with no message for this long ends, with its Sidecar session. The lane checks once a minute. |
 | `identity_header` | none | The header whose value names the caller. See [Auth](#auth). |
 | `caller_token` | none | Admits only a caller that sends a listed token. See [Caller token](#caller-token). |
 | `downstream_tls` | none | Terminates the client's TLS at the lane: `cert_file` and `key_file`. HTTP/1.1 over TLS 1.2 or later. |
@@ -135,7 +137,7 @@ The metadata names the tool in the audit trail and in OPA's input.
 
 Each `tools/list` is one catalog statement: `direction: server`, `operation: show`, no tables, one `<name>: <description>` line per tool.
 
-Rules and OPA judge the catalog too, and a hit ends the session. A `deny_words_list` word in a tool description ends it.
+Rules and OPA judge the catalog too, and a hit ends the session. A `deny_words_list` word in a tool description ends it. They read the catalog after `overrides`: a replaced description is what they see.
 
 A `table` rule never matches the catalog, `require_table_match` included.
 
@@ -274,7 +276,7 @@ An `analyzer` block, or an `ai_analysis` rule, classifies each `tools/call`. See
 
 One Sidecar session per MCP session. It opens on the first message and closes on the client's `DELETE` or the idle timeout.
 
-The session records `initialize` as an activity (client name, version, protocol version), one statement per `tools/call`, allowed or denied with its rule, and one statement per `tools/list`.
+The session records `initialize` as an activity (client name, version, protocol version), one statement per `tools/call`, allowed or denied with its rule, and one statement per `tools/list`. A `resources/read` or a `prompts/get` leaves no statement.
 
 mcpproxy refusals, such as a budget or a rug pull, reach the session as activities.
 
@@ -309,7 +311,8 @@ The session also records these activities:
 | `mcp.tool_denied` | mcpproxy refuses a call, such as an unadvertised tool or a budget | `tool`, `rule`, `reason` |
 | `mcp.budget_exceeded` | a budget or a rate limit refuses a call, or a result is cut | `tool`, `rule`, `reason` |
 | `mcp.tools_changed` | a rug pull, or the server announces `tools/list_changed` | `tool`, `rule`, `reason` |
-| `mcp_session_killed` | the lane ends the session: a rug pull with `on_rug_pull: kill`, or a catalog it cannot read | `reason` |
+| `mcp.server_request_denied` | the lane refuses the server's `sampling/createMessage` or `elicitation/create` request | `tool`, `rule`, `reason` |
+| `mcp_session_killed` | the lane ends the session: a rug pull with `on_rug_pull: kill`, a catalog it cannot read, or a catalog a rule or OPA denies | `reason` |
 | `mcp.session_refused` | a request from another caller names the session; it gets a 404 | `caller`, `reason` |
 
 A call a guardrail rule or OPA denies is a statement with its rule, not an activity. A masked result adds a `masked` row; see [Masking](#masking). The analyzer's verdict is on the call's statement; see [AI analyzer](#ai-analyzer).
@@ -447,12 +450,36 @@ claude mcp add --transport http github http://127.0.0.1:18901/mcp \
 
 ---
 
+## Feature coverage
+
+Which part of MCP each feature reads. Each link opens the test that proves the cell. A part marked No passes through unread.
+
+| Feature | Tool call arguments | Tool descriptions | Result `content[].text` | Result `structuredContent` | Resources | Prompts |
+|---|---|---|---|---|---|---|
+| Guardrails | [Judged](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [Judged; a hit ends the session](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | No | No | No | No |
+| OPA | [Judged](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [Judged; a deny ends the session](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | No | No | No | No |
+| Masking | No | No | [Masked](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) | [Masked](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) | [`resources/read` text masked; `blob` not](https://github.com/hoophq/hoop/blob/main/sidecar/mcpgateway/mask_test.go) | No |
+| SQL rules | [The SQL in an `mcp_gateway.sql` argument](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpsql_test.go) | No | No | No | No | No |
+| AI analyzer | [Rated](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpanalyzer_test.go) | No | No | No | No | No |
+| Approvals | [Held](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpanalyzer_test.go) | No | No | No | No | No |
+| Audit | [One statement per call](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [One statement per list](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [The count of masked values, not the text](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | [The count of masked values, not the text](https://github.com/hoophq/hoop/blob/main/sidecar/daemon/mcpgateway_test.go) | No | No |
+
+Tool descriptions are the `tools/list` result, after `overrides`.
+
+---
+
 ## Limits
 
 - `listen` takes an address other than loopback only with `caller_token`. See [Caller token](#caller-token).
+- Remote servers only: `upstream` is an `https` URL, or `http` on loopback, over `streamable-http` or `sse`. A server that runs as a local command (stdio) needs a wrapper that serves it over HTTP.
+- To the upstream the lane sends at most the caller's own token, as `Authorization: Bearer`. Not supported: a key in another header (such as `X-Goog-Api-Key`), a token the caller does not hold, OAuth, and AWS SigV4. See [Lane to upstream](#lane-to-upstream).
+- An `sse` upstream gets no token: `passthrough_header` is refused on it.
 - A held call waits 4 minutes at most. See [AI analyzer](#ai-analyzer).
 - `max_conns` and `network: unix` are refused.
 - Sessions live in memory: run one replica, or pin `Mcp-Session-Id` to one.
+- Sessions reach the Control Plane only with the feature flag `experimental.sidecar_session_events` on. The Sidecar's own audit file records them either way.
+- A client that never sends `DELETE` leaves its session open until `idle_timeout_sec`, 30 minutes by default.
+- `resources/read` and `prompts/get` are not judged and leave no statement. See [Feature coverage](#feature-coverage).
 
 ---
 
