@@ -246,7 +246,7 @@ These are refused at startup, by `--validate`, and by the Control Plane when it 
 | A blank entry in `groups` | It matches no group |
 | `approvers.<level>` on a level whose action does not hold | Nothing is held |
 
-On the Control Plane **AI Analyzer** rule, each level set to **Hold for approval** shows an **Approver** card. **Who approves** selects **AI agent**, with an optional prompt, or **Human**, with the groups.
+On the Control Plane **AI Analyzer** rule, each level set to **Hold for approval** shows an **Approver** card. **Who approves** selects **AI agent**, with an optional prompt, or **Human**. A **Human** level also needs **How approval is done**: **By groups**, with the groups, or **AI Decides**, where the AI picks from **Candidate Groups**.
 
 `approvers` is per listener, so the people who may release a statement against the payments database are not, by accident, the people who may release one against a reporting replica. Editing the block hot-reloads with the listener's rules.
 
