@@ -193,6 +193,34 @@ Concatenation is safe here precisely because first-match-wins applies to denials
 
 ---
 
+## Guardrails the AI applies
+
+The Sidecar's [AI analyzer](/setup/configuration/hoop-sidecar/risk-analysis) can also apply guardrails. On an `allow`, `warn`, `require_approval` or `ai-handoff` risk level, `ai_rules` selects the library rules the AI may apply to the statement it rated. With `mode: existing_and_new`, the AI may also create a one-time rule. A config file writes the library in `rule_library`. A Control Plane serves it from your organization's Guardrails rules.
+
+- **One statement only.** Every rule applies to the statement the AI rated. A rule the AI creates is never saved to the library.
+- **Deny only.** A match denies with the rule's message. `action: defer` is never offered.
+- **Visible.** The audit record and the session details show each rule the AI applied or created, with its reason.
+- **Requirements.** An Enterprise license and Sidecar 1.307.0 or later. The listener's own `guardrails` block runs as before.
+
+```yaml
+rule_library:
+  guardrails:
+    - {name: no-destructive-sql, type: operation, operations: [delete, drop], message: destructive SQL is refused}
+listeners:
+  - name: payments
+    protocol: postgres
+    analyzer:
+      high: block
+      medium: warn
+      ai_rules:
+        medium:
+          guardrails: {mode: existing_only, rules: [no-destructive-sql]}
+```
+
+See [AI-applied Guardrails and Data Masking](/setup/configuration/hoop-sidecar/risk-analysis#ai-applied-guardrails-and-data-masking) for the Control Plane settings and every check.
+
+---
+
 ## Roll out without breaking anything
 
 <Steps>
