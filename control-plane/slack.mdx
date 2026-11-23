@@ -163,13 +163,18 @@ If an approver's Slack email differs from their hoop email, set their **Slack ID
 
 ## 4. Name the approvers on the rule
 
-Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**. In the level's **Approver** card, under **Who approves**, select **Human**, then pick the groups. The list shows every group of the organization. One approval from any of them releases the statement. A level whose approver is **AI agent** files no approval request, so nothing reaches Slack.
+Go to **AI Analyzer** and open the rule. Set a risk level to **Hold for approval**. In the level's **Approver** card, under **Who approves**, select **Human**. Then set **How approval is done**; a save refuses a person level without it:
+
+- **By groups**: pick the groups. The list shows every group of the organization. One approval from any of them releases the statement.
+- **AI Decides**: the AI picks the groups from **Candidate Groups**, where none selected means every group. The **Slack** row under **Notify** sends the request as a direct message, to channels, or both. With it off, Slack gets the request as it does under **By groups**.
+
+A level whose approver is **AI agent** files no approval request, so nothing reaches Slack.
 
 **While held for approval** picks how the client waits: for the decision, or denied at once to run the statement again after approval. See [Return mode for agents](/setup/configuration/hoop-sidecar/risk-analysis#return-mode-for-agents).
 
 **Time to decide** and **Time to use an approval** limit how long the approval request stays open. Both are optional. See [Time limits](/setup/configuration/hoop-sidecar/risk-analysis#time-limits).
 
-With no group, the admin group approves. The Control Plane sets the listener's `approval_rule` to this rule for you. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
+Under **By groups** with no group, the admin group approves. The Control Plane sets the listener's `approval_rule` to this rule for you. See [Holding a statement for a person](/setup/configuration/hoop-sidecar/risk-analysis#holding-a-statement-for-a-person).
 
 ---
 
