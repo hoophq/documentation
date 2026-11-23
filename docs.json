@@ -180,7 +180,8 @@
                   "control-plane/environment-variables"
                 ]
               },
-              "control-plane/slack"
+              "control-plane/slack",
+              "control-plane/telemetry"
             ]
           }
         ]

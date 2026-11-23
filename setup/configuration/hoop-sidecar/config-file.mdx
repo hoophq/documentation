@@ -865,6 +865,12 @@ Six event kinds reach the sink: `session_start`, `statement`, `violation`, `mask
 `fail_closed: false` is the default and it is the uncomfortable one. A dropped audit write lets the statement proceed and logs the error. Set it to `true` where proving who did what matters more than staying up.
 </Warning>
 
+<Warning>
+`file: "-"` writes every event to stdout, and on Kubernetes stdout is the cluster log. That is a lot of data under traffic: in a load test, 500 Sidecars wrote about 58 GiB an hour, about 120 MiB an hour each. Before you turn it on for a fleet, check what your log pipeline costs per GiB and how long it keeps lines.
+
+To write less, set `redact_statements: true` or a lower `max_statement_bytes`: both cap the statement text on each line. To keep the trail out of the cluster log, write `file` to a path on a volume that your own shipper reads. An unset `file` also writes to stdout. When the deployment relies on the [Control Plane](/control-plane/connect-sidecar)'s copy instead (session events on, `experimental.sidecar_session_events`), set `file: /dev/null`: the Sidecar then keeps no local trail, and the Control Plane stores the events it sends.
+</Warning>
+
 The Sidecar records what was masked, never the values:
 
 ```json

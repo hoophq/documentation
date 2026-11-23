@@ -1,0 +1,150 @@
+---
+title: "OpenTelemetry"
+description: "Sidecar handshakes, session event ingest, the database pool and API latency, pushed over OTLP to your collector"
+---
+
+The Control Plane pushes its own OpenTelemetry signals to a collector you run: how many Sidecar handshakes it answers and how fast, how the session event ingest keeps up, how full its database pool is, and API latency per route. Set one variable to turn it on:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT='otel-collector:4317'
+```
+
+It is push only. Nothing scrapes the Control Plane, and it serves no `/metrics` endpoint. Alerts fire from the signals your collector receives, beside the [Sidecar's own](/setup/configuration/hoop-sidecar/telemetry).
+
+The transports are the same as the Sidecar `telemetry` block, so one collector serves both. The two tell themselves apart by `service.name`.
+
+---
+
+## Configuration
+
+The standard OpenTelemetry variables. Once `OTEL_EXPORTER_OTLP_ENDPOINT` is set, a malformed value in any of them stops startup. While it is unset, the others are not read.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset, export off | A URL, such as `http://otel-collector:4317`. For `grpc`, `host:port` also works, the form the Sidecar block uses. An `http://` URL sends in the clear. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` or `http/protobuf`. `http/protobuf` posts to `<endpoint path>/v1/metrics` and `/v1/traces`. |
+| `OTEL_EXPORTER_OTLP_HEADERS` | none | `key=value,key2=value2`, values URL-encoded. Sent on every export: an `authorization` header for a vendor endpoint. |
+| `OTEL_EXPORTER_OTLP_INSECURE` | `false` | `true` sends a `host:port` endpoint in the clear, for a collector in the same pod. A URL's scheme decides for itself: `http://` is in the clear, `https://` never is. |
+| `OTEL_EXPORTER_OTLP_CERTIFICATE` | host trust store | A PEM file with the collector's CA. |
+| `OTEL_EXPORTER_OTLP_TIMEOUT` | `10000` | Milliseconds one export may take. |
+| `OTEL_METRIC_EXPORT_INTERVAL` | `60000` | Milliseconds between metric exports. |
+| `OTEL_TRACES_SAMPLER` | unset, no spans | A standard sampler: `always_on`, `always_off`, `traceidratio`, `parentbased_always_on`, `parentbased_always_off`, `parentbased_traceidratio`. |
+| `OTEL_TRACES_SAMPLER_ARG` | `1` | The ratio of the `traceidratio` samplers, `0` to `1`. |
+| `OTEL_SERVICE_NAME` | `hoop-gateway` | `service.name` on every signal. The Control Plane Helm chart sets `hoop-control-plane`. |
+| `OTEL_RESOURCE_ATTRIBUTES` | none | `key=value,...` added to every signal, such as `deployment.environment=prod`. |
+
+Spans are off until `OTEL_TRACES_SAMPLER` is set, unlike the OpenTelemetry default: a fleet of thousands of Sidecars handshakes about once a minute each, and every handshake would be a span.
+
+With the Helm chart, put the variables under `config`:
+
+```yaml values.yaml
+config:
+  OTEL_EXPORTER_OTLP_ENDPOINT: 'otel-collector.observability:4317'
+  OTEL_EXPORTER_OTLP_INSECURE: 'true'
+  OTEL_RESOURCE_ATTRIBUTES: 'deployment.environment=prod'
+```
+
+---
+
+## What every signal carries
+
+| Attribute | Value |
+|---|---|
+| `service.name` | `hoop-gateway`, unless `OTEL_SERVICE_NAME` overrides it |
+| `service.version` | the release |
+| `service.instance.id` | a random id per process: each replica and each restart is its own instance |
+| `host.name` | the hostname, the pod name on Kubernetes |
+| `hoop.schema.version` | `1.0` |
+
+The schema URL is `https://hoop.dev/schemas/gateway-telemetry/1.0`. An attribute or series **added** bumps the minor version. One **renamed or removed** bumps the major, because a dashboard written against the old name goes dark. This vocabulary is versioned apart from the Sidecar's.
+
+No metric carries a Sidecar id, an organization id or a URL path: they are unbounded. The Sidecar and organization ids are on the spans.
+
+---
+
+## Metrics
+
+| Series | Instrument | Attributes |
+|---|---|---|
+| `hoop.gateway.sidecar.handshakes` | counter | `hoop.outcome` |
+| `hoop.gateway.sidecar.handshake.duration` | histogram, seconds | `hoop.outcome` |
+| `hoop.gateway.session_events.batches` | counter | `hoop.outcome` |
+| `hoop.gateway.session_events.events` | counter | `hoop.outcome`. Only batches whose body was read |
+| `hoop.gateway.session_events.batch.duration` | histogram, seconds | `hoop.outcome` |
+| `hoop.gateway.db.connections.open` | gauge | connections open, in use and idle |
+| `hoop.gateway.db.connections.in_use` | gauge | connections running a query |
+| `hoop.gateway.db.connections.idle` | gauge | connections open and unused |
+| `hoop.gateway.db.connections.max` | gauge | the pool cap, `POSTGRES_MAX_OPEN_CONNS` |
+| `hoop.gateway.db.connections.waits` | counter | queries that waited for a free connection |
+| `hoop.gateway.db.connections.wait_duration` | counter, seconds | total time queries waited |
+| `http.server.request.duration` | histogram, seconds | `http.route` (the route template, such as `/api/sidecars/:id`), `http.request.method`, `http.response.status_code` |
+
+`hoop.outcome` on a **handshake** is the answer the Sidecar got:
+
+| `hoop.outcome` | Status | Meaning |
+|---|---|---|
+| `ok` | 2xx | a configuration was served |
+| `rejected` | 401, 403 | an unknown or revoked credential, or no seat for this Sidecar |
+| `no_config` | 412 | the Sidecar has no configuration yet |
+| `invalid` | other 4xx | a request this Control Plane cannot answer, such as a configuration the Sidecar's build cannot decode |
+| `error` | 5xx | the Control Plane failed |
+
+`hoop.outcome` on a **session event batch**:
+
+| `hoop.outcome` | Status | Meaning |
+|---|---|---|
+| `accepted` | 2xx | the batch is recorded |
+| `shed` | 503 | the Control Plane is behind on events and refused the batch before reading it. The Sidecar keeps it and sends it again |
+| `rejected` | 4xx | the Sidecar must not send the batch again: too large, malformed, or session events are off for the organization |
+| `error` | other 5xx | the Control Plane failed; the Sidecar sends it again |
+
+A handshake or a batch refused by authentication counts too: the signal sees the request before the credential is checked.
+
+Through a collector's Prometheus exporter the names read `hoop_gateway_sidecar_handshakes_total`, `hoop_gateway_sidecar_handshake_duration_seconds_bucket`, `hoop_gateway_db_connections_in_use`, and the attributes `hoop_outcome`, `http_route`.
+
+---
+
+## Traces
+
+With `OTEL_TRACES_SAMPLER` set, each handshake is a `sidecar handshake` span and each batch a `sidecar session events` span, kind server. They carry `hoop.outcome`, `http.response.status_code`, `hoop.sidecar.id` and `hoop.org.id` once the credential is accepted, and `hoop.session_events.count` on a batch. A 5xx sets an error status. A request that carries a W3C `traceparent` joins the caller's trace.
+
+---
+
+## Alerts
+
+In PromQL:
+
+```promql
+# handshakes are failing on the Control Plane
+sum(rate(hoop_gateway_sidecar_handshakes_total{hoop_outcome="error"}[5m])) > 0
+
+# p99 handshake latency, per replica
+histogram_quantile(0.99, sum by (le, service_instance_id) (rate(hoop_gateway_sidecar_handshake_duration_seconds_bucket[5m])))
+
+# the session event ingest is shedding load
+sum(rate(hoop_gateway_session_events_batches_total{hoop_outcome="shed"}[5m])) > 0
+
+# queries wait for a database connection: the pool is too small for the load
+sum by (service_instance_id) (rate(hoop_gateway_db_connections_waits_total[5m])) > 0
+```
+
+When the Control Plane is down it reports nothing. Its Sidecars do: `hoop.sidecar.control_plane.handshakes` counts each heartbeat by outcome from every Sidecar with a `telemetry` block, and goes on exporting while the Control Plane is gone. See [OpenTelemetry for the Sidecar](/setup/configuration/hoop-sidecar/telemetry#control-plane-handshakes).
+
+---
+
+## When the collector is down
+
+Nothing changes for Sidecars or users. Exports fail, one warning per 30 seconds per message reaches the Control Plane log, and requests are unaffected. On shutdown the Control Plane flushes once, bounded by three seconds.
+
+---
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="list" href="/control-plane/environment-variables">
+    Every other variable the Control Plane reads.
+  </Card>
+  <Card title="OpenTelemetry for the Sidecar" icon="chart-line" href="/setup/configuration/hoop-sidecar/telemetry">
+    Statements per lane, verdicts, latency stages, and the Control Plane as each Sidecar sees it.
+  </Card>
+</CardGroup>
