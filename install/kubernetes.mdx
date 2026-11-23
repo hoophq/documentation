@@ -467,8 +467,10 @@ Port 19000 serves only the probes and the token-gated ICA `POST /v1/drain`:
 
 | Endpoint | Shows |
 |---|---|
-| `/healthz` | `ok` |
-| `/readyz` | `200` when every lane is ready, `503` while a lane still loads |
+| `/healthz` | `ok`, also while the Sidecar waits for its Control Plane |
+| `/readyz` | `200` when a configuration is loaded and every listener serves, else `503`. The JSON body names what is not ready; see [The `/readyz` body](/core-concepts/sidecar#the-readyz-body) |
+
+The kubelet never shows a probe's body. Read it with `kubectl port-forward deploy/<release> 19000` and `curl -s localhost:19000/readyz`. The chart sets `terminationMessagePolicy: FallbackToLogsOnError`, so when the Sidecar exits with an error, `kubectl describe pod` shows the end of its log: a refused token, a configuration it cannot load, a Control Plane that did not answer within 5 minutes.
 
 The read routes (`/config`, `/stats`, `/metrics`, `/events`, `/api/*`) are on `config.admin.api_listen`, which is off unless set. The chart does not declare or publish that port. Set it on loopback and reach it with `kubectl port-forward`:
 
