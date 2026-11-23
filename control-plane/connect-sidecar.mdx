@@ -466,7 +466,8 @@ The Control Plane then sends only that flag and the license, and the Sidecar run
 | Symptom | Check |
 |---|---|
 | The Sidecar waits and does not connect | The request is not approved. Open the URL from the Sidecar and approve it. A code stops working after 10 minutes: start the Sidecar again for a new code. |
-| The Sidecar does not start at all | A first handshake that fails stops startup; there is no fallback to the local file. Check the URL, the token, and outbound HTTPS to the Control Plane host. |
+| The Sidecar does not start at all | A refused token (`401`), a configuration the Control Plane cannot build (`422`) or a redirect stops startup at once; there is no fallback to the local file. Check the URL, the token, and outbound HTTPS to the Control Plane host. |
+| It logs `the control plane is unavailable; retrying the boot handshake` | The Control Plane is down, times out or answers `5xx`. The Sidecar retries with a growing, random wait, and starts when the Control Plane answers. After 5 minutes it stops. Under Kubernetes, give it a startup probe that covers the 5 minutes; the Helm chart has one. |
 | The Sidecar starts but never appears in the Control Plane | Outbound HTTPS to the Control Plane host. The Sidecar dials out; nothing dials in. |
 | It warns that the config file's listeners are ignored | Expected once the Control Plane holds the configuration. Edit it there; the local file no longer holds it. |
 | It warns that your license is ignored | Expected while the Control Plane manages licensing. Apply the license to the organization instead. |
