@@ -1062,7 +1062,7 @@ If statements must stay in your network, set your own `provider`, or `use_hoop_l
     Vertex routes the shared `openapi` endpoint by that prefix, so the relay refuses a model name without `<publisher>/` at startup.
 
     <Warning>
-    The analyzer reads its verdict from a forced tool call, so pick a model with function calling. A model without it fails each statement with `model called no risk tool`, and under `fail_open: true` the relay lets those statements through unscored.
+    The analyzer reads its verdict from a tool call, so pick a model with function calling. The `google` and `openapi` publishers force the call. Claude is told to call a tool, not forced. A model without function calling, or a Claude reply without a call, fails the statement with `model called no risk tool`, and under `fail_open: true` the relay lets that statement through unscored.
     </Warning>
 
     <Tip>
@@ -1170,7 +1170,7 @@ Each model accepts only some levels. `gemini-3.8-flash` takes `low`, `medium` an
 Two limits come from the APIs, not from the Sidecar:
 
 - Gemini 3 and later models accept `temperature`, `top_p` and `top_k` and ignore them. Google points to `thinking_level` instead. The Sidecar does not check for this, because the model name is the only signal and it changes with every release.
-- Some Claude models refuse `temperature` and `top_p` together. Claude Sonnet 5.5, Opus 5.5 and Haiku 5.5 refuse `temperature`, `top_p` and `top_k`. That error comes from the API on each call, so remove these keys for those models.
+- Some Claude models refuse `temperature` and `top_p` together. Claude Sonnet 5.5 and Opus 5.5 refuse `temperature`, `top_p` and `top_k`. That error comes from the API on each call, so remove these keys for those models. Anthropic says to omit them on Haiku 5.5 too.
 
 <Note>
 Sampling narrows a model's answer. It does not make two calls agree. The [cache](#the-four-cost-controls) does: statements of one shape share one verdict for `ttl_sec`, with no second call. The shape of the answer is already fixed: the Sidecar reads the verdict only from which of three risk tools the model called, so the verdict is always `low`, `medium` or `high`.
