@@ -440,6 +440,8 @@ claude mcp add --transport http github http://127.0.0.1:18901/mcp \
   --header "X-Hoop-Upstream-Authorization: Bearer $GITHUB_PAT"
 ```
 
+The Cursor CLI (2026.11.22) sends a header value in `mcp.json` as written: `${env:GITHUB_PAT}` reaches the lane as that text, not the token.
+
 - **What is forwarded.** The lane removes the header and sends its value as `Authorization: Bearer <value>`. A `Bearer ` prefix on the value is accepted.
 - **What is refused.** No header, an empty value, or the header sent twice. The request gets a 403 `request refused: <reason>` that names the header, and the connection closes.
 - **The token stays out of the record.** It never reaches an audit row, policy input, the AI analyzer or a log. An upstream error that quotes it is logged with `[REDACTED]` in its place.
