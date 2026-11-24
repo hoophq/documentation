@@ -456,7 +456,7 @@ The Cursor CLI (2026.11.22) sends a header value in `mcp.json` as written: `${en
 
 Which part of MCP each feature reads. A part marked No passes through unread.
 
-| Feature | Arguments | Descriptions | `content[].text` | `structuredContent` | Resources | Prompts |
+| Feature | Args | Descriptions | Text | Structured | Resources | Prompts |
 |---|---|---|---|---|---|---|
 | Guardrails | Judged | Judged | No | No | No | No |
 | OPA | Judged | Judged | No | No | No | No |
@@ -466,8 +466,9 @@ Which part of MCP each feature reads. A part marked No passes through unread.
 | Approvals | Held | No | No | No | No | No |
 | Audit | Recorded | Recorded | Counted | Counted | Counted | No |
 
-- Arguments are the arguments of a `tools/call`. SQL rules read the SQL in an [`mcp_gateway.sql`](#sql-tools) argument.
+- Args are the arguments of a `tools/call`. SQL rules read the SQL in an [`mcp_gateway.sql`](#sql-tools) argument.
 - Descriptions are the `tools/list` result, after `overrides`. A guardrail hit or an OPA deny there ends the session. `opa: {responses: false}` keeps them from OPA.
+- Text is a result's `content[].text`; Structured is its `structuredContent`.
 - Resources are `resources/read` results: the text is masked, a `blob` is not.
 - Recorded: one statement per call and one per list. Counted: a `masked` row with the count of masked values, never the text. A `resources/read` leaves no statement.
 
