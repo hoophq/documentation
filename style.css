@@ -551,3 +551,7 @@ button[class][class*="rounded-"] {
   font: 500 14px/1.2 'Inter', system-ui, sans-serif;
   cursor: pointer;
 }
+
+/* A wide matrix fits the page: Mintlify gives each cell a 150px minimum. */
+#body-content .hoop-matrix td,
+#body-content .hoop-matrix th { min-width: 0; }

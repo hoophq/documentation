@@ -456,6 +456,8 @@ The Cursor CLI (2026.11.22) sends a header value in `mcp.json` as written: `${en
 
 Which part of MCP each feature reads. A part marked No passes through unread.
 
+<div className="hoop-matrix">
+
 | Feature | Args | Descriptions | Text | Structured | Resources | Prompts |
 |---|---|---|---|---|---|---|
 | Guardrails | Judged | Judged | No | No | No | No |
@@ -465,6 +467,8 @@ Which part of MCP each feature reads. A part marked No passes through unread.
 | AI analyzer | Rated | No | No | No | No | No |
 | Approvals | Held | No | No | No | No | No |
 | Audit | Recorded | Recorded | Counted | Counted | Counted | No |
+
+</div>
 
 - Args are the arguments of a `tools/call`. SQL rules read the SQL in an [`mcp_gateway.sql`](#sql-tools) argument.
 - Descriptions are the `tools/list` result, after `overrides`. A guardrail hit or an OPA deny there ends the session. `opa: {responses: false}` keeps them from OPA.
