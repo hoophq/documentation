@@ -408,9 +408,19 @@ A heartbeat repeats the handshake every minute.
 
 A change that only touches rules (guardrails, masking, PII, OPA, a listener's analyzer block) applies in place and logs `control plane configuration applied`. Connections already open drain under the rules they were accepted with.
 
-A listener you add starts in place: the Sidecar binds its socket, logs `listener started`, and `/stats` lists it. A listener you delete stops: the Sidecar closes its socket and the connections on it, and logs `listener stopped`. The other listeners keep their sockets and their connections. A listener that cannot bind (the port is held by another process) refuses the whole change: nothing starts, no rule moves, and the Sidecar page shows `Refused` with the listener and the error. Fix the address and save again.
+A listener you add starts in place: the Sidecar binds its socket, logs `listener started`, and `/stats` lists it. A listener you delete stops: the Sidecar closes its socket and the connections on it, and logs `listener stopped`. The other listeners keep their sockets and their connections. Each pod applies the change on its own heartbeat, so the pods of one deployment can differ for about a minute. The Sidecar binds the listener; the Service or proxy that routes to its port is yours to change.
 
-Three edits to a listener still need a restart, and the log names the listener: changing a running listener's own fields (address, upstream, protocol, TLS), renaming one, and adding or removing a listener while another has no `name`. A change to audit, admin or log level logs `restart to apply it` as well.
+A listener that cannot start (another process holds the port, or a file it names is not mounted) refuses the whole change: nothing starts, no rule moves, and the Sidecar page shows `Refused` with the listener, the host and the error. That pod keeps its last rules and tries again on each heartbeat, so the listener starts once the port is free. Saving the same configuration again changes nothing, and a restart does not help: startup stops on the same listener. Free the port, or change or remove the listener.
+
+Some edits to the listeners still need a restart, and the log names the listener:
+
+- changing a running listener's own fields (address, upstream, protocol, TLS)
+- renaming a listener
+- adding an `ica` listener, or adding any listener to a Sidecar that runs an `ica` listener
+- adding or changing listeners that share one `name`
+- adding or removing a listener while another has no `name`
+
+A change to audit, admin or log level logs `restart to apply it` as well.
 
 A failed heartbeat changes nothing. The Sidecar keeps serving the configuration and the license it last received.
 

@@ -1005,17 +1005,19 @@ The Sidecar stats its config file every ten seconds and re-reads it when the siz
 | a running listener's own fields: `listen`, `upstream`, `protocol`, TLS, `descriptors` | keeps serving what it had | `restart to apply it`, naming the listener |
 | a listener renamed | keeps serving what it had | `restart to apply it`, naming the old and new name |
 | a listener added or deleted while another has no `name` | keeps serving what it had | `restart to apply it` |
+| an `ica` listener added, or any listener added while an `ica` listener runs | keeps serving what it had | `restart to apply it`, naming the listener |
+| listeners that share one `name` added or changed | keeps serving what it had | `restart to apply it`, naming the listener |
 | `audit`, `admin`, `log_level`, the top-level `analyzer` section, `plugins` | keeps serving what it had | `restart to apply it` |
 
-The other listeners keep their sockets and their connections through an add or a delete. Every lane kind starts and stops this way, unix sockets included: the Sidecar binds the path on add and unlinks it on delete.
+The other listeners keep their sockets and their connections through an add or a delete. Every lane kind but `ica` starts this way and every lane kind stops this way, unix sockets included: the Sidecar binds the path on add and unlinks it on delete.
 
-Added listeners bind before anything else in the file applies. A listener that cannot bind (a port another process holds, a socket path the Sidecar cannot write to) refuses the whole edit: no lane starts, no rule moves, the running lanes keep serving, and the log names the listener and the error:
+Added listeners bind before anything else in the file applies. A listener that cannot start (a port another process holds, a socket path the Sidecar cannot write to, a file it names that is not mounted) refuses the whole edit: no lane starts, no rule moves, the running lanes keep serving, and the log names the listener and the error:
 
 ```
 level=WARN msg="the config file added a listener this process could not start; keeping the running lanes" listener=appdb-live error="sidecar/proxy: listen tcp 0.0.0.0:19000: bind: address already in use"
 ```
 
-Fix the address and save the file again. A file that does not load keeps the running configuration, is retried on the next tick, and warns once until it loads.
+The Sidecar tries the same file again on each tick and logs the warning once, so the listener starts when the port is free; you do not need to save the file again. A restart does not help: startup stops on the same listener. A listener whose engine did not bind within ten seconds is not tried again; change the file or send `SIGHUP`. A file that does not load keeps the running configuration, is retried on the next tick, and warns once until it loads.
 
 Unnamed listeners are keyed by position (`listener[0]`, `listener[1]`), so inserting one would rename the ones after it; name every listener before you add or delete one on a running process.
 
