@@ -134,7 +134,7 @@ When the Control Plane is down it reports nothing. Its Sidecars do: `hoop.sideca
 
 ## When the collector is down
 
-Nothing changes for Sidecars or users. Exports fail, one warning per 30 seconds per message reaches the Control Plane log, and requests are unaffected. On shutdown the Control Plane flushes once, bounded by three seconds.
+Nothing changes for Sidecars or users. Exports fail and requests are unaffected. The Control Plane log gets one warning per 30 seconds per kind of failure, and it names only the signal and the failure class: `metrics export failed: http 401 Unauthorized`, `traces export failed: connection`, `timeout`, or `export error`. It never prints the endpoint URL or the collector's answer, which can carry a key; the collector's own log has the details. On shutdown the Control Plane flushes once, bounded by three seconds.
 
 ---
 

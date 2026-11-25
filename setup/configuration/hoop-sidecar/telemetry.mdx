@@ -161,7 +161,7 @@ A Sidecar connected to a [Control Plane](/control-plane/connect-sidecar) handsha
 
 `boot` is counted once, when the exporter starts: a Sidecar that reaches that point had its boot handshake answered. A failed heartbeat changes nothing on the data path. The lanes keep serving the last configuration.
 
-With `events.enabled`, each failure is also a log record: body `control_plane_handshake`, severity `WARN`, with `hoop.handshake.kind`, `hoop.outcome` and the error text in `hoop.error`. It is not an audit event, and `GET /stats` does not count it in `events_sent`. With events off, only the counter goes out.
+With `events.enabled`, each failure is also a log record: body `control_plane_handshake`, severity `WARN`, with `hoop.handshake.kind` and `hoop.outcome` and nothing else. The error text stays in the Sidecar's own log, because it can carry the Control Plane's response body or a redirect location. The record is not an audit event, and `GET /stats` does not count it in `events_sent`. With events off, only the counter goes out.
 
 The Control Plane cannot report its own outage. Its fleet can: the counter keeps coming from every Sidecar while the Control Plane is down. The Control Plane's own signals are on [OpenTelemetry for the Control Plane](/control-plane/telemetry).
 
