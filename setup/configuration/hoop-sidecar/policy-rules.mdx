@@ -232,6 +232,17 @@ The denial message never quotes the value it found.
 
 Patterns match the NORMALIZED path, so `/users/12345/orders/98765` arrives as `/users/*/orders/*` and one rule replaces a regex per endpoint. A trailing `/**` matches the path itself and anything under it, and a `*` segment before it stays a wildcard: `/api/v1/namespaces/*/secrets/**` covers the collection in every namespace and every secret in it. Dot and empty segments resolve first, so `/x/../admin/users` matches `/admin/**`: see [Dot and empty segments](/setup/configuration/hoop-sidecar/protocols/http#dot-and-empty-segments). `methods` narrows the rule; leave it out to cover every method.
 
+A `*` stands for one whole segment, and `**` only as the trailing `/**`. A gRPC method is `/package.Service/Method`, so the service name is one segment. Two forms are refused, because a rule holding one would deny nothing it was written for:
+
+- a segment that mixes `*` with other text, such as `/repro.v1.*/Upload` or `/api/v1*/users`. The exception is `*.` and an extension of one to five letters: the Sidecar writes `/reports/12345.pdf` as `/reports/*.pdf`, so `/reports/*.pdf` is a working pattern;
+- a `**` that does not end the pattern.
+
+The Sidecar refuses such a pattern at startup, in `--validate` and on a heartbeat, and the Control Plane refuses it when the rule is saved, with `resource "/repro.v1.*/Upload" matches no request as written`. Write `/repro.v1.Alpha/*` or `/api/v1/**` instead. The same check covers the `resources` of an `http_header` rule, the same rules in `rule_library`, an analyzer trigger's `resources` with its `any` and `exclude` items, and `match_ignore`. `.` and `..` segments stay legal: a rule also matches the path before they resolve. A path segment that holds a literal `*` beside other text, other than the normalized form, can no longer be named in a rule.
+
+<Warning>
+An older Sidecar loaded such a pattern, and the rule never fired. An upgraded Sidecar refuses a stored configuration that holds one. Upgrade the Control Plane first, fix each pattern it reports, then upgrade the Sidecars. See [Upgrading](/control-plane/connect-sidecar#upgrading).
+</Warning>
+
 ### http_status
 
 ```yaml

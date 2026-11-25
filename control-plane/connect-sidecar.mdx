@@ -449,6 +449,8 @@ When a Sidecar refuses a configuration anyway:
 
 The Sidecar page in the Control Plane shows the state, the Sidecar's version and the reason until a configuration applies. `Not applied` for longer than a few minutes means the Sidecar is restarting in a loop.
 
+An upgraded Sidecar also refuses a rule whose resource pattern can match nothing, such as `/repro.v1.*/Upload`. An older Sidecar loaded it, and the rule never fired. The upgraded Control Plane refuses such a pattern at the save, but a configuration saved before keeps it. Fix each one before you upgrade the Sidecars: see [http_resource](/setup/configuration/hoop-sidecar/policy-rules#http_resource).
+
 **Escape hatch.** An admin can hand the Sidecar back to its own config file:
 
 ```bash
