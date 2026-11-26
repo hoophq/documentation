@@ -3,8 +3,8 @@ title: "Environment Variables"
 description: "Every variable the Control Plane reads, what it does, and what it defaults to."
 ---
 
-The Control Plane reads its whole configuration from the environment. Fourteen
-variables, two of them required.
+The Control Plane reads its whole configuration from the environment. Two
+variables are required.
 
 ```bash
 POSTGRES_DB_URI='postgres://hoopuser:<passwd>@db-host:5432/hoopdb'
@@ -33,6 +33,7 @@ API_URL='https://cp.yourdomain.tld'
 | `LOG_ENCODING` | no | `json` |
 | `GIN_MODE` | no | `release` |
 | `MIGRATION_PATH_FILES` | no | empty, using the embedded migrations |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` and the other `OTEL_*` variables | no | unset, no OpenTelemetry export. See [OpenTelemetry](#opentelemetry) |
 
 ---
 
@@ -201,6 +202,20 @@ MIGRATION_PATH_FILES='/etc/hoop/migrations'
 
 ---
 
+## OpenTelemetry
+
+`OTEL_EXPORTER_OTLP_ENDPOINT` turns on an OTLP push of the Control Plane's own
+signals: Sidecar handshakes, session event ingest, the database pool and API
+latency per route. The other standard `OTEL_*` variables tune it.
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT='otel-collector:4317'
+```
+
+Every variable, the series and the alerts are on
+[OpenTelemetry](/control-plane/telemetry).
+
+---
 
 ## Next
 

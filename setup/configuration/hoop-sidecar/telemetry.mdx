@@ -71,9 +71,9 @@ The resource identifies the process:
 | `host.name` | the hostname |
 | `hoop.sidecar.runtime` | `linux`, `docker`, `kubernetes`, `macos`, `windows` |
 | `hoop.sidecar.entrypoint` | `hoop`, `hoop-inspect` or `embedded` |
-| `hoop.schema.version` | `1.1` |
+| `hoop.schema.version` | `1.2` |
 
-The schema URL is `https://hoop.dev/schemas/sidecar-telemetry/1.1`. An attribute or series **added** bumps the minor version. One **renamed or removed** bumps the major, because a dashboard written against the old name goes dark.
+The schema URL is `https://hoop.dev/schemas/sidecar-telemetry/1.2`. An attribute or series **added** bumps the minor version. One **renamed or removed** bumps the major, because a dashboard written against the old name goes dark. [Schema versions](#schema-versions) lists what each version added.
 
 Attributes shared by the signals:
 
@@ -108,6 +108,7 @@ Principal, session id, tables and statement text are **never** on a metric: they
 | `hoop.sidecar.analyzer.statements` | counter | `hoop.analyzer`, `hoop.status`, `hoop.risk_level`, `hoop.action` |
 | `hoop.sidecar.session_events.sent`, `.dropped` | counter | the Control Plane copy's counters; zero without one |
 | `hoop.sidecar.config.generation` | gauge | reloads applied since start |
+| `hoop.sidecar.control_plane.handshakes` | counter | `hoop.handshake.kind` (`boot`, `heartbeat`), `hoop.outcome`. See [Control Plane handshakes](#control-plane-handshakes) |
 
 `hoop.analyzer.kind` is `classify` for a risk classification and `decide` for the [approval agent](/setup/configuration/hoop-sidecar/risk-analysis#the-approval-agent) or the [hand-off agent](/setup/configuration/hoop-sidecar/risk-analysis#handing-off-to-the-ai-agent). Filter on `classify` where a query means classification. `hoop.action` on an `ai-handoff` level is the action the hand-off resolved to, never `ai-handoff`.
 
@@ -146,6 +147,23 @@ sum by (hoop_lane) (rate(hoop_sidecar_statement_duration_seconds_sum{hoop_stage=
 # how long approvals take, median, by how they ended
 histogram_quantile(0.5, sum by (le, hoop_outcome) (rate(hoop_sidecar_statement_duration_seconds_bucket{hoop_stage="review"}[1h])))
 ```
+
+### Control Plane handshakes
+
+A Sidecar connected to a [Control Plane](/control-plane/connect-sidecar) handshakes once at boot and again on every heartbeat, about once a minute. From version 1.325.0, `hoop.sidecar.control_plane.handshakes` counts each one by how it went:
+
+| `hoop.outcome` | Meaning |
+|---|---|
+| `ok` | the Control Plane answered with a configuration |
+| `unreachable` | no answer: connection refused, a timeout, DNS |
+| `no_config` | the Control Plane holds no configuration for this Sidecar, and the Sidecar could not import its file |
+| `error` | any other failure: an error status, a rejected credential, a certificate the Sidecar does not trust |
+
+`boot` is counted once, when the exporter starts: a Sidecar that reaches that point had its boot handshake answered. A failed heartbeat changes nothing on the data path. The lanes keep serving the last configuration.
+
+With `events.enabled`, each failure is also a log record: body `control_plane_handshake`, severity `WARN`, with `hoop.handshake.kind` and `hoop.outcome` and nothing else. The error text stays in the Sidecar's own log, because it can carry the Control Plane's response body or a redirect location. The record is not an audit event, and `GET /stats` does not count it in `events_sent`. With events off, only the counter goes out.
+
+The Control Plane cannot report its own outage. Its fleet can: the counter keeps coming from every Sidecar while the Control Plane is down. The Control Plane's own signals are on [OpenTelemetry for the Control Plane](/control-plane/telemetry).
 
 ---
 
@@ -188,11 +206,13 @@ Statement text is never on a span.
 
 A record written under a sampled span carries its trace and span id, so a backend that stores both joins the `violation` to the trace that produced it.
 
-The record goes through the **same redaction** as the audit file and the Control Plane copy. `hoop.statement` is a `sha256:` fingerprint unless `events.statement_text: true`, because the collector is a new place audit data leaves the process; the file keeps the text under the audit block's own `redact_statements`. The sink never fails a write and never blocks a statement: a bounded queue drops the oldest record when the collector falls behind, and `GET /stats` reports the count:
+The record goes through the **same redaction** as the audit file and the Control Plane copy. `hoop.statement` is a `sha256:` fingerprint unless `events.statement_text: true`, because the collector is a new place audit data leaves the process; the file keeps the text under the audit block's own `redact_statements`. The sink never fails a write and never blocks a statement: a bounded queue drops the oldest record when the collector falls behind, and `GET /stats` reports two counters:
 
 ```json
 {"telemetry": {"events_sent": 18204, "events_dropped": 0}}
 ```
+
+`events_sent` counts the records handed to the queue. `events_dropped` counts the records the full queue removed before export. Neither counter shows delivery: `events_sent` minus `events_dropped` also holds records still in the queue, records whose export failed, and records the collector refused. Both are zero when `events.enabled` is off.
 
 <Warning>
 The audit file stays the record of truth. The log records are a copy for alerting and correlation, with a bounded queue that drops under pressure. Do not point a compliance process at them.
@@ -202,7 +222,7 @@ The audit file stays the record of truth. The log records are a copy for alertin
 
 ## Alerts
 
-Alerts live in your backend. Three worth having, in PromQL:
+Alerts live in your backend. Four worth having, in PromQL:
 
 ```promql
 # denials on a lane, per minute
@@ -213,6 +233,9 @@ sum by (hoop_analyzer) (rate(hoop_sidecar_analyzer_request_duration_seconds_coun
 
 # the audit trail is dropping records
 rate(hoop_sidecar_audit_errors_total[5m]) > 0
+
+# the Control Plane is not answering, seen from the fleet
+sum by (hoop_outcome) (rate(hoop_sidecar_control_plane_handshakes_total{hoop_outcome!="ok"}[5m])) > 0
 ```
 
 And on the log records, a `violation` burst for one `hoop.principal`, which no metric can express because the principal is only on the record.
@@ -222,6 +245,16 @@ And on the log records, a `violation` burst for one `hoop.principal`, which no m
 ## When the collector is down
 
 Nothing changes for the client. Exports fail, one warning per 30 seconds per message reaches the Sidecar's log, and traffic is unaffected. With a `telemetry` block the data path costs one instrument record per hook, with attribute sets built once per lane; without one it costs nothing. Shutdown flushes once, bounded by three seconds, after every listener has closed.
+
+---
+
+## Schema versions
+
+| Version | Added |
+|---|---|
+| `1.2` | Version 1.325.0: `hoop.sidecar.control_plane.handshakes` with `hoop.handshake.kind`, and the `control_plane_handshake` log record. |
+| `1.1` | `hoop.sidecar.mcp.messages`, with `hoop.mcp.method`, `hoop.mcp.tool` and `hoop.mcp.decision`. |
+| `1.0` | The first vocabulary. |
 
 ---
 
