@@ -206,11 +206,13 @@ Statement text is never on a span.
 
 A record written under a sampled span carries its trace and span id, so a backend that stores both joins the `violation` to the trace that produced it.
 
-The record goes through the **same redaction** as the audit file and the Control Plane copy. `hoop.statement` is a `sha256:` fingerprint unless `events.statement_text: true`, because the collector is a new place audit data leaves the process; the file keeps the text under the audit block's own `redact_statements`. The sink never fails a write and never blocks a statement: a bounded queue drops the oldest record when the collector falls behind, and `GET /stats` reports the count:
+The record goes through the **same redaction** as the audit file and the Control Plane copy. `hoop.statement` is a `sha256:` fingerprint unless `events.statement_text: true`, because the collector is a new place audit data leaves the process; the file keeps the text under the audit block's own `redact_statements`. The sink never fails a write and never blocks a statement: a bounded queue drops the oldest record when the collector falls behind, and `GET /stats` reports two counters:
 
 ```json
 {"telemetry": {"events_sent": 18204, "events_dropped": 0}}
 ```
+
+`events_sent` counts the records handed to the queue. `events_dropped` counts the records the full queue removed before export. Neither counter shows delivery: `events_sent` minus `events_dropped` also holds records still in the queue, records whose export failed, and records the collector refused. Both are zero when `events.enabled` is off.
 
 <Warning>
 The audit file stays the record of truth. The log records are a copy for alerting and correlation, with a bounded queue that drops under pressure. Do not point a compliance process at them.
