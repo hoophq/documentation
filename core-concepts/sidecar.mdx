@@ -167,7 +167,7 @@ A denial writes `violation` **instead of** `statement`, not in addition to it, s
 
 ### The admin API
 
-The Sidecar serves a small HTTP interface on two listeners of its own, separate from every data lane. `admin.listen` (`127.0.0.1:19000` by convention) serves the probes and the token-gated ICA drain. It serves no audit data and no lane rules, so a platform can probe it. `/readyz` on it names the lanes that are not ready yet. `admin.api_listen` (`127.0.0.1:19002` by convention) serves the read routes: what config the process resolved and what it recorded. It is off unless you set it.
+The Sidecar serves a small HTTP interface on two listeners of its own, separate from every data lane. `admin.listen` (`127.0.0.1:19000` by convention) serves the probes and the token-gated ICA drain. It serves no audit data and no lane rules, so a platform can probe it. `/readyz` on it reports the process status as JSON. `admin.api_listen` (`127.0.0.1:19002` by convention) serves the read routes: what config the process resolved and what it recorded. It is off unless you set it.
 
 ```yaml
 admin:
@@ -179,8 +179,8 @@ admin:
 
 | Listener | Endpoint | Returns |
 |---|---|---|
-| `admin.listen` | `GET /healthz` | `ok`. What a container healthcheck polls. |
-| `admin.listen` | `GET /readyz` | `200` when every lane is ready. `503` while a lane still loads, with `not ready: <lane names>`. With `admin.ica_readiness_json`, a JSON body: `status`, `inspection_enabled`, `graphics_bypassed`, `protocol_validation_enabled`. |
+| `admin.listen` | `GET /healthz` | `ok`, while the process runs. That includes the time the Sidecar waits for its Control Plane at boot. What a container healthcheck polls. |
+| `admin.listen` | `GET /readyz` | `200` when a configuration is loaded and every listener serves, else `503`, with the status as JSON (below). With `admin.ica_readiness_json`, the ICA attestation instead: `status`, `inspection_enabled`, `graphics_bypassed`, `protocol_validation_enabled`. |
 | `admin.listen` | `POST /v1/drain` | Drains the ICA lanes. Needs their deployment token. |
 | `admin.api_listen` | `GET /stats` | Live counters, plus one line per listener with the address it really bound — a path means unix, a `host:port` means TCP. With a `telemetry` block, how many audit events the exporter sent and dropped. |
 | `admin.api_listen` | `GET /metrics` | Prometheus [metrics](/setup/configuration/hoop-sidecar/risk-analysis#metrics). To push them over OTLP instead, see [OpenTelemetry](/setup/configuration/hoop-sidecar/telemetry). |
@@ -194,7 +194,38 @@ On `admin.listen`, the read routes answer `404` with `moved: this route is serve
 
 Releases up to 1.306 served the read routes on `admin.listen`. After the upgrade, a scraper or script that reads them needs `api_listen` set and its URL moved to that port. The Control Plane does not send `api_listen` to an older Sidecar, because that Sidecar refuses a config with a key it does not know.
 
-To probe a port other than `admin.listen`, set the environment variable `HOOP_SIDECAR_HEALTH_LISTEN` to a `host:port`. It binds one more listener with `/healthz` and `/readyz` only.
+To probe a port other than `admin.listen`, set the environment variable `HOOP_SIDECAR_HEALTH_LISTEN` to a `host:port`. It binds one more listener with `/healthz` and `/readyz` only. It binds when the process starts, before the configuration is known, so it answers while the Sidecar waits for its Control Plane: `/healthz` `200`, `/readyz` `503` with `waiting_for_control_plane`. `admin.listen` comes from the configuration, so it binds only after the first handshake. When this listener cannot bind, or stops serving, the Sidecar stops.
+
+### The `/readyz` body
+
+Probes read the status code. The body is for the person who reads it:
+
+```json
+{
+  "status": "ready",
+  "process_running": true,
+  "pid": 7,
+  "valid_license": true,
+  "config_loaded": true,
+  "lanes_open": true,
+  "control_plane_enabled": true,
+  "connected_to_control_plane": false,
+  "control_plane": {"last_handshake": "2026-11-23T17:40:12Z", "error": "unreachable"},
+  "lanes": [{"name": "paymentsdb", "protocol": "postgres", "state": "open"}]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `status` | `ready` (`200`) or `not_ready` (`503`) |
+| `reason` | On `503` only: `waiting_for_control_plane` (no configuration yet, the Control Plane has not answered), `starting` (the configuration is not loaded yet), `lanes_not_open` (a listener does not serve) or `stopping` (the Sidecar is shutting down; `/healthz` stays `200` until it exits) |
+| `valid_license` | A license in force that has not expired. It does not change the status code. |
+| `config_loaded`, `lanes_open` | A configuration is loaded; every listener serves |
+| `control_plane_enabled`, `connected_to_control_plane` | The Sidecar uses a Control Plane; its last handshake got an answer |
+| `control_plane` | `last_handshake` (UTC), `error` of the last failed handshake (`unreachable`, `timeout`, `server_error`, `no_config`, `refused`), `boot_attempts` |
+| `lanes` | One entry per listener: `name`, `protocol`, `state` (`open`; `starting` before it binds; `not_ready` while an ICA engine loads or drains, a gRPC listener waits for its schema, or an MCP listener is not bound; `closed` once it stopped accepting, or once its server stopped, until the Sidecar exits on that) |
+
+A Control Plane lost after the configuration loaded never makes `/readyz` `503`: the listeners keep serving the last good configuration, and only the body says so. The body holds codes and listener names, never an error message, a URL, a token or a license. Earlier releases answered `/readyz` with plain text (`ready`, `not ready: <lane names>`).
 
 `GET /config` is the one to reach for when a rule you wrote never fires. Inheritance is merged at startup, so the file tells you what you asked for and `/config` tells you what the process resolved:
 
