@@ -169,7 +169,7 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 | `google_identity` | Names the caller from the request's Google OAuth2 bearer, verified with Google's tokeninfo endpoint. `{}` uses the default endpoint; `tokeninfo_url` overrides it and must be `https`. Valid on `http` lanes only, and exclusive with `identity_header`. See [Google identity](/setup/configuration/hoop-sidecar/protocols/http#google-identity). |
 | `caller_token` | Admits a caller by a shared token, on an `http` or `mcp` lane with a public URL. Required: `file`, the accepted tokens one per line, and `name`, the principal on every admitted row. `header` defaults to `X-Hoop-Token`. A request without a listed token gets a 403 and reaches no upstream. Valid on `http` and `mcp` lanes only, and exclusive with `identity_header` and `google_identity`. See [Caller token](/setup/configuration/hoop-sidecar/protocols/http#caller-token) and [MCP caller token](/setup/configuration/hoop-sidecar/protocols/mcp#caller-token). |
 | `idle_timeout_sec` | Closes an idle connection. Zero disables it. |
-| `max_conns` | Bounds concurrency. Zero is unlimited. |
+| `max_conns` | The connections the lane holds open at once. Unset or `0` uses 200 per listener. `-1` is unlimited. An `mcp` lane refuses a positive value, and an `ica` lane ignores it. See [Connection limit](#connection-limit). |
 | `guardrails` | Adds to the top-level rule set for this lane. |
 | `opa` | Replaces the top-level OPA endpoint for this lane. |
 | `mask` | Replaces the top-level mask rules for this lane. |
@@ -189,6 +189,55 @@ Each listener is one Envoy cluster's worth of traffic with its own enforcement s
 <Note>
 Leave `idle_timeout_sec` unset for interactive sessions. `psql` idles between keystrokes, and a short value disconnects a developer mid-thought.
 </Note>
+
+### Connection limit
+
+`max_conns` bounds the connections one listener holds open at once. **Unset or `0` uses 200 per listener. `-1` is unlimited.** A positive value is the limit.
+
+```yaml
+listeners:
+  - name: appdb
+    max_conns: 400    # from the sizing table below
+  - name: reports
+    max_conns: -1     # unlimited, on purpose
+```
+
+A connection past the limit:
+
+- On a relay lane (`postgres`, `clickhouse`, `mysql`, `mssql`, `mongodb`, `http` or a plug-in protocol), the Sidecar closes it at accept and logs `connection refused, at capacity` with the limit. The client gets a fast error and can retry.
+- On a `grpc`, `spanner` or `ssh` lane, it waits in the kernel's accept queue until a connection closes.
+
+Two lane types do not use `max_conns`:
+
+- An `mcp` lane refuses a positive value.
+- An `ica` lane ignores it. `ica.max_sessions` (default 32) bounds ICA sessions across the whole process.
+
+HTTP/2 streams do not count: the client connection was admitted once.
+
+The limit protects memory. Memory follows open sessions, so without a limit an overloaded Sidecar answers slower, clients open more connections, and memory grows until the OOM kill. The restart drops every session, the clients reconnect at once, and the kill repeats. In a load test on one Sidecar at 500m / 512Mi, 1,200 requests per second with no limit gave 3 OOM kills and 87 requests per second served. `max_conns: 100` per listener served 1,018 per second at 91 MiB and refused about 7%.
+
+#### Sizing
+
+Measured on one Sidecar with three listeners (postgres, mysql, http), small statements and bodies, and a model at about 0.8 s:
+
+- **CPU:** 0.6 mCPU per request per second with the analyzer off; 1.6 mCPU per model call per second with it on. Keep it under 70% of the limit.
+- **Memory:** 20 MiB, plus 0.07 MiB per session that never ran a statement, plus 0.25 MiB per session that did. Keep it under two thirds of the limit: the Go heap grows past its live size between collections.
+- **`max_conns`:** set it on every relay, `grpc`, `spanner` and `ssh` listener, at the sessions the memory limit allows.
+
+| Load per Sidecar (3 listeners) | CPU request / limit | Memory request / limit | `max_conns` per listener |
+|---|---|---|---|
+| Analyzer off, ≤ 250 req/s, ≤ 500 open sessions | 200m / 500m | 128Mi / 256Mi | 200 |
+| Analyzer off, ≤ 500 req/s, ≤ 1,200 open sessions | 350m / 500m | 256Mi / 512Mi | 400 |
+| Analyzer on, ≤ 100 model calls/s, ≤ 500 open sessions | 200m / 500m | 128Mi / 256Mi | 200 |
+| Analyzer on, ≤ 200 model calls/s, ≤ 1,200 open sessions | 350m / 500m | 256Mi / 512Mi | 400 |
+
+Above the last rows, add a replica where the Sidecar is shared, or raise the limits where it runs in the app's pod. Nothing above 500m / 512Mi was measured.
+
+<Warning>
+**Upgrading an older Sidecar.** Older Sidecars read an unset `max_conns`, and `0`, as unlimited. After the upgrade, every relay, `grpc`, `spanner` and `ssh` listener without `max_conns` accepts 200 connections. Before you upgrade, set `max_conns` from the table above on each listener that needs more, or `-1` to keep it unlimited.
+</Warning>
+
+The Control Plane refuses a value below `-1`. A Sidecar that reads one from a stored configuration runs the lane unlimited, as `-1`, and logs a warning.
 
 ### Transport
 
