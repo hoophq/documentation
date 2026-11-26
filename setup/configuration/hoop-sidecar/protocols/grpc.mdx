@@ -29,7 +29,7 @@ listeners:
 | `capture_payload` | Renders decoded request and response messages into per-message statements, so payload rules (`pii`, `pattern_match`) and OPA read field values as well as the method path. Requires `descriptors`, `discover` or `raw`. |
 | `max_payload_bytes` | Truncates a captured rendering. Masking ignores it: a redactor rewrites decoded fields whatever their size. |
 | `strict` | Refuses what the schema cannot explain; see below. |
-| `metadata` | Request metadata headers exposed to policy, matched case-insensitively. No capture-all, and `authorization`, `cookie` and `proxy-authorization` can never be listed. The `grpc.*` keys under [Rules on a gRPC lane](#rules-on-a-grpc-lane) are present regardless. |
+| `metadata` | Request metadata headers exposed to policy, matched case-insensitively. No capture-all, and `authorization`, `cookie`, `proxy-authorization` and `set-cookie` can never be listed. The `grpc.*` keys under [Rules on a gRPC lane](#rules-on-a-grpc-lane) are present regardless. |
 
 Multiple descriptor sets fit the multi-team shape: each service's CI ships its own artifact and the lane lists them all. Sets merge at startup, byte-identical shared imports dedupe, and two diverged copies of one file refuse to load naming both artifacts.
 
@@ -208,10 +208,134 @@ Every gRPC statement also carries the RPC's identity as metadata, which Rego rea
 | `grpc.authority` | the `:authority` pseudo-header | every statement |
 | `grpc.timeout`, `grpc.encoding`, `grpc.message_type`, `grpc.user_agent` | the matching request header, verbatim | when the client sent it |
 | `grpc.status_code`, `grpc.status` | the numeric `grpc-status` and its lower-case name, `permission_denied` | the trailer statement |
+| `grpc.message` | the decoded `grpc-message` | the trailer statement, when the status carries a message |
 | `grpc.message_index` | the 1-based ordinal of a captured message within its RPC | per-message statements, with `capture_payload` |
 | `grpc.schema` | `unavailable` or `raw` | `unavailable`: every statement of an RPC a `discover` lane with `fail_open: true` forwarded before its schema loaded. `raw`: every statement on a `raw` lane |
 
-A rule keyed on the method, `input.metadata["grpc.method"] == "ReadRows"`, needs no `metadata` allowlist entry. Headers you list in the `grpc` block arrive lower-cased under `input.http.headers` instead.
+A rule keyed on the method needs no `metadata` allowlist entry. `grpc.method` is the bare name, so `Get` matches the `Get` of every service; key on `input.http.resource` (`/demo.v1.Ledger/GetInvoice`) or on `grpc.service` with `grpc.method` to name one RPC. Headers you list in the `grpc` block arrive lower-cased under `input.http.headers` instead.
+
+### The statements of one RPC
+
+One RPC reaches policy as several statements, and they do not all carry the same fields:
+
+| Statement | `direction` | `grpc.message_index` | `input.http.headers` | `input.http.body` |
+|---|---|---|---|---|
+| The call, when the request headers arrive | `client` | absent | the allowlisted request metadata | absent |
+| Each request message, with `capture_payload` | `client` | `1`, `2`, ... | absent; on a lane that holds, `x-hoop-review-mode` and `x-hoop-approval-mode` | the message as JSON |
+| Each response message, with `capture_payload` | `server` | `1`, `2`, ... | absent | the message as JSON |
+| The trailer, when the RPC ends | `server` | absent | the allowlisted names, read from the response trailers | absent |
+
+Only the call statement carries the allowlisted request metadata. A denial there refuses the RPC before the upstream is dialed, so key a rule on a request header there, and let the later statements of the same RPC through. On a lane that holds statements for approval, the call statement and each request message also carry `x-hoop-review-mode` and `x-hoop-approval-mode` when the client sent them; see [Agent approvals](/setup/configuration/hoop-sidecar/agent-approvals).
+
+The [input document](/setup/configuration/hoop-sidecar/config-file#the-input-document) lists every field. A call statement as OPA receives it:
+
+```json
+{"input": {
+  "protocol": "grpc",
+  "direction": "client",
+  "statement": "/ledger.v1.Ledger/GetInvoice",
+  "operation": "call",
+  "tables": ["ledger.v1.ledger", "ledger.v1.ledger/getinvoice"],
+  "http": {
+    "method": "POST",
+    "path": "/ledger.v1.Ledger/GetInvoice",
+    "resource": "/ledger.v1.Ledger/GetInvoice",
+    "host": "router:18443",
+    "content_type": "application/grpc",
+    "headers": {"x-tier": "silver"}
+  },
+  "metadata": {
+    "grpc.service": "ledger.v1.Ledger",
+    "grpc.method": "GetInvoice",
+    "grpc.authority": "router:18443",
+    "grpc.timeout": "9996332u",
+    "grpc.user_agent": "grpc-go/1.85.0"
+  },
+  "context": {
+    "principal": "anonymous",
+    "session_id": "0a303c23a8314a87b57473b21d9be5e9",
+    "connection": "router",
+    "peer_addr": "10.4.1.7:57062",
+    "upstream": "router:9000"
+  }
+}}
+```
+
+The client also sent `authorization: Bearer ...`. It is absent: a lane never exposes it to policy.
+
+### Policy by tier and RPC method
+
+A router that serves many RPC services behind one address often names the caller's tier in a request header. List that header in the `grpc` block, and Rego reads it beside the RPC:
+
+```yaml config.yaml
+listeners:
+  - name: router
+    protocol: grpc
+    listen: 0.0.0.0:18443
+    upstream: router:9000
+    opa:
+      url: http://opa:8181/v1/data/hoop/grpc/result
+      fail_open: false
+    grpc:
+      metadata: [x-tier]          # the header that names the tier
+```
+
+```rego policy.rego
+package hoop.grpc
+
+import rego.v1
+
+# The request metadata header that names the caller's tier. List the same
+# name under grpc.metadata on the lane, or it never reaches policy.
+tier_header := "x-tier"
+
+# What each tier may call: a full RPC path, or "/<service>/*" for every
+# method of one service.
+allowed := {
+	"gold": {"/ledger.v1.Ledger/*", "/ledger.v1.Reports/Export"},
+	"silver": {"/ledger.v1.Ledger/GetInvoice"},
+}
+
+# The statement a gRPC lane emits when the request headers arrive: the only
+# one that carries the allowlisted metadata. A denial here refuses the RPC
+# before the upstream is dialed.
+call if {
+	input.direction == "client"
+	not input.metadata["grpc.message_index"]
+}
+
+tier := object.get(input, ["http", "headers", tier_header], "")
+
+rpc := input.http.resource # "/<package>.<Service>/<Method>"
+
+tier_allows if rpc in allowed[tier]
+
+tier_allows if sprintf("/%s/*", [input.metadata["grpc.service"]]) in allowed[tier]
+
+# Messages and the trailer belong to an RPC the call statement already allowed.
+default result := {"allow": true}
+
+result := {"allow": false, "rule": "tier-method", "message": msg} if {
+	call
+	not tier_allows
+	msg := sprintf("tier %q may not call %s", [tier, rpc])
+}
+```
+
+A call with no tier header, or with a tier the map does not name, is refused. Four calls through a lane with this policy:
+
+| `x-tier` | RPC | Client sees |
+|---|---|---|
+| `gold` | `/ledger.v1.Reports/Export` | `OK` |
+| `silver` | `/ledger.v1.Reports/Export` | `PERMISSION_DENIED`, `tier "silver" may not call /ledger.v1.Reports/Export` |
+| `silver` | `/ledger.v1.Ledger/GetInvoice` | `OK` |
+| absent | `/ledger.v1.Ledger/GetInvoice` | `PERMISSION_DENIED`, `tier "" may not call /ledger.v1.Ledger/GetInvoice` |
+
+<Warning>
+The client sets its own metadata. A tier header is a fact you can trust only when a hop you control sets it and nothing else can reach the listener, the same contract as `identity_header`. Where the tier is a security boundary, let that hop overwrite the header.
+</Warning>
+
+On a lane with `capture_payload`, return `"responses": false` beside the allow of a call that only the request decides, so the response messages cost no OPA call; see [OPA and streamed responses](#opa-and-streamed-responses).
 
 ### OPA and streamed responses
 

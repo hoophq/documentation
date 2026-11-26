@@ -541,7 +541,7 @@ result := {"denied": true, "rule": "no-agent-on-payouts"} if {
 
 `context` comes from the session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream` and `correlation_id` where the identity carries them, plus the session's metadata keys, such as the [`postgres.option.<name>`](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) keys a postgres lane records from the client's `options`. On a postgres lane, `principal` is the `StartupMessage` `user`.
 
-The document also carries `statement` (the text verbatim), `database`, `metadata` from the codec, and `http` with the method, path and normalized resource on an HTTP lane.
+The document also carries `statement`, `database`, `metadata` from the codec, and `http` on the HTTP-shaped lanes. [The input document](#the-input-document) lists every field, and what each protocol puts in it.
 
 Your Rego may answer `{"allow": bool}`, `{"denied": bool}`, or a bare boolean, with an optional `message` and `rule`.
 
@@ -608,6 +608,215 @@ The per-exchange form works on `grpc` and `spanner` lanes only. Those lanes run 
 </Note>
 
 See [Guardrail Rules](/setup/configuration/hoop-sidecar/policy-rules) for the finding shape, the status vocabulary and worked Rego.
+
+### The input document
+
+Each statement reaches OPA as one `input` document. `protocol`, `direction`, `statement` and `operation` are always present; every other field is absent when the statement has no value for it, never `null` or empty.
+
+| Path | Meaning | Example |
+|---|---|---|
+| `input.protocol` | The lane's protocol. | `"postgres"` |
+| `input.direction` | `client` for what the client sent, `server` for what the upstream answered. | `"client"` |
+| `input.statement` | The statement text. Each protocol fills it differently; see below. Empty for client bytes the codec could not decode. | `"DELETE FROM customers WHERE id = 7"` |
+| `input.operation` | The worst effect of the statement. `unknown` when the scanner could not read it. | `"delete"` |
+| `input.effects` | Every operation the statement performs. | `["delete", "select"]` |
+| `input.relations` | Each relation it touches, with `access` `read` or `write`. | `[{"name": "customers", "access": "write"}]` |
+| `input.tables` | The relation names, lower-cased. | `["customers"]` |
+| `input.database` | The database, where the protocol names one. | `"app"` |
+| `input.http` | The request or response detail on `http`, `grpc` and `spanner` lanes; fields below. | `{"method": "GET", "resource": "/users/*/orders"}` |
+| `input.metadata` | Protocol keys, all strings; see below. | `{"pg.message": "Parse"}` |
+| `input.context` | The session: `principal`, `session_id` and `connection`, plus `subject`, `email`, `groups`, `peer_addr`, `upstream`, `correlation_id` and the session's metadata keys where they exist. | `{"principal": "alice", "connection": "appdb"}` |
+| `input.phase` | `gate` or `decide` on a two-phase lane; absent on a single-call lane. See [Two phases](#two-phases). | `"decide"` |
+| `input.findings` | What each deferring rule found, decide phase only. | `{"pii": {"status": "ok", ...}}` |
+| `input.review` | Present when an approval will be asked for, decide phase only. | `{"required": true, "mode": "hold", "mode_source": "listener"}` |
+
+The columns and row count of a result set go to the audit trail only. OPA never receives them.
+
+`input.http` has these fields:
+
+| Path | Set on | Example |
+|---|---|---|
+| `input.http.method` | requests, upper-cased; a WebSocket message repeats its handshake's. Absent on an HTTP response. Always `POST` on gRPC | `"GET"` |
+| `input.http.path` | the request path, query removed | `"/users/12345/orders"` |
+| `input.http.query` | HTTP requests; credential values are replaced | `{"page": ["2"]}` |
+| `input.http.target` | HTTP: the request target as sent, credential values replaced | `"/users/12345/orders?page=2"` |
+| `input.http.host` | the `Host` header or `:authority` | `"api.internal"` |
+| `input.http.resource` | HTTP: the path with ids replaced by `*`. gRPC: the RPC path, unchanged | `"/users/*/orders"` |
+| `input.http.status_code` | HTTP responses | `403` |
+| `input.http.content_type` | the `Content-Type`, parameters removed | `"application/json"` |
+| `input.http.headers` | the names the lane lists in `http.headers` or `grpc.metadata`, lower-cased. An `http` lane also exposes `x-hoop-review-mode` and `x-hoop-approval-mode`; a holding `grpc` lane exposes them on the call statement and on request messages | `{"x-tier": "gold"}` |
+| `input.http.body`, `input.http.body_truncated` | HTTP with `capture_body`; HTTP requests on a lane that holds for approval; HTTP requests on an `http.sql` route; gRPC message statements with `capture_payload` | `"{\"id\": 7}"`, `true` |
+| `input.http.websocket` | WebSocket messages: `opcode`, `length`, `subprotocol`, `compressed`, `close_code`, `close_reason` | `{"opcode": "text", "length": 18}` |
+
+### Attributes per protocol
+
+Every SQL protocol below fills `operation`, `effects`, `relations` and `tables` on its client statements from the same scanner. When the scanner cannot finish, `operation` is `unknown` and `metadata["sql.incomplete"]` says why. Client bytes a codec cannot decode reach OPA as an `unknown` statement with `metadata["parse_error"]`. A `server` statement of a database protocol has `operation` `unknown`: the verb belongs to its request.
+
+<AccordionGroup>
+  <Accordion title="postgres">
+    One `client` statement per SQL statement of a `Query`, and one per `Parse`. One `server` statement per completed result set or error.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | client: the SQL. server: the command tag, or the error's message | `"SELECT 2"` |
+    | `metadata["pg.message"]` | client: `Query` or `Parse`. server: `CommandComplete`, `ErrorResponse` or `EmptyQueryResponse` | `"Parse"` |
+    | `metadata["pg.statement"]` | the prepared statement's name, on a named `Parse` | `"s1"` |
+    | `metadata["pg.param_types"]` | the parameter type OIDs a `Parse` declares, comma-separated | `"23,25"` |
+    | `context["postgres.option.<name>"]`, `context["postgres.parameter.<name>"]` | a startup value the lane keeps; see [Trace ids from the startup packet](/setup/configuration/hoop-sidecar/protocols/postgres#trace-ids-from-the-startup-packet) | `"run-42"` |
+
+    `database` is not set. `context.principal` is the `StartupMessage` `user`.
+  </Accordion>
+  <Accordion title="mysql">
+    One `client` statement per SQL statement of a query, per prepare, and per execute, fetch, reset or close of a prepared statement. One `server` statement per result set, `OK` or error.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | the SQL; a prepared statement's commands carry the SQL of its prepare. `USE <db>` for `COM_INIT_DB` | `"USE billing"` |
+    | `database` | on the `COM_INIT_DB` statement only | `"billing"` |
+    | `metadata["mysql.command"]` | the command | `"COM_STMT_EXECUTE"` |
+    | `metadata["mysql.stmt_id"]` | the prepared statement id | `"3"` |
+    | `metadata["mysql.connect_attr.hoop_review_mode"]`, `metadata["mysql.connect_attr.hoop_approval_mode"]` | the client's approval opt-in, on every client statement of the connection | `"return"` |
+    | `metadata["mysql.terminator"]` | server: `OK`, `EOF` or `ERR` | `"ERR"` |
+    | `metadata["mysql.affected_rows"]` | server: rows an `OK` reports | `"1"` |
+    | `metadata["mysql.error_code"]`, `metadata["mysql.sqlstate"]`, `metadata["mysql.error"]` | server: an `ERR`'s code, SQLSTATE and message | `"1146"` |
+    | `metadata["mysql.more_results"]` | server: `true` when more result sets follow | `"true"` |
+    | `metadata["mysql.cursor"]` | server: `open` or `drained` | `"open"` |
+
+    An execute whose prepare the lane did not see has no text and `operation` `unknown`.
+  </Accordion>
+  <Accordion title="mssql">
+    One `client` statement per SQL batch, per RPC call, and one for a readable login. No `server` statements.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | the batch SQL; for an RPC, its SQL or the SQL of the handle it executes. `LOGIN <user>` for a login | `"EXEC dbo.get_secrets"` |
+    | `operation` | classified SQL; `other` for a login | `"call"` |
+    | `metadata["mssql.message"]` | `SQLBatch`, `RPCRequest` or `Login7` | `"RPCRequest"` |
+    | `metadata["mssql.proc"]` | the procedure an RPC call names | `"dbo.get_secrets"` |
+    | `metadata["mssql.handle"]` | the prepared statement or cursor handle a call names | `"1"` |
+    | `metadata["mssql.noexec"]` | `true` on a call that only prepares | `"true"` |
+    | `metadata["mssql.login.user"]`, `.host`, `.app`, `.database`, `.library`, `.tds`, `.integrated` | what the login declared, on the login statement | `"sa"` |
+    | `metadata["mssql.login_encrypted"]` | set on every statement of a session whose login crossed encrypted | `"true"` |
+
+    `database` is not set; the login's database is `metadata["mssql.login.database"]`.
+  </Accordion>
+  <Accordion title="clickhouse">
+    One `client` statement per SQL statement of a query. One `server` statement when the query ends or fails.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | the SQL; a server statement repeats its query | `"SELECT count() FROM events"` |
+    | `database` | the database of the client's `Hello`, on both directions | `"default"` |
+    | `metadata["clickhouse.packet"]` | `Query` | `"Query"` |
+    | `metadata["clickhouse.query_id"]` | the client's query id, when it sent one | `"a1b2"` |
+    | `metadata["clickhouse.terminator"]` | server: `EndOfStream` or `Exception` | `"Exception"` |
+    | `metadata["clickhouse.error"]`, `metadata["clickhouse.code"]` | server: the exception's message and code | `"60"` |
+  </Accordion>
+  <Accordion title="oracle">
+    One `client` statement per SQL statement the client executes. No `server` statements.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | the SQL | `"SELECT * FROM hr.employees"` |
+    | `metadata["oracle.ttc_version"]`, `oracle.oci`, `oracle.oci_word`, `oracle.sb1_compressed`, `oracle.end_of_response`, `oracle.big_clr` | the session's wire format, which the lane needs to write a denial. No policy meaning | `"true"` |
+
+    `database` is not set.
+  </Accordion>
+  <Accordion title="mongodb">
+    One `client` statement per command. The handshake, authentication, `ping`, `buildInfo`, `connectionStatus`, `endSessions`, `refreshSessions`, `commitTransaction`, `abortTransaction`, `getMore` and `killCursors` commands give none. A `server` statement comes only from a reply that returns documents: `find`, `count`, `distinct`, `aggregate`, `mapReduce`, `findAndModify`, `listCollections`, `listIndexes`, `listDatabases` and `getMore`. Write commands such as `insert`, `update` and `delete` give none.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | the command as Extended JSON; a server statement repeats it, and is empty for a `getMore` reply | `"{\"find\":\"users\",\"filter\":{},\"$db\":\"app\"}"` |
+    | `tables`, `relations` | collections, prefixed with the database when needed | `["app.users"]` |
+    | `database` | the command's `$db`, on both directions | `"app"` |
+    | `metadata["mongodb.command"]` | the command name | `"find"` |
+    | `metadata["mongodb.opcode"]` | `OP_MSG` or `OP_QUERY` | `"OP_MSG"` |
+    | `metadata["mongodb.request_id"]` | the wire request id | `"7"` |
+    | `metadata["mongodb.response_to"]` | server: the request id it answers | `"7"` |
+  </Accordion>
+  <Accordion title="http">
+    One `client` statement per request, one `server` statement per response, and one statement per WebSocket message or close frame. A response statement carries the status, content type, allowed headers and body, but not its request's method, path or resource.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | request: method and target. response: the status, `403 Forbidden`. WebSocket: `WS <opcode>` and the target | `"GET /users/12345/orders?page=2"` |
+    | `operation` | request: the method, lower-cased: `get`, `post`, `put`, `patch`, `delete`, `head`, `options`, `connect`, `trace`, else `other`. Response: `unknown`. WebSocket: `ws_message` or `ws_close` | `"get"` |
+    | `tables` | requests and WebSocket messages: the normalized resource, lower-cased. Absent on a response | `["/users/*/orders"]` |
+    | `http` | see the `input.http` table above | |
+    | `metadata["http.proto"]` | the HTTP version; `websocket` on WebSocket messages | `"HTTP/1.1"` |
+    | `metadata["http.resource_unresolved"]` | the resource before `.` and `..` were resolved | `"/admin/../x"` |
+    | `metadata["http.resource_prefix"]` | the GKE Connect Gateway prefix removed from `resource` | `"/v1/projects/*/locations/global/gkeMemberships/prod"` |
+    | `metadata["http.sql_statements"]` | the number of SQL statements `http.sql` took from the request body | `"2"` |
+
+    Each SQL statement in a request body, under [`http.sql`](/setup/configuration/hoop-sidecar/protocols/http#sql-in-request-bodies), is its own `client` statement after its request: the SQL in `statement`, the scanner's fields, no `http`, and `metadata["http.sql_index"]`, `["http.sql_field"]`, `["http.sql_dialect"]`, `["http.sql_resource"]` and `["http.sql_method"]`.
+  </Accordion>
+  <Accordion title="grpc">
+    One `client` statement for the call, one `client` and `server` statement per message with `capture_payload`, and one `server` statement for the trailer. Only the call statement carries the request metadata; see [The statements of one RPC](/setup/configuration/hoop-sidecar/protocols/grpc#the-statements-of-one-rpc).
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | the RPC path; a message statement adds a line with the message as JSON | `"/ledger.v1.Ledger/GetInvoice"` |
+    | `operation` | always `call` | `"call"` |
+    | `tables` | the service, and the service with its method, lower-cased | `["ledger.v1.ledger", "ledger.v1.ledger/getinvoice"]` |
+    | `http.resource`, `http.path` | the RPC path | `"/ledger.v1.Ledger/GetInvoice"` |
+    | `http.headers` | the request metadata listed in `grpc.metadata`, on the call statement; on a lane that holds, also `x-hoop-review-mode` and `x-hoop-approval-mode` on the call statement and request messages | `{"x-tier": "gold"}` |
+    | `http.body`, `http.body_truncated` | the message as JSON, on message statements | `"{\"id\":\"INV-1001\"}"` |
+    | `metadata["grpc.service"]`, `metadata["grpc.method"]` | the service and the bare method name | `"ledger.v1.Ledger"`, `"GetInvoice"` |
+    | `metadata["grpc.authority"]` | the `:authority` | `"ledger:9000"` |
+    | `metadata["grpc.timeout"]`, `["grpc.encoding"]`, `["grpc.message_type"]`, `["grpc.user_agent"]` | the request header, when sent; `grpc.encoding` is absent for `identity` | `"grpc-go/1.85.0"` |
+    | `metadata["grpc.message_index"]` | the message's 1-based ordinal | `"1"` |
+    | `metadata["grpc.status_code"]`, `["grpc.status"]`, `["grpc.message"]` | the trailer's outcome | `"7"`, `"permission_denied"` |
+    | `metadata["grpc.schema"]` | `unavailable` or `raw` | `"raw"` |
+
+    [Policy by tier and RPC method](/setup/configuration/hoop-sidecar/protocols/grpc#policy-by-tier-and-rpc-method) has a worked Rego policy.
+  </Accordion>
+  <Accordion title="spanner">
+    Every statement of a `grpc` lane, with `protocol` `spanner`. A request message of a method that carries SQL becomes one `client` statement per SQL statement instead:
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | the SQL | `"DELETE FROM accounts WHERE id = 7"` |
+    | `operation`, `tables`, `relations`, `effects` | from the scanner, in the lane's dialect | `"delete"` |
+    | `metadata["spanner.sql_index"]` | the 1-based ordinal of the SQL in its message | `"1"` |
+    | `metadata["spanner.dialect"]` | `googlesql` or `postgresql` | `"googlesql"` |
+    | `metadata["spanner.database"]` | the database resource name, when the request names it | `"projects/p/instances/i/databases/d"` |
+
+    The `grpc.*` metadata, `grpc.message_index` and `http.body` stay on these statements. `database` is not set. A SQL method whose SQL cannot be read is one `unknown` statement.
+  </Accordion>
+  <Accordion title="ssh">
+    One `client` statement per `exec` request, per `env` request, and per SFTP operation; a rename or symlink is one statement per path. An interactive shell gives no statements.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | `exec_line`: the command. `env_set`: the variable name. SFTP: the path | `"rm -rf /var/log/app"` |
+    | `operation` | `exec_line`, `env_set`, or `sftp_read`, `sftp_write`, `sftp_remove`, `sftp_rename`, `sftp_mkdir`, `sftp_rmdir`, `sftp_list`, `sftp_stat`, `sftp_setstat`, `sftp_symlink` | `"exec_line"` |
+    | `direction` | `server` for `sftp_read`, `client` for the rest | `"client"` |
+    | `metadata["ssh.capability"]` | `exec`, `env` or `sftp` | `"exec"` |
+    | `metadata["ssh.env_value"]` | the value of an `env_set` | `"C.UTF-8"` |
+    | `metadata["ssh.path"]` | the path of an SFTP operation | `"/etc/passwd"` |
+    | `metadata["ssh.target"]`, `metadata["ssh.path_end"]` | rename and symlink: the other path, and `source` or `target` | `"source"` |
+  </Accordion>
+  <Accordion title="mcp">
+    One `client` statement per tool call, one `server` statement per tool list, and, for a SQL tool, one `client` statement per SQL statement of its argument.
+
+    | Path | Value | Example |
+    |---|---|---|
+    | `statement` | tool call: the tool name, a new line, the arguments as JSON. Tool list: one `name: description` line per tool. SQL: the SQL | `"query_db\n{\"sql\":\"SELECT 1\"}"` |
+    | `operation` | tool call: `call`. Tool list: `show`. SQL: from the scanner | `"call"` |
+    | `tables` | tool call: the tool name, lower-cased | `["query_db"]` |
+    | `metadata["mcp.method"]` | `tools/call` or `tools/list` | `"tools/call"` |
+    | `metadata["mcp.tool"]`, `metadata["mcp.session"]` | the tool and the MCP session id | `"query_db"` |
+    | `metadata["mcp.tools_hidden"]` | tool list: the hidden tools, comma-separated | `"drop_table"` |
+    | `metadata["mcp.sql_statements"]` | the SQL tool call: how many SQL statements its argument holds | `"1"` |
+    | `metadata["mcp.sql_argument"]`, `["mcp.sql_dialect"]`, `["mcp.sql_index"]` | each SQL statement: the argument, the dialect and its ordinal | `"sql"` |
+  </Accordion>
+  <Accordion title="Codec plug-ins and ica">
+    A [codec plug-in](/setup/configuration/hoop-sidecar/plugins/overview) sets its own fields. `protocol` is the manifest's `x-` name, and the plug-in chooses `statement`, `operation`, `tables`, `relations`, `effects`, `database`, `http` and its `metadata` keys.
+
+    An `ica` lane sends nothing to OPA: it records frames, not statements, and startup refuses an `opa` block on it.
+  </Accordion>
+</AccordionGroup>
 
 ---
 
