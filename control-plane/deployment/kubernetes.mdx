@@ -489,6 +489,8 @@ The same constraint applies across deployments: a Gateway and a Control Plane po
 
 The strategy is `Recreate` for the same reason. At one replica, `RollingUpdate`'s default surge runs two pods through every upgrade, which is two Slack sockets on a timer. The Control Plane holds no sessions, so the short API gap drops nothing. A deployment already running several replicas has accepted that condition — set `RollingUpdate` there.
 
+A feature flag change in **Settings → Experimental** applies at once on the replica that saves it. From version 1.323.1, the other replicas apply it within 15 seconds when their next read of the database succeeds: each replica starts a read every 7 to 10 seconds, measured from start to start, and a read takes at most 5 seconds. A failed read moves the change to the read after it. A replica that reads a change sends it to its connected agents. In earlier versions, the other replicas kept the old value until they restarted.
+
 ### Database Connections
 
 ```yaml
