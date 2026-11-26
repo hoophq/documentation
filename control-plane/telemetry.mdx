@@ -96,7 +96,7 @@ No metric carries a Sidecar id, an organization id or a URL path: they are unbou
 | `hoop.outcome` | Status | Meaning |
 |---|---|---|
 | `accepted` | 2xx | the batch is recorded |
-| `shed` | 503 | the Control Plane is behind on events and refused the batch before reading it. The Sidecar keeps it and sends it again |
+| `shed` | 503 | the Control Plane refused the batch in one of two cases: it is behind on events and did not start to read the batch, or the batch body took more than 15 seconds to arrive. The Sidecar keeps the batch and sends it again |
 | `rejected` | 4xx | the Sidecar must not send the batch again: too large, malformed, or session events are off for the organization |
 | `error` | other 5xx | the Control Plane failed; the Sidecar sends it again |
 
@@ -123,7 +123,7 @@ sum(rate(hoop_gateway_sidecar_handshakes_total{hoop_outcome="error"}[5m])) > 0
 # p99 handshake latency, per replica
 histogram_quantile(0.99, sum by (le, service_instance_id) (rate(hoop_gateway_sidecar_handshake_duration_seconds_bucket[5m])))
 
-# the session event ingest is shedding load
+# batches refused with 503: the Control Plane is behind on events, or uploads are slow
 sum(rate(hoop_gateway_session_events_batches_total{hoop_outcome="shed"}[5m])) > 0
 
 # queries wait for a database connection: the pool is too small for the load
