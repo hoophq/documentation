@@ -395,6 +395,21 @@ readinessProbe:
 `admin.listen` serves only `/healthz`, `/readyz` and the token-gated ICA `POST /v1/drain`, so on `0.0.0.0` the probes expose no audit data or rules. The read routes (`/stats`, `/metrics`, `/config`, `/events`, `/api/*`) have no authentication and are on `admin.api_listen`, which is off unless set. When you set it, keep it on `127.0.0.1` and reach it with `kubectl port-forward`: on `0.0.0.0` anything in the cluster that can route to the pod reads every statement every user ran.
 </Warning>
 
+Under a Control Plane, the admin server binds only after the first
+handshake. When the Control Plane is down, times out or answers `5xx`, the
+Sidecar retries that handshake for up to 5 minutes, and a liveness probe on
+`admin.listen` fails in that time. A deployment that does not use the Helm
+chart needs a startup probe of at least 5 minutes, or the kubelet kills the
+Sidecar during the retry. Until the startup probe passes, the kubelet runs no
+liveness probe:
+
+```yaml
+startupProbe:
+  httpGet: {path: /healthz, port: 19000}
+  periodSeconds: 5
+  failureThreshold: 120   # 10 minutes
+```
+
 ## Sharing a Socket with Envoy
 
 The pattern above puts the Sidecar directly in front of the application. When Envoy sits in front instead — see [Command Line](/install/cli#running-the-sidecar) — and the lane uses a unix socket rather than a published port, Envoy and the Sidecar need a shared, writable directory. No chart is involved here either; this is the same [raw image](/install/container-images) run as a second container in a pod you already own.
@@ -443,7 +458,7 @@ The chart sets **no command**: the image's own entrypoint runs the relay and rea
 
 ### Admin Port and Probes
 
-The chart declares exactly one port: **19000**, the admin server. The same number is written into the Deployment, the Service and both probes, and it is not configurable.
+The chart declares exactly one port: **19000**, the admin server. The same number is written into the Deployment, the Service and every probe, and it is not configurable.
 
 `config.admin.listen` therefore has to be `0.0.0.0:19000`. A configuration that omits it or moves it is refused while the chart renders, because the Sidecar disables the admin server when the address is empty and the probes would otherwise poll a closed port and fail every pod:
 
@@ -457,7 +472,11 @@ Probe timing is adjustable; the port is not.
 probe:
   initialDelaySeconds: 5
   periodSeconds: 10
+  startupPeriodSeconds: 5
+  startupFailureThreshold: 120
 ```
+
+The startup probe is always on. The admin server binds only after the first Control Plane handshake, and the Sidecar retries that handshake for up to 5 minutes while the Control Plane is down. Keep `startupPeriodSeconds` × `startupFailureThreshold` above 5 minutes, or the kubelet restarts a Sidecar that is still retrying. ICA deployments set `probe.startupPath: /readyz`.
 
 <Warning>
 Under `controlPlane.url` or `existingConfigMap` the chart cannot see the configuration, so that check does not run and putting the admin server on 19000 is yours to get right. Set `probe.port: 19000` explicitly in those modes — the chart has no document to read it from.
