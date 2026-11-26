@@ -194,7 +194,7 @@ On `admin.listen`, the read routes answer `404` with `moved: this route is serve
 
 Releases up to 1.306 served the read routes on `admin.listen`. After the upgrade, a scraper or script that reads them needs `api_listen` set and its URL moved to that port. The Control Plane does not send `api_listen` to an older Sidecar, because that Sidecar refuses a config with a key it does not know.
 
-To probe a port other than `admin.listen`, set the environment variable `HOOP_SIDECAR_HEALTH_LISTEN` to a `host:port`. It binds one more listener with `/healthz` and `/readyz` only. It binds when the process starts, before the configuration is known, so it answers while the Sidecar waits for its Control Plane: `/healthz` `200`, `/readyz` `503` with `waiting_for_control_plane`. `admin.listen` comes from the configuration, so it binds only after the first handshake.
+To probe a port other than `admin.listen`, set the environment variable `HOOP_SIDECAR_HEALTH_LISTEN` to a `host:port`. It binds one more listener with `/healthz` and `/readyz` only. It binds when the process starts, before the configuration is known, so it answers while the Sidecar waits for its Control Plane: `/healthz` `200`, `/readyz` `503` with `waiting_for_control_plane`. `admin.listen` comes from the configuration, so it binds only after the first handshake. When this listener cannot bind, or stops serving, the Sidecar stops.
 
 ### The `/readyz` body
 
@@ -223,7 +223,7 @@ Probes read the status code. The body is for the person who reads it:
 | `config_loaded`, `lanes_open` | A configuration is loaded; every listener serves |
 | `control_plane_enabled`, `connected_to_control_plane` | The Sidecar uses a Control Plane; its last handshake got an answer |
 | `control_plane` | `last_handshake` (UTC), `error` of the last failed handshake (`unreachable`, `timeout`, `server_error`, `no_config`, `refused`), `boot_attempts` |
-| `lanes` | One entry per listener: `name`, `protocol`, `state` (`open`; `starting` before it binds; `not_ready` while an ICA engine loads or drains, a gRPC listener waits for its schema, or an MCP listener is not bound; `closed` once it stopped accepting) |
+| `lanes` | One entry per listener: `name`, `protocol`, `state` (`open`; `starting` before it binds; `not_ready` while an ICA engine loads or drains, a gRPC listener waits for its schema, or an MCP listener is not bound; `closed` once it stopped accepting, or once its server stopped, until the Sidecar exits on that) |
 
 A Control Plane lost after the configuration loaded never makes `/readyz` `503`: the listeners keep serving the last good configuration, and only the body says so. The body holds codes and listener names, never an error message, a URL, a token or a license. Earlier releases answered `/readyz` with plain text (`ready`, `not ready: <lane names>`).
 
