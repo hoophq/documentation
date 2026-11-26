@@ -644,7 +644,7 @@ The columns and row count of a result set go to the audit trail only. OPA never 
 | `input.http.resource` | HTTP: the path with ids replaced by `*`. gRPC: the RPC path, unchanged | `"/users/*/orders"` |
 | `input.http.status_code` | HTTP responses | `403` |
 | `input.http.content_type` | the `Content-Type`, parameters removed | `"application/json"` |
-| `input.http.headers` | the names the lane lists in `http.headers` or `grpc.metadata`, lower-cased. An `http` lane also exposes `x-hoop-review-mode` and `x-hoop-approval-mode`; a holding `grpc` lane exposes them on request messages | `{"x-tier": "gold"}` |
+| `input.http.headers` | the names the lane lists in `http.headers` or `grpc.metadata`, lower-cased. An `http` lane also exposes `x-hoop-review-mode` and `x-hoop-approval-mode`; a holding `grpc` lane exposes them on the call statement and on request messages | `{"x-tier": "gold"}` |
 | `input.http.body`, `input.http.body_truncated` | HTTP with `capture_body`; HTTP requests on a lane that holds for approval; HTTP requests on an `http.sql` route; gRPC message statements with `capture_payload` | `"{\"id\": 7}"`, `true` |
 | `input.http.websocket` | WebSocket messages: `opcode`, `length`, `subprotocol`, `compressed`, `close_code`, `close_reason` | `{"opcode": "text", "length": 18}` |
 
@@ -760,7 +760,7 @@ Every SQL protocol below fills `operation`, `effects`, `relations` and `tables` 
     | `operation` | always `call` | `"call"` |
     | `tables` | the service, and the service with its method, lower-cased | `["ledger.v1.ledger", "ledger.v1.ledger/getinvoice"]` |
     | `http.resource`, `http.path` | the RPC path | `"/ledger.v1.Ledger/GetInvoice"` |
-    | `http.headers` | the request metadata listed in `grpc.metadata`, on the call statement | `{"x-tier": "gold"}` |
+    | `http.headers` | the request metadata listed in `grpc.metadata`, on the call statement; on a lane that holds, also `x-hoop-review-mode` and `x-hoop-approval-mode` on the call statement and request messages | `{"x-tier": "gold"}` |
     | `http.body`, `http.body_truncated` | the message as JSON, on message statements | `"{\"id\":\"INV-1001\"}"` |
     | `metadata["grpc.service"]`, `metadata["grpc.method"]` | the service and the bare method name | `"ledger.v1.Ledger"`, `"GetInvoice"` |
     | `metadata["grpc.authority"]` | the `:authority` | `"ledger:9000"` |

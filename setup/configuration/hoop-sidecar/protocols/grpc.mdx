@@ -221,11 +221,11 @@ One RPC reaches policy as several statements, and they do not all carry the same
 | Statement | `direction` | `grpc.message_index` | `input.http.headers` | `input.http.body` |
 |---|---|---|---|---|
 | The call, when the request headers arrive | `client` | absent | the allowlisted request metadata | absent |
-| Each request message, with `capture_payload` | `client` | `1`, `2`, ... | absent | the message as JSON |
+| Each request message, with `capture_payload` | `client` | `1`, `2`, ... | absent; on a lane that holds, `x-hoop-review-mode` and `x-hoop-approval-mode` | the message as JSON |
 | Each response message, with `capture_payload` | `server` | `1`, `2`, ... | absent | the message as JSON |
 | The trailer, when the RPC ends | `server` | absent | the allowlisted names, read from the response trailers | absent |
 
-Only the call statement carries the request metadata. A denial there refuses the RPC before the upstream is dialed, so key a rule on a request header there, and let the later statements of the same RPC through. On a lane that holds statements for approval, a request message also carries `x-hoop-review-mode` and `x-hoop-approval-mode` when the client sent them; see [Agent approvals](/setup/configuration/hoop-sidecar/agent-approvals).
+Only the call statement carries the allowlisted request metadata. A denial there refuses the RPC before the upstream is dialed, so key a rule on a request header there, and let the later statements of the same RPC through. On a lane that holds statements for approval, the call statement and each request message also carry `x-hoop-review-mode` and `x-hoop-approval-mode` when the client sent them; see [Agent approvals](/setup/configuration/hoop-sidecar/agent-approvals).
 
 The [input document](/setup/configuration/hoop-sidecar/config-file#the-input-document) lists every field. A call statement as OPA receives it:
 
