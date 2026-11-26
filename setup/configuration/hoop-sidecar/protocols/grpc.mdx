@@ -213,6 +213,19 @@ Every gRPC statement also carries the RPC's identity as metadata, which Rego rea
 
 A rule keyed on the method, `input.metadata["grpc.method"] == "ReadRows"`, needs no `metadata` allowlist entry. Headers you list in the `grpc` block arrive lower-cased under `input.http.headers` instead.
 
+### A denial inside a stream
+
+With `capture_payload: true`, the lane checks the request messages of a client-streaming or bidirectional RPC one at a time, in order. A message that passes goes to the upstream at once. When a message is denied:
+
+| | Result |
+|---|---|
+| Client | `PERMISSION_DENIED` with the rule's message, also when the upstream has already answered. Replies that the client received before the denial stay received. The cancellation can stop other replies that are still on their way. |
+| The denied message and every message after it | never reach the upstream |
+| Messages before the denied one | were sent to the upstream. The lane then cancels the upstream call, and the upstream can see the cancellation before it reads all of them. |
+| Audit trail | each message before the denied one, the denied message as a violation, and the final status `permission_denied` |
+
+The upstream can miss an earlier message when the client sends many messages without waiting. Example: a client sends 5 messages at once, and message 3 is denied. The upstream can read messages 1 and 2, only message 1, or none. A client that waits for the reply to each message knows that the upstream read every message it answered. Do not assume that the upstream processed a message that it did not answer.
+
 ### OPA and streamed responses
 
 With `capture_payload: true`, each response message becomes its own statement, and each statement reaches OPA. A server-streaming method that returns 50k messages costs 50k OPA calls in series before the client sees the last one. If your Rego only reads requests, turn the response side off: `opa.responses: false` on the lane, or `responses: false` in the result of a request decision for one method at a time. The guardrails, masking and the audit trail keep running on every message either way. [Config File](/setup/configuration/hoop-sidecar/config-file#responses) has both forms.
