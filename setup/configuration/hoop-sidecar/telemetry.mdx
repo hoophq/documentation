@@ -150,7 +150,7 @@ histogram_quantile(0.5, sum by (le, hoop_outcome) (rate(hoop_sidecar_statement_d
 
 ### Control Plane handshakes
 
-A Sidecar connected to a [Control Plane](/control-plane/connect-sidecar) handshakes once at boot and again on every heartbeat, about once a minute. `hoop.sidecar.control_plane.handshakes` counts each one by how it went:
+A Sidecar connected to a [Control Plane](/control-plane/connect-sidecar) handshakes once at boot and again on every heartbeat, about once a minute. From version 1.325.0, `hoop.sidecar.control_plane.handshakes` counts each one by how it went:
 
 | `hoop.outcome` | Meaning |
 |---|---|
@@ -250,7 +250,7 @@ Nothing changes for the client. Exports fail, one warning per 30 seconds per mes
 
 | Version | Added |
 |---|---|
-| `1.2` | `hoop.sidecar.control_plane.handshakes` with `hoop.handshake.kind`, and the `control_plane_handshake` log record. |
+| `1.2` | Version 1.325.0: `hoop.sidecar.control_plane.handshakes` with `hoop.handshake.kind`, and the `control_plane_handshake` log record. |
 | `1.1` | `hoop.sidecar.mcp.messages`, with `hoop.mcp.method`, `hoop.mcp.tool` and `hoop.mcp.decision`. |
 | `1.0` | The first vocabulary. |
 

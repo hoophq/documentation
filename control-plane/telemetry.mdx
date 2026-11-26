@@ -3,6 +3,8 @@ title: "OpenTelemetry"
 description: "Sidecar handshakes, session event ingest, the database pool and API latency, pushed over OTLP to your collector"
 ---
 
+<Note>Available from version 1.325.0.</Note>
+
 The Control Plane pushes its own OpenTelemetry signals to a collector you run: how many Sidecar handshakes it answers and how fast, how the session event ingest keeps up, how full its database pool is, and API latency per route. Set one variable to turn it on:
 
 ```bash
@@ -21,8 +23,8 @@ The standard OpenTelemetry variables. Once `OTEL_EXPORTER_OTLP_ENDPOINT` is set,
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset, export off | A URL, such as `http://otel-collector:4317`. For `grpc`, `host:port` also works, the form the Sidecar block uses. An `http://` URL sends in the clear. |
-| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` or `http/protobuf`. `http/protobuf` posts to `<endpoint path>/v1/metrics` and `/v1/traces`. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset, export off | A URL, such as `http://otel-collector:4317`. For `grpc`, `host:port` also works, the form the Sidecar block uses. An `http://` URL sends in the clear. A URL without a port uses 80 or 443. A URL with a user, a password, a query or a fragment stops startup: put credentials in `OTEL_EXPORTER_OTLP_HEADERS`. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` or `http/protobuf` (`http` is the same). `http/protobuf` needs a URL and posts to `<endpoint path>/v1/metrics` and `/v1/traces`. |
 | `OTEL_EXPORTER_OTLP_HEADERS` | none | `key=value,key2=value2`, values URL-encoded. Sent on every export: an `authorization` header for a vendor endpoint. |
 | `OTEL_EXPORTER_OTLP_INSECURE` | `false` | `true` sends a `host:port` endpoint in the clear, for a collector in the same pod. A URL's scheme decides for itself: `http://` is in the clear, `https://` never is. |
 | `OTEL_EXPORTER_OTLP_CERTIFICATE` | host trust store | A PEM file with the collector's CA. |
@@ -128,13 +130,17 @@ sum(rate(hoop_gateway_session_events_batches_total{hoop_outcome="shed"}[5m])) > 
 sum by (service_instance_id) (rate(hoop_gateway_db_connections_waits_total[5m])) > 0
 ```
 
+The two per-replica queries need `service_instance_id` as a label. The collector's Prometheus exporter adds it with `resource_to_telemetry_conversion: {enabled: true}`, as in the [Sidecar's collector example](/setup/configuration/hoop-sidecar/telemetry#a-local-collector).
+
 When the Control Plane is down it reports nothing. Its Sidecars do: `hoop.sidecar.control_plane.handshakes` counts each heartbeat by outcome from every Sidecar with a `telemetry` block, and goes on exporting while the Control Plane is gone. See [OpenTelemetry for the Sidecar](/setup/configuration/hoop-sidecar/telemetry#control-plane-handshakes).
 
 ---
 
 ## When the collector is down
 
-Nothing changes for Sidecars or users. Exports fail and requests are unaffected. The Control Plane log gets one warning per 30 seconds per kind of failure, and it names only the signal and the failure class: `metrics export failed: http 401 Unauthorized`, `traces export failed: connection`, `timeout`, or `export error`. It never prints the endpoint URL or the collector's answer, which can carry a key; the collector's own log has the details. On shutdown the Control Plane flushes once, bounded by three seconds.
+Nothing changes for Sidecars or users. Exports fail and requests are unaffected. The Control Plane log gets one warning per 30 seconds per distinct failure, such as `telemetry: metrics export failed: http 401 Unauthorized; the collector has the details`. The warning names only the signal (`metrics` or `traces`) and the failure class: `timeout`, `connection`, `http <code>`, `grpc <code>` or `export error`. It never prints the endpoint URL or the collector's answer, which can carry a key; the collector's own log has the details.
+
+On shutdown the Control Plane flushes once, bounded by three seconds. A fatal startup error after the export starts flushes too, with the same bound, before the process exits.
 
 ---
 
