@@ -3,12 +3,12 @@ title: "OpenTelemetry"
 description: "Sidecar handshakes, session event ingest, the database pool and API latency, pushed over OTLP to your collector"
 ---
 
-<Note>Available from version 1.325.0.</Note>
+<Note>Available from version 1.325.0. Releases 1.325.0 to 1.328.0 read the standard `OTEL_*` names; later releases read only the `HOOP_OTEL_*` names below. Rename your variables to keep the export.</Note>
 
 The Control Plane pushes its own OpenTelemetry signals to a collector you run: how many Sidecar handshakes it answers and how fast, how the session event ingest keeps up, how full its database pool is, and API latency per route. Set one variable to turn it on:
 
 ```bash
-OTEL_EXPORTER_OTLP_ENDPOINT='otel-collector:4317'
+HOOP_OTEL_EXPORTER_OTLP_ENDPOINT='otel-collector:4317'
 ```
 
 It is push only. Nothing scrapes the Control Plane, and it serves no `/metrics` endpoint. Alerts fire from the signals your collector receives, beside the [Sidecar's own](/setup/configuration/hoop-sidecar/telemetry).
@@ -19,32 +19,38 @@ The transports are the same as the Sidecar `telemetry` block, so one collector s
 
 ## Configuration
 
-The standard OpenTelemetry variables. Once `OTEL_EXPORTER_OTLP_ENDPOINT` is set, a malformed value in any of them stops startup. While it is unset, the others are not read.
+The standard OpenTelemetry variables, with a `HOOP_` prefix. Once `HOOP_OTEL_EXPORTER_OTLP_ENDPOINT` is set, a malformed value in any of them stops startup. While it is unset, the others are not read.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset, export off | A URL, such as `http://otel-collector:4317`. For `grpc`, `host:port` also works, the form the Sidecar block uses. An `http://` URL sends in the clear. A URL without a port uses 80 or 443. A URL with a user, a password, a query or a fragment stops startup: put credentials in `OTEL_EXPORTER_OTLP_HEADERS`. |
-| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` or `http/protobuf` (`http` is the same). `http/protobuf` needs a URL and posts to `<endpoint path>/v1/metrics` and `/v1/traces`. |
-| `OTEL_EXPORTER_OTLP_HEADERS` | none | `key=value,key2=value2`, values URL-encoded. Sent on every export: an `authorization` header for a vendor endpoint. |
-| `OTEL_EXPORTER_OTLP_INSECURE` | `false` | `true` sends a `host:port` endpoint in the clear, for a collector in the same pod. A URL's scheme decides for itself: `http://` is in the clear, `https://` never is. |
-| `OTEL_EXPORTER_OTLP_CERTIFICATE` | host trust store | A PEM file with the collector's CA. |
-| `OTEL_EXPORTER_OTLP_TIMEOUT` | `10000` | Milliseconds one export may take. |
-| `OTEL_METRIC_EXPORT_INTERVAL` | `60000` | Milliseconds between metric exports. |
-| `OTEL_TRACES_SAMPLER` | unset, no spans | A standard sampler: `always_on`, `always_off`, `traceidratio`, `parentbased_always_on`, `parentbased_always_off`, `parentbased_traceidratio`. |
-| `OTEL_TRACES_SAMPLER_ARG` | `1` | The ratio of the `traceidratio` samplers, `0` to `1`. |
-| `OTEL_SERVICE_NAME` | `hoop-gateway` | `service.name` on every signal. The Control Plane Helm chart sets `hoop-control-plane`. |
-| `OTEL_RESOURCE_ATTRIBUTES` | none | `key=value,...` added to every signal, such as `deployment.environment=prod`. |
+| `HOOP_OTEL_EXPORTER_OTLP_ENDPOINT` | unset, export off | A URL, such as `http://otel-collector:4317`. For `grpc`, `host:port` also works, the form the Sidecar block uses. An `http://` URL sends in the clear. A URL without a port uses 80 or 443. A URL with a user, a password, a query or a fragment stops startup: put credentials in `HOOP_OTEL_EXPORTER_OTLP_HEADERS`. |
+| `HOOP_OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` or `http/protobuf` (`http` is the same). `http/protobuf` needs a URL and posts to `<endpoint path>/v1/metrics` and `/v1/traces`. |
+| `HOOP_OTEL_EXPORTER_OTLP_HEADERS` | none | `key=value,key2=value2`, values URL-encoded. Sent on every export: an `authorization` header for a vendor endpoint. |
+| `HOOP_OTEL_EXPORTER_OTLP_INSECURE` | `false` | `true` sends a `host:port` endpoint in the clear, for a collector in the same pod. A URL's scheme decides for itself: `http://` is in the clear, `https://` never is. |
+| `HOOP_OTEL_EXPORTER_OTLP_CERTIFICATE` | host trust store | A PEM file with the collector's CA. |
+| `HOOP_OTEL_EXPORTER_OTLP_TIMEOUT` | `10000` | Milliseconds one export may take. |
+| `HOOP_OTEL_METRIC_EXPORT_INTERVAL` | `60000` | Milliseconds between metric exports. |
+| `HOOP_OTEL_TRACES_SAMPLER` | unset, no spans | A standard sampler: `always_on`, `always_off`, `traceidratio`, `parentbased_always_on`, `parentbased_always_off`, `parentbased_traceidratio`. |
+| `HOOP_OTEL_TRACES_SAMPLER_ARG` | `1` | The ratio of the `traceidratio` samplers, `0` to `1`. |
+| `HOOP_OTEL_SERVICE_NAME` | `hoop-gateway` | `service.name` on every signal. The Control Plane Helm chart sets `hoop-control-plane`. |
+| `HOOP_OTEL_RESOURCE_ATTRIBUTES` | none | `key=value,...` added to every signal, such as `deployment.environment=prod`. |
 
-Spans are off until `OTEL_TRACES_SAMPLER` is set, unlike the OpenTelemetry default: a fleet of thousands of Sidecars handshakes about once a minute each, and every handshake would be a span.
+Spans are off until `HOOP_OTEL_TRACES_SAMPLER` is set, unlike the OpenTelemetry default: a fleet of thousands of Sidecars handshakes about once a minute each, and every handshake would be a span.
 
 With the Helm chart, put the variables under `config`:
 
 ```yaml values.yaml
 config:
-  OTEL_EXPORTER_OTLP_ENDPOINT: 'otel-collector.observability:4317'
-  OTEL_EXPORTER_OTLP_INSECURE: 'true'
-  OTEL_RESOURCE_ATTRIBUTES: 'deployment.environment=prod'
+  HOOP_OTEL_EXPORTER_OTLP_ENDPOINT: 'otel-collector.observability:4317'
+  HOOP_OTEL_EXPORTER_OTLP_INSECURE: 'true'
+  HOOP_OTEL_RESOURCE_ATTRIBUTES: 'deployment.environment=prod'
 ```
+
+### Why not the standard `OTEL_*` names
+
+A cluster add-on can put the standard `OTEL_*` variables into every pod. On EKS, the CloudWatch Observability add-on does this for every workload behind a Service: it sets `OTEL_EXPORTER_OTLP_ENDPOINT` to the CloudWatch agent, `OTEL_TRACES_SAMPLER=xray`, `OTEL_METRICS_EXPORTER=none`, Kubernetes resource attributes and more. These values are for the add-on's language agents, not for the Control Plane.
+
+The Control Plane does not read the standard names. At start it removes every `OTEL_*` variable from its own environment, before the OpenTelemetry SDK can read one, and logs their names, never their values. So an injected `OTEL_*` value does not stop startup, does not turn the export on, and does not change what it sends. `hoop standalone` runs its Agent in the same process, so that Agent does not see `OTEL_*` either.
 
 ---
 
@@ -52,7 +58,7 @@ config:
 
 | Attribute | Value |
 |---|---|
-| `service.name` | `hoop-gateway`, unless `OTEL_SERVICE_NAME` overrides it |
+| `service.name` | `hoop-gateway`, unless `HOOP_OTEL_SERVICE_NAME` overrides it |
 | `service.version` | the release |
 | `service.instance.id` | a random id per process: each replica and each restart is its own instance |
 | `host.name` | the hostname, the pod name on Kubernetes |
@@ -108,7 +114,7 @@ Through a collector's Prometheus exporter the names read `hoop_gateway_sidecar_h
 
 ## Traces
 
-With `OTEL_TRACES_SAMPLER` set, each handshake is a `sidecar handshake` span and each batch a `sidecar session events` span, kind server. They carry `hoop.outcome`, `http.response.status_code`, `hoop.sidecar.id` and `hoop.org.id` once the credential is accepted, and `hoop.session_events.count` on a batch. A 5xx sets an error status. A request that carries a W3C `traceparent` joins the caller's trace.
+With `HOOP_OTEL_TRACES_SAMPLER` set, each handshake is a `sidecar handshake` span and each batch a `sidecar session events` span, kind server. They carry `hoop.outcome`, `http.response.status_code`, `hoop.sidecar.id` and `hoop.org.id` once the credential is accepted, and `hoop.session_events.count` on a batch. A 5xx sets an error status. A request that carries a W3C `traceparent` joins the caller's trace.
 
 ---
 
