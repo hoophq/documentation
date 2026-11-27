@@ -33,7 +33,7 @@ API_URL='https://cp.yourdomain.tld'
 | `LOG_ENCODING` | no | `json` |
 | `GIN_MODE` | no | `release` |
 | `MIGRATION_PATH_FILES` | no | empty, using the embedded migrations |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` and the other `OTEL_*` variables | no | unset, no OpenTelemetry export. See [OpenTelemetry](#opentelemetry) |
+| `HOOP_OTEL_EXPORTER_OTLP_ENDPOINT` and the other `HOOP_OTEL_*` variables | no | unset, no OpenTelemetry export. See [OpenTelemetry](#opentelemetry) |
 
 ---
 
@@ -204,12 +204,13 @@ MIGRATION_PATH_FILES='/etc/hoop/migrations'
 
 ## OpenTelemetry
 
-`OTEL_EXPORTER_OTLP_ENDPOINT` turns on an OTLP push of the Control Plane's own
+`HOOP_OTEL_EXPORTER_OTLP_ENDPOINT` turns on an OTLP push of the Control Plane's own
 signals: Sidecar handshakes, session event ingest, the database pool and API
-latency per route. The other standard `OTEL_*` variables tune it.
+latency per route. The other `HOOP_OTEL_*` variables tune it. The standard
+`OTEL_*` names are not read: a cluster add-on can inject them into every pod.
 
 ```bash
-OTEL_EXPORTER_OTLP_ENDPOINT='otel-collector:4317'
+HOOP_OTEL_EXPORTER_OTLP_ENDPOINT='otel-collector:4317'
 ```
 
 Every variable, the series and the alerts are on
