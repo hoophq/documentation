@@ -23,7 +23,8 @@ The guides below cover providers we have validated, but any OIDC-compliant or SA
 A user can be set to an inactive state to block platform access, but managing user state in the identity provider is the recommended approach.
 
 - The `sub` claim is the main user identifier in the platform.
-- For OIDC, the user profile is derived from the `email` and `name` claims in the `id_token`.
+- For OIDC, the user profile is derived from the `email` and `name` claims in the `id_token`. A claim the `id_token` does not have is read from the userinfo endpoint.
+- For OIDC, the `email` claim is required. A sign-in with no email is refused.
 - For SAML, the user profile is derived from assertion Attribute Values
 
 ### SAML 2.0 Attribute Values
@@ -64,7 +65,8 @@ Groups define who can access or interact with specific resources:
 - For **access requests**, groups define who can approve an execution. This is enforced when the **Access Requests feature** is enabled.
 
 <Tip>
-  Groups can be managed manually in the web app or propagated automatically by the identity provider via the ID token (OIDC) or SAML attribute value.
+  Groups can be managed manually in the web app or propagated automatically by the identity provider via the groups claim (OIDC) or SAML attribute value.
+  For OIDC, the groups claim is read from the ID token. If the ID token does not have it, it is read from the userinfo endpoint.
   When using IdP propagation, group memberships are synchronized on every user login.
 </Tip>
 
