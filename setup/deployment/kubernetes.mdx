@@ -637,6 +637,55 @@ persistence:
   size: 50Gi
 ```
 
+### Probes
+
+The gateway opens the API port (8009) last, after its configuration, the database migrations and the default organization.
+The chart's readiness probe checks that port, so the pod is Ready only when the gateway serves, and `helm upgrade --wait` fails on a gateway that does not start.
+There is no liveness probe: it could restart a busy gateway.
+
+```yaml
+readinessProbe:
+  enabled: true            # only false removes it
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+startupProbe:
+  enabled: false           # opt-in, see the warning below
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 360    # 1 hour with periodSeconds 10
+```
+
+A field you do not set gets the default above. A release from an older chart, upgraded with `--reuse-values`, gets the defaults too.
+
+With no handler, each probe opens a TCP connection to the container port `api` (8009). This works with TLS on or off and with any path in `API_URL`.
+If you change the gateway's API port with `PORT`, set the same port in the probe.
+Set `httpGet`, `tcpSocket`, `exec` or `grpc` to replace the TCP check; the other Kubernetes probe fields go to the pod as you write them.
+
+<Tip>
+  With `deploymentStrategy: Recreate`, a failed upgrade still removes the old pod.
+  Use `helm upgrade --wait --atomic`: a failed wait then rolls back to the last release.
+</Tip>
+
+<Warning>
+  The startup probe is a deadline. When it ends, the kubelet restarts the container, and that stops a migration that runs longer.
+  A migration stopped halfway leaves the database in a dirty state, and the gateway does not start until you fix it by hand.
+  If you turn it on, set `startupProbe.failureThreshold` above your longest migration.
+</Warning>
+
+<Note>
+  An `httpGet` probe must match the listener. The path is `<API_URL path>/api/healthz`, and with `TLS_KEY` and `TLS_CERT` set it needs `scheme: HTTPS`.
+  If not, the pod never becomes Ready.
+
+  ```yaml
+  readinessProbe:
+    httpGet:
+      path: /api/healthz
+      port: api
+      scheme: HTTPS
+  ```
+</Note>
+
 ### Ingress Configuration
 
 This section covers the ingress configuration. The gateway requires exposing the ports **HTTP/8009** and **HTTP2/8010.**
