@@ -148,6 +148,10 @@ sum by (hoop_lane) (rate(hoop_sidecar_statement_duration_seconds_sum{hoop_stage=
 histogram_quantile(0.5, sum by (le, hoop_outcome) (rate(hoop_sidecar_statement_duration_seconds_bucket{hoop_stage="review"}[1h])))
 ```
 
+The histogram bucket bounds, in seconds: `0.00005`, `0.0001`, `0.00025`, `0.0005`, `0.001`, `0.0025`, `0.005`, `0.01`, `0.025`, `0.05`, `0.1`, `0.25`, `0.5`, `1`, `2.5`, `5`, `10`, `30`, `60`, `300` and `600`. A local policy stage takes microseconds and lands in the first bucket. A quantile interpolates inside its bucket, so a stage under 50 µs reads between 0 and 50 µs. For its mean, divide `_sum` by `_count`.
+
+Older versions start the bounds at `0.001`. During a rollout, the bounds under 1 ms count only the upgraded Sidecars, so a quantile summed over the fleet is wrong: with equal traffic at 20 µs from old and new versions, p95 reads about 950 µs. Until every Sidecar runs the new bounds, add `service_version` to the `by` clause (a label when the collector turns resource attributes into labels), or read only the bounds from 1 ms up.
+
 ### Control Plane handshakes
 
 A Sidecar connected to a [Control Plane](/control-plane/connect-sidecar) handshakes once at boot and again on every heartbeat, about once a minute. From version 1.325.0, `hoop.sidecar.control_plane.handshakes` counts each one by how it went:
